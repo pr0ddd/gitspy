@@ -15,8 +15,9 @@ const GRAPH_W = 2;
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.25;
 const CAP_W = 2;
-/** Тень, отделяющая колонку веток от графа и прижатые узлы от линий. */
-const SHADOW = 'rgba(0,0,0,0.55)';
+/** Ширина тени по краю колонки графа. Узкая: она лишь намекает на границу,
+ *  а не выгрызает из графа отдельную тёмную колонку. */
+const SHADOW_BAND = 14;
 
 /** Размеры зависят от режима: с аватарками строка выше и дорожки шире. */
 export type Metrics = {
@@ -207,16 +208,9 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     const drawNode = (x: number, y: number, i: number, onStrip: boolean): void => {
       const colour = colourOf(layout.colours[i]);
-      if (onStrip) {
-        ctx.save();
-        ctx.shadowColor = SHADOW;
-        ctx.shadowBlur = 5;
-        ctx.fillStyle = BG;
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR + 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+      // Прижатый узел не нуждается в подложке: полоса тени уже отделила его
+      // от прокручивающихся линий. Подложка только добавляла темноты.
+      void onStrip;
       if (m.avatars) {
         const key = meta.email[i] || meta.author[i] || String(i);
         const size = m.nodeR * 2;
@@ -328,21 +322,17 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.clip();
 
     if (scrollable) {
-      const band = pinW + 8;
-
-      const gl = ctx.createLinearGradient(gLeft, 0, gLeft + band, 0);
-      gl.addColorStop(0, 'rgba(0,0,0,0.82)');
-      gl.addColorStop(0.55, 'rgba(0,0,0,0.62)');
+      const gl = ctx.createLinearGradient(gLeft, 0, gLeft + SHADOW_BAND, 0);
+      gl.addColorStop(0, 'rgba(0,0,0,0.55)');
       gl.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gl;
-      ctx.fillRect(gLeft, HEADER_H, band, height - HEADER_H);
+      ctx.fillRect(gLeft, HEADER_H, SHADOW_BAND, height - HEADER_H);
 
-      const gr = ctx.createLinearGradient(gRight, 0, gRight - band, 0);
-      gr.addColorStop(0, 'rgba(0,0,0,0.82)');
-      gr.addColorStop(0.55, 'rgba(0,0,0,0.62)');
+      const gr = ctx.createLinearGradient(gRight, 0, gRight - SHADOW_BAND, 0);
+      gr.addColorStop(0, 'rgba(0,0,0,0.55)');
       gr.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gr;
-      ctx.fillRect(gRight - band, HEADER_H, band, height - HEADER_H);
+      ctx.fillRect(gRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
     }
 
     for (let i = first; i < last; i++) {
