@@ -109,3 +109,22 @@ header button:disabled {
   color: var(--fg-dim);
   pointer-events: none;
 }
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.muted {
+  color: #5c6675;
+}
