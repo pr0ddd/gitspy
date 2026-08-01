@@ -1,0 +1,31 @@
+# Rust
+/target
+**/target
+
+# Tauri
+src-tauri/target
+src-tauri/gen
+
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
+# Logs
+logs
+*.log
+
+# Editors / OS
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Brainstorming scratch
+.superpowers/
