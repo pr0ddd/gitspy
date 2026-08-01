@@ -81,12 +81,20 @@ export const graphRight = (width: number): number => BRANCH_W + graphViewWidth(w
 export const graphContentWidth = (m: Metrics, maxLane: number): number =>
   PAD_X * 2 + maxLane * m.laneW + (m.avatars ? m.nodeR * 2 : m.nodeR * 2);
 
-export const maxScrollX = (m: Metrics, maxLane: number, width: number): number =>
-  Math.max(0, graphContentWidth(m, maxLane) - graphViewWidth(width));
+export const pinWidth = (m: Metrics): number => m.nodeR * 2 + 10;
 
-/** Позиция дорожки с учётом горизонтальной прокрутки. */
-export const laneX = (m: Metrics, lane: number, scrollX: number): number =>
-  BRANCH_W + PAD_X + lane * m.laneW - scrollX;
+/** Влезает ли граф целиком. Если нет — с ОБЕИХ сторон резервируются столбики
+ *  прижатия, и их наличие не зависит от позиции прокрутки: столбик либо есть
+ *  (не влезло по ширине), либо его нет (влезло). Ничего не мигает на краях. */
+export const graphScrollable = (m: Metrics, maxLane: number, width: number): boolean =>
+  graphContentWidth(m, maxLane) > graphViewWidth(width);
+
+export const maxScrollX = (m: Metrics, maxLane: number, width: number): number => {
+  if (!graphScrollable(m, maxLane, width)) return 0;
+  // Столбики зарезервированы в раскладке, поэтому прокручиваемая область —
+  // это ширина колонки за вычетом обоих столбиков.
+  return graphContentWidth(m, maxLane) - (graphViewWidth(width) - 2 * pinWidth(m));
+};
 
 export type Meta = {
   readonly hash: string[];
@@ -161,9 +169,11 @@ export function maxScroll(m: Metrics, count: number, viewportH: number): number 
 type GraphGeometry = {
   readonly gLeft: number;
   readonly gRight: number;
-  /** Столбик прижатия есть только со стороны, куда реально можно прокрутить. */
+  /** Столбики есть с обеих сторон, если граф не влезает по ширине. */
   readonly leftStrip: boolean;
   readonly rightStrip: boolean;
+  /** Позиция дорожки в текущем кадре (с учётом прокрутки и столбиков). */
+  readonly laneAt: (lane: number) => number;
   /** Область, где живут ЛИНИИ. Всё за её пределами уезжает под столбики. */
   readonly contentLeft: number;
   readonly contentRight: number;
@@ -180,28 +190,31 @@ function graphGeometry(
 ): GraphGeometry {
   const gLeft = graphLeft();
   const gRight = graphRight(width);
-  const pinW = m.nodeR * 2 + 10;
-  const maxX = maxScrollX(m, maxLane, width);
-  const leftStrip = scrollX > 0.5;
-  const rightStrip = scrollX < maxX - 0.5;
-  const contentLeft = gLeft + (leftStrip ? pinW : 0);
-  const contentRight = gRight - (rightStrip ? pinW : 0);
+  const pinW = pinWidth(m);
+  const scrollable = graphScrollable(m, maxLane, width);
+  // Столбики зарезервированы в раскладке: дорожки живут между ними, поэтому
+  // на краю прокрутки крайняя дорожка полностью видна в области содержимого,
+  // а столбик остаётся на месте — пустой, но на месте.
+  const contentLeft = gLeft + (scrollable ? pinW : 0);
+  const contentRight = gRight - (scrollable ? pinW : 0);
   // Центры столбиков — конечные позиции прилипшего узла. Узел движется к ним
   // непрерывно: между краем области линий и центром столбика он всё ещё едет,
   // его линия уже гаснет под тенью, а сам он скользит поверх неё.
   const lo = gLeft + pinW / 2;
   const hi = gRight - pinW / 2;
-  const natural = (lane: number): number => laneX(m, lane, scrollX);
+  const laneAt = (lane: number): number => contentLeft + PAD_X + lane * m.laneW - scrollX;
   return {
     gLeft,
     gRight,
-    leftStrip,
-    rightStrip,
+    leftStrip: scrollable,
+    rightStrip: scrollable,
     contentLeft,
     contentRight,
-    nodeX: (lane) => Math.max(lo, Math.min(hi, natural(lane))),
+    laneAt,
+    nodeX: (lane) => (scrollable ? Math.max(lo, Math.min(hi, laneAt(lane))) : laneAt(lane)),
     isStuck: (lane) => {
-      const n = natural(lane);
+      if (!scrollable) return false;
+      const n = laneAt(lane);
       return n < lo || n > hi;
     },
   };
@@ -296,8 +309,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const y = shift + (i - first) * m.rowH + half;
       for (let s = layout.seg_offsets[i]; s < layout.seg_offsets[i + 1]; s++) {
         const kind = layout.seg_kind[s];
-        const a = laneX(m, layout.seg_from[s], scrollX);
-        const b = laneX(m, layout.seg_to[s], scrollX);
+        const a = g.laneAt(layout.seg_from[s]);
+        const b = g.laneAt(layout.seg_to[s]);
         if (Math.max(a, b) < g.contentLeft - 40 || Math.min(a, b) > g.contentRight + 40) continue;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
         ctx.beginPath();
@@ -494,7 +507,8 @@ function drawHScroll(
   ctx.fillRect(gLeft, y, trackW, HSCROLL_H);
 
   const content = graphContentWidth(m, layout.max_lane);
-  const thumbW = Math.max(30, (trackW / content) * trackW);
+  const visible = graphViewWidth(width) - 2 * pinWidth(m);
+  const thumbW = Math.max(30, (visible / content) * trackW);
   const thumbX = gLeft + (scrollX / max) * (trackW - thumbW);
   ctx.fillStyle = 'rgba(255,255,255,0.24)';
   roundRect(ctx, thumbX, y + 2, thumbW, HSCROLL_H - 4, (HSCROLL_H - 4) / 2);
