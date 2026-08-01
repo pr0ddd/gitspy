@@ -12,6 +12,10 @@ const EDGE_W = 2;
 /** Сквозная вертикаль: тоньше и приглушённее — она фон, а не содержание. */
 const THROUGH_W = 1.25;
 const THROUGH_ALPHA = 0.72;
+/** Выноска от бэйджа ветки к узлу. Служебная линия: должна лишь намекать
+ *  на связь, а не спорить с графом. У неё нет своего смысла, кроме «вот этот». */
+const LEADER_W = 1;
+const LEADER_ALPHA = 0.25;
 const CAP_W = 2;
 /** Тень, отделяющая колонку веток от графа и прижатые узлы от линий. */
 const SHADOW = 'rgba(0,0,0,0.55)';
@@ -273,7 +277,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const y = shift + (i - first) * m.rowH;
       const colour = colourOf(layout.colours[i]);
       const x = laneX(m, layout.lanes[i], scrollX);
-      ctx.fillStyle = `${colour}26`;
+      ctx.fillStyle = `${colour}1c`;
       ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
     }
 
@@ -381,8 +385,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
 
       ctx.strokeStyle = colour;
-      ctx.globalAlpha = 0.5;
-      ctx.lineWidth = 1;
+      ctx.globalAlpha = LEADER_ALPHA;
+      ctx.lineWidth = LEADER_W;
       // Выноска идёт от бэйджа до самого узла, а не до границы колонки:
       // иначе она обрывается в пустоте и не связывает ветку с её коммитом.
       ctx.beginPath();
