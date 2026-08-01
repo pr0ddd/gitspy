@@ -13,7 +13,7 @@ const GRAPH_W = 2;
 /** Выноска от бэйджа ветки к узлу. Служебная: намекает на связь, но не спорит
  *  с графом — потому тоньше и заметно бледнее. */
 const LEADER_W = 1;
-const LEADER_ALPHA = 0.25;
+const LEADER_ALPHA = 0.18;
 const CAP_W = 2;
 /** Ширина тени по краю колонки графа. Узкая: она лишь намекает на границу,
  *  а не выгрызает из графа отдельную тёмную колонку. */
@@ -257,8 +257,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fillStyle = HOVER;
         ctx.fillRect(0, y, listW, m.rowH);
       }
+      // Разделитель строк начинается от графа: колонка веток остаётся чистой,
+      // иначе через неё идут горизонтальные волоски на каждой строке.
       ctx.fillStyle = ROW_LINE;
-      ctx.fillRect(0, y + m.rowH - 1, listW, 1);
+      ctx.fillRect(g.gLeft, y + m.rowH - 1, listW - g.gLeft, 1);
     }
 
     // Дальше всё в колонке графа.
