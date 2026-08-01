@@ -17,12 +17,6 @@ export type LayoutView = {
   seg_from: number[];
   seg_to: number[];
   seg_colour: number[];
-  /** Родители коммита i лежат в [parent_offsets[i], parent_offsets[i+1]) */
-  parent_offsets: number[];
-  parent_idx: number[];
-  /** Индекс автора коммита в `authors` */
-  author_of: number[];
-  authors: string[];
   refs: RefView[];
 };
 
