@@ -19,6 +19,14 @@ pub(crate) enum LaneState {
 pub struct LayoutState {
     pub(crate) lanes: Vec<LaneState>,
     pub(crate) colours: Vec<Option<ColourIdx>>,
+    /// Дорожка ждёт своего коммита как ВТОРОЙ (третий…) родитель потомка,
+    /// то есть под неё открыли боковую ветвь мержа.
+    ///
+    /// Свойство конкретного ожидания, а не линии целиком: приоритет действует
+    /// ровно на том коммите, где влитая ветка приземляется, и снимается, как
+    /// только линия идёт дальше по первому родителю. Если наследовать признак,
+    /// магистраль начинает перескакивать между колонками.
+    pub(crate) sides: Vec<bool>,
     pub(crate) colour_alloc: ColourAllocator,
     pub(crate) max_lane: LaneIdx,
 }
@@ -28,6 +36,7 @@ impl LayoutState {
         Self {
             lanes: Vec::new(),
             colours: Vec::new(),
+            sides: Vec::new(),
             colour_alloc: ColourAllocator::new(),
             max_lane: 0,
         }
@@ -52,16 +61,22 @@ impl LayoutState {
         }
         self.lanes.push(LaneState::Free);
         self.colours.push(None);
+        self.sides.push(false);
         (self.lanes.len() - 1) as LaneIdx
     }
 
     /// Занимает свободную дорожку под новую линию и выдаёт ей цвет.
-    fn open_line(&mut self, waiting_for: LaneState) -> (LaneIdx, ColourIdx) {
+    ///
+    /// `side` помечает линию как боковую ветвь мержа — такие при выборе дорожки
+    /// имеют приоритет, чтобы влитая ветка оставалась в своей колонке, а не
+    /// сдёргивалась на магистраль.
+    fn open_line(&mut self, waiting_for: LaneState, side: bool) -> (LaneIdx, ColourIdx) {
         let live = self.live_colours();
         let colour = self.colour_alloc.next(&live);
         let lane = self.first_free_lane();
         self.lanes[lane as usize] = waiting_for;
         self.colours[lane as usize] = Some(colour);
+        self.sides[lane as usize] = side;
         self.max_lane = self.max_lane.max(lane);
         (lane, colour)
     }
@@ -69,14 +84,24 @@ impl LayoutState {
     pub fn step(&mut self, topo: &Topology, commit: CommitIdx) -> (Row, Vec<Segment>) {
         let mut segments = Vec::new();
 
-        // 1. Своя дорожка: крайняя левая из ожидающих этот коммит, иначе новая линия.
-        let own_lane = match self
+        // 1. Своя дорожка. Среди ожидающих этот коммит приоритет у боковой линии:
+        //    влитая ветка должна остаться в своей колонке, а не сдёрнуться влево
+        //    на магистраль. Магистраль продолжится сама по себе.
+        let waiting: Vec<LaneIdx> = self
             .lanes
             .iter()
-            .position(|l| *l == LaneState::WaitingFor(commit))
+            .enumerate()
+            .filter(|(_, l)| **l == LaneState::WaitingFor(commit))
+            .map(|(i, _)| i as LaneIdx)
+            .collect();
+        let own_lane = match waiting
+            .iter()
+            .copied()
+            .find(|l| self.sides[*l as usize])
+            .or_else(|| waiting.first().copied())
         {
-            Some(idx) => idx as LaneIdx,
-            None => self.open_line(LaneState::WaitingFor(commit)).0,
+            Some(lane) => lane,
+            None => self.open_line(LaneState::WaitingFor(commit), false).0,
         };
         let colour = self.colours[own_lane as usize].expect("занятая дорожка имеет цвет");
         self.max_lane = self.max_lane.max(own_lane);
@@ -127,15 +152,19 @@ impl LayoutState {
         if total == 0 {
             self.lanes[own_lane as usize] = LaneState::Free;
             self.colours[own_lane as usize] = None;
+            self.sides[own_lane as usize] = false;
         } else if known.is_empty() {
             // все родители за границей набора
             self.lanes[own_lane as usize] = LaneState::Open;
+            self.sides[own_lane as usize] = false;
             for _ in 1..outside {
-                let (lane, c) = self.open_line(LaneState::Open);
+                let (lane, c) = self.open_line(LaneState::Open, true);
                 segments.push(Segment::Branch { from: own_lane, to: lane, colour: c });
             }
         } else {
+            // первый родитель продолжает ту же линию — ожидание уже не боковое
             self.lanes[own_lane as usize] = LaneState::WaitingFor(known[0]);
+            self.sides[own_lane as usize] = false;
             for &parent in &known[1..] {
                 let existing = self
                     .lanes
@@ -148,13 +177,13 @@ impl LayoutState {
                         segments.push(Segment::Branch { from: own_lane, to: lane, colour: c });
                     }
                     None => {
-                        let (lane, c) = self.open_line(LaneState::WaitingFor(parent));
+                        let (lane, c) = self.open_line(LaneState::WaitingFor(parent), true);
                         segments.push(Segment::Branch { from: own_lane, to: lane, colour: c });
                     }
                 }
             }
             for _ in 0..outside {
-                let (lane, c) = self.open_line(LaneState::Open);
+                let (lane, c) = self.open_line(LaneState::Open, true);
                 segments.push(Segment::Branch { from: own_lane, to: lane, colour: c });
             }
         }
@@ -172,6 +201,7 @@ impl LayoutState {
 pub struct Snapshot {
     lanes: Vec<LaneState>,
     colours: Vec<Option<ColourIdx>>,
+    sides: Vec<bool>,
     colour_cursor: u32,
     max_lane: LaneIdx,
 }
@@ -181,6 +211,7 @@ impl LayoutState {
         Snapshot {
             lanes: self.lanes.clone(),
             colours: self.colours.clone(),
+            sides: self.sides.clone(),
             colour_cursor: self.colour_alloc.cursor(),
             max_lane: self.max_lane,
         }
@@ -190,6 +221,7 @@ impl LayoutState {
         Self {
             lanes: snapshot.lanes,
             colours: snapshot.colours,
+            sides: snapshot.sides,
             colour_alloc: ColourAllocator::from_cursor(snapshot.colour_cursor),
             max_lane: snapshot.max_lane,
         }
@@ -311,6 +343,36 @@ mod tests {
                 Segment::Through { lane: 0, colour: 0 },
                 Segment::Branch { from: 1, to: 0, colour: 0 },
             ]
+        );
+    }
+
+    #[test]
+    fn landing_commit_goes_to_the_side_lane_not_the_leftmost() {
+        // Минимальный случай, где правило вообще различимо: за коммитом s
+        // приходят две дорожки — магистральная слева (через первого родителя w)
+        // и боковая справа (открытая под второго родителя мержа a).
+        //
+        // Крайняя левая отдала бы s дорожку 0 и сдёрнула влитую ветку на
+        // магистраль. Правильно — дорожка 1: ветка приземляется в своей колонке.
+        let (rows, segs) = run("a: w, s\nw: s\ns\n");
+        assert_eq!(rows[0].lane, 0, "мерж на магистрали");
+        assert_eq!(segs[0], vec![Segment::Branch { from: 0, to: 1, colour: 1 }]);
+        assert_eq!(rows[1].lane, 0, "первый родитель продолжает магистраль");
+        assert_eq!(rows[2].lane, 1, "s приземляется в боковой дорожке, а не в нулевой");
+        assert_eq!(segs[2], vec![Segment::Merge { from: 0, to: 1, colour: 0 }]);
+    }
+
+    #[test]
+    fn side_priority_expires_once_the_line_moves_on() {
+        // Признак «боковая» относится к конкретному ожиданию, а не к линии.
+        // Если его наследовать, магистраль начнёт перескакивать между колонками:
+        // здесь m2 обязан остаться в дорожке 0, хотя дорожка 1 боковая по рождению.
+        let src = "m4: m3\nm3: m2, b1\nb1: m2\nm2: m1, a1\na1: m1\nm1\n";
+        let (rows, _) = run(src);
+        assert_eq!(
+            rows.iter().map(|r| r.lane).collect::<Vec<_>>(),
+            vec![0, 0, 1, 0, 1, 0],
+            "ствол держится нулевой дорожки на всём протяжении"
         );
     }
 
