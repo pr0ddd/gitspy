@@ -169,9 +169,11 @@ export function maxScroll(m: Metrics, count: number, viewportH: number): number 
 type GraphGeometry = {
   readonly gLeft: number;
   readonly gRight: number;
-  /** Столбики есть с обеих сторон, если граф не влезает по ширине. */
-  readonly leftStrip: boolean;
-  readonly rightStrip: boolean;
+  /** Тень — индикатор скрытого: она есть только когда за этим краем реально
+   *  спрятано содержимое. Место под столбик при этом зарезервировано всегда
+   *  (пока граф не влезает), но пустой столбик тень не отбрасывает. */
+  readonly leftShadow: boolean;
+  readonly rightShadow: boolean;
   /** Позиция дорожки в текущем кадре (с учётом прокрутки и столбиков). */
   readonly laneAt: (lane: number) => number;
   /** Область, где живут ЛИНИИ. Всё за её пределами уезжает под столбики. */
@@ -202,12 +204,13 @@ function graphGeometry(
   // его линия уже гаснет под тенью, а сам он скользит поверх неё.
   const lo = gLeft + pinW / 2;
   const hi = gRight - pinW / 2;
+  const maxX = maxScrollX(m, maxLane, width);
   const laneAt = (lane: number): number => contentLeft + PAD_X + lane * m.laneW - scrollX;
   return {
     gLeft,
     gRight,
-    leftStrip: scrollable,
-    rightStrip: scrollable,
+    leftShadow: scrollX > 0.5,
+    rightShadow: scrollX < maxX - 0.5,
     contentLeft,
     contentRight,
     laneAt,
@@ -333,14 +336,14 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     // Слой 4: тень на границе столбика, падает с него на область линий.
     // Фон под тенью не меняется — впечатление столбика создаёт только она.
-    if (g.leftStrip) {
+    if (g.leftShadow) {
       const sh = ctx.createLinearGradient(g.contentLeft, 0, g.contentLeft + SHADOW_BAND, 0);
       sh.addColorStop(0, 'rgba(0,0,0,0.55)');
       sh.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = sh;
       ctx.fillRect(g.contentLeft, HEADER_H, SHADOW_BAND, height - HEADER_H);
     }
-    if (g.rightStrip) {
+    if (g.rightShadow) {
       const sh = ctx.createLinearGradient(g.contentRight, 0, g.contentRight - SHADOW_BAND, 0);
       sh.addColorStop(0, 'rgba(0,0,0,0.55)');
       sh.addColorStop(1, 'rgba(0,0,0,0)');
