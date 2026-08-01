@@ -188,7 +188,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     // только с той стороны, куда действительно что-то уехало.
     const pinW = m.nodeR * 2 + 10;
     const maxX = maxScrollX(m, layout.max_lane, width);
-    const scrollable = maxX > 0.5;
     const hasLeftPin = scrollX > 0.5;
     const hasRightPin = scrollX < maxX - 0.5;
     const contentLeft = gLeft + (hasLeftPin ? pinW : 0);
@@ -321,18 +320,22 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
     ctx.clip();
 
-    if (scrollable) {
-      const gl = ctx.createLinearGradient(gLeft, 0, gLeft + SHADOW_BAND, 0);
-      gl.addColorStop(0, 'rgba(0,0,0,0.55)');
-      gl.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gl;
-      ctx.fillRect(gLeft, HEADER_H, SHADOW_BAND, height - HEADER_H);
-
-      const gr = ctx.createLinearGradient(gRight, 0, gRight - SHADOW_BAND, 0);
-      gr.addColorStop(0, 'rgba(0,0,0,0.55)');
-      gr.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gr;
-      ctx.fillRect(gRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
+    // Тень лежит по ВНУТРЕННЕМУ краю столбика: прижатые узлы — верхний слой,
+    // и тень падает от них на линии, проезжающие под ними. Снаружи столбика
+    // затемнять нечего — там просто край колонки.
+    if (hasLeftPin) {
+      const g = ctx.createLinearGradient(gLeft + pinW, 0, gLeft + pinW + SHADOW_BAND, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.55)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gLeft + pinW, HEADER_H, SHADOW_BAND, height - HEADER_H);
+    }
+    if (hasRightPin) {
+      const g = ctx.createLinearGradient(gRight - pinW, 0, gRight - pinW - SHADOW_BAND, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.55)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gRight - pinW - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
     }
 
     for (let i = first; i < last; i++) {
