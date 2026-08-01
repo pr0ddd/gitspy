@@ -273,10 +273,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fillStyle = HOVER;
         ctx.fillRect(0, y, listW, m.rowH);
       }
-      // Разделитель строк начинается от графа: колонка веток остаётся чистой,
-      // иначе через неё идут горизонтальные волоски на каждой строке.
+      // Разделитель строк живёт только в текстовой части. Ни в колонке веток,
+      // ни в графе ему делать нечего — там он читается как обрывки линий.
       ctx.fillStyle = ROW_LINE;
-      ctx.fillRect(g.gLeft, y + m.rowH - 1, listW - g.gLeft, 1);
+      ctx.fillRect(g.gRight, y + m.rowH - 1, listW - g.gRight, 1);
     }
 
     // Дальше всё в колонке графа.
