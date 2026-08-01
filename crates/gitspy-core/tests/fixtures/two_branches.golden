@@ -1,6 +1,6 @@
 0  m4  lane 0  colour 0  Normal
 1  m3  lane 0  colour 0  Merge  branch 0>1 c1
 2  b1  lane 1  colour 1  Normal  through 0 c0
-3  m2  lane 0  colour 0  Merge  merge 1>0 c1 | branch 0>1 c2
-4  a1  lane 1  colour 2  Normal  through 0 c0
-5  m1  lane 0  colour 0  Root  merge 1>0 c2
+3  m2  lane 0  colour 0  Merge  merge 1>0 c1 | branch 0>1 c1
+4  a1  lane 1  colour 1  Normal  through 0 c0
+5  m1  lane 0  colour 0  Root  merge 1>0 c1

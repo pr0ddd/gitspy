@@ -1,4 +1,4 @@
-use crate::colour::{ColourAllocator, ColourIdx};
+use crate::colour::{colour_of_lane, ColourIdx};
 use crate::layout::{LaneIdx, NodeKind, Row, Segment};
 use crate::topology::{CommitIdx, Topology};
 
@@ -14,11 +14,11 @@ pub(crate) enum LaneState {
 /// Вся изменяемая память алгоритма раскладки.
 ///
 /// Снапшот полосы — это ровно содержимое `LayoutState`; ничего сверх него
-/// алгоритм между шагами не помнит.
+/// алгоритм между шагами не помнит. Цвета здесь не хранятся: цвет выводится
+/// из номера дорожки, см. `colour::colour_of_lane`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayoutState {
     pub(crate) lanes: Vec<LaneState>,
-    pub(crate) colours: Vec<Option<ColourIdx>>,
     /// Дорожка ждёт своего коммита как ВТОРОЙ (третий…) родитель потомка,
     /// то есть под неё открыли боковую ветвь мержа.
     ///
@@ -27,32 +27,16 @@ pub struct LayoutState {
     /// только линия идёт дальше по первому родителю. Если наследовать признак,
     /// магистраль начинает перескакивать между колонками.
     pub(crate) sides: Vec<bool>,
-    pub(crate) colour_alloc: ColourAllocator,
     pub(crate) max_lane: LaneIdx,
 }
 
 impl LayoutState {
     pub fn new() -> Self {
-        Self {
-            lanes: Vec::new(),
-            colours: Vec::new(),
-            sides: Vec::new(),
-            colour_alloc: ColourAllocator::new(),
-            max_lane: 0,
-        }
+        Self { lanes: Vec::new(), sides: Vec::new(), max_lane: 0 }
     }
 
     pub fn max_lane(&self) -> LaneIdx {
         self.max_lane
-    }
-
-    fn live_colours(&self) -> Vec<ColourIdx> {
-        self.lanes
-            .iter()
-            .zip(self.colours.iter())
-            .filter(|(state, _)| !matches!(state, LaneState::Free))
-            .filter_map(|(_, colour)| *colour)
-            .collect()
     }
 
     fn first_free_lane(&mut self) -> LaneIdx {
@@ -60,25 +44,21 @@ impl LayoutState {
             return idx as LaneIdx;
         }
         self.lanes.push(LaneState::Free);
-        self.colours.push(None);
         self.sides.push(false);
         (self.lanes.len() - 1) as LaneIdx
     }
 
-    /// Занимает свободную дорожку под новую линию и выдаёт ей цвет.
+    /// Занимает свободную дорожку под новую линию.
     ///
     /// `side` помечает линию как боковую ветвь мержа — такие при выборе дорожки
     /// имеют приоритет, чтобы влитая ветка оставалась в своей колонке, а не
     /// сдёргивалась на магистраль.
     fn open_line(&mut self, waiting_for: LaneState, side: bool) -> (LaneIdx, ColourIdx) {
-        let live = self.live_colours();
-        let colour = self.colour_alloc.next(&live);
         let lane = self.first_free_lane();
         self.lanes[lane as usize] = waiting_for;
-        self.colours[lane as usize] = Some(colour);
         self.sides[lane as usize] = side;
         self.max_lane = self.max_lane.max(lane);
-        (lane, colour)
+        (lane, colour_of_lane(lane))
     }
 
     pub fn step(&mut self, topo: &Topology, commit: CommitIdx) -> (Row, Vec<Segment>) {
@@ -103,7 +83,7 @@ impl LayoutState {
             Some(lane) => lane,
             None => self.open_line(LaneState::WaitingFor(commit), false).0,
         };
-        let colour = self.colours[own_lane as usize].expect("занятая дорожка имеет цвет");
+        let colour = colour_of_lane(own_lane);
         self.max_lane = self.max_lane.max(own_lane);
 
         // 2. Сегменты сквозного прохода — до того, как сходящиеся дорожки освободятся.
@@ -113,9 +93,7 @@ impl LayoutState {
                 continue;
             }
             if *state != LaneState::WaitingFor(commit) {
-                if let Some(c) = self.colours[idx] {
-                    segments.push(Segment::Through { lane, colour: c });
-                }
+                segments.push(Segment::Through { lane, colour: colour_of_lane(lane) });
             }
         }
 
@@ -126,11 +104,13 @@ impl LayoutState {
                 continue;
             }
             if self.lanes[idx] == LaneState::WaitingFor(commit) {
-                if let Some(c) = self.colours[idx] {
-                    segments.push(Segment::Merge { from: lane, to: own_lane, colour: c });
-                }
+                segments.push(Segment::Merge {
+                    from: lane,
+                    to: own_lane,
+                    colour: colour_of_lane(lane),
+                });
                 self.lanes[idx] = LaneState::Free;
-                self.colours[idx] = None;
+                self.sides[idx] = false;
             }
         }
 
@@ -151,7 +131,6 @@ impl LayoutState {
 
         if total == 0 {
             self.lanes[own_lane as usize] = LaneState::Free;
-            self.colours[own_lane as usize] = None;
             self.sides[own_lane as usize] = false;
         } else if known.is_empty() {
             // все родители за границей набора
@@ -173,8 +152,11 @@ impl LayoutState {
                     .map(|i| i as LaneIdx);
                 match existing {
                     Some(lane) => {
-                        let c = self.colours[lane as usize].expect("занятая дорожка имеет цвет");
-                        segments.push(Segment::Branch { from: own_lane, to: lane, colour: c });
+                        segments.push(Segment::Branch {
+                            from: own_lane,
+                            to: lane,
+                            colour: colour_of_lane(lane),
+                        });
                     }
                     None => {
                         let (lane, c) = self.open_line(LaneState::WaitingFor(parent), true);
@@ -200,9 +182,7 @@ impl LayoutState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Snapshot {
     lanes: Vec<LaneState>,
-    colours: Vec<Option<ColourIdx>>,
     sides: Vec<bool>,
-    colour_cursor: u32,
     max_lane: LaneIdx,
 }
 
@@ -210,21 +190,13 @@ impl LayoutState {
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
             lanes: self.lanes.clone(),
-            colours: self.colours.clone(),
             sides: self.sides.clone(),
-            colour_cursor: self.colour_alloc.cursor(),
             max_lane: self.max_lane,
         }
     }
 
     pub fn resume(snapshot: Snapshot) -> Self {
-        Self {
-            lanes: snapshot.lanes,
-            colours: snapshot.colours,
-            sides: snapshot.sides,
-            colour_alloc: ColourAllocator::from_cursor(snapshot.colour_cursor),
-            max_lane: snapshot.max_lane,
-        }
+        Self { lanes: snapshot.lanes, sides: snapshot.sides, max_lane: snapshot.max_lane }
     }
 }
 
@@ -302,18 +274,24 @@ mod tests {
     }
 
     #[test]
-    fn two_sequential_branches_get_different_colours() {
-        // Главная регрессия: в старом движке обе ветки получали дорожку 1 и один цвет.
-        // Дорожка переиспользуется — это правильно; цвет переиспользоваться не должен.
+    fn a_lane_keeps_one_colour_for_every_line_that_occupies_it() {
+        // Цвет принадлежит колонке, а не линии. Две разные ветки, побывавшие
+        // в дорожке 1 в разное время, окрашены одинаково — и это правильно:
+        // при привязке цвета к линии магистраль меняла бы цвет посреди истории,
+        // когда линия в её колонке умирает и место занимает следующая.
         let src = "m4: m3\nm3: m2, b1\nb1: m2\nm2: m1, a1\na1: m1\nm1\n";
         let (rows, _) = run(src);
         let b1 = rows[2];
         let a1 = rows[4];
-        assert_eq!(b1.lane, 1, "первая ветка занимает дорожку 1");
+        assert_eq!(b1.lane, 1);
         assert_eq!(a1.lane, 1, "вторая ветка переиспользует дорожку 1");
-        assert_ne!(a1.colour, b1.colour, "но цвет обязан отличаться");
         assert_eq!(b1.colour, 1);
-        assert_eq!(a1.colour, 2);
+        assert_eq!(a1.colour, 1, "и получает тот же цвет, что и первая");
+
+        // Ствол во всей истории держится нулевой дорожки и нулевого цвета.
+        for row in rows.iter().filter(|r| r.lane == 0) {
+            assert_eq!(row.colour, 0);
+        }
     }
 
     #[test]
