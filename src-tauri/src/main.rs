@@ -47,6 +47,14 @@ struct LayoutView {
     seg_from: Vec<u16>,
     seg_to: Vec<u16>,
     seg_colour: Vec<u8>,
+    /// Родители коммита i лежат в [parent_offsets[i], parent_offsets[i+1]).
+    /// Нужны фронтенду для подсветки родословной без похода в бэкенд.
+    parent_offsets: Vec<u32>,
+    parent_idx: Vec<u32>,
+    /// Индекс автора каждого коммита в `authors` — для сворачивания цепочек
+    /// без сравнения строк на каждый кадр.
+    author_of: Vec<u32>,
+    authors: Vec<String>,
     refs: Vec<RefView>,
 }
 
@@ -115,6 +123,28 @@ fn build_layout_view(path: &str, history: &History, layout: &Layout, read_ms: f6
         seg_offsets.push(seg_kind.len() as u32);
     }
 
+    let mut parent_offsets = Vec::with_capacity(count + 1);
+    let mut parent_idx = Vec::new();
+    parent_offsets.push(0u32);
+    for i in 0..count as u32 {
+        for &p in history.topology.parents(i) {
+            parent_idx.push(p);
+        }
+        parent_offsets.push(parent_idx.len() as u32);
+    }
+
+    let mut authors: Vec<String> = Vec::new();
+    let mut author_lookup: std::collections::HashMap<&str, u32> = std::collections::HashMap::new();
+    let mut author_of = Vec::with_capacity(count);
+    for commit in &history.commits {
+        let next = authors.len() as u32;
+        let id = *author_lookup.entry(commit.author.as_str()).or_insert(next);
+        if id == next {
+            authors.push(commit.author.clone());
+        }
+        author_of.push(id);
+    }
+
     LayoutView {
         path: path.to_string(),
         count,
@@ -131,6 +161,10 @@ fn build_layout_view(path: &str, history: &History, layout: &Layout, read_ms: f6
         seg_from,
         seg_to,
         seg_colour,
+        parent_offsets,
+        parent_idx,
+        author_of,
+        authors,
         refs: history
             .refs
             .iter()
