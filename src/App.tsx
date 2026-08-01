@@ -7,6 +7,10 @@ import {
   maxScroll,
   METRICS_AVATARS,
   METRICS_COMPACT,
+  graphLeft,
+  graphRight,
+  HSCROLL_H,
+  maxScrollX,
   MINIMAP_W,
   rowAtY,
   type Frame,
@@ -34,6 +38,7 @@ const emptyFrame = (metrics: Metrics): Frame => ({
   minimap: null,
   metrics,
   scrollY: 0,
+  scrollX: 0,
   hover: null,
   selected: null,
   width: 0,
@@ -54,7 +59,7 @@ export default function App() {
   const metrics = avatars ? METRICS_AVATARS : METRICS_COMPACT;
   const frameRef = useRef<Frame>(emptyFrame(metrics));
   const rafRef = useRef<number | null>(null);
-  const dragRef = useRef<'minimap' | null>(null);
+  const dragRef = useRef<'minimap' | 'hscroll' | null>(null);
 
   const schedule = useCallback(() => {
     if (rafRef.current !== null) return;
@@ -76,6 +81,11 @@ export default function App() {
   const clampScroll = useCallback((value: number) => {
     const f = frameRef.current;
     return Math.max(0, Math.min(value, maxScroll(f.metrics, f.layout?.count ?? 0, f.height)));
+  }, []);
+
+  const clampScrollX = useCallback((value: number) => {
+    const f = frameRef.current;
+    return Math.max(0, Math.min(value, maxScrollX(f.metrics, f.layout?.max_lane ?? 0, f.width)));
   }, []);
 
   useEffect(() => {
@@ -116,6 +126,12 @@ export default function App() {
       e.preventDefault();
       const f = frameRef.current;
       const unit = e.deltaMode === 1 ? f.metrics.rowH : e.deltaMode === 2 ? f.height : 1;
+      // Горизонталь с трекпада и Shift+колесо двигают граф, а не список.
+      const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+      if (dx !== 0) {
+        patch({ scrollX: clampScrollX(f.scrollX + dx * unit) });
+        return;
+      }
       patch({ scrollY: clampScroll(f.scrollY + e.deltaY * unit) });
     };
 
@@ -140,7 +156,7 @@ export default function App() {
       host.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKey);
     };
-  }, [patch, clampScroll]);
+  }, [patch, clampScroll, clampScrollX]);
 
   /* -------------------------------- мышь -------------------------------- */
 
@@ -159,11 +175,23 @@ export default function App() {
       patch({ scrollY: clampScroll((y / Math.max(1, f.height)) * total - f.height / 2) });
     };
 
+    const dragHScroll = (x: number) => {
+      const f = frameRef.current;
+      const gL = graphLeft();
+      const trackW = graphRight(f.width) - gL;
+      const max = maxScrollX(f.metrics, f.layout?.max_lane ?? 0, f.width);
+      patch({ scrollX: clampScrollX(((x - gL) / Math.max(1, trackW)) * max * 1.15) });
+    };
+
     const onMove = (e: MouseEvent) => {
       const { x, y } = local(e);
       const f = frameRef.current;
       if (dragRef.current === 'minimap') {
         jumpFromMinimap(y);
+        return;
+      }
+      if (dragRef.current === 'hscroll') {
+        dragHScroll(x);
         return;
       }
       const index =
@@ -177,6 +205,11 @@ export default function App() {
       if (x >= listWidth(f.width)) {
         dragRef.current = 'minimap';
         jumpFromMinimap(y);
+        return;
+      }
+      if (y >= f.height - HSCROLL_H && x >= graphLeft() && x <= graphRight(f.width)) {
+        dragRef.current = 'hscroll';
+        dragHScroll(x);
         return;
       }
       patch({ selected: rowAtY(f.metrics, y, f.scrollY, f.layout?.count ?? 0) });
@@ -197,7 +230,7 @@ export default function App() {
       host.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [patch, clampScroll]);
+  }, [patch, clampScroll, clampScrollX]);
 
   /* ------------------------------ открытие ------------------------------ */
 
@@ -233,6 +266,7 @@ export default function App() {
         refsByCommit,
         minimap: buildMinimap(view, f.height),
         scrollY: 0,
+        scrollX: 0,
         selected: null,
         hover: null,
       };
