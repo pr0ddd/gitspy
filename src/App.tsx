@@ -337,13 +337,16 @@ export default function App() {
                 <span className="muted"> (−{foldedCount.toLocaleString('ru')})</span>
               ) : null}
             </label>
-            <label className="toggle">
+            <label
+              className="toggle"
+              title="Клик по коммиту гасит всё, что не является его предком или потомком"
+            >
               <input
                 type="checkbox"
                 checked={ancestryEnabled}
                 onChange={(e) => setAncestryEnabled(e.target.checked)}
               />
-              Родословная
+              Предки и потомки
             </label>
             <span className="stats">
               <b>{layout.count.toLocaleString('ru')}</b> · дорожек {layout.max_lane + 1} · чтение{' '}
