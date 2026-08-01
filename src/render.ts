@@ -184,32 +184,119 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     const last = Math.min(layout.count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
     const half = m.rowH / 2;
 
-    // Полосы прижатия: непрозрачные, линии графа под них не заходят. Появляются
-    // только с той стороны, куда действительно что-то уехало.
-    const pinW = m.nodeR * 2 + 10;
     const maxX = maxScrollX(m, layout.max_lane, width);
-    const hasLeftPin = scrollX > 0.5;
-    const hasRightPin = scrollX < maxX - 0.5;
-    const contentLeft = gLeft + (hasLeftPin ? pinW : 0);
-    const contentRight = gRight - (hasRightPin ? pinW : 0);
+    const canScrollLeft = scrollX > 0.5;
+    const canScrollRight = scrollX < maxX - 0.5;
 
-    /** -1 прижат влево, 1 вправо, 0 на своём месте. */
-    const placement = (lane: number): { x: number; side: -1 | 0 | 1 } => {
+    // Узел ПРИЛИПАЕТ к краю, а не перепрыгивает в отдельную колонку: едет
+    // вместе с прокруткой непрерывно, пока не упрётся, и дальше стоит.
+    // Телепорт давал скачок и разрыв между концом линии и узлом.
+    const stickLo = gLeft + m.nodeR + 4;
+    const stickHi = gRight - m.nodeR - 4;
+    const nodeXOf = (lane: number): { x: number; stuck: boolean } => {
       const natural = laneX(m, lane, scrollX);
-      if (hasLeftPin && natural < contentLeft + m.nodeR) {
-        return { x: gLeft + pinW / 2, side: -1 };
-      }
-      if (hasRightPin && natural > contentRight - m.nodeR) {
-        return { x: gRight - pinW / 2, side: 1 };
-      }
-      return { x: natural, side: 0 };
+      if (natural < stickLo) return { x: stickLo, stuck: true };
+      if (natural > stickHi) return { x: stickHi, stuck: true };
+      return { x: natural, stuck: false };
     };
 
-    const drawNode = (x: number, y: number, i: number, onStrip: boolean): void => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, HEADER_H, listW, height - HEADER_H);
+    ctx.clip();
+
+    // 1. Фон строки: наведение и выделение на всю ширину списка.
+    for (let i = first; i < last; i++) {
+      const y = shift + (i - first) * m.rowH;
+      if (i === selected) {
+        ctx.fillStyle = SELECT;
+        ctx.fillRect(0, y, listW, m.rowH);
+      } else if (i === hover) {
+        ctx.fillStyle = HOVER;
+        ctx.fillRect(0, y, listW, m.rowH);
+      }
+      ctx.fillStyle = ROW_LINE;
+      ctx.fillRect(0, y + m.rowH - 1, listW, 1);
+    }
+
+    // Всё, что относится к графу, живёт в его колонке. Одна обрезка на всё —
+    // отдельных областей внутри колонки больше нет.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
+    ctx.clip();
+
+    // 2. Заливка строки цветом дорожки — от узла вправо.
+    for (let i = first; i < last; i++) {
+      const y = shift + (i - first) * m.rowH;
+      const x = nodeXOf(layout.lanes[i]).x - m.nodeR;
+      ctx.fillStyle = `${colourOf(layout.colours[i])}1c`;
+      ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
+    }
+
+    // 3. Линии.
+    ctx.lineCap = 'round';
+    ctx.lineWidth = GRAPH_W;
+    for (let i = first; i < last; i++) {
+      const y = shift + (i - first) * m.rowH + half;
+      for (let s = layout.seg_offsets[i]; s < layout.seg_offsets[i + 1]; s++) {
+        const kind = layout.seg_kind[s];
+        const a = laneX(m, layout.seg_from[s], scrollX);
+        const b = laneX(m, layout.seg_to[s], scrollX);
+        if (Math.max(a, b) < gLeft - 40 || Math.min(a, b) > gRight + 40) continue;
+        ctx.strokeStyle = colourOf(layout.seg_colour[s]);
+        ctx.beginPath();
+        if (kind === 0) {
+          ctx.moveTo(a, y - half);
+          ctx.lineTo(a, y + half);
+        } else if (kind === 2) {
+          ctx.moveTo(a, y - half);
+          ctx.arcTo(a, y, b, y, CORNER);
+          ctx.lineTo(b, y);
+        } else {
+          ctx.moveTo(a, y);
+          ctx.arcTo(b, y, b, y + half, CORNER);
+          ctx.lineTo(b, y + half);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // 4. Тень у краёв: показывает, что содержимое продолжается за границей.
+    //    Лежит поверх линий, но под узлами — прилипший узел остаётся читаемым.
+    if (canScrollLeft) {
+      const g = ctx.createLinearGradient(gLeft, 0, gLeft + SHADOW_BAND, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.75)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gLeft, HEADER_H, SHADOW_BAND, height - HEADER_H);
+    }
+    if (canScrollRight) {
+      const g = ctx.createLinearGradient(gRight, 0, gRight - SHADOW_BAND, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.75)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
+    }
+
+    // 5. Узлы поверх всего.
+    for (let i = first; i < last; i++) {
+      const y = Math.round(shift + (i - first) * m.rowH + half);
+      const { x, stuck } = nodeXOf(layout.lanes[i]);
       const colour = colourOf(layout.colours[i]);
-      // Прижатый узел не нуждается в подложке: полоса тени уже отделила его
-      // от прокручивающихся линий. Подложка только добавляла темноты.
-      void onStrip;
+
+      // Прилипший узел лежит поверх чужих линий — отделяем его мягким ореолом.
+      if (stuck) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.9)';
+        ctx.shadowBlur = 7;
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR + 1, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.9)';
+        ctx.fill();
+        ctx.restore();
+      }
+
       if (m.avatars) {
         const key = meta.email[i] || meta.author[i] || String(i);
         const size = m.nodeR * 2;
@@ -230,6 +317,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fillStyle = colour;
         ctx.fill();
       }
+
       if (i === selected) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -238,133 +326,18 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.stroke();
       }
       ctx.lineWidth = GRAPH_W;
-    };
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, HEADER_H, listW, height - HEADER_H);
-    ctx.clip();
-
-    // 1. Фон строки: наведение и выделение на всю ширину.
-    for (let i = first; i < last; i++) {
-      const y = shift + (i - first) * m.rowH;
-      if (i === selected) {
-        ctx.fillStyle = SELECT;
-        ctx.fillRect(0, y, listW, m.rowH);
-      } else if (i === hover) {
-        ctx.fillStyle = HOVER;
-        ctx.fillRect(0, y, listW, m.rowH);
-      }
-      ctx.fillStyle = ROW_LINE;
-      ctx.fillRect(0, y + m.rowH - 1, listW, 1);
     }
 
-    // 2. Заливка строки — во всю колонку, включая столбики прижатия. Столбик
-    //    не перекрашивает фон, поэтому и читается как та же самая колонка;
-    //    отделяет его только тень.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
-    ctx.clip();
-
-    for (let i = first; i < last; i++) {
-      const y = shift + (i - first) * m.rowH;
-      const colour = colourOf(layout.colours[i]);
-      const x = placement(layout.lanes[i]).x - m.nodeR;
-      ctx.fillStyle = `${colour}1c`;
-      ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
-    }
-    ctx.restore();
-
-    // 3. Прокручиваемая часть: линии и узлы на своих местах. Обрезана строго
-    //    по внутреннему краю столбиков — под них содержимое уезжает и пропадает.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(contentLeft, HEADER_H, Math.max(0, contentRight - contentLeft), height - HEADER_H);
-    ctx.clip();
-
-    ctx.lineCap = 'round';
-    ctx.lineWidth = GRAPH_W;
-    ctx.globalAlpha = 1;
-    for (let i = first; i < last; i++) {
-      const y = shift + (i - first) * m.rowH + half;
-      for (let s = layout.seg_offsets[i]; s < layout.seg_offsets[i + 1]; s++) {
-        const kind = layout.seg_kind[s];
-        const a = laneX(m, layout.seg_from[s], scrollX);
-        const b = laneX(m, layout.seg_to[s], scrollX);
-        if (Math.max(a, b) < contentLeft - 40 || Math.min(a, b) > contentRight + 40) continue;
-        ctx.strokeStyle = colourOf(layout.seg_colour[s]);
-        ctx.beginPath();
-        if (kind === 0) {
-          ctx.moveTo(a, y - half);
-          ctx.lineTo(a, y + half);
-        } else if (kind === 2) {
-          ctx.moveTo(a, y - half);
-          ctx.arcTo(a, y, b, y, CORNER);
-          ctx.lineTo(b, y);
-        } else {
-          ctx.moveTo(a, y);
-          ctx.arcTo(b, y, b, y + half, CORNER);
-          ctx.lineTo(b, y + half);
-        }
-        ctx.stroke();
-      }
-    }
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = GRAPH_W;
-
-    for (let i = first; i < last; i++) {
-      const p = placement(layout.lanes[i]);
-      if (p.side !== 0) continue;
-      drawNode(p.x, Math.round(shift + (i - first) * m.rowH + half), i, false);
-    }
-
-    ctx.restore(); // конец прокручиваемой части
-
-    // 4. Столбик под прижатые узлы — это ТЕНЬ, а не заливка. Фон под ней тот же
-    //    самый; впечатление отдельной колонки создаёт градиент. Поэтому столбик
-    //    не мигает при прокрутке: тень держится, пока граф вообще прокручиваем,
-    //    а прижимаются узлы только с той стороны, куда содержимое уехало.
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
-    ctx.clip();
-
-    // Тень лежит по ВНУТРЕННЕМУ краю столбика: прижатые узлы — верхний слой,
-    // и тень падает от них на линии, проезжающие под ними. Снаружи столбика
-    // затемнять нечего — там просто край колонки.
-    if (hasLeftPin) {
-      const g = ctx.createLinearGradient(gLeft + pinW, 0, gLeft + pinW + SHADOW_BAND, 0);
-      g.addColorStop(0, 'rgba(0,0,0,0.55)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(gLeft + pinW, HEADER_H, SHADOW_BAND, height - HEADER_H);
-    }
-    if (hasRightPin) {
-      const g = ctx.createLinearGradient(gRight - pinW, 0, gRight - pinW - SHADOW_BAND, 0);
-      g.addColorStop(0, 'rgba(0,0,0,0.55)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(gRight - pinW - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
-    }
-
-    for (let i = first; i < last; i++) {
-      const p = placement(layout.lanes[i]);
-      if (p.side === 0) continue;
-      drawNode(p.x, Math.round(shift + (i - first) * m.rowH + half), i, true);
-    }
-
-    // Яркий колпачок цвета дорожки у правой границы колонки графа —
-    // связывает строку с её линией, даже когда узел уехал за край.
+    // 6. Колпачок цвета дорожки у правой границы колонки.
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       ctx.fillStyle = colourOf(layout.colours[i]);
       ctx.fillRect(gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
     }
 
-    ctx.restore();
+    ctx.restore(); // конец колонки графа
 
-    // 5. Бэйджи веток слева и выноска до узла.
+    // 7. Бэйджи веток слева и выноска до узла.
     ctx.textBaseline = 'middle';
     ctx.font = FONT_CHIP;
     for (let i = first; i < last; i++) {
@@ -372,7 +345,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (!labels) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
       const colour = colourOf(layout.colours[i]);
-      const p = placement(layout.lanes[i]);
+      const { x: nodeX } = nodeXOf(layout.lanes[i]);
 
       let left = 12;
       for (const label of labels) {
@@ -391,17 +364,15 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.strokeStyle = colour;
       ctx.globalAlpha = LEADER_ALPHA;
       ctx.lineWidth = LEADER_W;
-      // Выноска идёт от бэйджа до самого узла, а не до границы колонки:
-      // иначе она обрывается в пустоте и не связывает ветку с её коммитом.
       ctx.beginPath();
       ctx.moveTo(left + 2, y + 0.5);
-      ctx.lineTo(p.x - m.nodeR - 2, y + 0.5);
+      ctx.lineTo(nodeX - m.nodeR - 2, y + 0.5);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = GRAPH_W;
     }
 
-    // 6. Текст строки.
+    // 8. Текст строки.
     for (let i = first; i < last; i++) {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
