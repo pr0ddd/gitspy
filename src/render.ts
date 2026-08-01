@@ -7,13 +7,11 @@ export const HEADER_H = 26;
 export const BRANCH_W = 210;
 const PAD_X = 14;
 const CORNER = 7;
-/** Ребро, входящее в узел или выходящее из него. */
-const EDGE_W = 2;
-/** Сквозная вертикаль: тоньше и приглушённее — она фон, а не содержание. */
-const THROUGH_W = 1.25;
-const THROUGH_ALPHA = 0.72;
-/** Выноска от бэйджа ветки к узлу. Служебная линия: должна лишь намекать
- *  на связь, а не спорить с графом. У неё нет своего смысла, кроме «вот этот». */
+/** Линия графа. ОДНА толщина на всё: сквозные участки и повороты — это части
+ *  одной линии, и если развести их по весу, линия меняет толщину на изгибе. */
+const GRAPH_W = 2;
+/** Выноска от бэйджа ветки к узлу. Служебная: намекает на связь, но не спорит
+ *  с графом — потому тоньше и заметно бледнее. */
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.25;
 const CAP_W = 2;
@@ -245,7 +243,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.arc(x, y, m.nodeR + 2.5, 0, Math.PI * 2);
         ctx.stroke();
       }
-      ctx.lineWidth = EDGE_W;
+      ctx.lineWidth = GRAPH_W;
     };
 
     ctx.save();
@@ -282,6 +280,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     }
 
     ctx.lineCap = 'round';
+    ctx.lineWidth = GRAPH_W;
+    ctx.globalAlpha = 1;
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH + half;
       for (let s = layout.seg_offsets[i]; s < layout.seg_offsets[i + 1]; s++) {
@@ -289,8 +289,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const a = laneX(m, layout.seg_from[s], scrollX);
         const b = laneX(m, layout.seg_to[s], scrollX);
         if (Math.max(a, b) < contentLeft - 40 || Math.min(a, b) > contentRight + 40) continue;
-        ctx.lineWidth = kind === 0 ? THROUGH_W : EDGE_W;
-        ctx.globalAlpha = kind === 0 ? THROUGH_ALPHA : 1;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
         ctx.beginPath();
         if (kind === 0) {
@@ -309,7 +307,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
     }
     ctx.globalAlpha = 1;
-    ctx.lineWidth = EDGE_W;
+    ctx.lineWidth = GRAPH_W;
 
     for (let i = first; i < last; i++) {
       const p = placement(layout.lanes[i]);
@@ -394,7 +392,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.lineTo(p.x - m.nodeR - 2, y + 0.5);
       ctx.stroke();
       ctx.globalAlpha = 1;
-      ctx.lineWidth = EDGE_W;
+      ctx.lineWidth = GRAPH_W;
     }
 
     // 5. Текст строки.
