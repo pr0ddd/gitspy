@@ -259,7 +259,9 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillRect(0, y + m.rowH - 1, listW, 1);
     }
 
-    // 2. Прокручиваемая часть графа — строго между полосами прижатия.
+    // 2. Заливка строки — во всю колонку, включая столбики прижатия. Столбик
+    //    не перекрашивает фон, поэтому и читается как та же самая колонка;
+    //    отделяет его только тень.
     ctx.save();
     ctx.beginPath();
     ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
@@ -268,10 +270,18 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       const colour = colourOf(layout.colours[i]);
-      const x = laneX(m, layout.lanes[i], scrollX);
+      const x = placement(layout.lanes[i]).x - m.nodeR;
       ctx.fillStyle = `${colour}1c`;
       ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
     }
+    ctx.restore();
+
+    // 3. Прокручиваемая часть: линии и узлы на своих местах. Обрезана строго
+    //    по внутреннему краю столбиков — под них содержимое уезжает и пропадает.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(contentLeft, HEADER_H, Math.max(0, contentRight - contentLeft), height - HEADER_H);
+    ctx.clip();
 
     ctx.lineCap = 'round';
     ctx.lineWidth = GRAPH_W;
@@ -282,7 +292,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const kind = layout.seg_kind[s];
         const a = laneX(m, layout.seg_from[s], scrollX);
         const b = laneX(m, layout.seg_to[s], scrollX);
-        if (Math.max(a, b) < gLeft - 40 || Math.min(a, b) > gRight + 40) continue;
+        if (Math.max(a, b) < contentLeft - 40 || Math.min(a, b) > contentRight + 40) continue;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
         ctx.beginPath();
         if (kind === 0) {
@@ -311,7 +321,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     ctx.restore(); // конец прокручиваемой части
 
-    // 3. Столбик под прижатые узлы — это ТЕНЬ, а не заливка. Фон под ней тот же
+    // 4. Столбик под прижатые узлы — это ТЕНЬ, а не заливка. Фон под ней тот же
     //    самый; впечатление отдельной колонки создаёт градиент. Поэтому столбик
     //    не мигает при прокрутке: тень держится, пока граф вообще прокручиваем,
     //    а прижимаются узлы только с той стороны, куда содержимое уехало.
@@ -354,7 +364,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     ctx.restore();
 
-    // 4. Бэйджи веток слева и выноска до узла.
+    // 5. Бэйджи веток слева и выноска до узла.
     ctx.textBaseline = 'middle';
     ctx.font = FONT_CHIP;
     for (let i = first; i < last; i++) {
@@ -391,7 +401,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.lineWidth = GRAPH_W;
     }
 
-    // 5. Текст строки.
+    // 6. Текст строки.
     for (let i = first; i < last; i++) {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
