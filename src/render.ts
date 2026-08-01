@@ -383,9 +383,11 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.strokeStyle = colour;
       ctx.globalAlpha = 0.5;
       ctx.lineWidth = 1;
+      // Выноска идёт от бэйджа до самого узла, а не до границы колонки:
+      // иначе она обрывается в пустоте и не связывает ветку с её коммитом.
       ctx.beginPath();
       ctx.moveTo(left + 2, y + 0.5);
-      ctx.lineTo(Math.min(p.x - m.nodeR - 2, gLeft - 2), y + 0.5);
+      ctx.lineTo(p.x - m.nodeR - 2, y + 0.5);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = EDGE_W;
