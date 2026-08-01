@@ -187,6 +187,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     // только с той стороны, куда действительно что-то уехало.
     const pinW = m.nodeR * 2 + 10;
     const maxX = maxScrollX(m, layout.max_lane, width);
+    const scrollable = maxX > 0.5;
     const hasLeftPin = scrollX > 0.5;
     const hasRightPin = scrollX < maxX - 0.5;
     const contentLeft = gLeft + (hasLeftPin ? pinW : 0);
@@ -268,7 +269,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     // 2. Прокручиваемая часть графа — строго между полосами прижатия.
     ctx.save();
     ctx.beginPath();
-    ctx.rect(contentLeft, HEADER_H, Math.max(0, contentRight - contentLeft), height - HEADER_H);
+    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
     ctx.clip();
 
     for (let i = first; i < last; i++) {
@@ -288,7 +289,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const kind = layout.seg_kind[s];
         const a = laneX(m, layout.seg_from[s], scrollX);
         const b = laneX(m, layout.seg_to[s], scrollX);
-        if (Math.max(a, b) < contentLeft - 40 || Math.min(a, b) > contentRight + 40) continue;
+        if (Math.max(a, b) < gLeft - 40 || Math.min(a, b) > gRight + 40) continue;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
         ctx.beginPath();
         if (kind === 0) {
@@ -317,29 +318,31 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     ctx.restore(); // конец прокручиваемой части
 
-    // 3. Полосы прижатия поверх графа: непрозрачный фон, тень по внутреннему краю.
+    // 3. Столбик под прижатые узлы — это ТЕНЬ, а не заливка. Фон под ней тот же
+    //    самый; впечатление отдельной колонки создаёт градиент. Поэтому столбик
+    //    не мигает при прокрутке: тень держится, пока граф вообще прокручиваем,
+    //    а прижимаются узлы только с той стороны, куда содержимое уехало.
     ctx.save();
     ctx.beginPath();
     ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
     ctx.clip();
 
-    if (hasLeftPin) {
-      ctx.fillStyle = BG;
-      ctx.fillRect(gLeft, HEADER_H, pinW, height - HEADER_H);
-      const g = ctx.createLinearGradient(gLeft + pinW, 0, gLeft + pinW + 9, 0);
-      g.addColorStop(0, 'rgba(0,0,0,0.5)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(gLeft + pinW, HEADER_H, 9, height - HEADER_H);
-    }
-    if (hasRightPin) {
-      ctx.fillStyle = BG;
-      ctx.fillRect(gRight - pinW, HEADER_H, pinW, height - HEADER_H);
-      const g = ctx.createLinearGradient(gRight - pinW, 0, gRight - pinW - 9, 0);
-      g.addColorStop(0, 'rgba(0,0,0,0.5)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(gRight - pinW - 9, HEADER_H, 9, height - HEADER_H);
+    if (scrollable) {
+      const band = pinW + 8;
+
+      const gl = ctx.createLinearGradient(gLeft, 0, gLeft + band, 0);
+      gl.addColorStop(0, 'rgba(0,0,0,0.82)');
+      gl.addColorStop(0.55, 'rgba(0,0,0,0.62)');
+      gl.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gl;
+      ctx.fillRect(gLeft, HEADER_H, band, height - HEADER_H);
+
+      const gr = ctx.createLinearGradient(gRight, 0, gRight - band, 0);
+      gr.addColorStop(0, 'rgba(0,0,0,0.82)');
+      gr.addColorStop(0.55, 'rgba(0,0,0,0.62)');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(gRight - band, HEADER_H, band, height - HEADER_H);
     }
 
     for (let i = first; i < last; i++) {
