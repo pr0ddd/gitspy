@@ -181,11 +181,68 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     const last = Math.min(layout.count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
     const half = m.rowH / 2;
 
-    /** Узел, уехавший за край по горизонтали, прижимается к краю колонки —
-     *  иначе на репозитории с тремя десятками веток половина коммитов просто
-     *  исчезает из виду. */
-    const pin = (x: number): number =>
-      Math.max(gLeft + m.nodeR + 3, Math.min(gRight - m.nodeR - 3, x));
+    // Полосы прижатия: непрозрачные, линии графа под них не заходят. Появляются
+    // только с той стороны, куда действительно что-то уехало.
+    const pinW = m.nodeR * 2 + 10;
+    const maxX = maxScrollX(m, layout.max_lane, width);
+    const hasLeftPin = scrollX > 0.5;
+    const hasRightPin = scrollX < maxX - 0.5;
+    const contentLeft = gLeft + (hasLeftPin ? pinW : 0);
+    const contentRight = gRight - (hasRightPin ? pinW : 0);
+
+    /** -1 прижат влево, 1 вправо, 0 на своём месте. */
+    const placement = (lane: number): { x: number; side: -1 | 0 | 1 } => {
+      const natural = laneX(m, lane, scrollX);
+      if (hasLeftPin && natural < contentLeft + m.nodeR) {
+        return { x: gLeft + pinW / 2, side: -1 };
+      }
+      if (hasRightPin && natural > contentRight - m.nodeR) {
+        return { x: gRight - pinW / 2, side: 1 };
+      }
+      return { x: natural, side: 0 };
+    };
+
+    const drawNode = (x: number, y: number, i: number, onStrip: boolean): void => {
+      const colour = colourOf(layout.colours[i]);
+      if (onStrip) {
+        ctx.save();
+        ctx.shadowColor = SHADOW;
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = BG;
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR + 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      if (m.avatars) {
+        const key = meta.email[i] || meta.author[i] || String(i);
+        const size = m.nodeR * 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(identicon(key, size), x - m.nodeR, y - m.nodeR, size, size);
+        ctx.restore();
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
+        ctx.fillStyle = colour;
+        ctx.fill();
+      }
+      if (i === selected) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR + 2.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.lineWidth = EDGE_W;
+    };
 
     ctx.save();
     ctx.beginPath();
@@ -206,26 +263,20 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillRect(0, y + m.rowH - 1, listW, 1);
     }
 
-    // Всё, что относится к графу, живёт внутри своей колонки.
+    // 2. Прокручиваемая часть графа — строго между полосами прижатия.
     ctx.save();
     ctx.beginPath();
-    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
+    ctx.rect(contentLeft, HEADER_H, Math.max(0, contentRight - contentLeft), height - HEADER_H);
     ctx.clip();
 
-    // 2. Подсветка дорожки: от узла вправо до края колонки, с колпачком.
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       const colour = colourOf(layout.colours[i]);
-      const x = pin(laneX(m, layout.lanes[i], scrollX));
+      const x = laneX(m, layout.lanes[i], scrollX);
       ctx.fillStyle = `${colour}26`;
       ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
-      ctx.fillStyle = colour;
-      ctx.fillRect(gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
     }
 
-    // 3. Линии: ортогональные, со скруглением на повороте.
-    //    Сквозные вертикали тоньше и тише рёбер — иначе граф читается как
-    //    сплошная штриховка, в которой не найти, что куда входит.
     ctx.lineCap = 'round';
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH + half;
@@ -233,7 +284,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const kind = layout.seg_kind[s];
         const a = laneX(m, layout.seg_from[s], scrollX);
         const b = laneX(m, layout.seg_to[s], scrollX);
-        if (Math.max(a, b) < gLeft - 40 || Math.min(a, b) > gRight + 40) continue;
+        if (Math.max(a, b) < contentLeft - 40 || Math.min(a, b) > contentRight + 40) continue;
         ctx.lineWidth = kind === 0 ? THROUGH_W : EDGE_W;
         ctx.globalAlpha = kind === 0 ? THROUGH_ALPHA : 1;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
@@ -256,68 +307,56 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.globalAlpha = 1;
     ctx.lineWidth = EDGE_W;
 
-    // 4. Узлы поверх линий, с прижатием к краю.
     for (let i = first; i < last; i++) {
-      const y = Math.round(shift + (i - first) * m.rowH + half);
-      const natural = laneX(m, layout.lanes[i], scrollX);
-      const x = pin(natural);
-      const colour = colourOf(layout.colours[i]);
-
-      // Прижатый узел кладём на подложку с тенью: иначе он теряется среди
-      // линий, поверх которых оказался, и непонятно, что он не на своём месте.
-      if (x !== natural) {
-        ctx.save();
-        ctx.shadowColor = SHADOW;
-        ctx.shadowBlur = 6;
-        ctx.fillStyle = BG;
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR + 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      if (m.avatars) {
-        const key = meta.email[i] || meta.author[i] || String(i);
-        const size = m.nodeR * 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(identicon(key, size), x - m.nodeR, y - m.nodeR, size, size);
-        ctx.restore();
-        ctx.strokeStyle = colour;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.lineWidth = EDGE_W;
-      } else {
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
-        ctx.fillStyle = colour;
-        ctx.fill();
-      }
-
-      if (i === selected) {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR + 2.5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.lineWidth = EDGE_W;
-      }
+      const p = placement(layout.lanes[i]);
+      if (p.side !== 0) continue;
+      drawNode(p.x, Math.round(shift + (i - first) * m.rowH + half), i, false);
     }
 
-    // Тень у левого края графа — отделяет его от колонки веток.
-    const shade = ctx.createLinearGradient(gLeft, 0, gLeft + 10, 0);
-    shade.addColorStop(0, 'rgba(0,0,0,0.45)');
-    shade.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = shade;
-    ctx.fillRect(gLeft, HEADER_H, 10, height - HEADER_H);
+    ctx.restore(); // конец прокручиваемой части
 
-    ctx.restore(); // конец клипа колонки графа
+    // 3. Полосы прижатия поверх графа: непрозрачный фон, тень по внутреннему краю.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
+    ctx.clip();
 
-    // 5. Выноски и бэйджи веток в левой колонке.
+    if (hasLeftPin) {
+      ctx.fillStyle = BG;
+      ctx.fillRect(gLeft, HEADER_H, pinW, height - HEADER_H);
+      const g = ctx.createLinearGradient(gLeft + pinW, 0, gLeft + pinW + 9, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.5)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gLeft + pinW, HEADER_H, 9, height - HEADER_H);
+    }
+    if (hasRightPin) {
+      ctx.fillStyle = BG;
+      ctx.fillRect(gRight - pinW, HEADER_H, pinW, height - HEADER_H);
+      const g = ctx.createLinearGradient(gRight - pinW, 0, gRight - pinW - 9, 0);
+      g.addColorStop(0, 'rgba(0,0,0,0.5)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(gRight - pinW - 9, HEADER_H, 9, height - HEADER_H);
+    }
+
+    for (let i = first; i < last; i++) {
+      const p = placement(layout.lanes[i]);
+      if (p.side === 0) continue;
+      drawNode(p.x, Math.round(shift + (i - first) * m.rowH + half), i, true);
+    }
+
+    // Яркий колпачок цвета дорожки у правой границы колонки графа —
+    // связывает строку с её линией, даже когда узел уехал за край.
+    for (let i = first; i < last; i++) {
+      const y = shift + (i - first) * m.rowH;
+      ctx.fillStyle = colourOf(layout.colours[i]);
+      ctx.fillRect(gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
+    }
+
+    ctx.restore();
+
+    // 4. Бэйджи веток слева и выноска до узла.
     ctx.textBaseline = 'middle';
     ctx.font = FONT_CHIP;
     for (let i = first; i < last; i++) {
@@ -325,9 +364,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (!labels) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
       const colour = colourOf(layout.colours[i]);
-      const nodeX = pin(laneX(m, layout.lanes[i], scrollX));
+      const p = placement(layout.lanes[i]);
 
-      // Бэйджи прижаты к ЛЕВОМУ краю колонки, выноска тянется от них к узлу.
       let left = 12;
       for (const label of labels) {
         const text = label.is_head ? `✓ ${label.name}` : label.name;
@@ -343,17 +381,17 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
 
       ctx.strokeStyle = colour;
-      ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = 0.5;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(left + 2, y + 0.5);
-      ctx.lineTo(nodeX - m.nodeR - 2, y + 0.5);
+      ctx.lineTo(Math.min(p.x - m.nodeR - 2, gLeft - 2), y + 0.5);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = EDGE_W;
     }
 
-    // 6. Текст строки.
+    // 5. Текст строки.
     for (let i = first; i < last; i++) {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
