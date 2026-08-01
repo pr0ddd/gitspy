@@ -50,9 +50,34 @@ const ROW_LINE = 'rgba(255,255,255,0.035)';
 const HOVER = 'rgba(255,255,255,0.05)';
 const SELECT = 'rgba(255,255,255,0.10)';
 
-export const laneX = (m: Metrics, lane: number): number => BRANCH_W + PAD_X + lane * m.laneW;
-export const graphRight = (m: Metrics, maxLane: number): number =>
-  laneX(m, maxLane) + PAD_X + (m.avatars ? m.nodeR : 0);
+/** Высота полосы горизонтальной прокрутки под колонкой графа. */
+export const HSCROLL_H = 9;
+/** Сколько места нужно колонкам справа от графа. */
+const RIGHT_COLS_W = 620;
+const GRAPH_MIN_W = 140;
+const GRAPH_MAX_W = 760;
+
+/** Ширина видимой части графа. Фиксирована: иначе на репозитории с тремя
+ *  десятками веток граф съедает весь экран и мержи тянут горизонтали через
+ *  всю ширину. Что не влезло — доступно горизонтальной прокруткой. */
+export function graphViewWidth(width: number): number {
+  const rest = listWidth(width) - BRANCH_W - RIGHT_COLS_W;
+  return Math.max(GRAPH_MIN_W, Math.min(GRAPH_MAX_W, rest));
+}
+
+export const graphLeft = (): number => BRANCH_W;
+export const graphRight = (width: number): number => BRANCH_W + graphViewWidth(width);
+
+/** Полная ширина содержимого графа — сколько нужно, чтобы показать все дорожки. */
+export const graphContentWidth = (m: Metrics, maxLane: number): number =>
+  PAD_X * 2 + maxLane * m.laneW + (m.avatars ? m.nodeR * 2 : m.nodeR * 2);
+
+export const maxScrollX = (m: Metrics, maxLane: number, width: number): number =>
+  Math.max(0, graphContentWidth(m, maxLane) - graphViewWidth(width));
+
+/** Позиция дорожки с учётом горизонтальной прокрутки. */
+export const laneX = (m: Metrics, lane: number, scrollX: number): number =>
+  BRANCH_W + PAD_X + lane * m.laneW - scrollX;
 
 export type Meta = {
   readonly hash: string[];
@@ -70,6 +95,7 @@ export type Frame = {
   readonly minimap: Minimap | null;
   readonly metrics: Metrics;
   readonly scrollY: number;
+  readonly scrollX: number;
   readonly hover: number | null;
   readonly selected: number | null;
   readonly width: number;
@@ -116,7 +142,7 @@ export function maxScroll(m: Metrics, count: number, viewportH: number): number 
 }
 
 export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
-  const { layout, meta, refsByCommit, metrics: m, scrollY, hover, selected } = frame;
+  const { layout, meta, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
   const { width, height } = frame;
 
   const dpr = window.devicePixelRatio || 1;
@@ -134,7 +160,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   ctx.fillRect(0, 0, width, height);
 
   const listW = listWidth(width);
-  const gRight = layout ? graphRight(m, layout.max_lane) : BRANCH_W;
+  const gLeft = graphLeft();
+  const gRight = graphRight(width);
   const msgX = gRight + 12;
   const colHash = listW - 80;
   const colDate = colHash - 88;
@@ -148,21 +175,20 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     const last = Math.min(layout.count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
     const half = m.rowH / 2;
 
+    /** Узел, уехавший за край по горизонтали, прижимается к краю колонки —
+     *  иначе на репозитории с тремя десятками веток половина коммитов просто
+     *  исчезает из виду. */
+    const pin = (x: number): number =>
+      Math.max(gLeft + m.nodeR + 3, Math.min(gRight - m.nodeR - 3, x));
+
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, HEADER_H, listW, height - HEADER_H);
     ctx.clip();
 
-    // 1. Подсветка: от узла вправо до края колонки графа, с колпачком.
+    // 1. Фон строки: наведение и выделение на всю ширину.
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
-      const colour = colourOf(layout.colours[i]);
-      const x = laneX(m, layout.lanes[i]);
-      ctx.fillStyle = `${colour}26`;
-      ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
-      ctx.fillStyle = colour;
-      ctx.fillRect(gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
-
       if (i === selected) {
         ctx.fillStyle = SELECT;
         ctx.fillRect(0, y, listW, m.rowH);
@@ -174,15 +200,33 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillRect(0, y + m.rowH - 1, listW, 1);
     }
 
-    // 2. Линии графа: ортогональные, со скруглением на повороте.
+    // Всё, что относится к графу, живёт внутри своей колонки.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(gLeft, HEADER_H, gRight - gLeft, height - HEADER_H);
+    ctx.clip();
+
+    // 2. Подсветка дорожки: от узла вправо до края колонки, с колпачком.
+    for (let i = first; i < last; i++) {
+      const y = shift + (i - first) * m.rowH;
+      const colour = colourOf(layout.colours[i]);
+      const x = pin(laneX(m, layout.lanes[i], scrollX));
+      ctx.fillStyle = `${colour}26`;
+      ctx.fillRect(x, y + 1, Math.max(0, gRight - x), m.rowH - 2);
+      ctx.fillStyle = colour;
+      ctx.fillRect(gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
+    }
+
+    // 3. Линии: ортогональные, со скруглением на повороте.
     ctx.lineWidth = LINE_W;
     ctx.lineCap = 'round';
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH + half;
       for (let s = layout.seg_offsets[i]; s < layout.seg_offsets[i + 1]; s++) {
         const kind = layout.seg_kind[s];
-        const a = laneX(m, layout.seg_from[s]);
-        const b = laneX(m, layout.seg_to[s]);
+        const a = laneX(m, layout.seg_from[s], scrollX);
+        const b = laneX(m, layout.seg_to[s], scrollX);
+        if (Math.max(a, b) < gLeft - 40 || Math.min(a, b) > gRight + 40) continue;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
         ctx.beginPath();
         if (kind === 0) {
@@ -201,21 +245,11 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
     }
 
-    // 3. Выноски от бэйджей и узлы.
+    // 4. Узлы поверх линий, с прижатием к краю.
     for (let i = first; i < last; i++) {
       const y = Math.round(shift + (i - first) * m.rowH + half);
-      const x = laneX(m, layout.lanes[i]);
+      const x = pin(laneX(m, layout.lanes[i], scrollX));
       const colour = colourOf(layout.colours[i]);
-
-      if (refsByCommit.has(i)) {
-        ctx.strokeStyle = colour;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(BRANCH_W - 6, y + 0.5);
-        ctx.lineTo(x - m.nodeR - 2, y + 0.5);
-        ctx.stroke();
-        ctx.lineWidth = LINE_W;
-      }
 
       if (m.avatars) {
         const key = meta.email[i] || meta.author[i] || String(i);
@@ -249,13 +283,26 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
     }
 
-    // 4. Бэйджи веток в левой колонке, прижатые к графу.
+    ctx.restore(); // конец клипа колонки графа
+
+    // 5. Выноски и бэйджи веток в левой колонке.
     ctx.textBaseline = 'middle';
     ctx.font = FONT_CHIP;
     for (let i = first; i < last; i++) {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
+      const colour = colourOf(layout.colours[i]);
+      const nodeX = pin(laneX(m, layout.lanes[i], scrollX));
+
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(BRANCH_W - 6, y + 0.5);
+      ctx.lineTo(nodeX - m.nodeR - 2, y + 0.5);
+      ctx.stroke();
+      ctx.lineWidth = LINE_W;
+
       let right = BRANCH_W - 10;
       for (let k = labels.length - 1; k >= 0; k--) {
         const label = labels[k];
@@ -272,7 +319,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
     }
 
-    // 5. Текст строки.
+    // 6. Текст строки.
     for (let i = first; i < last; i++) {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
@@ -307,15 +354,42 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     }
 
     ctx.restore();
+    drawHScroll(ctx, frame, gLeft, gRight);
   }
 
-  drawHeader(ctx, listW, gRight, msgX, colAuthor, colDate, colHash);
+  drawHeader(ctx, listW, gLeft, gRight, msgX, colAuthor, colDate, colHash);
   drawMinimap(ctx, frame, listW);
+}
+
+/** Горизонтальная прокрутка графа — отдельная полоса под его колонкой. */
+function drawHScroll(
+  ctx: CanvasRenderingContext2D,
+  frame: Frame,
+  gLeft: number,
+  gRight: number,
+): void {
+  const { layout, metrics: m, scrollX, width, height } = frame;
+  if (!layout) return;
+  const max = maxScrollX(m, layout.max_lane, width);
+  if (max <= 0) return;
+
+  const trackW = gRight - gLeft;
+  const y = height - HSCROLL_H;
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillRect(gLeft, y, trackW, HSCROLL_H);
+
+  const content = graphContentWidth(m, layout.max_lane);
+  const thumbW = Math.max(30, (trackW / content) * trackW);
+  const thumbX = gLeft + (scrollX / max) * (trackW - thumbW);
+  ctx.fillStyle = 'rgba(255,255,255,0.24)';
+  roundRect(ctx, thumbX, y + 2, thumbW, HSCROLL_H - 4, (HSCROLL_H - 4) / 2);
+  ctx.fill();
 }
 
 function drawHeader(
   ctx: CanvasRenderingContext2D,
   listW: number,
+  gLeft: number,
   gRight: number,
   msgX: number,
   colAuthor: number,
@@ -332,14 +406,14 @@ function drawHeader(
   ctx.fillStyle = FG_DIM;
   const y = Math.round(HEADER_H / 2);
   ctx.fillText('ВЕТКА / ТЕГ', 12, y);
-  ctx.fillText('ГРАФ', BRANCH_W + 6, y);
+  ctx.fillText('ГРАФ', gLeft + 6, y);
   ctx.fillText('СООБЩЕНИЕ', msgX, y);
   ctx.fillText('АВТОР', colAuthor, y);
   ctx.fillText('ДАТА', colDate, y);
   ctx.fillText('ХЕШ', colHash, y);
 
   ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  for (const x of [BRANCH_W, gRight]) ctx.fillRect(x, 0, 1, HEADER_H);
+  for (const x of [gLeft, gRight]) ctx.fillRect(x, 0, 1, HEADER_H);
 }
 
 function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number): void {
