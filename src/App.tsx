@@ -1,31 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import {
   drawFrame,
+  isCollapseHit,
   listWidth,
   maxScroll,
+  METRICS_AVATARS,
+  METRICS_COMPACT,
   MINIMAP_W,
-  ROW_H,
   viewRowAtY,
   type Frame,
   type Meta,
+  type Metrics,
 } from './render';
-import { ancestryMask, buildMinimap, buildView, type ViewRow } from './view';
+import { ancestryMask, authorStats, buildMinimap, buildView, type ViewRow } from './view';
 import type { CommitView, LayoutView, RefView } from './types';
 
 const PAGE = 5000;
 const MIN_RUN = 3;
 
-const emptyMeta = (): Meta => ({ hash: [], author: [], time: [], subject: [], body: [] });
+const emptyMeta = (): Meta => ({
+  hash: [],
+  author: [],
+  email: [],
+  time: [],
+  subject: [],
+  body: [],
+});
 
-const emptyFrame = (): Frame => ({
+const emptyFrame = (metrics: Metrics): Frame => ({
   layout: null,
   view: [],
   meta: emptyMeta(),
   refsByCommit: new Map(),
   minimap: null,
   ancestry: null,
+  metrics,
   scrollY: 0,
   hover: null,
   selected: null,
@@ -39,17 +50,24 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [openMs, setOpenMs] = useState<number | null>(null);
   const [metaMs, setMetaMs] = useState<number | null>(null);
-  const [foldEnabled, setFoldEnabled] = useState(false);
+  const [avatars, setAvatars] = useState(true);
   const [ancestryEnabled, setAncestryEnabled] = useState(true);
+  const [foldAuthors, setFoldAuthors] = useState<ReadonlySet<number>>(new Set());
   const [foldedCount, setFoldedCount] = useState(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
 
-  const frameRef = useRef<Frame>(emptyFrame());
+  const metrics = avatars ? METRICS_AVATARS : METRICS_COMPACT;
+  const frameRef = useRef<Frame>(emptyFrame(metrics));
   const rafRef = useRef<number | null>(null);
-  const expandedRef = useRef<Set<number>>(new Set());
+  /** Развёрнутые цепочки: начало → длина. Диапазон целиком, а не одна строка. */
+  const expandedRef = useRef<Map<number, number>>(new Map());
+  const foldAuthorsRef = useRef<ReadonlySet<number>>(foldAuthors);
   const dragRef = useRef<'minimap' | null>(null);
+
+  const authors = useMemo(() => (layout ? authorStats(layout) : []), [layout]);
 
   const schedule = useCallback(() => {
     if (rafRef.current !== null) return;
@@ -70,25 +88,29 @@ export default function App() {
 
   const clampScroll = useCallback((value: number) => {
     const f = frameRef.current;
-    return Math.max(0, Math.min(value, maxScroll(f.view.length, f.height)));
+    return Math.max(0, Math.min(value, maxScroll(f.metrics, f.view.length, f.height)));
   }, []);
 
-  /** Пересобирает представление: свёртка меняет соответствие строк коммитам. */
+  const foldOptions = useCallback(
+    () => ({
+      authors: foldAuthorsRef.current,
+      minRun: MIN_RUN,
+      expanded: expandedRef.current,
+    }),
+    [],
+  );
+
   const rebuildView = useCallback(
     (opts?: { keepAnchor?: boolean }) => {
       const f = frameRef.current;
       if (!f.layout) return;
 
       const anchor = opts?.keepAnchor
-        ? (f.view[Math.floor(f.scrollY / ROW_H)] ?? null)
+        ? (f.view[Math.floor(f.scrollY / f.metrics.rowH)] ?? null)
         : null;
       const anchorCommit = anchor ? (anchor.fold ? anchor.start : anchor.index) : null;
 
-      const view: ViewRow[] = buildView(f.layout, f.refsByCommit, {
-        enabled: foldEnabled,
-        minRun: MIN_RUN,
-        expanded: expandedRef.current,
-      });
+      const view: ViewRow[] = buildView(f.layout, f.refsByCommit, foldOptions());
 
       let scrollY = f.scrollY;
       if (anchorCommit !== null) {
@@ -97,21 +119,27 @@ export default function App() {
             ? anchorCommit >= row.start && anchorCommit < row.start + row.len
             : row.index === anchorCommit,
         );
-        if (at >= 0) scrollY = at * ROW_H;
+        if (at >= 0) scrollY = at * f.metrics.rowH;
       }
 
-      const minimap = buildMinimap(f.layout, view, f.height);
-      frameRef.current = { ...f, view, minimap };
+      frameRef.current = { ...f, view, minimap: buildMinimap(f.layout, view, f.height) };
       patch({ scrollY: clampScroll(scrollY) });
-
       setFoldedCount(f.layout.count - view.length);
     },
-    [foldEnabled, patch, clampScroll],
+    [patch, clampScroll, foldOptions],
   );
 
   useEffect(() => {
+    foldAuthorsRef.current = foldAuthors;
+    expandedRef.current = new Map();
     rebuildView({ keepAnchor: true });
-  }, [foldEnabled, rebuildView]);
+  }, [foldAuthors, rebuildView]);
+
+  useEffect(() => {
+    const f = frameRef.current;
+    frameRef.current = { ...f, metrics };
+    patch({ scrollY: clampScroll(f.scrollY) });
+  }, [metrics, patch, clampScroll]);
 
   /* ---------------------------- размер вьюпорта ---------------------------- */
 
@@ -144,20 +172,21 @@ export default function App() {
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const unit = e.deltaMode === 1 ? ROW_H : e.deltaMode === 2 ? frameRef.current.height : 1;
-      patch({ scrollY: clampScroll(frameRef.current.scrollY + e.deltaY * unit) });
+      const f = frameRef.current;
+      const unit = e.deltaMode === 1 ? f.metrics.rowH : e.deltaMode === 2 ? f.height : 1;
+      patch({ scrollY: clampScroll(f.scrollY + e.deltaY * unit) });
     };
 
     const onKey = (e: KeyboardEvent) => {
       const f = frameRef.current;
-      const page = f.height - ROW_H * 2;
+      const page = f.height - f.metrics.rowH * 2;
       let next: number | null = null;
       if (e.key === 'PageDown') next = f.scrollY + page;
       else if (e.key === 'PageUp') next = f.scrollY - page;
       else if (e.key === 'Home') next = 0;
-      else if (e.key === 'End') next = f.view.length * ROW_H;
-      else if (e.key === 'ArrowDown') next = f.scrollY + ROW_H;
-      else if (e.key === 'ArrowUp') next = f.scrollY - ROW_H;
+      else if (e.key === 'End') next = f.view.length * f.metrics.rowH;
+      else if (e.key === 'ArrowDown') next = f.scrollY + f.metrics.rowH;
+      else if (e.key === 'ArrowUp') next = f.scrollY - f.metrics.rowH;
       if (next === null) return;
       e.preventDefault();
       patch({ scrollY: clampScroll(next) });
@@ -182,12 +211,10 @@ export default function App() {
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
-    /** Клик по мини-карте: доля высоты — это доля всей истории. */
     const jumpFromMinimap = (y: number) => {
       const f = frameRef.current;
-      const total = f.view.length * ROW_H;
-      const target = (y / Math.max(1, f.height)) * total - f.height / 2;
-      patch({ scrollY: clampScroll(target) });
+      const total = f.view.length * f.metrics.rowH;
+      patch({ scrollY: clampScroll((y / Math.max(1, f.height)) * total - f.height / 2) });
     };
 
     const onMove = (e: MouseEvent) => {
@@ -197,7 +224,8 @@ export default function App() {
         jumpFromMinimap(y);
         return;
       }
-      const index = x >= listWidth(f.width) ? null : viewRowAtY(y, f.scrollY, f.view.length);
+      const index =
+        x >= listWidth(f.width) ? null : viewRowAtY(f.metrics, y, f.scrollY, f.view.length);
       if (index !== f.hover) patch({ hover: index });
     };
 
@@ -209,17 +237,26 @@ export default function App() {
         jumpFromMinimap(y);
         return;
       }
-      const at = viewRowAtY(y, f.scrollY, f.view.length);
+      const at = viewRowAtY(f.metrics, y, f.scrollY, f.view.length);
       if (at === null || !f.layout) {
         patch({ selected: null, ancestry: null });
         return;
       }
       const row = f.view[at];
+
       if (row.fold) {
-        expandedRef.current.add(row.start);
+        expandedRef.current.set(row.start, row.len);
         rebuildView({ keepAnchor: true });
         return;
       }
+
+      // Шеврон у первого коммита развёрнутой цепочки — свернуть обратно.
+      if (row.groupStart === row.index && isCollapseHit(x, f.width)) {
+        expandedRef.current.delete(row.groupStart);
+        rebuildView({ keepAnchor: true });
+        return;
+      }
+
       patch({
         selected: at,
         ancestry: ancestryEnabled ? ancestryMask(f.layout, row.index) : null,
@@ -243,7 +280,6 @@ export default function App() {
     };
   }, [patch, clampScroll, rebuildView, ancestryEnabled]);
 
-  // Выключение подсветки гасит её сразу, не дожидаясь следующего клика.
   useEffect(() => {
     const f = frameRef.current;
     if (!ancestryEnabled) {
@@ -272,6 +308,7 @@ export default function App() {
       const view = await invoke<LayoutView>('open_repo', { path: picked });
       setOpenMs(performance.now() - t0);
       setLayout(view);
+      setFoldAuthors(new Set());
 
       const refsByCommit = new Map<number, RefView[]>();
       for (const r of view.refs) {
@@ -281,7 +318,8 @@ export default function App() {
       }
 
       const meta = emptyMeta();
-      expandedRef.current = new Set();
+      expandedRef.current = new Map();
+      foldAuthorsRef.current = new Set();
       frameRef.current = {
         ...frameRef.current,
         layout: view,
@@ -300,6 +338,7 @@ export default function App() {
         for (const item of items) {
           meta.hash[item.index] = item.hash;
           meta.author[item.index] = item.author;
+          meta.email[item.index] = item.email;
           meta.time[item.index] = item.time;
           meta.subject[item.index] = item.subject;
           meta.body[item.index] = item.body;
@@ -310,12 +349,22 @@ export default function App() {
     } catch (e) {
       setError(String(e));
       setLayout(null);
-      frameRef.current = { ...emptyFrame(), width: frameRef.current.width, height: frameRef.current.height };
+      const f = frameRef.current;
+      frameRef.current = { ...emptyFrame(f.metrics), width: f.width, height: f.height };
       schedule();
     } finally {
       setLoading(false);
     }
   }, [rebuildView, schedule]);
+
+  const toggleAuthor = (id: number) => {
+    setFoldAuthors((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="app">
@@ -326,17 +375,35 @@ export default function App() {
 
         {layout ? (
           <>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={foldEnabled}
-                onChange={(e) => setFoldEnabled(e.target.checked)}
-              />
-              Сворачивать цепочки
-              {foldEnabled && foldedCount > 0 ? (
-                <span className="muted"> (−{foldedCount.toLocaleString('ru')})</span>
+            <div className="picker">
+              <button className="ghost" onClick={() => setPickerOpen((v) => !v)}>
+                Сворачивать цепочки
+                {foldAuthors.size > 0 ? ` · ${foldAuthors.size}` : ''}
+                {foldedCount > 0 ? (
+                  <span className="muted"> −{foldedCount.toLocaleString('ru')}</span>
+                ) : null}
+              </button>
+              {pickerOpen ? (
+                <div className="menu">
+                  <div className="menu-note">
+                    Подряд идущие коммиты выбранного автора, у каждого один родитель,
+                    без веток и меток, серией от {MIN_RUN}.
+                  </div>
+                  {authors.slice(0, 40).map((a) => (
+                    <label key={a.id} className="menu-item">
+                      <input
+                        type="checkbox"
+                        checked={foldAuthors.has(a.id)}
+                        onChange={() => toggleAuthor(a.id)}
+                      />
+                      <span className="menu-name">{a.name}</span>
+                      <span className="muted">{a.count.toLocaleString('ru')}</span>
+                    </label>
+                  ))}
+                </div>
               ) : null}
-            </label>
+            </div>
+
             <label
               className="toggle"
               title="Клик по коммиту гасит всё, что не является его предком или потомком"
@@ -348,11 +415,21 @@ export default function App() {
               />
               Предки и потомки
             </label>
+
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={avatars}
+                onChange={(e) => setAvatars(e.target.checked)}
+              />
+              Аватарки
+            </label>
+
             <span className="stats">
-              <b>{layout.count.toLocaleString('ru')}</b> · дорожек {layout.max_lane + 1} · чтение{' '}
-              {layout.read_ms.toFixed(0)} мс · раскладка {layout.layout_ms.toFixed(1)} мс
-              {openMs !== null ? ` · IPC ${openMs.toFixed(0)} мс` : ''}
-              {metaMs !== null ? ` · метаданные ${metaMs.toFixed(0)} мс` : ''}
+              <b>{layout.count.toLocaleString('ru')}</b> · дорожек {layout.max_lane + 1} ·{' '}
+              {layout.read_ms.toFixed(0)}/{layout.layout_ms.toFixed(1)} мс
+              {openMs !== null ? ` · IPC ${openMs.toFixed(0)}` : ''}
+              {metaMs !== null ? ` · мета ${metaMs.toFixed(0)}` : ''}
             </span>
           </>
         ) : null}
@@ -362,7 +439,7 @@ export default function App() {
 
       {error ? <div className="error">{error}</div> : null}
 
-      <div className="host" ref={hostRef} tabIndex={0} style={{ paddingRight: 0 }}>
+      <div className="host" ref={hostRef} tabIndex={0}>
         <canvas ref={canvasRef} className="surface" />
         {!layout && !loading ? (
           <div className="empty" style={{ right: MINIMAP_W }}>

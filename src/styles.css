@@ -128,3 +128,67 @@ header button:disabled {
 .muted {
   color: #5c6675;
 }
+
+.picker {
+  position: relative;
+}
+
+.ghost {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ghost:hover {
+  color: var(--fg);
+  border-color: #3a4557;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 280px;
+  max-height: 360px;
+  overflow: auto;
+  background: #1b2130;
+  border: 1px solid #333c4d;
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.menu-note {
+  padding: 6px 8px 8px;
+  color: var(--fg-dim);
+  font-size: 11px;
+  line-height: 1.4;
+  border-bottom: 1px solid #2a3240;
+  margin-bottom: 4px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.menu-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
