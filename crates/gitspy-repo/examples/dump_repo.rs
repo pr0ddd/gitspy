@@ -23,6 +23,16 @@ fn main() {
     let layout = chunk::layout(&history.topology);
     let layout_ms = t1.elapsed().as_secs_f64() * 1000.0;
 
+    let mut with_outside = 0usize;
+    let mut outside_total = 0u32;
+    for i in 0..history.topology.len() as u32 {
+        let o = history.topology.outside_parents(i);
+        if o > 0 {
+            with_outside += 1;
+            outside_total += o;
+        }
+    }
+    println!("коммитов с внешними родителями: {with_outside}, рёбер: {outside_total}");
     println!(
         "коммитов: {}  refs: {}  max_lane: {}  truncated: {}",
         history.commits.len(),
