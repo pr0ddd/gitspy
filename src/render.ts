@@ -406,6 +406,9 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const nodeX = g.nodeX(layout.lanes[i]);
 
       let left = 12;
+      // Правый край последнего чипа: выноска начинается ВПЛОТНУЮ к нему,
+      // иначе между чипом и линией зияет зазор.
+      let chipEnd = left;
       for (const label of labels) {
         const text = label.is_head ? `✓ ${label.name}` : label.name;
         const fitted = fitText(ctx, text, 150);
@@ -416,15 +419,16 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fill();
         ctx.fillStyle = '#ffffff';
         ctx.fillText(fitted, left + 7, y);
-        left += w + 4;
+        chipEnd = left + w;
+        left = chipEnd + 4;
       }
 
       ctx.strokeStyle = colour;
       ctx.globalAlpha = LEADER_ALPHA;
       ctx.lineWidth = LEADER_W;
       ctx.beginPath();
-      ctx.moveTo(left + 2, y + 0.5);
-      ctx.lineTo(nodeX - m.nodeR - 2, y + 0.5);
+      ctx.moveTo(chipEnd, y + 0.5);
+      ctx.lineTo(nodeX - m.nodeR, y + 0.5);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = GRAPH_W;
