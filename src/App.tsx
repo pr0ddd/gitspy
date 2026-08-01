@@ -1,146 +1,226 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { drawGraph, graphWidth, ROW_H } from './graph';
-import { colourOf, type CommitView, type LayoutView, type RefView } from './types';
+import {
+  drawFrame,
+  maxScroll,
+  rowAtY,
+  ROW_H,
+  SCROLLBAR_W,
+  type Frame,
+  type Meta,
+} from './render';
+import type { CommitView, LayoutView, RefView } from './types';
 
-const OVERSCAN = 12;
-const PAGE = 200;
+const PAGE = 5000;
 
-type Window = { start: number; end: number };
+const emptyMeta = (): Meta => ({ hash: [], author: [], time: [], subject: [], body: [] });
 
 export default function App() {
   const [layout, setLayout] = useState<LayoutView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [openMs, setOpenMs] = useState<number | null>(null);
-  const [window_, setWindow] = useState<Window>({ start: 0, end: 0 });
-  const [selected, setSelected] = useState<number | null>(null);
-  const [, forceRender] = useState(0);
+  const [metaMs, setMetaMs] = useState<number | null>(null);
 
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const metaRef = useRef<Map<number, CommitView>>(new Map());
-  const pendingRef = useRef<Set<number>>(new Set());
+  const hostRef = useRef<HTMLDivElement | null>(null);
 
-  const refsByCommit = useMemo(() => {
-    const map = new Map<number, RefView[]>();
-    if (!layout) return map;
-    for (const r of layout.refs) {
-      const list = map.get(r.commit);
-      if (list) list.push(r);
-      else map.set(r.commit, [r]);
-    }
-    return map;
-  }, [layout]);
+  // Всё, что меняется на скролл, живёт в ref: React в кадре не участвует.
+  const frameRef = useRef<Frame>({
+    layout: null,
+    meta: emptyMeta(),
+    refsByCommit: new Map(),
+    scrollY: 0,
+    hover: null,
+    selected: null,
+    width: 0,
+    height: 0,
+  });
+  const rafRef = useRef<number | null>(null);
+  const dragRef = useRef<{ startY: number; startScroll: number } | null>(null);
+
+  const schedule = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const canvas = canvasRef.current;
+      if (canvas) drawFrame(canvas, frameRef.current);
+    });
+  }, []);
+
+  const patch = useCallback(
+    (next: Partial<Frame>) => {
+      frameRef.current = { ...frameRef.current, ...next };
+      schedule();
+    },
+    [schedule],
+  );
+
+  const clampScroll = useCallback((value: number) => {
+    const f = frameRef.current;
+    const count = f.layout?.count ?? 0;
+    return Math.max(0, Math.min(value, maxScroll(count, f.height)));
+  }, []);
+
+  /* ---------------------------- размер вьюпорта ---------------------------- */
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const measure = () => {
+      const rect = host.getBoundingClientRect();
+      patch({
+        width: Math.max(0, Math.round(rect.width)),
+        height: Math.max(0, Math.round(rect.height)),
+        scrollY: clampScroll(frameRef.current.scrollY),
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, [patch, clampScroll]);
+
+  /* -------------------------------- скролл -------------------------------- */
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      // deltaMode: 0 пиксели, 1 строки, 2 страницы
+      const unit = e.deltaMode === 1 ? ROW_H : e.deltaMode === 2 ? frameRef.current.height : 1;
+      patch({ scrollY: clampScroll(frameRef.current.scrollY + e.deltaY * unit) });
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      const f = frameRef.current;
+      const page = f.height - ROW_H * 2;
+      const total = (f.layout?.count ?? 0) * ROW_H;
+      let next: number | null = null;
+      if (e.key === 'PageDown') next = f.scrollY + page;
+      else if (e.key === 'PageUp') next = f.scrollY - page;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = total;
+      else if (e.key === 'ArrowDown') next = f.scrollY + ROW_H;
+      else if (e.key === 'ArrowUp') next = f.scrollY - ROW_H;
+      if (next === null) return;
+      e.preventDefault();
+      patch({ scrollY: clampScroll(next) });
+    };
+
+    host.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKey);
+    return () => {
+      host.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [patch, clampScroll]);
+
+  /* ------------------------------ мышь ------------------------------ */
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    const localY = (e: MouseEvent) => e.clientY - host.getBoundingClientRect().top;
+    const localX = (e: MouseEvent) => e.clientX - host.getBoundingClientRect().left;
+
+    const onMove = (e: MouseEvent) => {
+      const f = frameRef.current;
+      if (dragRef.current) {
+        const total = (f.layout?.count ?? 0) * ROW_H;
+        const thumbH = Math.max(28, (f.height / total) * f.height);
+        const ratio = (total - f.height) / Math.max(1, f.height - thumbH);
+        const dy = localY(e) - dragRef.current.startY;
+        patch({ scrollY: clampScroll(dragRef.current.startScroll + dy * ratio) });
+        return;
+      }
+      const index = rowAtY(localY(e), f.scrollY, f.layout?.count ?? 0);
+      if (index !== f.hover) patch({ hover: index });
+    };
+
+    const onDown = (e: MouseEvent) => {
+      const f = frameRef.current;
+      if (localX(e) >= f.width - SCROLLBAR_W) {
+        dragRef.current = { startY: localY(e), startScroll: f.scrollY };
+        return;
+      }
+      const index = rowAtY(localY(e), f.scrollY, f.layout?.count ?? 0);
+      patch({ selected: index });
+    };
+
+    const onUp = () => {
+      dragRef.current = null;
+    };
+
+    const onLeave = () => patch({ hover: null });
+
+    host.addEventListener('mousemove', onMove);
+    host.addEventListener('mousedown', onDown);
+    host.addEventListener('mouseleave', onLeave);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      host.removeEventListener('mousemove', onMove);
+      host.removeEventListener('mousedown', onDown);
+      host.removeEventListener('mouseleave', onLeave);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [patch, clampScroll]);
+
+  /* ------------------------------ открытие ------------------------------ */
 
   const pickRepo = useCallback(async () => {
     setError(null);
-    const picked = await openDialog({ directory: true, multiple: false, title: 'Выбери репозиторий' });
+    const picked = await openDialog({
+      directory: true,
+      multiple: false,
+      title: 'Выбери репозиторий',
+    });
     if (typeof picked !== 'string') return;
 
     setLoading(true);
     const t0 = performance.now();
     try {
       const view = await invoke<LayoutView>('open_repo', { path: picked });
-      metaRef.current.clear();
-      pendingRef.current.clear();
-      setLayout(view);
-      setSelected(null);
-      setWindow({ start: 0, end: 0 });
       setOpenMs(performance.now() - t0);
-      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      setLayout(view);
+
+      const refsByCommit = new Map<number, RefView[]>();
+      for (const r of view.refs) {
+        const list = refsByCommit.get(r.commit);
+        if (list) list.push(r);
+        else refsByCommit.set(r.commit, [r]);
+      }
+
+      const meta = emptyMeta();
+      patch({ layout: view, meta, refsByCommit, scrollY: 0, selected: null, hover: null });
+
+      // Метаданные тянем целиком: пока они не в памяти, быстрый скролл всё равно
+      // упрётся в IPC. Если на большой репе это станет дорого — увидим по числу.
+      const t1 = performance.now();
+      for (let start = 0; start < view.count; start += PAGE) {
+        const items = await invoke<CommitView[]>('commit_range', { start, len: PAGE });
+        for (const item of items) {
+          meta.hash[item.index] = item.hash;
+          meta.author[item.index] = item.author;
+          meta.time[item.index] = item.time;
+          meta.subject[item.index] = item.subject;
+          meta.body[item.index] = item.body;
+        }
+        schedule();
+      }
+      setMetaMs(performance.now() - t1);
     } catch (e) {
       setError(String(e));
       setLayout(null);
+      patch({ layout: null, meta: emptyMeta(), refsByCommit: new Map() });
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Пересчёт видимого окна. Меняется раз в ROW_H пикселей скролла, а не каждый кадр.
-  const recomputeWindow = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || !layout) return;
-    const top = el.scrollTop;
-    const height = el.clientHeight || 1;
-    const start = Math.max(0, Math.floor(top / ROW_H) - OVERSCAN);
-    const end = Math.min(layout.count, Math.ceil((top + height) / ROW_H) + OVERSCAN);
-    setWindow((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
-  }, [layout]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    recomputeWindow();
-    el.addEventListener('scroll', recomputeWindow, { passive: true });
-    const ro = new ResizeObserver(recomputeWindow);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener('scroll', recomputeWindow);
-      ro.disconnect();
-    };
-  }, [recomputeWindow]);
-
-  // Перерисовка графа только при смене окна.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !layout) return;
-    drawGraph(canvas, { layout, start: window_.start, end: window_.end, selected });
-  }, [layout, window_, selected]);
-
-  // Подтягивание метаданных страницами.
-  useEffect(() => {
-    if (!layout || window_.end <= window_.start) return;
-    const firstPage = Math.floor(window_.start / PAGE);
-    const lastPage = Math.floor((window_.end - 1) / PAGE);
-    for (let page = firstPage; page <= lastPage; page++) {
-      if (pendingRef.current.has(page)) continue;
-      if (metaRef.current.has(page * PAGE)) continue;
-      pendingRef.current.add(page);
-      invoke<CommitView[]>('commit_range', { start: page * PAGE, len: PAGE })
-        .then((items) => {
-          for (const item of items) metaRef.current.set(item.index, item);
-          forceRender((n) => n + 1);
-        })
-        .catch((e) => setError(String(e)))
-        .finally(() => pendingRef.current.delete(page));
-    }
-  }, [layout, window_]);
-
-  const rows = [];
-  if (layout) {
-    for (let i = window_.start; i < window_.end; i++) {
-      const meta = metaRef.current.get(i);
-      const colour = colourOf(layout.colours[i]);
-      rows.push(
-        <div
-          key={i}
-          className={`row${selected === i ? ' row-selected' : ''}`}
-          style={{ top: i * ROW_H, backgroundColor: `${colour}1a` }}
-          onClick={() => setSelected(i)}
-        >
-          <div className="labels">
-            {(refsByCommit.get(i) ?? []).map((r) => (
-              <span key={`${r.kind}-${r.name}`} className={`chip chip-${r.kind}`} title={r.name}>
-                {r.is_head ? '✓ ' : ''}
-                {r.name}
-              </span>
-            ))}
-          </div>
-          <div className="subject" title={meta?.subject}>
-            {meta?.subject ?? '…'}
-            {meta?.body ? <span className="body"> {meta.body.split('\n')[0]}</span> : null}
-          </div>
-          <div className="author">{meta?.author ?? ''}</div>
-          <div className="when">{meta ? new Date(meta.time * 1000).toLocaleDateString() : ''}</div>
-          <div className="hash">{meta ? meta.hash.slice(0, 7) : ''}</div>
-        </div>,
-      );
-    }
-  }
-
-  const gw = layout ? graphWidth(layout.max_lane) : 0;
+  }, [patch, schedule]);
 
   return (
     <div className="app">
@@ -152,7 +232,8 @@ export default function App() {
           <span className="stats">
             <b>{layout.count.toLocaleString('ru')}</b> коммитов · дорожек {layout.max_lane + 1} ·
             чтение {layout.read_ms.toFixed(0)} мс · раскладка {layout.layout_ms.toFixed(1)} мс
-            {openMs !== null ? ` · всего с IPC ${openMs.toFixed(0)} мс` : ''}
+            {openMs !== null ? ` · с IPC ${openMs.toFixed(0)} мс` : ''}
+            {metaMs !== null ? ` · метаданные ${metaMs.toFixed(0)} мс` : ''}
             {layout.truncated ? ' · обрезано' : ''}
           </span>
         ) : null}
@@ -161,21 +242,11 @@ export default function App() {
 
       {error ? <div className="error">{error}</div> : null}
 
-      <div className="scroll" ref={scrollRef}>
-        {layout ? (
-          <div className="content" style={{ height: layout.count * ROW_H }}>
-            <canvas
-              ref={canvasRef}
-              className="graph"
-              style={{ top: window_.start * ROW_H, width: gw }}
-            />
-            <div className="rows" style={{ ['--graph-w' as string]: `${gw}px` }}>
-              {rows}
-            </div>
-          </div>
-        ) : (
+      <div className="host" ref={hostRef} tabIndex={0}>
+        <canvas ref={canvasRef} className="surface" />
+        {!layout && !loading ? (
           <div className="empty">Выбери локальный репозиторий, чтобы посмотреть граф</div>
-        )}
+        ) : null}
       </div>
     </div>
   );
