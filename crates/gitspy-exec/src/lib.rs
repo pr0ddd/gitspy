@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod changes;
 pub mod env;
 
 use std::io::{BufRead, BufReader};
@@ -115,6 +116,63 @@ impl Git {
 
     pub fn program(&self) -> &Path {
         &self.program
+    }
+
+    fn read(&self, repo: &Path, args: &[&str]) -> Result<String, Error> {
+        self.run(repo, args, &Cancel::new(), &mut |_| {})
+            .map(|outcome| outcome.stdout)
+    }
+
+    fn has_parent(&self, repo: &Path, commit: &str) -> bool {
+        self.read(
+            repo,
+            &["rev-parse", "-q", "--verify", &format!("{commit}^1")],
+        )
+        .is_ok()
+    }
+
+    pub fn commit_files(
+        &self,
+        repo: &Path,
+        commit: &str,
+    ) -> Result<Vec<changes::ChangedFile>, Error> {
+        let parent = format!("{commit}^1");
+        let against_parent = self.has_parent(repo, commit);
+
+        let ends: Vec<&str> = if against_parent {
+            vec![parent.as_str(), commit]
+        } else {
+            vec!["--root", commit]
+        };
+
+        let query = |what: &str| {
+            let mut args = vec![
+                "diff-tree",
+                "--no-commit-id",
+                "-r",
+                "-z",
+                what,
+                "--find-renames",
+            ];
+            args.extend_from_slice(&ends);
+            self.read(repo, &args)
+        };
+
+        let names = query("--name-status")?;
+        let counts = query("--numstat")?;
+
+        Ok(changes::merge(
+            changes::parse_name_status(&names),
+            changes::parse_numstat(&counts),
+        ))
+    }
+
+    pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {
+        match self.read(repo, &["show", &format!("{reference}:{path}")]) {
+            Ok(text) => Ok(text),
+            Err(Error::Failed { .. }) => Ok(String::new()),
+            Err(other) => Err(other),
+        }
     }
 
     pub fn run(

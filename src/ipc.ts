@@ -1,6 +1,8 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type {
+  ChangedFileView,
+  DiffSides,
   Operation,
   OperationOutcome,
   Progress,
@@ -37,3 +39,9 @@ export const runOperation = (
 
 export const onRepoChanged = (handler: (repo: string) => void) =>
   listen<string>('repo:changed', (event) => handler(event.payload));
+
+export const commitFiles = (repo: string, commit: string) =>
+  invoke<ChangedFileView[]>('commit_files', { repo, commit });
+
+export const diffSides = (repo: string, commit: string, path: string, oldPath: string | null) =>
+  invoke<DiffSides>('diff_sides', { repo, commit, path, oldPath });

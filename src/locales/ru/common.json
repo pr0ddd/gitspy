@@ -32,12 +32,16 @@
   "details.author": "Автор",
   "details.date": "Дата",
   "details.files": "Файлы",
-  "details.filesPlanned": "Список файлов и дифф появятся в фазе диффов",
   "toast.copied": "Скопировано",
   "column.author": "Автор",
   "column.date": "Дата",
   "operation.started": "Выполняю {{what}}…",
   "operation.finished": "{{what}} завершено",
   "operation.writeCommitGraph": "commit-graph write",
-  "operation.fetchDryRun": "fetch --dry-run"
+  "operation.fetchDryRun": "fetch --dry-run",
+  "diff.sideBySide": "Рядом",
+  "diff.inline": "В строку",
+  "diff.close": "Закрыть дифф",
+  "diff.binary": "Двоичный файл — построчно показывать нечего",
+  "details.noChanges": "Этот коммит ничего не изменил"
 }

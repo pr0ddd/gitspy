@@ -8,13 +8,14 @@ import { notifyCopied, notifyError, notifyOperation } from './toast';
 import * as ipc from './ipc';
 import { groupRefsByCommit, newSession, type Session } from './session';
 import { CHUNK, RowCache } from './rows';
-import type { Operation, RecentRepo } from './types';
+import type { ChangedFileView, Operation, RecentRepo } from './types';
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
 import { Sidebar } from './shell/Sidebar';
 import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
+import { DiffView } from './shell/DiffView';
 
 
 
@@ -26,6 +27,7 @@ export default function App() {
   const [recent, setRecent] = useState<RecentRepo[]>([]);
   const [redraw, setRedraw] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [openFile, setOpenFile] = useState<{ commit: string; file: ChangedFileView } | null>(null);
   const caches = useRef(new Map<string, RowCache>());
 
   const cacheFor = useCallback((path: string) => {
@@ -205,7 +207,15 @@ export default function App() {
           <Toolbar session={current} onRun={runOperation} busy={busy} />
           <div className="flex min-h-0 flex-1">
             <Sidebar session={current} onPick={select} />
-            <main className="flex min-w-0 min-h-0 flex-1 flex-col">
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+              {openFile && current.repo ? (
+                <DiffView
+                  repo={current.path}
+                  commit={openFile.commit}
+                  file={openFile.file}
+                  onClose={() => setOpenFile(null)}
+                />
+              ) : null}
               <GraphView
                 key={current.path}
                 session={current}
@@ -230,7 +240,12 @@ export default function App() {
                 </footer>
               ) : null}
             </main>
-            <Details session={current} rows={cacheFor(current.path)} onCopy={copy} />
+            <Details
+              session={current}
+              rows={cacheFor(current.path)}
+              onCopy={copy}
+              onOpenFile={(commit, file) => setOpenFile({ commit, file })}
+            />
           </div>
         </>
       )}
