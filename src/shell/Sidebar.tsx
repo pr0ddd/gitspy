@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Search } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Session } from '../session';
 import { GIT } from '../vocabulary';
+import { Icon, type IconName } from '../icons';
 import type { RefKind, RefView } from '../types';
 
 type Props = {
@@ -24,6 +25,7 @@ type Entry = {
 type Group = {
   key: string;
   title: string;
+  icon: IconName;
   entries: Entry[];
   planned?: boolean;
 };
@@ -41,11 +43,12 @@ export function Sidebar({ session, onPick }: Props) {
 
   const groups: Group[] = useMemo(
     () => [
-      { key: 'local', title: GIT.local, entries: fromRefs(refs, 'localBranch') },
-      { key: 'remote', title: GIT.remote, entries: fromRefs(refs, 'remoteBranch') },
+      { key: 'local', title: GIT.local, icon: 'branch', entries: fromRefs(refs, 'localBranch') },
+      { key: 'remote', title: GIT.remote, icon: 'remote', entries: fromRefs(refs, 'remoteBranch') },
       {
         key: 'worktrees',
         title: GIT.worktrees,
+        icon: 'worktree',
         entries: (session?.worktrees ?? []).map((w) => ({
           label: w.name,
           detail: w.branch ?? undefined,
@@ -53,10 +56,10 @@ export function Sidebar({ session, onPick }: Props) {
           isHead: w.is_main,
         })),
       },
-      { key: 'stashes', title: GIT.stashes, entries: fromRefs(refs, 'stash') },
-      { key: 'tags', title: GIT.tags, entries: fromRefs(refs, 'tag') },
-      { key: 'pullRequests', title: GIT.pullRequests, entries: [], planned: true },
-      { key: 'issues', title: GIT.issues, entries: [], planned: true },
+      { key: 'stashes', title: GIT.stashes, icon: 'stash', entries: fromRefs(refs, 'stash') },
+      { key: 'tags', title: GIT.tags, icon: 'tag', entries: fromRefs(refs, 'tag') },
+      { key: 'pullRequests', title: GIT.pullRequests, icon: 'pullRequest', entries: [], planned: true },
+      { key: 'issues', title: GIT.issues, icon: 'issue', entries: [], planned: true },
     ],
     [refs, session?.worktrees],
   );
@@ -66,7 +69,7 @@ export function Sidebar({ session, onPick }: Props) {
   return (
     <aside className="bg-card border-border flex w-64 shrink-0 flex-col border-r">
       <div className="relative p-2">
-        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-3 -translate-y-1/2" />
+        <Icon.search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-3 -translate-y-1/2" />
         <Input
           value={filter}
           placeholder={t('sidebar.filter')}
@@ -77,6 +80,7 @@ export function Sidebar({ session, onPick }: Props) {
 
       <ScrollArea className="min-h-0 flex-1">
         {groups.map((group) => {
+          const Glyph = Icon[group.icon];
           const shown = needle
             ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
             : group.entries;
@@ -90,7 +94,8 @@ export function Sidebar({ session, onPick }: Props) {
                   group.planned ? 'text-muted-foreground/60' : 'text-muted-foreground',
                 )}
               >
-                <ChevronRight className="size-3 transition-transform group-data-[state=open]/section:rotate-90" />
+                <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]/section:rotate-90" />
+                <Glyph className="size-3.5 shrink-0" />
                 <span className="flex-1 text-left">{group.title}</span>
                 <span className="text-muted-foreground/70 tabular-nums">
                   {group.entries.length}
@@ -108,6 +113,7 @@ export function Sidebar({ session, onPick }: Props) {
                       entry.isHead && 'border-l-primary text-foreground font-medium',
                     )}
                   >
+                    <Glyph className="text-muted-foreground/70 size-3 shrink-0" />
                     <span className="truncate">{entry.label}</span>
                     {entry.detail ? (
                       <span className="text-muted-foreground truncate text-xs">

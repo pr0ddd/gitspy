@@ -1,7 +1,8 @@
-import { Plus, X } from 'lucide-react';
+
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Icon } from '../icons';
 import type { Session } from '../session';
 
 type Props = {
@@ -31,6 +32,7 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart }: Pro
                 : 'text-muted-foreground hover:bg-surface-hover border-t-transparent',
             )}
           >
+            <Icon.branch className="size-3 shrink-0 opacity-70" />
             <span className="truncate">{session.name}</span>
             <Button
               variant="ghost"
@@ -42,7 +44,7 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart }: Pro
               }}
               className="text-muted-foreground hover:text-foreground size-4 opacity-0 transition-opacity group-hover:opacity-100"
             >
-              <X className="size-3" />
+              <Icon.close className="size-3" />
             </Button>
           </div>
         );
@@ -54,7 +56,7 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart }: Pro
         onClick={onStart}
         className={cn('my-1 ml-1 size-6', active === null && 'bg-surface-hover text-foreground')}
       >
-        <Plus className="size-3.5" />
+        <Icon.add className="size-3.5" />
       </Button>
     </nav>
   );

@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { Session } from '../session';
 import { GIT } from '../vocabulary';
+import { Icon } from '../icons';
 import type { RefKind } from '../types';
 
 type Props = {
@@ -54,6 +55,7 @@ export function Details({ session, onCopy }: Props) {
   return (
     <Shell>
       <header className="border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+        <Icon.commit className="text-muted-foreground size-3.5" />
         <span className="text-muted-foreground text-xs tracking-wide uppercase">
           {GIT.commit}
         </span>
@@ -62,8 +64,9 @@ export function Details({ session, onCopy }: Props) {
           size="sm"
           onClick={() => onCopy(hash)}
           title={t('details.copyHash')}
-          className="ml-auto h-6 font-mono text-xs"
+          className="ml-auto h-6 gap-1.5 font-mono text-xs"
         >
+          <Icon.copy className="size-3" />
           {hash.slice(0, 8)}
         </Button>
       </header>
