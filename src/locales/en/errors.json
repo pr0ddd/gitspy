@@ -1,0 +1,9 @@
+{
+  "repo.open": "Could not open the repository at {{path}}",
+  "repo.walk": "Could not read the repository history",
+  "repo.readObject": "Could not read a git object",
+  "repo.parentBeforeChild": "History order is broken: parent {{parent}} comes before child {{child}}",
+  "repo.notOpen": "No repository is open",
+  "app.stateLock": "Application state is unavailable",
+  "unknown": "Unexpected error"
+}

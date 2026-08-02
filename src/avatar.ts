@@ -1,15 +1,5 @@
-/**
- * Идентиконы: детерминированная картинка из строки, как у GitHub и the reference client.
- *
- * Генерируем локально, а не тянем с граватара или из GitHub API. Старое
- * приложение ходило в сеть за аватарками прямо при открытии репозитория и
- * блокировало на этом весь интерфейс. Здесь картинка — чистая функция от
- * почты автора: без сети, без ожидания, без кэша на диске.
- */
-
 const cache = new Map<string, HTMLCanvasElement>();
 
-/** FNV-1a: дешёвый и хорошо перемешивающий для наших целей. */
 function hash(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -40,7 +30,6 @@ export function identicon(key: string, size: number): HTMLCanvasElement {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, size, size);
 
-  // Сетка 5×5, симметричная по вертикали — узнаваемая форма идентикона.
   const cells = 5;
   const cell = size / cells;
   ctx.fillStyle = fg;

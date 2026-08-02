@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "i18n:check": "node scripts/check-locales.mjs",
+    "build": "npm run i18n:check && tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "app": "tauri dev"
@@ -13,8 +14,10 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
+    "i18next": "^26.3.6",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "react-i18next": "^17.0.11"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

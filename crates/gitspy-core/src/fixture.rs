@@ -15,14 +15,6 @@ pub enum FixtureError {
     Invalid(TopologyError),
 }
 
-/// Разбирает компактное описание топологии.
-///
-/// ```text
-/// m: a, b     # коммит m с двумя родителями
-/// a: r
-/// b: ?        # родитель за границей загруженного набора
-/// r           # корень
-/// ```
 pub fn parse(src: &str) -> Result<Parsed, FixtureError> {
     let mut names: Vec<String> = Vec::new();
     let mut raw_parents: Vec<Vec<String>> = Vec::new();
@@ -38,7 +30,9 @@ pub fn parse(src: &str) -> Result<Parsed, FixtureError> {
             None => (line, ""),
         };
         if names.iter().any(|existing| existing == name) {
-            return Err(FixtureError::DuplicateName { name: name.to_string() });
+            return Err(FixtureError::DuplicateName {
+                name: name.to_string(),
+            });
         }
         names.push(name.to_string());
 
@@ -140,7 +134,10 @@ mod tests {
         let err = parse("a: zzz\n").unwrap_err();
         assert_eq!(
             err,
-            FixtureError::UnknownParent { commit: "a".into(), parent: "zzz".into() }
+            FixtureError::UnknownParent {
+                commit: "a".into(),
+                parent: "zzz".into()
+            }
         );
     }
 
@@ -149,7 +146,10 @@ mod tests {
         let err = parse("a\nb: a\n").unwrap_err();
         assert_eq!(
             err,
-            FixtureError::ParentNotAfterChild { commit: "b".into(), parent: "a".into() }
+            FixtureError::ParentNotAfterChild {
+                commit: "b".into(),
+                parent: "a".into()
+            }
         );
     }
 }

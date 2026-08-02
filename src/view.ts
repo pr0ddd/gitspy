@@ -1,6 +1,5 @@
 import type { LayoutView } from './types';
 
-/** Сжатая карта всей истории: на каждый пиксель высоты — маска занятых дорожек. */
 export type Minimap = {
   readonly buckets: number;
   readonly bits: Uint32Array;

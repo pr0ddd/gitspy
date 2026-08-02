@@ -14,8 +14,9 @@ fn check(name: &str) {
         std::fs::write(&golden_path, &actual).expect("golden записывается");
         return;
     }
-    let expected = std::fs::read_to_string(&golden_path)
-        .unwrap_or_else(|e| panic!("не читается {name}.golden: {e}. Первый раз — запусти с UPDATE_GOLDEN=1"));
+    let expected = std::fs::read_to_string(&golden_path).unwrap_or_else(|e| {
+        panic!("не читается {name}.golden: {e}. Первый раз — запусти с UPDATE_GOLDEN=1")
+    });
     assert_eq!(actual, expected, "раскладка {name} разошлась с golden");
 }
 

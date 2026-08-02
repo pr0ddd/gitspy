@@ -1,15 +1,26 @@
-/// Индекс коммита в загруженном наборе. Ноль — самый новый.
 pub type CommitIdx = u32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TopologyError {
-    LengthMismatch { parents: usize, outside: usize },
-    ParentOutOfRange { commit: CommitIdx, parent: CommitIdx, len: usize },
-    ParentNotAfterChild { commit: CommitIdx, parent: CommitIdx },
-    DuplicateParent { commit: CommitIdx, parent: CommitIdx },
+    LengthMismatch {
+        parents: usize,
+        outside: usize,
+    },
+    ParentOutOfRange {
+        commit: CommitIdx,
+        parent: CommitIdx,
+        len: usize,
+    },
+    ParentNotAfterChild {
+        commit: CommitIdx,
+        parent: CommitIdx,
+    },
+    DuplicateParent {
+        commit: CommitIdx,
+        parent: CommitIdx,
+    },
 }
 
-/// Топология загруженного участка истории. Хранит только связи, без метаданных.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Topology {
     parents: Vec<Vec<CommitIdx>>,
@@ -32,7 +43,11 @@ impl Topology {
             let commit = i as CommitIdx;
             for (j, &parent) in ps.iter().enumerate() {
                 if parent as usize >= len {
-                    return Err(TopologyError::ParentOutOfRange { commit, parent, len });
+                    return Err(TopologyError::ParentOutOfRange {
+                        commit,
+                        parent,
+                        len,
+                    });
                 }
                 if parent <= commit {
                     return Err(TopologyError::ParentNotAfterChild { commit, parent });
@@ -42,7 +57,10 @@ impl Topology {
                 }
             }
         }
-        Ok(Self { parents, outside_parents })
+        Ok(Self {
+            parents,
+            outside_parents,
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -91,17 +109,23 @@ mod tests {
         let err = Topology::new(vec![vec![5]], vec![0]).unwrap_err();
         assert_eq!(
             err,
-            TopologyError::ParentOutOfRange { commit: 0, parent: 5, len: 1 }
+            TopologyError::ParentOutOfRange {
+                commit: 0,
+                parent: 5,
+                len: 1
+            }
         );
     }
 
     #[test]
     fn rejects_parent_before_child() {
-        // родитель обязан идти ПОСЛЕ потомка: parents[1] = [0] нарушает порядок
         let err = Topology::new(vec![vec![1], vec![0]], vec![0, 0]).unwrap_err();
         assert_eq!(
             err,
-            TopologyError::ParentNotAfterChild { commit: 1, parent: 0 }
+            TopologyError::ParentNotAfterChild {
+                commit: 1,
+                parent: 0
+            }
         );
     }
 
@@ -110,20 +134,34 @@ mod tests {
         let err = Topology::new(vec![vec![0]], vec![0]).unwrap_err();
         assert_eq!(
             err,
-            TopologyError::ParentNotAfterChild { commit: 0, parent: 0 }
+            TopologyError::ParentNotAfterChild {
+                commit: 0,
+                parent: 0
+            }
         );
     }
 
     #[test]
     fn rejects_length_mismatch() {
         let err = Topology::new(vec![vec![]], vec![]).unwrap_err();
-        assert_eq!(err, TopologyError::LengthMismatch { parents: 1, outside: 0 });
+        assert_eq!(
+            err,
+            TopologyError::LengthMismatch {
+                parents: 1,
+                outside: 0
+            }
+        );
     }
 
     #[test]
     fn rejects_duplicate_parent() {
-        // [1, 1] дало бы вырожденное ответвление дорожки в саму себя
         let err = Topology::new(vec![vec![1, 1], vec![]], vec![0, 0]).unwrap_err();
-        assert_eq!(err, TopologyError::DuplicateParent { commit: 0, parent: 1 });
+        assert_eq!(
+            err,
+            TopologyError::DuplicateParent {
+                commit: 0,
+                parent: 1
+            }
+        );
     }
 }

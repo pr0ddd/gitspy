@@ -18,13 +18,6 @@ fn segment_text(segment: &Segment) -> String {
     }
 }
 
-/// Текстовый дамп раскладки для golden-тестов.
-///
-/// Точный и однозначный формат; псевдографика намеренно не используется,
-/// потому что строка с одновременным входом merge и выходом branch в ней
-/// не изображается без полустрок. Вторая причина — псевдографика провоцирует
-/// сверять вывод с `git log --graph`, который раскладывает иначе и эталоном
-/// нам не является.
 pub fn render(layout: &Layout, names: &[String]) -> String {
     let mut out = String::new();
     for (i, row) in layout.rows.iter().enumerate() {
@@ -41,9 +34,21 @@ pub fn render(layout: &Layout, names: &[String]) -> String {
         let segments = &layout.segments[i];
         if !segments.is_empty() {
             let mut ordered: Vec<&Segment> = Vec::with_capacity(segments.len());
-            ordered.extend(segments.iter().filter(|s| matches!(s, Segment::Through { .. })));
-            ordered.extend(segments.iter().filter(|s| matches!(s, Segment::Merge { .. })));
-            ordered.extend(segments.iter().filter(|s| matches!(s, Segment::Branch { .. })));
+            ordered.extend(
+                segments
+                    .iter()
+                    .filter(|s| matches!(s, Segment::Through { .. })),
+            );
+            ordered.extend(
+                segments
+                    .iter()
+                    .filter(|s| matches!(s, Segment::Merge { .. })),
+            );
+            ordered.extend(
+                segments
+                    .iter()
+                    .filter(|s| matches!(s, Segment::Branch { .. })),
+            );
             let rendered: Vec<String> = ordered.iter().map(|s| segment_text(s)).collect();
             write!(out, "  {}", rendered.join(" | ")).expect("запись в String не отказывает");
         }

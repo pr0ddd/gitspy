@@ -6,14 +6,6 @@ use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 use std::collections::HashSet;
 
-/// Генерирует корректную топологию: у коммита i родители строго из (i+1..n).
-///
-/// Порядок родителей НЕ сортируется: в настоящем git первый родитель мержа
-/// обычно новее второго, то есть имеет больший индекс. Отсортированный
-/// генератор эту форму не порождает, а именно она в фикстуре two_branches.
-///
-/// Родители за границей набора генерируются тоже — иначе ветка Open
-/// не проверяется вовсе.
 fn arb_topology() -> impl Strategy<Value = Topology> {
     (1usize..30).prop_flat_map(|n| {
         let rows: Vec<BoxedStrategy<(Vec<CommitIdx>, u32)>> = (0..n)
@@ -23,9 +15,7 @@ fn arb_topology() -> impl Strategy<Value = Topology> {
                     Just(Vec::<CommitIdx>::new()).boxed()
                 } else {
                     proptest::collection::hash_set((i + 1)..n, 0..=3usize.min(remaining))
-                        .prop_map(|set| {
-                            set.into_iter().map(|x| x as CommitIdx).collect::<Vec<_>>()
-                        })
+                        .prop_map(|set| set.into_iter().map(|x| x as CommitIdx).collect::<Vec<_>>())
                         .prop_shuffle()
                         .boxed()
                 };
@@ -44,8 +34,6 @@ fn arb_topology() -> impl Strategy<Value = Topology> {
     })
 }
 
-/// Дорожки, занятые в ВЕРХНЕЙ половине строки: дорожка узла, сквозные проходы
-/// и дорожки, по которым линии приходят сверху и втыкаются в узел.
 fn lanes_entering(layout: &Layout, row: usize) -> Vec<u16> {
     let mut lanes = vec![layout.rows[row].lane];
     for segment in &layout.segments[row] {
@@ -58,11 +46,6 @@ fn lanes_entering(layout: &Layout, row: usize) -> Vec<u16> {
     lanes
 }
 
-/// Дорожки, занятые в НИЖНЕЙ половине строки: сквозные проходы, дорожки
-/// ответвлений и дорожка узла — если линия узла продолжается вниз.
-///
-/// Ответвление в дорожку, которая уже проходит строку насквозь, не добавляется:
-/// это присоединение к той же линии, а не вторая линия на той же дорожке.
 fn lanes_leaving(layout: &Layout, row: usize) -> Vec<u16> {
     let through: Vec<u16> = layout.segments[row]
         .iter()
@@ -91,8 +74,6 @@ fn as_set(lanes: &[u16]) -> HashSet<u16> {
     lanes.iter().copied().collect()
 }
 
-/// Коммиты, у которых есть хотя бы один потомок в загруженном наборе.
-/// У остальных строка — вершина линии, и появление новой дорожки там законно.
 fn commits_with_children(topo: &Topology) -> HashSet<CommitIdx> {
     let mut set = HashSet::new();
     for i in 0..topo.len() as CommitIdx {
@@ -138,10 +119,7 @@ proptest! {
     #[test]
     fn live_colours_are_distinct_while_the_palette_suffices(topo in arb_topology()) {
         let l = chunk::layout(&topo);
-        // Одновременно живых линий не больше, чем дорожек. Пока их меньше размера
-        // палитры, запасная ветка ColourAllocator не срабатывает и коллизий быть
-        // не может. Проверять при исчерпанной палитре бессмысленно: там коллизия
-        // заложена и остаётся с линией навсегда.
+
         prop_assume!((l.max_lane as usize) + 1 < PALETTE_LEN as usize);
         for row in 0..l.len() {
             let mut colours = vec![l.rows[row].colour];
@@ -186,9 +164,6 @@ proptest! {
         }
     }
 
-    /// Рёбра обязаны соответствовать настоящим связям, а не просто быть согласованными
-    /// между собой: у коммита с N родителями ровно N-1 ответвлений, потому что первый
-    /// родитель продолжается в дорожке самого коммита. Ловит и лишнее, и потерянное ребро.
     #[test]
     fn branch_count_matches_parent_count(topo in arb_topology()) {
         let l = chunk::layout(&topo);
@@ -212,12 +187,6 @@ proptest! {
         }
     }
 
-    /// Линии непрерывны: набор дорожек, занятых внизу строки, обязан совпасть
-    /// с набором занятых наверху следующей — с единственным исключением для
-    /// вершины линии, где дорожка законно появляется впервые.
-    ///
-    /// Это машинная форма инварианта спеки «ребро доходит до настоящего родителя
-    /// без разрывов»: оборванное или возникшее из ниоткуда ребро ломает равенство.
     #[test]
     fn lines_are_continuous_between_rows(topo in arb_topology()) {
         let l = chunk::layout(&topo);
@@ -254,7 +223,6 @@ proptest! {
         }
     }
 
-    /// Главный инвариант всей схемы с полосами и снапшотами.
     #[test]
     fn chunked_layout_equals_whole_layout(topo in arb_topology(), chunk_size in 1usize..17) {
         let whole = chunk::layout(&topo);
