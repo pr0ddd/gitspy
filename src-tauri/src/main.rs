@@ -5,7 +5,7 @@ use gitspy_core::chunk;
 use gitspy_core::layout::{Layout, NodeKind, Segment};
 use gitspy_repo::{History, RefKind};
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -26,12 +26,24 @@ mod segment_kind {
 
 #[derive(Default)]
 struct AppState {
-    open: Mutex<Option<OpenRepo>>,
+    repos: Mutex<HashMap<String, OpenRepo>>,
 }
 
 struct OpenRepo {
     path: PathBuf,
     history: History,
+}
+
+fn with_repo<T>(
+    state: &State<'_, AppState>,
+    repo: &str,
+    f: impl FnOnce(&OpenRepo) -> T,
+) -> Result<T, ErrorView> {
+    let guard = state.repos.lock().map_err(|_| state_lock_failed())?;
+    let open = guard
+        .get(repo)
+        .ok_or_else(|| ErrorView::new("repo.notOpen").param("path", repo))?;
+    Ok(f(open))
 }
 
 #[derive(Serialize)]
@@ -116,6 +128,15 @@ struct RefView {
     kind: RefKindView,
     commit: u32,
     is_head: bool,
+}
+
+#[derive(Serialize)]
+struct WorktreeView {
+    name: String,
+    path: String,
+    branch: Option<String>,
+    is_main: bool,
+    is_locked: bool,
 }
 
 #[derive(Serialize)]
@@ -221,49 +242,75 @@ async fn open_repo(path: String, state: State<'_, AppState>) -> Result<LayoutVie
 
     let view = build_layout_view(&path, &history, &layout, read_ms, layout_ms);
 
-    let mut guard = state.open.lock().map_err(|_| state_lock_failed())?;
-    *guard = Some(OpenRepo {
-        path: repo_path,
-        history,
-    });
+    let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
+    guard.insert(
+        path.clone(),
+        OpenRepo {
+            path: repo_path,
+            history,
+        },
+    );
 
     Ok(view)
 }
 
 #[tauri::command]
-fn commit_range(
-    start: u32,
-    len: u32,
-    state: State<'_, AppState>,
-) -> Result<Vec<CommitView>, ErrorView> {
-    let guard = state.open.lock().map_err(|_| state_lock_failed())?;
-    let repo = guard
-        .as_ref()
-        .ok_or_else(|| ErrorView::new("repo.notOpen"))?;
+fn close_repo(repo: String, state: State<'_, AppState>) -> Result<(), ErrorView> {
+    let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
+    guard.remove(&repo);
+    Ok(())
+}
 
-    let total = repo.history.commits.len();
-    let from = (start as usize).min(total);
-    let to = (from + len as usize).min(total);
-
-    Ok(repo.history.commits[from..to]
-        .iter()
-        .enumerate()
-        .map(|(offset, c)| CommitView {
-            index: (from + offset) as u32,
-            hash: c.hash.clone(),
-            author: c.author.clone(),
-            email: c.email.clone(),
-            time: c.time,
-            subject: c.subject.clone(),
-            body: c.body.clone(),
-        })
+#[tauri::command]
+fn open_repos(state: State<'_, AppState>) -> Result<Vec<String>, ErrorView> {
+    let guard = state.repos.lock().map_err(|_| state_lock_failed())?;
+    Ok(guard
+        .values()
+        .map(|r| r.path.display().to_string())
         .collect())
 }
 
 #[tauri::command]
-fn current_path(state: State<'_, AppState>) -> Result<Option<String>, ErrorView> {
-    let guard = state.open.lock().map_err(|_| state_lock_failed())?;
-    Ok(guard.as_ref().map(|r| r.path.display().to_string()))
+fn commit_range(
+    repo: String,
+    start: u32,
+    len: u32,
+    state: State<'_, AppState>,
+) -> Result<Vec<CommitView>, ErrorView> {
+    with_repo(&state, &repo, |open| {
+        let total = open.history.commits.len();
+        let from = (start as usize).min(total);
+        let to = (from + len as usize).min(total);
+
+        open.history.commits[from..to]
+            .iter()
+            .enumerate()
+            .map(|(offset, c)| CommitView {
+                index: (from + offset) as u32,
+                hash: c.hash.clone(),
+                author: c.author.clone(),
+                email: c.email.clone(),
+                time: c.time,
+                subject: c.subject.clone(),
+                body: c.body.clone(),
+            })
+            .collect()
+    })
+}
+
+#[tauri::command]
+fn worktrees(repo: String) -> Result<Vec<WorktreeView>, ErrorView> {
+    let found = gitspy_repo::worktrees(&PathBuf::from(&repo))?;
+    Ok(found
+        .into_iter()
+        .map(|w| WorktreeView {
+            name: w.name,
+            path: w.path,
+            branch: w.branch,
+            is_main: w.is_main,
+            is_locked: w.is_locked,
+        })
+        .collect())
 }
 
 fn main() {
@@ -272,8 +319,10 @@ fn main() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             open_repo,
+            close_repo,
+            open_repos,
             commit_range,
-            current_path
+            worktrees
         ])
         .run(tauri::generate_context!())
         .expect("приложение запускается")
