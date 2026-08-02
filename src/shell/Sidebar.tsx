@@ -33,13 +33,13 @@ type Group = {
 const fromRefs = (refs: RefView[], kind: RefKind): Entry[] =>
   refs
     .filter((r) => r.kind === kind)
-    .map((r) => ({ label: r.name, commit: r.commit, isHead: r.is_head }));
+    .map((r) => ({ label: r.name, commit: r.commit, isHead: r.isHead }));
 
 export function Sidebar({ session, onPick }: Props) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
 
-  const refs = session?.layout?.refs ?? [];
+  const refs = session?.repo?.refs ?? [];
 
   const groups: Group[] = useMemo(
     () => [
@@ -53,7 +53,7 @@ export function Sidebar({ session, onPick }: Props) {
           label: w.name,
           detail: w.branch ?? undefined,
           commit: null,
-          isHead: w.is_main,
+          isHead: w.isMain,
         })),
       },
       { key: 'stashes', title: GIT.stashes, icon: 'stash', entries: fromRefs(refs, 'stash') },

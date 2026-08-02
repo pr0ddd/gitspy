@@ -88,7 +88,7 @@ export function StartPage({ recent, onOpen, onOpenPath, onForget }: Props) {
                     {shorten(entry.path)}
                   </span>
                   <span className="text-muted-foreground/60 ml-auto shrink-0 text-xs">
-                    {ago(entry.opened_at)}
+                    {ago(entry.openedAt)}
                   </span>
                   <Button
                     asChild

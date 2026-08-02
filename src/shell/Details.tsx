@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import type { Session } from '../session';
+import { rowAt, type Session } from '../session';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import type { RefKind } from '../types';
@@ -39,9 +39,8 @@ export function Details({ session, onCopy }: Props) {
     );
   }
 
-  const { meta } = session;
-  const hash = meta.hash[index];
-  if (!hash) {
+  const row = rowAt(session.window, index);
+  if (!row || row.kind !== 'commit') {
     return (
       <Shell>
         <p className="text-muted-foreground p-4 text-center">{t('details.loading')}</p>
@@ -49,7 +48,7 @@ export function Details({ session, onCopy }: Props) {
     );
   }
 
-  const when = new Date(meta.time[index] * 1000);
+  const when = new Date(row.time * 1000);
   const labels = session.refsByCommit.get(index) ?? [];
 
   return (
@@ -62,30 +61,29 @@ export function Details({ session, onCopy }: Props) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onCopy(hash)}
+          onClick={() => onCopy(row.hash)}
           title={t('details.copyHash')}
           className="ml-auto h-6 gap-1.5 font-mono text-xs"
         >
           <Icon.copy className="size-3" />
-          {hash.slice(0, 8)}
+          {row.hash.slice(0, 8)}
         </Button>
       </header>
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-3 p-3">
-          <p className="text-sm leading-snug">{meta.subject[index]}</p>
+          <p className="text-sm leading-snug">{row.subject}</p>
 
-          {meta.body[index] ? (
+          {row.body ? (
             <pre className="bg-surface text-muted-foreground rounded-md p-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
-              {meta.body[index]}
+              {row.body}
             </pre>
           ) : null}
 
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="text-muted-foreground">{t('details.author')}</dt>
             <dd className="truncate">
-              {meta.author[index]}{' '}
-              <span className="text-muted-foreground">{meta.email[index]}</span>
+              {row.author} <span className="text-muted-foreground">{row.email}</span>
             </dd>
             <dt className="text-muted-foreground">{t('details.date')}</dt>
             <dd>

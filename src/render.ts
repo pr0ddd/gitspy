@@ -1,5 +1,6 @@
 import { identicon } from './avatar';
-import { SEGMENT_KIND, type LayoutView, type RefView } from './types';
+import { SEGMENT_KIND, type RefView, type RepoView, type RowView, type WindowView } from './types';
+import { rowAt } from './session';
 import { laneColour, laneColourAlpha, theme } from './theme';
 import type { Minimap } from './view';
 
@@ -76,15 +77,6 @@ export const maxScrollX = (m: Metrics, maxLane: number, width: number): number =
   return graphContentWidth(m, maxLane) - (graphViewWidth(width) - 2 * pinWidth(m));
 };
 
-export type Meta = {
-  readonly hash: string[];
-  readonly author: string[];
-  readonly email: string[];
-  readonly time: number[];
-  readonly subject: string[];
-  readonly body: string[];
-};
-
 export type Columns = {
   readonly branchTag: string;
   readonly graph: string;
@@ -95,9 +87,9 @@ export type Columns = {
 };
 
 export type Frame = {
-  readonly layout: LayoutView | null;
+  readonly repo: RepoView | null;
+  readonly window: WindowView | null;
   readonly columns: Columns;
-  readonly meta: Meta;
   readonly refsByCommit: ReadonlyMap<number, RefView[]>;
   readonly minimap: Minimap | null;
   readonly metrics: Metrics;
@@ -110,6 +102,9 @@ export type Frame = {
 };
 
 const dateFmt = new Intl.DateTimeFormat('ru', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+const avatarKey = (row: RowView, index: number): string =>
+  row.kind === 'commit' ? row.email || row.author || String(index) : 'working-tree';
 
 const clipCache = new Map<string, string>();
 
@@ -200,7 +195,7 @@ function graphGeometry(
 }
 
 export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
-  const { layout, meta, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
+  const { repo, window: win, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
   const { width, height } = frame;
 
   const t = theme();
@@ -219,19 +214,19 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   ctx.fillRect(0, 0, width, height);
 
   const listW = listWidth(width);
-  const g = layout
-    ? graphGeometry(m, layout.max_lane, scrollX, width)
+  const g = repo
+    ? graphGeometry(m, repo.maxLane, scrollX, width)
     : graphGeometry(m, 0, 0, width);
   const msgX = g.gRight + 12;
   const colHash = listW - 80;
   const colDate = colHash - 88;
   const colAuthor = colDate - 140;
 
-  if (layout && layout.count > 0) {
+  if (repo && repo.count > 0) {
     const first = Math.max(0, Math.floor(scrollY / m.rowH));
 
     const shift = Math.round((HEADER_H - (scrollY - first * m.rowH)) * dpr) / dpr;
-    const last = Math.min(layout.count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
+    const last = Math.min(repo.count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
     const half = m.rowH / 2;
 
     ctx.save();
@@ -260,8 +255,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
-      const x = g.nodeX(layout.lanes[i]) - m.nodeR;
-      ctx.fillStyle = laneColourAlpha(layout.colours[i], 11);
+      const row = rowAt(win, i);
+      if (!row) continue;
+      const x = g.nodeX(row.lane) - m.nodeR;
+      ctx.fillStyle = laneColourAlpha(row.colour, 11);
       ctx.fillRect(x, y + 1, Math.max(0, g.gRight - x), m.rowH - 2);
     }
 
@@ -278,12 +275,15 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.lineWidth = GRAPH_W;
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH + half;
-      for (let s = layout.seg_offsets[i]; s < layout.seg_offsets[i + 1]; s++) {
-        const kind = layout.seg_kind[s];
-        const a = g.laneAt(layout.seg_from[s]);
-        const b = g.laneAt(layout.seg_to[s]);
+      if (!win) continue;
+      const local = i - win.start;
+      if (local < 0 || local >= win.rows.length) continue;
+      for (let s = win.segOffsets[local]; s < win.segOffsets[local + 1]; s++) {
+        const kind = win.segKind[s];
+        const a = g.laneAt(win.segFrom[s]);
+        const b = g.laneAt(win.segTo[s]);
         if (Math.max(a, b) < g.contentLeft - 40 || Math.min(a, b) > g.contentRight + 40) continue;
-        ctx.strokeStyle = laneColour(layout.seg_colour[s]);
+        ctx.strokeStyle = laneColour(win.segColour[s]);
         ctx.beginPath();
         if (kind === SEGMENT_KIND.through) {
           ctx.moveTo(a, y - half);
@@ -318,16 +318,20 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     }
 
     for (let i = first; i < last; i++) {
+      const row = rowAt(win, i);
+      if (!row) continue;
       const y = shift + (i - first) * m.rowH;
-      ctx.fillStyle = laneColour(layout.colours[i]);
+      ctx.fillStyle = laneColour(row.colour);
       ctx.fillRect(g.gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
     }
 
     for (let i = first; i < last; i++) {
+      const row = rowAt(win, i);
+      if (!row) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
-      const lane = layout.lanes[i];
+      const lane = row.lane;
       const x = g.nodeX(lane);
-      const colour = laneColour(layout.colours[i]);
+      const colour = laneColour(row.colour);
 
       if (g.isStuck(lane)) {
 
@@ -342,7 +346,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
 
       if (m.avatars) {
-        const key = meta.email[i] || meta.author[i] || String(i);
+        const key = avatarKey(row, i);
         const size = m.nodeR * 2;
         ctx.save();
         ctx.beginPath();
@@ -379,15 +383,17 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     for (let i = first; i < last; i++) {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
+      const row = rowAt(win, i);
+      if (!row) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
-      const colour = laneColour(layout.colours[i]);
-      const nodeX = g.nodeX(layout.lanes[i]);
+      const colour = laneColour(row.colour);
+      const nodeX = g.nodeX(row.lane);
 
       let left = 12;
 
       let chipEnd = left;
       for (const label of labels) {
-        const text = label.is_head ? `✓ ${label.name}` : label.name;
+        const text = label.isHead ? `✓ ${label.name}` : label.name;
         const fitted = fitText(ctx, text, 150);
         const w = ctx.measureText(fitted).width + 14;
         if (left + w > BRANCH_W - 14) break;
@@ -415,19 +421,20 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
 
-      const subject = meta.subject[i];
-      if (subject === undefined) {
+      const row = rowAt(win, i);
+      if (!row || row.kind !== 'commit') {
         ctx.fillStyle = t.faint;
         ctx.fillText('—', msgX, yc);
         continue;
       }
+      const subject = row.subject;
 
       const subjMax = colAuthor - msgX - 12;
       ctx.fillStyle = t.foreground;
       const fitted = fitText(ctx, subject, subjMax);
       ctx.fillText(fitted, msgX, yc);
 
-      const body = meta.body[i];
+      const body = row.body;
       if (body && fitted === subject) {
         const used = ctx.measureText(subject).width;
         const rest = subjMax - used - 10;
@@ -438,10 +445,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
 
       ctx.fillStyle = t.muted;
-      ctx.fillText(fitText(ctx, meta.author[i] ?? '', colDate - colAuthor - 10), colAuthor, yc);
-      ctx.fillText(dateFmt.format(new Date(meta.time[i] * 1000)), colDate, yc);
+      ctx.fillText(fitText(ctx, row.author, colDate - colAuthor - 10), colAuthor, yc);
+      ctx.fillText(dateFmt.format(new Date(row.time * 1000)), colDate, yc);
       ctx.font = m.fontMono;
-      ctx.fillText(meta.hash[i]?.slice(0, 7) ?? '', colHash, yc);
+      ctx.fillText(row.hash.slice(0, 7), colHash, yc);
     }
 
     ctx.restore();
@@ -458,9 +465,9 @@ function drawHScroll(
   gLeft: number,
   gRight: number,
 ): void {
-  const { layout, metrics: m, scrollX, width, height } = frame;
-  if (!layout) return;
-  const max = maxScrollX(m, layout.max_lane, width);
+  const { repo, metrics: m, scrollX, width, height } = frame;
+  if (!repo) return;
+  const max = maxScrollX(m, repo.maxLane, width);
   if (max <= 0) return;
 
   const trackW = gRight - gLeft;
@@ -468,7 +475,7 @@ function drawHScroll(
   ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fillRect(gLeft, y, trackW, HSCROLL_H);
 
-  const content = graphContentWidth(m, layout.max_lane);
+  const content = graphContentWidth(m, repo.maxLane);
   const visible = graphViewWidth(width) - 2 * pinWidth(m);
   const thumbW = Math.max(30, (visible / content) * trackW);
   const thumbX = gLeft + (scrollX / max) * (trackW - thumbW);
@@ -510,8 +517,8 @@ function drawHeader(
 }
 
 function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number): void {
-  const { minimap, layout, scrollY, height, width, metrics } = frame;
-  if (!minimap || !layout) return;
+  const { minimap, repo, scrollY, height, width, metrics } = frame;
+  if (!minimap || !repo) return;
 
   const x0 = listW;
   ctx.fillStyle = theme().surface;
@@ -532,7 +539,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
     }
   }
 
-  const total = layout.count * metrics.rowH;
+  const total = repo.count * metrics.rowH;
   const visible = contentHeight(height);
   if (total > visible) {
     const top = (scrollY / total) * height;

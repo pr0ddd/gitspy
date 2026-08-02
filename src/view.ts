@@ -1,4 +1,4 @@
-import type { LayoutView } from './types';
+import type { RepoView } from './types';
 
 export type Minimap = {
   readonly buckets: number;
@@ -8,16 +8,21 @@ export type Minimap = {
 
 const MAX_MINIMAP_LANES = 32;
 
-export function buildMinimap(layout: LayoutView | null, height: number): Minimap {
+export function buildMinimap(repo: RepoView | null, height: number): Minimap {
   const buckets = Math.max(1, Math.floor(height));
   const bits = new Uint32Array(buckets);
-  if (!layout || layout.count === 0) return { buckets, bits, maxLane: 0 };
-
-  for (let i = 0; i < layout.count; i++) {
-    const lane = Math.min(layout.lanes[i], MAX_MINIMAP_LANES - 1);
-    const bucket = Math.min(buckets - 1, Math.floor((i * buckets) / layout.count));
-    bits[bucket] |= 1 << lane;
+  if (!repo || repo.count === 0 || repo.minimap.length === 0) {
+    return { buckets, bits, maxLane: 0 };
   }
 
-  return { buckets, bits, maxLane: Math.min(layout.max_lane, MAX_MINIMAP_LANES - 1) };
+  const source = repo.minimap;
+  for (let bucket = 0; bucket < buckets; bucket++) {
+    const from = Math.floor((bucket * source.length) / buckets);
+    const to = Math.max(from + 1, Math.floor(((bucket + 1) * source.length) / buckets));
+    let mask = 0;
+    for (let i = from; i < to && i < source.length; i++) mask |= source[i];
+    bits[bucket] = mask;
+  }
+
+  return { buckets, bits, maxLane: Math.min(repo.maxLane, MAX_MINIMAP_LANES - 1) };
 }

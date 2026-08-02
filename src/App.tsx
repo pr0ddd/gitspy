@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
@@ -15,7 +15,7 @@ import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
 
-const PAGE = 5000;
+const MARGIN = 200;
 
 export default function App() {
   const { t } = useTranslation();
@@ -23,6 +23,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentRepo[]>([]);
+  const pending = useRef(new Map<string, { start: number; len: number }>());
 
   const current = sessions.find((s) => s.path === active) ?? null;
 
@@ -37,38 +38,38 @@ export default function App() {
   const load = useCallback(
     async (path: string) => {
       try {
-        const started = performance.now();
-        const layout = await ipc.openRepo(path);
+        const repo = await ipc.openRepo(path);
+        const window = await ipc.graphWindow(path, 0, MARGIN);
         update(path, {
-          layout,
-          openMs: performance.now() - started,
-          refsByCommit: groupRefsByCommit(layout.refs),
+          repo,
+          window,
+          refsByCommit: groupRefsByCommit(repo.refs),
           loading: false,
         });
 
         void ipc.recentRepos().then(setRecent);
         void ipc.worktrees(path).then((found) => update(path, { worktrees: found }));
-
-        const meta = newSession(path).meta;
-        const startedMeta = performance.now();
-        for (let start = 0; start < layout.count; start += PAGE) {
-          const items = await ipc.commitRange(path, start, PAGE);
-          for (const item of items) {
-            meta.hash[item.index] = item.hash;
-            meta.author[item.index] = item.author;
-            meta.email[item.index] = item.email;
-            meta.time[item.index] = item.time;
-            meta.subject[item.index] = item.subject;
-            meta.body[item.index] = item.body;
-          }
-          update(path, { meta: { ...meta } });
-        }
-        update(path, { metaMs: performance.now() - startedMeta });
       } catch (e) {
         notifyError(e);
         setSessions((all) => all.filter((s) => s.path !== path));
         setActive(null);
       }
+    },
+    [update],
+  );
+
+  const requestWindow = useCallback(
+    (path: string, first: number, last: number) => {
+      const session = pending.current.get(path);
+      const start = Math.max(0, first - MARGIN);
+      const len = last - start + MARGIN;
+      if (session && session.start <= first && session.start + session.len >= last) return;
+      pending.current.set(path, { start, len });
+
+      ipc
+        .graphWindow(path, start, len)
+        .then((window) => update(path, { window }))
+        .catch(notifyError);
     },
     [update],
   );
@@ -140,15 +141,20 @@ export default function App() {
           <div className="flex min-h-0 flex-1">
             <Sidebar session={current} onPick={select} />
             <main className="flex min-w-0 min-h-0 flex-1 flex-col">
-              <GraphView session={current} metrics={METRICS_AVATARS} onSelect={select} />
-              {current.layout ? (
+              <GraphView
+                session={current}
+                metrics={METRICS_AVATARS}
+                onSelect={select}
+                onRange={(first, last) => requestWindow(current.path, first, last)}
+              />
+              {current.repo ? (
                 <footer className="bg-card border-border text-muted-foreground shrink-0 border-t px-3 py-1 text-xs">
                   {[
-                    t('graph.commits', { count: current.layout.count }),
-                    t('graph.lanes', { count: current.layout.max_lane + 1 }),
-                    t('stats.read', { ms: current.layout.read_ms.toFixed(0) }),
-                    t('stats.layout', { ms: current.layout.layout_ms.toFixed(1) }),
-                    current.layout.truncated ? t('graph.truncated') : null,
+                    t('graph.commits', { count: current.repo.count }),
+                    t('graph.lanes', { count: current.repo.maxLane + 1 }),
+                    t('stats.read', { ms: current.repo.readMs.toFixed(0) }),
+                    t('stats.layout', { ms: current.repo.layoutMs.toFixed(1) }),
+                    current.repo.truncated ? t('graph.truncated') : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
