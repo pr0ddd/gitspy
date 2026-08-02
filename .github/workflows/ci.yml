@@ -47,6 +47,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -56,6 +60,9 @@ jobs:
 
       - name: Полнота переводов
         run: npm run i18n:check
+
+      - name: Граница Rust и TypeScript
+        run: npm run boundary:check
 
       - name: Типы
         run: npx tsc --noEmit

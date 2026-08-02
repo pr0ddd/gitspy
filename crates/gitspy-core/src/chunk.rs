@@ -82,8 +82,16 @@ pub fn window(topo: &Topology, skeleton: &Skeleton, start: usize, len: usize) ->
     out
 }
 
+pub const MINIMAP_LANES: LaneIdx = 32;
+
+pub fn minimap_colours() -> Vec<crate::colour::ColourIdx> {
+    (0..MINIMAP_LANES)
+        .map(crate::colour::colour_of_lane)
+        .collect()
+}
+
 pub fn minimap(skeleton: &Skeleton, buckets: usize) -> Vec<u32> {
-    const LANES: LaneIdx = 32;
+    const LANES: LaneIdx = MINIMAP_LANES;
 
     let mut mask = vec![0u32; buckets];
     let total = skeleton.lanes.len();

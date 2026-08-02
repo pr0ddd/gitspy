@@ -1,15 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use ts_rs::TS;
 
 const LIMIT: usize = 20;
 const FILE: &str = "recent.json";
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RecentRepo {
     pub path: String,
     pub name: String,
+    #[ts(type = "number")]
     pub opened_at: i64,
     #[serde(default)]
     pub exists: bool,

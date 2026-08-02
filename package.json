@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite",
     "i18n:check": "node scripts/check-locales.mjs",
-    "build": "npm run i18n:check && tsc --noEmit && vite build",
+    "build": "npm run i18n:check && npm run boundary:check && tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "app": "tauri dev"
+    "app": "tauri dev",
+    "boundary:check": "node scripts/check-boundary.mjs"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.20",

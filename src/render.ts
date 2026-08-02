@@ -534,7 +534,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
     if (mask === 0) continue;
     for (let lane = 0; lane <= minimap.maxLane; lane++) {
       if ((mask & (1 << lane)) === 0) continue;
-      ctx.fillStyle = laneColour(lane);
+      ctx.fillStyle = laneColour(repo.minimapColours[lane] ?? lane);
       ctx.fillRect(x0 + 4 + lane * laneW, b, Math.max(1, laneW - 0.5), 1);
     }
   }
