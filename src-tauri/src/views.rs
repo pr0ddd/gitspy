@@ -153,6 +153,42 @@ pub enum RowView {
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
+pub struct ChangedFileView {
+    pub status: String,
+    pub path: String,
+    pub old_path: Option<String>,
+    pub similarity: Option<u8>,
+    pub added: Option<u32>,
+    pub deleted: Option<u32>,
+    pub binary: bool,
+}
+
+pub fn build_changed_files(files: Vec<gitspy_exec::changes::ChangedFile>) -> Vec<ChangedFileView> {
+    files
+        .into_iter()
+        .map(|f| ChangedFileView {
+            status: f.status.letter().to_string(),
+            binary: f.is_binary(),
+            path: f.path,
+            old_path: f.old_path,
+            similarity: f.similarity,
+            added: f.added,
+            deleted: f.deleted,
+        })
+        .collect()
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct DiffSides {
+    pub before: String,
+    pub after: String,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct WindowView {
     pub start: u32,
     pub rows: Vec<RowView>,

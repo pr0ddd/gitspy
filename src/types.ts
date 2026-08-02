@@ -1,3 +1,5 @@
+export type { ChangedFileView } from './generated/ChangedFileView';
+export type { DiffSides } from './generated/DiffSides';
 export type { ErrorView } from './generated/ErrorView';
 export type { Operation } from './generated/Operation';
 export type { OperationOutcome } from './generated/OperationOutcome';

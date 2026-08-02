@@ -18,8 +18,8 @@ use tauri::ipc::Channel;
 use tauri::Emitter;
 use tauri::{Manager, State};
 use views::{
-    build_repo_view, build_window_view, state_lock_failed, ErrorView, RepoView, WindowView,
-    WorktreeView, MINIMAP_BUCKETS,
+    build_changed_files, build_repo_view, build_window_view, state_lock_failed, ChangedFileView,
+    DiffSides, ErrorView, RepoView, WindowView, WorktreeView, MINIMAP_BUCKETS,
 };
 
 #[derive(Default)]
@@ -185,6 +185,57 @@ fn graph_window(
     })
 }
 
+fn exec_error(e: gitspy_exec::Error) -> ErrorView {
+    let view = ErrorView::new(e.code());
+    match e.detail() {
+        Some(detail) => view.detail(detail),
+        None => view,
+    }
+}
+
+#[tauri::command]
+async fn commit_files(
+    repo: String,
+    commit: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<ChangedFileView>, ErrorView> {
+    let git = state.git()?;
+    let path = PathBuf::from(&repo);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        git.commit_files(&path, &commit)
+            .map(build_changed_files)
+            .map_err(exec_error)
+    })
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))?
+}
+
+#[tauri::command]
+async fn diff_sides(
+    repo: String,
+    commit: String,
+    path: String,
+    old_path: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<DiffSides, ErrorView> {
+    let git = state.git()?;
+    let repo_path = PathBuf::from(&repo);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let before_path = old_path.unwrap_or_else(|| path.clone());
+        let before = git
+            .file_at(&repo_path, &format!("{commit}^1"), &before_path)
+            .map_err(exec_error)?;
+        let after = git
+            .file_at(&repo_path, &commit, &path)
+            .map_err(exec_error)?;
+        Ok(DiffSides { before, after })
+    })
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))?
+}
+
 #[tauri::command]
 fn recent_repos(app: tauri::AppHandle) -> Result<Vec<recent::RecentRepo>, ErrorView> {
     Ok(recent::list(&data_dir(&app)?))
@@ -240,7 +291,9 @@ fn main() {
             worktrees,
             recent_repos,
             forget_repo,
-            run_operation
+            run_operation,
+            commit_files,
+            diff_sides
         ])
         .run(tauri::generate_context!())
         .expect("приложение запускается")

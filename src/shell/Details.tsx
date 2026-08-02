@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,12 +9,25 @@ import type { Session } from '../session';
 import type { RowCache } from '../rows';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
-import type { RefKind } from '../types';
+import * as ipc from '../ipc';
+import { notifyError } from '../toast';
+import type { ChangedFileView, RefKind } from '../types';
 
 type Props = {
   session: Session | null;
   rows: RowCache;
   onCopy: (text: string) => void;
+  onOpenFile: (commit: string, file: ChangedFileView) => void;
+};
+
+const STATUS_STYLE: Record<string, string> = {
+  A: 'text-added',
+  M: 'text-modified',
+  D: 'text-deleted',
+  R: 'text-renamed',
+  C: 'text-renamed',
+  T: 'text-modified',
+  U: 'text-conflict',
 };
 
 const REF_STYLE: Record<RefKind, string> = {
@@ -29,9 +43,28 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Details({ session, rows, onCopy }: Props) {
+export function Details({ session, rows, onCopy, onOpenFile }: Props) {
   const { t, i18n } = useTranslation();
   const index = session?.selected ?? null;
+  const row = index === null ? null : rows.row(index);
+  const hash = row?.kind === 'commit' ? row.hash : null;
+  const repo = session?.path ?? null;
+  const [files, setFiles] = useState<ChangedFileView[]>([]);
+
+  useEffect(() => {
+    if (!repo || !hash) {
+      setFiles([]);
+      return;
+    }
+    let cancelled = false;
+    ipc
+      .commitFiles(repo, hash)
+      .then((found) => !cancelled && setFiles(found))
+      .catch(notifyError);
+    return () => {
+      cancelled = true;
+    };
+  }, [repo, hash]);
 
   if (!session || index === null) {
     return (
@@ -41,7 +74,6 @@ export function Details({ session, rows, onCopy }: Props) {
     );
   }
 
-  const row = rows.row(index);
   if (!row || row.kind !== 'commit') {
     return (
       <Shell>
@@ -112,11 +144,40 @@ export function Details({ session, rows, onCopy }: Props) {
       </ScrollArea>
 
       <Separator />
-      <section className="shrink-0 p-3">
-        <h3 className="text-muted-foreground mb-1.5 text-xs tracking-wide uppercase">
-          {t('details.files')}
+      <section className="flex min-h-0 shrink-0 basis-1/2 flex-col p-3">
+        <h3 className="text-muted-foreground mb-1.5 flex items-center gap-2 text-xs tracking-wide uppercase">
+          <span>{t('details.files')}</span>
+          <span className="tabular-nums">{files.length}</span>
         </h3>
-        <p className="text-muted-foreground/70 leading-relaxed">{t('details.filesPlanned')}</p>
+
+        {files.length === 0 ? (
+          <p className="text-muted-foreground/70">{t('details.noChanges')}</p>
+        ) : (
+          <ScrollArea className="min-h-0 flex-1">
+            <ul className="space-y-0.5 font-mono text-xs">
+              {files.map((file) => (
+                <li key={file.path}>
+                  <button
+                    onClick={() => onOpenFile(row.hash, file)}
+                    title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+                    className="hover:bg-surface-hover flex h-6 w-full items-center gap-2 rounded-sm px-1 text-left"
+                  >
+                    <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
+                      {file.status}
+                    </span>
+                    <span className="truncate">{file.path}</span>
+                    {file.binary ? null : (
+                      <span className="ml-auto shrink-0 tabular-nums">
+                        <span className="text-added">+{file.added ?? 0}</span>{' '}
+                        <span className="text-deleted">−{file.deleted ?? 0}</span>
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </ScrollArea>
+        )}
       </section>
     </Shell>
   );
