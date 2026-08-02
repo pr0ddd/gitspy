@@ -35,5 +35,9 @@
   "details.filesPlanned": "Список файлов и дифф появятся в фазе диффов",
   "toast.copied": "Скопировано",
   "column.author": "Автор",
-  "column.date": "Дата"
+  "column.date": "Дата",
+  "operation.started": "Выполняю {{what}}…",
+  "operation.finished": "{{what}} завершено",
+  "operation.writeCommitGraph": "commit-graph write",
+  "operation.fetchDryRun": "fetch --dry-run"
 }

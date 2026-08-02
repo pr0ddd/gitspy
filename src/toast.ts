@@ -12,6 +12,11 @@ export const notifyError = (error: unknown) => {
   return toast.error(shown.message, { description: shown.detail ?? undefined });
 };
 
-export const notifyPlanned = (what: string) => toast.info(what);
+export const notifyOperation = (operation: string, stage: 'started' | 'finished') => {
+  const what = t(`operation.${operation}` as 'operation.fetchDryRun');
+  return stage === 'started'
+    ? toast.loading(t('operation.started', { what }), { id: operation })
+    : toast.success(t('operation.finished', { what }), { id: operation });
+};
 
 export const dismissAll = () => toast.dismiss();

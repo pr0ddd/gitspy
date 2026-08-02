@@ -31,5 +31,9 @@
   "details.filesPlanned": "The file list and diff come with the diff phase",
   "toast.copied": "Copied",
   "column.author": "Author",
-  "column.date": "Date"
+  "column.date": "Date",
+  "operation.started": "Running {{what}}…",
+  "operation.finished": "{{what}} finished",
+  "operation.writeCommitGraph": "commit-graph write",
+  "operation.fetchDryRun": "fetch --dry-run"
 }

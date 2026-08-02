@@ -1,15 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
+mod operations;
 mod recent;
 mod views;
+mod watcher;
 
 use gitspy_core::chunk::{self, Skeleton};
+use gitspy_exec::{Cancel, Git};
 use gitspy_repo::History;
+use operations::{Operation, OperationOutcome, Progress, Queue};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Instant;
+use tauri::ipc::Channel;
+use tauri::Emitter;
 use tauri::{Manager, State};
 use views::{
     build_repo_view, build_window_view, state_lock_failed, ErrorView, RepoView, WindowView,
@@ -19,6 +25,21 @@ use views::{
 #[derive(Default)]
 struct AppState {
     repos: Mutex<HashMap<String, OpenRepo>>,
+    queue: Queue,
+    watchers: watcher::Watchers,
+    git: Mutex<Option<Git>>,
+}
+
+impl AppState {
+    fn git(&self) -> Result<Git, ErrorView> {
+        let mut slot = self.git.lock().map_err(|_| state_lock_failed())?;
+        if let Some(found) = slot.as_ref() {
+            return Ok(found.clone());
+        }
+        let found = Git::discover().map_err(|e| ErrorView::new(e.code()))?;
+        *slot = Some(found.clone());
+        Ok(found)
+    }
 }
 
 struct OpenRepo {
@@ -107,7 +128,44 @@ async fn open_repo(
         recent::remember(&dir, &path);
     }
 
+    let repo_dir = PathBuf::from(&path);
+    let notify = app.clone();
+    let watched = path.clone();
+    state
+        .watchers
+        .watch(&path, &watcher::git_dir(&repo_dir), move || {
+            let _ = notify.emit("repo:changed", &watched);
+        });
+
     Ok(view)
+}
+
+#[tauri::command]
+async fn run_operation(
+    repo: String,
+    operation: Operation,
+    progress: Channel<Progress>,
+    state: State<'_, AppState>,
+) -> Result<OperationOutcome, ErrorView> {
+    let git = state.git()?;
+    let lane = state.queue.lane(&repo);
+    let path = PathBuf::from(&repo);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let _held = lane.lock().expect("полоса очереди не отравлена");
+        operations::run(&git, &path, operation, &Cancel::new(), &mut |event| {
+            let _ = progress.send(event);
+        })
+        .map_err(|e| {
+            let view = ErrorView::new(e.code());
+            match e.detail() {
+                Some(detail) => view.detail(detail),
+                None => view,
+            }
+        })
+    })
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))?
 }
 
 #[tauri::command]
@@ -141,6 +199,8 @@ fn forget_repo(path: String, app: tauri::AppHandle) -> Result<Vec<recent::Recent
 fn close_repo(repo: String, state: State<'_, AppState>) -> Result<(), ErrorView> {
     let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
     guard.remove(&repo);
+    drop(guard);
+    state.watchers.forget(&repo);
     Ok(())
 }
 
@@ -179,7 +239,8 @@ fn main() {
             graph_window,
             worktrees,
             recent_repos,
-            forget_repo
+            forget_repo,
+            run_operation
         ])
         .run(tauri::generate_context!())
         .expect("приложение запускается")

@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Session } from '../session';
+import type { Operation } from '../types';
 import { TOOLBAR_ACTIONS } from '../vocabulary';
 import { Icon } from '../icons';
 
-type Props = { session: Session | null };
+type Props = { session: Session | null; onRun: (operation: Operation) => void; busy: boolean };
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -17,7 +18,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function Toolbar({ session }: Props) {
+export function Toolbar({ session, onRun, busy }: Props) {
   const { t } = useTranslation();
   const head = session?.repo?.refs.find((r) => r.isHead);
 
@@ -29,17 +30,26 @@ export function Toolbar({ session }: Props) {
       <Separator orientation="vertical" className="h-6" />
 
       <div className="flex items-center gap-1">
-        {TOOLBAR_ACTIONS.map(({ label, icon }) => {
+        {TOOLBAR_ACTIONS.map(({ label, icon, operation }) => {
           const Glyph = Icon[icon];
+          const button = (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!operation || busy}
+              onClick={() => operation && onRun(operation)}
+              className="h-7 gap-1.5 px-2.5"
+            >
+              <Glyph className="size-3.5" />
+              {label}
+            </Button>
+          );
+
+          if (operation) return <span key={label}>{button}</span>;
           return (
             <Tooltip key={label}>
               <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button variant="ghost" size="sm" disabled className="h-7 gap-1.5 px-2.5">
-                    <Glyph className="size-3.5" />
-                    {label}
-                  </Button>
-                </span>
+                <span tabIndex={0}>{button}</span>
               </TooltipTrigger>
               <TooltipContent>{t('toolbar.needsOperations')}</TooltipContent>
             </Tooltip>

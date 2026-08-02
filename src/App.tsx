@@ -4,11 +4,11 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { METRICS_AVATARS } from './render';
-import { notifyCopied, notifyError } from './toast';
+import { notifyCopied, notifyError, notifyOperation } from './toast';
 import * as ipc from './ipc';
 import { groupRefsByCommit, newSession, type Session } from './session';
 import { CHUNK, RowCache } from './rows';
-import type { RecentRepo } from './types';
+import type { Operation, RecentRepo } from './types';
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
 import { Sidebar } from './shell/Sidebar';
@@ -25,6 +25,7 @@ export default function App() {
   const [active, setActive] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentRepo[]>([]);
   const [redraw, setRedraw] = useState(0);
+  const [busy, setBusy] = useState(false);
   const caches = useRef(new Map<string, RowCache>());
 
   const cacheFor = useCallback((path: string) => {
@@ -40,6 +41,17 @@ export default function App() {
 
   useEffect(() => {
     ipc.recentRepos().then(setRecent).catch(notifyError);
+  }, []);
+
+  useEffect(() => {
+    const stop = ipc.onRepoChanged((path) => {
+      const cache = caches.current.get(path);
+      if (cache) cache.clear();
+      void reload(path);
+    });
+    return () => {
+      void stop.then((off) => off());
+    };
   }, []);
 
   const update = useCallback((path: string, patch: Partial<Session>) => {
@@ -84,6 +96,40 @@ export default function App() {
       }
     },
     [cacheFor],
+  );
+
+  const reload = useCallback(
+    async (path: string) => {
+      try {
+        const repo = await ipc.openRepo(path);
+        const cache = cacheFor(path);
+        cache.clear();
+        cache.put(0, await ipc.graphWindow(path, 0, CHUNK));
+        update(path, { repo, refsByCommit: groupRefsByCommit(repo.refs) });
+        setRedraw((n) => n + 1);
+      } catch (e) {
+        notifyError(e);
+      }
+    },
+    [update, cacheFor],
+  );
+
+  const runOperation = useCallback(
+    (operation: Operation) => {
+      if (!active) return;
+      setBusy(true);
+      notifyOperation(operation, 'started');
+
+      ipc
+        .runOperation(active, operation, () => {})
+        .then(() => {
+          notifyOperation(operation, 'finished');
+          return reload(active);
+        })
+        .catch(notifyError)
+        .finally(() => setBusy(false));
+    },
+    [active, reload],
   );
 
   const openPath = useCallback(
@@ -156,7 +202,7 @@ export default function App() {
         />
       ) : (
         <>
-          <Toolbar session={current} />
+          <Toolbar session={current} onRun={runOperation} busy={busy} />
           <div className="flex min-h-0 flex-1">
             <Sidebar session={current} onPick={select} />
             <main className="flex min-w-0 min-h-0 flex-1 flex-col">
