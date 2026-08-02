@@ -12,7 +12,9 @@ import type { RefKind, RefView } from '../types';
 
 type Props = {
   session: Session | null;
+  collapsed: boolean;
   onPick: (commit: number) => void;
+  onExpand: () => void;
 };
 
 type Entry = {
@@ -35,7 +37,7 @@ const fromRefs = (refs: RefView[], kind: RefKind): Entry[] =>
     .filter((r) => r.kind === kind)
     .map((r) => ({ label: r.name, commit: r.commit, isHead: r.isHead }));
 
-export function Sidebar({ session, onPick }: Props) {
+export function Sidebar({ session, collapsed, onPick, onExpand }: Props) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
 
@@ -65,6 +67,27 @@ export function Sidebar({ session, onPick }: Props) {
   );
 
   const needle = filter.trim().toLowerCase();
+
+  if (collapsed) {
+    return (
+      <aside className="bg-card border-border flex w-11 shrink-0 flex-col items-center gap-1 border-r py-2">
+        {groups.map((group) => {
+          const Glyph = Icon[group.icon];
+          return (
+            <button
+              key={group.key}
+              onClick={onExpand}
+              title={`${group.title} · ${group.entries.length}`}
+              className="hover:bg-surface-hover text-muted-foreground hover:text-foreground flex h-9 w-9 flex-col items-center justify-center gap-0.5 rounded-md transition-colors"
+            >
+              <Glyph className="size-3.5" />
+              <span className="text-2xs tabular-nums">{group.entries.length}</span>
+            </button>
+          );
+        })}
+      </aside>
+    );
+  }
 
   return (
     <aside className="bg-card border-border flex w-64 shrink-0 flex-col border-r">

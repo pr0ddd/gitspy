@@ -10,6 +10,7 @@ import type { RowCache } from '../rows';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import * as ipc from '../ipc';
+import { shortenDirectory, splitPath } from '../paths';
 import { notifyError } from '../toast';
 import type { ChangedFileView, RefKind } from '../types';
 
@@ -19,6 +20,9 @@ type Props = {
   onCopy: (text: string) => void;
   onOpenFile: (commit: string, file: ChangedFileView) => void;
 };
+
+const countOf = (files: ChangedFileView[], statuses: string[]): number =>
+  files.filter((file) => statuses.includes(file.status)).length;
 
 const STATUS_STYLE: Record<string, string> = {
   A: 'text-added',
@@ -145,10 +149,17 @@ export function Details({ session, rows, onCopy, onOpenFile }: Props) {
 
       <Separator />
       <section className="flex min-h-0 shrink-0 basis-1/2 flex-col p-3">
-        <h3 className="text-muted-foreground mb-1.5 flex items-center gap-2 text-xs tracking-wide uppercase">
-          <span>{t('details.files')}</span>
-          <span className="tabular-nums">{files.length}</span>
-        </h3>
+        <div className="mb-1.5 flex items-center gap-3 text-xs">
+          <span className="text-modified tabular-nums">
+            {t('details.modified', { count: countOf(files, ['M', 'T']) })}
+          </span>
+          <span className="text-added tabular-nums">
+            {t('details.added', { count: countOf(files, ['A', 'C']) })}
+          </span>
+          <span className="text-deleted tabular-nums">
+            {t('details.deleted', { count: countOf(files, ['D']) })}
+          </span>
+        </div>
 
         {files.length === 0 ? (
           <p className="text-muted-foreground/70">{t('details.noChanges')}</p>
@@ -160,12 +171,15 @@ export function Details({ session, rows, onCopy, onOpenFile }: Props) {
                   <button
                     onClick={() => onOpenFile(row.hash, file)}
                     title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
-                    className="hover:bg-surface-hover flex h-6 w-full items-center gap-2 rounded-sm px-1 text-left"
+                    className="hover:bg-surface-hover flex h-6 w-full items-baseline gap-1.5 rounded-sm px-1 text-left"
                   >
                     <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
                       {file.status}
                     </span>
-                    <span className="truncate">{file.path}</span>
+                    <span className="text-muted-foreground shrink-0">
+                      {shortenDirectory(splitPath(file.path).directory, 18)}
+                    </span>
+                    <span className="truncate">{splitPath(file.path).name}</span>
                     {file.binary ? null : (
                       <span className="ml-auto shrink-0 tabular-nums">
                         <span className="text-added">+{file.added ?? 0}</span>{' '}
