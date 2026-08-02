@@ -4,7 +4,6 @@ import {
   drawFrame,
   graphLeft,
   graphRight,
-  HSCROLL_H,
   listWidth,
   maxScroll,
   maxScrollX,
@@ -13,6 +12,7 @@ import {
   type Frame,
   type Metrics,
 } from '../render';
+import { hitTest } from '../scene';
 import { buildMinimap } from '../view';
 import type { Session } from '../session';
 import type { RowCache } from '../rows';
@@ -25,6 +25,7 @@ type Props = {
   metrics: Metrics;
   onSelect: (index: number | null) => void;
   onNeed: (chunks: number[]) => void;
+  onCopyHash: (hash: string) => void;
 };
 
 const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns']): Frame => ({
@@ -42,7 +43,7 @@ const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns'])
   height: 0,
 });
 
-export function GraphView({ session, rows, redraw, metrics, onSelect, onNeed }: Props) {
+export function GraphView({ session, rows, redraw, metrics, onSelect, onNeed, onCopyHash }: Props) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -217,7 +218,7 @@ export function GraphView({ session, rows, redraw, metrics, onSelect, onNeed }: 
         jumpFromMinimap(y);
         return;
       }
-      if (y >= f.height - HSCROLL_H && x >= graphLeft() && x <= graphRight(f.width)) {
+      if (hitTest(x, y, f.width, f.height) === 'hscroll') {
         dragRef.current = 'hscroll';
         dragHScroll(x);
         return;
@@ -225,6 +226,11 @@ export function GraphView({ session, rows, redraw, metrics, onSelect, onNeed }: 
       const picked = rowAtY(f.metrics, y, f.scrollY, f.repo?.count ?? 0);
       patch({ selected: picked });
       onSelect(picked);
+
+      if (picked !== null && hitTest(x, y, f.width, f.height) === 'hash') {
+        const row = f.rows.row(picked);
+        if (row?.kind === 'commit') onCopyHash(row.hash);
+      }
     };
 
     const onUp = () => {
@@ -242,7 +248,7 @@ export function GraphView({ session, rows, redraw, metrics, onSelect, onNeed }: 
       host.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [patch, clampScroll, clampScrollX, onSelect]);
+  }, [patch, clampScroll, clampScrollX, onSelect, onCopyHash]);
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden outline-none" ref={hostRef} tabIndex={0}>
