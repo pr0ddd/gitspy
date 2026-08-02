@@ -1,10 +1,12 @@
 use gitspy_core::chunk;
-use gitspy_core::colour::PALETTE_LEN;
-use gitspy_core::layout::{Layout, NodeKind, Segment};
+use gitspy_core::colour::colour_of_lane;
+use gitspy_core::layout::{LaneIdx, Layout, NodeKind, Segment};
 use gitspy_core::topology::{CommitIdx, Topology};
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+const MAX_PARENTS: usize = 6;
 
 fn arb_topology() -> impl Strategy<Value = Topology> {
     (1usize..30).prop_flat_map(|n| {
@@ -14,12 +16,12 @@ fn arb_topology() -> impl Strategy<Value = Topology> {
                 let known: BoxedStrategy<Vec<CommitIdx>> = if remaining == 0 {
                     Just(Vec::<CommitIdx>::new()).boxed()
                 } else {
-                    proptest::collection::hash_set((i + 1)..n, 0..=3usize.min(remaining))
+                    proptest::collection::hash_set((i + 1)..n, 0..=MAX_PARENTS.min(remaining))
                         .prop_map(|set| set.into_iter().map(|x| x as CommitIdx).collect::<Vec<_>>())
                         .prop_shuffle()
                         .boxed()
                 };
-                (known, 0u32..2u32).boxed()
+                (known, 0u32..3u32).boxed()
             })
             .collect();
         rows.prop_map(|rows| {
@@ -74,6 +76,51 @@ fn as_set(lanes: &[u16]) -> HashSet<u16> {
     lanes.iter().copied().collect()
 }
 
+fn side_lane_violation(layout: &Layout) -> Option<String> {
+    let mut opened_as_side: HashMap<LaneIdx, bool> = HashMap::new();
+
+    for row in 0..layout.len() {
+        let node_lane = layout.rows[row].lane;
+        let mut merging_in = Vec::new();
+        let mut passing_through = Vec::new();
+        let mut branch_targets = Vec::new();
+        for segment in &layout.segments[row] {
+            match segment {
+                Segment::Merge { from, .. } => merging_in.push(*from),
+                Segment::Through { lane, .. } => passing_through.push(*lane),
+                Segment::Branch { to, .. } => branch_targets.push(*to),
+            }
+        }
+
+        let is_side = |lane: &LaneIdx| opened_as_side.get(lane) == Some(&true);
+        let awaiting: Vec<LaneIdx> = std::iter::once(node_lane)
+            .chain(merging_in.iter().copied())
+            .collect();
+        if awaiting.iter().any(is_side) && !is_side(&node_lane) {
+            return Some(format!(
+                "строка {row}: узел сел на магистральную дорожку {node_lane}, \
+                 хотя его ждала боковая среди {awaiting:?}"
+            ));
+        }
+
+        for lane in merging_in {
+            opened_as_side.remove(&lane);
+        }
+        if layout.rows[row].kind == NodeKind::Root {
+            opened_as_side.remove(&node_lane);
+        } else {
+            opened_as_side.insert(node_lane, false);
+        }
+        for target in branch_targets {
+            if !passing_through.contains(&target) {
+                opened_as_side.insert(target, true);
+            }
+        }
+    }
+
+    None
+}
+
 fn commits_with_children(topo: &Topology) -> HashSet<CommitIdx> {
     let mut set = HashSet::new();
     for i in 0..topo.len() as CommitIdx {
@@ -117,27 +164,38 @@ proptest! {
     }
 
     #[test]
-    fn live_colours_are_distinct_while_the_palette_suffices(topo in arb_topology()) {
+    fn colour_is_a_pure_function_of_the_lane(topo in arb_topology()) {
         let l = chunk::layout(&topo);
-
-        prop_assume!((l.max_lane as usize) + 1 < PALETTE_LEN as usize);
         for row in 0..l.len() {
-            let mut colours = vec![l.rows[row].colour];
-            for segment in &l.segments[row] {
-                match segment {
-                    Segment::Through { colour, .. } => colours.push(*colour),
-                    Segment::Merge { colour, .. } => colours.push(*colour),
-                    Segment::Branch { .. } => {}
-                }
-            }
-            let unique: HashSet<u8> = colours.iter().copied().collect();
             prop_assert_eq!(
-                unique.len(),
-                colours.len(),
-                "строка {} повторяет цвет: {:?}",
-                row,
-                colours
+                l.rows[row].colour,
+                colour_of_lane(l.rows[row].lane),
+                "строка {}: цвет узла не совпал с цветом его дорожки",
+                row
             );
+            for segment in &l.segments[row] {
+                let (lane, colour) = match segment {
+                    Segment::Through { lane, colour } => (*lane, *colour),
+                    Segment::Branch { to, colour, .. } => (*to, *colour),
+                    Segment::Merge { from, colour, .. } => (*from, *colour),
+                };
+                prop_assert_eq!(
+                    colour,
+                    colour_of_lane(lane),
+                    "строка {}: {:?} не в цвете своей дорожки {}",
+                    row,
+                    segment,
+                    lane
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_landing_commit_prefers_the_side_lane_over_the_leftmost(topo in arb_topology()) {
+        let l = chunk::layout(&topo);
+        if let Some(violation) = side_lane_violation(&l) {
+            prop_assert!(false, "{}", violation);
         }
     }
 

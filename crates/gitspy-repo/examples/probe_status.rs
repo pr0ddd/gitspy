@@ -9,9 +9,7 @@ fn main() {
     let platform = repo
         .status(gix::progress::Discard)
         .expect("статус доступен");
-    let iter = platform
-        .into_iter(None)
-        .expect("обход статуса запускается");
+    let iter = platform.into_iter(None).expect("обход статуса запускается");
 
     let mut tracked = 0usize;
     let mut untracked = 0usize;
