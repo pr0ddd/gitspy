@@ -3,6 +3,7 @@ use gitspy_core::layout::{Layout, NodeKind, Segment};
 use gitspy_repo::{CommitMeta, History, RefKind};
 use serde::Serialize;
 use std::collections::BTreeMap;
+use ts_rs::TS;
 
 pub const MINIMAP_BUCKETS: usize = 2048;
 
@@ -19,7 +20,8 @@ mod segment_kind {
     pub const MERGE: u8 = 2;
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 pub struct ErrorView {
     pub code: String,
     pub params: BTreeMap<String, String>,
@@ -71,7 +73,8 @@ pub fn state_lock_failed() -> ErrorView {
     ErrorView::new("app.stateLock")
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RepoView {
     pub path: String,
@@ -82,10 +85,12 @@ pub struct RepoView {
     pub read_ms: f64,
     pub layout_ms: f64,
     pub minimap: Vec<u32>,
+    pub minimap_colours: Vec<u8>,
     pub refs: Vec<RefView>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub enum RefKindView {
     LocalBranch,
@@ -94,7 +99,8 @@ pub enum RefKindView {
     Stash,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RefView {
     pub name: String,
@@ -103,7 +109,8 @@ pub struct RefView {
     pub is_head: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeView {
     pub name: String,
@@ -113,7 +120,8 @@ pub struct WorktreeView {
     pub is_locked: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[allow(dead_code)]
 pub enum RowView {
@@ -126,6 +134,7 @@ pub enum RowView {
         hash: String,
         author: String,
         email: String,
+        #[ts(type = "number")]
         time: i64,
         subject: String,
         body: String,
@@ -141,7 +150,8 @@ pub enum RowView {
     },
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WindowView {
     pub start: u32,
@@ -188,6 +198,7 @@ pub fn build_repo_view(
         read_ms,
         layout_ms,
         minimap,
+        minimap_colours: gitspy_core::chunk::minimap_colours(),
         refs: history
             .refs
             .iter()
