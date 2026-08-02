@@ -51,6 +51,17 @@ impl LayoutState {
 
     pub fn step(&mut self, topo: &Topology, commit: CommitIdx) -> (Row, Vec<Segment>) {
         let mut segments = Vec::new();
+        let row = self.step_into(topo, commit, &mut segments);
+        (row, segments)
+    }
+
+    pub fn step_into(
+        &mut self,
+        topo: &Topology,
+        commit: CommitIdx,
+        segments: &mut Vec<Segment>,
+    ) -> Row {
+        segments.clear();
 
         let waiting: Vec<LaneIdx> = self
             .lanes
@@ -165,13 +176,12 @@ impl LayoutState {
             }
         }
 
-        let row = Row {
+        Row {
             commit,
             lane: own_lane,
             colour,
             kind,
-        };
-        (row, segments)
+        }
     }
 }
 

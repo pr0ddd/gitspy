@@ -290,3 +290,39 @@ proptest! {
         prop_assert_eq!(snapshots.len(), expected_snapshots);
     }
 }
+
+proptest! {
+    #[test]
+    fn a_window_equals_the_same_slice_of_the_whole_layout(
+        topo in arb_topology(),
+        chunk in 1usize..9,
+        start in 0usize..30,
+        len in 0usize..12,
+    ) {
+        let whole = chunk::layout(&topo);
+        let skeleton = chunk::skeleton(&topo, chunk);
+        let window = chunk::window(&topo, &skeleton, start, len);
+
+        let from = start.min(whole.len());
+        let to = (from + len).min(whole.len());
+
+        prop_assert_eq!(window.rows.as_slice(), &whole.rows[from..to]);
+        prop_assert_eq!(window.segments.as_slice(), &whole.segments[from..to]);
+        prop_assert_eq!(window.max_lane, whole.max_lane);
+    }
+
+    #[test]
+    fn the_skeleton_knows_every_lane_without_building_segments(
+        topo in arb_topology(),
+        chunk in 1usize..9,
+    ) {
+        let whole = chunk::layout(&topo);
+        let skeleton = chunk::skeleton(&topo, chunk);
+
+        prop_assert_eq!(skeleton.len(), whole.len());
+        prop_assert_eq!(skeleton.max_lane, whole.max_lane);
+        for (i, row) in whole.rows.iter().enumerate() {
+            prop_assert_eq!(skeleton.lanes[i], row.lane, "строка {}", i);
+        }
+    }
+}

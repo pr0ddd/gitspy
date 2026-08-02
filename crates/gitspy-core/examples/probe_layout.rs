@@ -30,12 +30,25 @@ fn main() {
 
     for span in [8usize, 200, 700, 2000] {
         let topo = wide(n, span);
+
         let started = Instant::now();
-        let layout = chunk::layout(&topo);
-        let elapsed = started.elapsed().as_secs_f64() * 1000.0;
+        let whole = chunk::layout(&topo);
+        let whole_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        let started = Instant::now();
+        let skeleton = chunk::skeleton(&topo, chunk::CHUNK);
+        let skeleton_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        let started = Instant::now();
+        let window = chunk::window(&topo, &skeleton, n / 2, 60);
+        let window_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+        let segments: usize = whole.segments.iter().map(|s| s.len()).sum();
         println!(
-            "коммитов {n}  дорожек {:<5}  раскладка {elapsed:.0} мс",
-            layout.max_lane as usize + 1
+            "дорожек {:<4} сплошная {whole_ms:>6.0} мс ({segments} сегментов)  \
+скелет {skeleton_ms:>6.0} мс  окно из {} строк {window_ms:.2} мс",
+            skeleton.max_lane as usize + 1,
+            window.len()
         );
     }
 }
