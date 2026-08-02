@@ -168,6 +168,7 @@ export default function App() {
                 metrics={METRICS_AVATARS}
                 onSelect={select}
                 onNeed={onNeed}
+                onCopyHash={copy}
               />
               {current.repo ? (
                 <footer className="bg-card border-border text-muted-foreground shrink-0 border-t px-3 py-1 text-xs">

@@ -66,3 +66,6 @@ jobs:
 
       - name: Типы
         run: npx tsc --noEmit
+
+      - name: Тесты фронтенда
+        run: npx vitest run

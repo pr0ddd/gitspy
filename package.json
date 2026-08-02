@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "i18n:check": "node scripts/check-locales.mjs",
-    "build": "npm run i18n:check && npm run boundary:check && tsc --noEmit && vite build",
+    "build": "npm run i18n:check && npm run boundary:check && tsc --noEmit && vitest run && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "app": "tauri dev",
-    "boundary:check": "node scripts/check-boundary.mjs"
+    "boundary:check": "node scripts/check-boundary.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.20",
@@ -42,11 +43,16 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^26.1.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^29.1.1",
     "typescript": "^5",
-    "vite": "^7"
+    "vite": "^7",
+    "vitest": "^4.1.10"
   }
 }
