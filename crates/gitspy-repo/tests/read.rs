@@ -256,6 +256,65 @@ fn untracked_snapshot_of_a_stash_is_not_an_orphan_root() {
 }
 
 #[test]
+fn geometry_and_full_read_agree_on_everything_but_metadata() {
+    let f = Fixture::new();
+    f.commit_file("a.txt", "первая", "начало");
+    f.run(&["tag", "-a", "v1", "-m", "релиз"]);
+    f.run(&["checkout", "-b", "side"]);
+    f.commit("боковой");
+    f.run(&["checkout", "main"]);
+    f.commit("основной");
+    f.merge("side", "слияние");
+    f.run(&["branch", "ещё-одна"]);
+    f.write_file("a.txt", "изменение");
+    f.stash("спрятанное", true);
+
+    let full = gitspy_repo::read(f.path(), None).expect("полное чтение");
+    let geometry = gitspy_repo::read_geometry(f.path(), None).expect("чтение геометрии");
+
+    assert_eq!(
+        geometry.topology, full.topology,
+        "родители у геометрии берутся из обхода, у полного чтения — из разобранного \
+         коммита; это два источника одних данных, и разойтись они должны громко"
+    );
+    assert_eq!(geometry.refs, full.refs);
+    assert_eq!(geometry.head, full.head);
+    assert_eq!(geometry.truncated, full.truncated);
+}
+
+#[test]
+fn geometry_and_full_read_agree_at_a_shallow_cut() {
+    let f = Fixture::new();
+    for i in 0..5 {
+        f.commit(&format!("c{i}"));
+    }
+    let (_dir, path) = f.clone(&["--depth", "2"]);
+
+    let full = gitspy_repo::read(&path, None).expect("полное чтение");
+    let geometry = gitspy_repo::read_geometry(&path, None).expect("чтение геометрии");
+
+    assert_eq!(
+        geometry.topology, full.topology,
+        "у нижнего коммита родитель записан в заголовке, но объекта нет — \
+         единственное место, где два источника родителей могли бы разойтись"
+    );
+}
+
+#[test]
+fn geometry_and_full_read_agree_when_the_walk_is_truncated() {
+    let f = Fixture::new();
+    for i in 0..6 {
+        f.commit(&format!("c{i}"));
+    }
+
+    let full = gitspy_repo::read(f.path(), Some(3)).expect("полное чтение");
+    let geometry = gitspy_repo::read_geometry(f.path(), Some(3)).expect("чтение геометрии");
+
+    assert!(geometry.truncated, "обрезание заявлено");
+    assert_eq!(geometry.topology, full.topology);
+}
+
+#[test]
 fn empty_repository_reads_as_empty() {
     let f = Fixture::new();
     let history = gitspy_repo::read(f.path(), None).expect("пустой репозиторий читается");

@@ -1,0 +1,42 @@
+use gitspy_core::chunk;
+use std::path::PathBuf;
+use std::time::Instant;
+
+fn main() {
+    let path = PathBuf::from(std::env::args().nth(1).expect("путь к репозиторию"));
+    let with_metadata = std::env::args().nth(2).as_deref() == Some("full");
+
+    let started = Instant::now();
+    let geometry = gitspy_repo::read_geometry(&path, None).expect("геометрия читается");
+    let read_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    let started = Instant::now();
+    let layout = chunk::layout(&geometry.topology);
+    let layout_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    let outside: u32 = (0..geometry.topology.len() as u32)
+        .map(|i| geometry.topology.outside_parents(i))
+        .sum();
+
+    println!(
+        "коммитов {}  ссылок {}  дорожек {}  внешних родителей {}",
+        geometry.topology.len(),
+        geometry.refs.len(),
+        layout.max_lane as usize + 1,
+        outside
+    );
+    println!(
+        "геометрия {read_ms:.0} мс   раскладка {layout_ms:.0} мс   итого {:.0} мс",
+        read_ms + layout_ms
+    );
+
+    if with_metadata {
+        let started = Instant::now();
+        let history = gitspy_repo::read(&path, None).expect("полное чтение");
+        println!(
+            "полное чтение с метаданными {:.0} мс, коммитов {}",
+            started.elapsed().as_secs_f64() * 1000.0,
+            history.commits.len()
+        );
+    }
+}
