@@ -6,6 +6,7 @@ const LIMIT: usize = 20;
 const FILE: &str = "recent.json";
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct RecentRepo {
     pub path: String,
     pub name: String,

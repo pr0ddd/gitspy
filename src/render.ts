@@ -1,6 +1,6 @@
 import { identicon } from './avatar';
-import { SEGMENT_KIND, type RefView, type RepoView, type RowView, type WindowView } from './types';
-import { rowAt } from './session';
+import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from './types';
+import type { RowCache } from './rows';
 import { laneColour, laneColourAlpha, theme } from './theme';
 import type { Minimap } from './view';
 
@@ -88,7 +88,7 @@ export type Columns = {
 
 export type Frame = {
   readonly repo: RepoView | null;
-  readonly window: WindowView | null;
+  readonly rows: RowCache;
   readonly columns: Columns;
   readonly refsByCommit: ReadonlyMap<number, RefView[]>;
   readonly minimap: Minimap | null;
@@ -195,7 +195,7 @@ function graphGeometry(
 }
 
 export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
-  const { repo, window: win, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
+  const { repo, rows, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
   const { width, height } = frame;
 
   const t = theme();
@@ -255,7 +255,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
-      const row = rowAt(win, i);
+      const row = rows.row(i);
       if (!row) continue;
       const x = g.nodeX(row.lane) - m.nodeR;
       ctx.fillStyle = laneColourAlpha(row.colour, 11);
@@ -275,15 +275,15 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.lineWidth = GRAPH_W;
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH + half;
-      if (!win) continue;
-      const local = i - win.start;
-      if (local < 0 || local >= win.rows.length) continue;
-      for (let s = win.segOffsets[local]; s < win.segOffsets[local + 1]; s++) {
-        const kind = win.segKind[s];
-        const a = g.laneAt(win.segFrom[s]);
-        const b = g.laneAt(win.segTo[s]);
+      const found = rows.segments(i);
+      if (!found) continue;
+      const w = found.window;
+      for (let s = found.from; s < found.to; s++) {
+        const kind = w.segKind[s];
+        const a = g.laneAt(w.segFrom[s]);
+        const b = g.laneAt(w.segTo[s]);
         if (Math.max(a, b) < g.contentLeft - 40 || Math.min(a, b) > g.contentRight + 40) continue;
-        ctx.strokeStyle = laneColour(win.segColour[s]);
+        ctx.strokeStyle = laneColour(w.segColour[s]);
         ctx.beginPath();
         if (kind === SEGMENT_KIND.through) {
           ctx.moveTo(a, y - half);
@@ -318,7 +318,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     }
 
     for (let i = first; i < last; i++) {
-      const row = rowAt(win, i);
+      const row = rows.row(i);
       if (!row) continue;
       const y = shift + (i - first) * m.rowH;
       ctx.fillStyle = laneColour(row.colour);
@@ -326,7 +326,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     }
 
     for (let i = first; i < last; i++) {
-      const row = rowAt(win, i);
+      const row = rows.row(i);
       if (!row) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
       const lane = row.lane;
@@ -383,7 +383,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     for (let i = first; i < last; i++) {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
-      const row = rowAt(win, i);
+      const row = rows.row(i);
       if (!row) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
       const colour = laneColour(row.colour);
@@ -421,7 +421,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
 
-      const row = rowAt(win, i);
+      const row = rows.row(i);
       if (!row || row.kind !== 'commit') {
         ctx.fillStyle = t.faint;
         ctx.fillText('—', msgX, yc);

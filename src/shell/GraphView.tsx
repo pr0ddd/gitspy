@@ -15,18 +15,21 @@ import {
 } from '../render';
 import { buildMinimap } from '../view';
 import type { Session } from '../session';
+import type { RowCache } from '../rows';
 import { GIT } from '../vocabulary';
 
 type Props = {
   session: Session | null;
+  rows: RowCache;
+  redraw: number;
   metrics: Metrics;
   onSelect: (index: number | null) => void;
-  onRange: (first: number, last: number) => void;
+  onNeed: (chunks: number[]) => void;
 };
 
-const emptyFrame = (metrics: Metrics, columns: Frame['columns']): Frame => ({
+const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns']): Frame => ({
   repo: null,
-  window: null,
+  rows,
   columns,
   refsByCommit: new Map(),
   minimap: null,
@@ -39,7 +42,7 @@ const emptyFrame = (metrics: Metrics, columns: Frame['columns']): Frame => ({
   height: 0,
 });
 
-export function GraphView({ session, metrics, onSelect, onRange }: Props) {
+export function GraphView({ session, rows, redraw, metrics, onSelect, onNeed }: Props) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -51,24 +54,26 @@ export function GraphView({ session, metrics, onSelect, onRange }: Props) {
     date: t('column.date'),
     sha: GIT.sha,
   };
-  const frameRef = useRef<Frame>(emptyFrame(metrics, columns));
+  const frameRef = useRef<Frame>(emptyFrame(metrics, rows, columns));
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<'minimap' | 'hscroll' | null>(null);
 
   const schedule = useCallback(() => {
+    const f = frameRef.current;
+    if (f.repo && f.repo.count > 0) {
+      const first = Math.max(0, Math.floor(f.scrollY / f.metrics.rowH));
+      const last = Math.min(f.repo.count, first + Math.ceil(f.height / f.metrics.rowH) + 1);
+      const wanted = f.rows.missing(first, last, f.repo.count);
+      if (wanted.length) onNeed(wanted);
+    }
+
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       const canvas = canvasRef.current;
       if (canvas) drawFrame(canvas, frameRef.current);
-
-      const f = frameRef.current;
-      if (!f.repo || f.repo.count === 0) return;
-      const first = Math.max(0, Math.floor(f.scrollY / f.metrics.rowH));
-      const last = Math.min(f.repo.count, first + Math.ceil(f.height / f.metrics.rowH) + 1);
-      onRange(first, last);
     });
-  }, [onRange]);
+  }, [onNeed]);
 
   const patch = useCallback(
     (next: Partial<Frame>) => {
@@ -94,7 +99,7 @@ export function GraphView({ session, metrics, onSelect, onRange }: Props) {
     frameRef.current = {
       ...f,
       repo: session?.repo ?? null,
-      window: session?.window ?? null,
+      rows,
       refsByCommit: session?.refsByCommit ?? new Map(),
       minimap: buildMinimap(session?.repo ?? null, f.height),
       columns,
@@ -104,7 +109,7 @@ export function GraphView({ session, metrics, onSelect, onRange }: Props) {
       hover: sameRepo ? f.hover : null,
     };
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
-  }, [session, patch, clampScroll]);
+  }, [session, redraw, patch, clampScroll]);
 
   useEffect(() => {
     frameRef.current = { ...frameRef.current, metrics };

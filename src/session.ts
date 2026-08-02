@@ -1,10 +1,9 @@
-import type { RefView, RepoView, RowView, WindowView, WorktreeView } from './types';
+import type { RefView, RepoView, WorktreeView } from './types';
 
 export type Session = {
   path: string;
   name: string;
   repo: RepoView | null;
-  window: WindowView | null;
   refsByCommit: Map<number, RefView[]>;
   worktrees: WorktreeView[];
   selected: number | null;
@@ -18,7 +17,6 @@ export const newSession = (path: string): Session => ({
   path,
   name: repoName(path),
   repo: null,
-  window: null,
   refsByCommit: new Map(),
   worktrees: [],
   selected: null,
@@ -33,10 +31,4 @@ export const groupRefsByCommit = (refs: RefView[]): Map<number, RefView[]> => {
     else byCommit.set(ref.commit, [ref]);
   }
   return byCommit;
-};
-
-export const rowAt = (window: WindowView | null, index: number): RowView | null => {
-  if (!window) return null;
-  const offset = index - window.start;
-  return offset >= 0 && offset < window.rows.length ? window.rows[offset] : null;
 };
