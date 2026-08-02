@@ -1,0 +1,145 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.3125rem;
+
+  --background: oklch(0.16 0.008 265);
+  --foreground: oklch(0.92 0.006 265);
+
+  --card: oklch(0.19 0.008 265);
+  --card-foreground: oklch(0.92 0.006 265);
+
+  --popover: oklch(0.22 0.009 265);
+  --popover-foreground: oklch(0.92 0.006 265);
+
+  --primary: oklch(0.62 0.19 288);
+  --primary-foreground: oklch(0.98 0.005 288);
+
+  --secondary: oklch(0.25 0.009 265);
+  --secondary-foreground: oklch(0.92 0.006 265);
+
+  --muted: oklch(0.24 0.008 265);
+  --muted-foreground: oklch(0.64 0.014 265);
+
+  --accent: oklch(0.27 0.012 265);
+  --accent-foreground: oklch(0.94 0.006 265);
+
+  --destructive: oklch(0.61 0.2 25);
+  --destructive-foreground: oklch(0.98 0.005 25);
+
+  --border: oklch(0.26 0.009 265);
+  --input: oklch(0.28 0.01 265);
+  --ring: oklch(0.62 0.19 288);
+
+  --surface: oklch(0.13 0.007 265);
+  --surface-raised: oklch(0.22 0.009 265);
+  --surface-hover: oklch(0.25 0.01 265);
+
+  --status-added: oklch(0.72 0.17 148);
+  --status-deleted: oklch(0.64 0.21 25);
+  --status-modified: oklch(0.75 0.14 82);
+  --status-renamed: oklch(0.69 0.14 250);
+  --status-conflict: oklch(0.66 0.16 52);
+  --status-ahead: oklch(0.72 0.17 148);
+  --status-behind: oklch(0.75 0.14 82);
+
+  --ref-local: oklch(0.55 0.12 250);
+  --ref-remote: oklch(0.47 0.04 265);
+  --ref-tag: oklch(0.55 0.11 82);
+  --ref-stash: oklch(0.52 0.13 300);
+
+  --graph-1: oklch(0.65 0.2 255);
+  --graph-2: oklch(0.55 0.26 295);
+  --graph-3: oklch(0.63 0.27 350);
+  --graph-4: oklch(0.6 0.24 25);
+  --graph-5: oklch(0.83 0.16 85);
+  --graph-6: oklch(0.75 0.23 140);
+  --graph-7: oklch(0.79 0.14 195);
+  --graph-8: oklch(0.52 0.26 265);
+  --graph-9: oklch(0.72 0.19 350);
+  --graph-10: oklch(0.66 0.19 20);
+  --graph-11: oklch(0.8 0.15 75);
+  --graph-12: oklch(0.6 0.23 300);
+
+  --row-height: 24px;
+  --row-height-graph: 30px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-added: var(--status-added);
+  --color-deleted: var(--status-deleted);
+  --color-modified: var(--status-modified);
+  --color-renamed: var(--status-renamed);
+  --color-conflict: var(--status-conflict);
+  --color-ahead: var(--status-ahead);
+  --color-behind: var(--status-behind);
+
+  --color-ref-local: var(--ref-local);
+  --color-ref-remote: var(--ref-remote);
+  --color-ref-tag: var(--ref-tag);
+  --color-ref-stash: var(--ref-stash);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-2xs: 0.625rem;
+  --text-2xs--line-height: 0.875rem;
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.75rem;
+  --text-sm--line-height: 1.0625rem;
+  --text-base: 0.8125rem;
+  --text-base--line-height: 1.1875rem;
+  --text-lg: 0.9375rem;
+  --text-lg--line-height: 1.375rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.625rem;
+
+  --spacing-row: var(--row-height);
+  --spacing-row-graph: var(--row-height-graph);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full overflow-hidden;
+  }
+
+  body {
+    @apply bg-surface text-foreground text-sm antialiased;
+    font-family: var(--font-sans);
+  }
+}
