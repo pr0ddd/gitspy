@@ -1,0 +1,32 @@
+<!-- @dsCard group="Data" name="Commit details" subtitle="Right panel: message, fields, refs" -->
+<div class="bg-surface text-foreground flex p-6 font-sans">
+  <aside class="bg-card border-border w-80 shrink-0 rounded-md border">
+    <header class="border-border flex h-9 items-center gap-2 border-b px-3">
+      <span class="text-muted-foreground text-xs tracking-wide uppercase">Commit</span>
+      <button class="border-input hover:border-ring ml-auto h-6 rounded-md border px-2 font-mono text-xs">4fccf89a</button>
+    </header>
+    <div class="space-y-3 p-3">
+      <p class="text-sm leading-snug">Досортировка Кана: порядок как у git log --date-order</p>
+      <pre class="bg-surface text-muted-foreground rounded-md p-2 font-sans text-xs leading-relaxed whitespace-pre-wrap">react: внешних родителей 191 → 0, дорожек 218 → 99</pre>
+      <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        <dt class="text-muted-foreground">Автор</dt>
+        <dd class="truncate">pr0d <span class="text-muted-foreground">pavel@example.com</span></dd>
+        <dt class="text-muted-foreground">Дата</dt>
+        <dd>2 авг 2026, 13:26</dd>
+      </dl>
+      <div class="flex flex-wrap gap-1">
+        <span class="bg-ref-local rounded-sm px-1.5 py-0 text-2xs text-white">master</span>
+        <span class="bg-ref-tag rounded-sm px-1.5 py-0 text-2xs text-white">v0.1</span>
+      </div>
+    </div>
+    <div class="border-border border-t p-3">
+      <h3 class="text-muted-foreground mb-1.5 text-xs tracking-wide uppercase">Файлы</h3>
+      <p class="text-muted-foreground/70">Список файлов и дифф появятся в фазе диффов</p>
+    </div>
+  </aside>
+  <div class="ml-6 max-w-xs">
+    <h2 class="mb-1 text-xl font-semibold tracking-tight">Details</h2>
+    <p class="text-muted-foreground mb-3">Хеш — кнопка: клик копирует и подтверждает тостом. Выделения текста на canvas нет, поэтому копирование делается кликом.</p>
+    <p class="text-muted-foreground/70 text-xs">Внизу — честная подпись вместо выдуманного списка файлов. Чего нет, того не рисуем.</p>
+  </div>
+</div>

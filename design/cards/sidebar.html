@@ -1,0 +1,37 @@
+<!-- @dsCard group="Navigation" name="Sidebar sections" subtitle="Collapsible groups, counts, selected row" -->
+<div class="bg-surface text-foreground flex p-6 font-sans">
+  <aside class="bg-card border-border w-64 shrink-0 rounded-md border">
+    <div class="relative p-2">
+      <input placeholder="Фильтр" class="border-input bg-transparent h-7 w-full rounded-md border px-2 text-xs" />
+    </div>
+    <div>
+      <div class="text-muted-foreground hover:bg-surface-hover flex h-7 items-center gap-1.5 px-2 text-xs tracking-wide uppercase">
+        <span class="rotate-90">›</span><span class="flex-1">Local</span><span class="text-muted-foreground/70 tabular-nums">10</span>
+      </div>
+      <button class="border-l-primary text-foreground hover:bg-surface-hover flex h-6 w-full items-center border-l-2 pr-2 pl-6 text-left font-medium">master</button>
+      <button class="hover:bg-surface-hover flex h-6 w-full items-center border-l-2 border-transparent pr-2 pl-6 text-left">avatars</button>
+      <button class="hover:bg-surface-hover flex h-6 w-full items-center border-l-2 border-transparent pr-2 pl-6 text-left">fix-graph-scroll</button>
+
+      <div class="text-muted-foreground hover:bg-surface-hover flex h-7 items-center gap-1.5 px-2 text-xs tracking-wide uppercase">
+        <span class="rotate-90">›</span><span class="flex-1">Remote</span><span class="text-muted-foreground/70 tabular-nums">940</span>
+      </div>
+      <button class="hover:bg-surface-hover flex h-6 w-full items-center border-l-2 border-transparent pr-2 pl-6 text-left">origin/master</button>
+
+      <div class="text-muted-foreground hover:bg-surface-hover flex h-7 items-center gap-1.5 px-2 text-xs tracking-wide uppercase">
+        <span>›</span><span class="flex-1">Worktrees</span><span class="text-muted-foreground/70 tabular-nums">1</span>
+      </div>
+      <div class="text-muted-foreground hover:bg-surface-hover flex h-7 items-center gap-1.5 px-2 text-xs tracking-wide uppercase">
+        <span>›</span><span class="flex-1">Stashes</span><span class="text-muted-foreground/70 tabular-nums">2</span>
+      </div>
+      <div class="text-muted-foreground/60 flex h-7 items-center gap-1.5 px-2 text-xs tracking-wide uppercase">
+        <span>›</span><span class="flex-1">Pull Requests</span><span class="text-muted-foreground/70 tabular-nums">0</span>
+      </div>
+    </div>
+  </aside>
+  <div class="ml-6 max-w-xs">
+    <h2 class="mb-1 text-xl font-semibold tracking-tight">Sidebar</h2>
+    <p class="text-muted-foreground mb-3">Строка 24 пикселя, заголовок секции 28. Счётчик всегда справа и всегда tabular-nums, чтобы цифры не прыгали.</p>
+    <p class="text-muted-foreground/70 text-xs">Текущая ветка отмечена полосой акцента слева, а не заливкой: заливка занята наведением и выбором.</p>
+    <p class="text-muted-foreground/70 mt-2 text-xs">Приглушённый заголовок значит «раздел есть, данных нет, потому что нет интеграции».</p>
+  </div>
+</div>

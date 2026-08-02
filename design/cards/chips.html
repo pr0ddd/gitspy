@@ -1,0 +1,31 @@
+<!-- @dsCard group="Data" name="Ref chips and counters" subtitle="Branch, tag, remote, stash, ahead/behind, file status" -->
+<div class="bg-surface text-foreground p-6 font-sans">
+  <h2 class="mb-1 text-xl font-semibold tracking-tight">Chips</h2>
+  <p class="text-muted-foreground mb-6">Цвет чипа кодирует вид ссылки, счётчика — направление расхождения.</p>
+
+  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Виды ссылок</h3>
+  <div class="mb-6 flex flex-wrap items-center gap-1.5">
+    <span class="bg-ref-local rounded-sm px-1.5 py-0.5 text-2xs text-white">✓ master</span>
+    <span class="bg-ref-local rounded-sm px-1.5 py-0.5 text-2xs text-white">feature/graph</span>
+    <span class="bg-ref-remote rounded-sm px-1.5 py-0.5 text-2xs text-white">origin/master</span>
+    <span class="bg-ref-tag rounded-sm px-1.5 py-0.5 text-2xs text-white">v12.3.1</span>
+    <span class="bg-ref-stash rounded-sm px-1.5 py-0.5 text-2xs text-white">stash@{0}</span>
+  </div>
+
+  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Расхождение и незакоммиченное</h3>
+  <div class="mb-6 flex items-center gap-2">
+    <span class="text-ahead inline-flex items-center gap-0.5 text-xs tabular-nums">↑55</span>
+    <span class="text-behind inline-flex items-center gap-0.5 text-xs tabular-nums">↓16</span>
+    <span class="text-modified inline-flex items-center gap-0.5 text-xs tabular-nums">✎1</span>
+    <span class="text-added inline-flex items-center gap-0.5 text-xs tabular-nums">+3</span>
+  </div>
+
+  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Статус файла</h3>
+  <div class="space-y-0.5 font-mono text-xs">
+    <div class="flex h-6 items-center gap-2"><span class="text-added w-3">+</span><span>crates/gitspy-repo/src/lib.rs</span></div>
+    <div class="flex h-6 items-center gap-2"><span class="text-modified w-3">✎</span><span>src/index.css</span></div>
+    <div class="flex h-6 items-center gap-2"><span class="text-deleted w-3">−</span><span>src/styles.css</span></div>
+    <div class="flex h-6 items-center gap-2"><span class="text-renamed w-3">→</span><span>src/shell/GraphView.tsx</span></div>
+    <div class="flex h-6 items-center gap-2"><span class="text-conflict w-3">!</span><span>docs/plan.md</span></div>
+  </div>
+</div>
