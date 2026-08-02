@@ -1,0 +1,55 @@
+<!-- @dsCard group="Pages" name="Preferences" subtitle="Rail of sections, label-left form" -->
+<div class="bg-surface text-foreground flex h-[820px] flex-col font-sans">
+  {{> tabs}}
+  <div class="flex min-h-0 flex-1">
+    <aside class="bg-card border-border w-56 shrink-0 border-r">
+      <button class="text-muted-foreground hover:bg-surface-hover flex h-9 w-full items-center gap-2 px-3">← Выйти из настроек</button>
+      <div class="text-muted-foreground/60 px-3 py-2 text-xs tracking-wide uppercase">Настройки</div>
+      <button class="bg-primary/15 border-l-primary text-foreground flex h-8 w-full items-center border-l-2 px-3 font-medium">Общие</button>
+      <button class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3">Внешний вид</button>
+      <button class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3">Интеграции</button>
+      <button class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3">SSH</button>
+      <button class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3">Подпись коммитов</button>
+      <button class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3">Terminal</button>
+    </aside>
+
+    <div class="min-h-0 flex-1 overflow-hidden px-8 py-6">
+      <h1 class="mb-6 text-xl font-semibold tracking-tight">Общие</h1>
+      <div class="max-w-2xl space-y-5">
+        <div class="grid grid-cols-[200px_1fr] items-start gap-4">
+          <label class="pt-1.5 text-right">Язык интерфейса</label>
+          <div>
+            <select class="border-input h-8 w-64 rounded-md border bg-transparent px-2 text-sm"><option>Русский</option><option>English</option></select>
+            <p class="text-muted-foreground/70 mt-1 text-xs">Словарь git не переводится: Pull, Push, Remote остаются как есть.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-[200px_1fr] items-start gap-4">
+          <label class="pt-0.5 text-right">Плотность</label>
+          <div class="border-input flex h-8 w-64 items-center overflow-hidden rounded-md border">
+            <button class="bg-primary text-primary-foreground h-full flex-1 text-sm">Плотно</button>
+            <button class="hover:bg-surface-hover h-full flex-1 text-sm">Свободнее</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-[200px_1fr] items-start gap-4">
+          <label class="pt-0.5 text-right">Аватарки в графе</label>
+          <div><input type="checkbox" checked class="accent-primary mt-1" /></div>
+        </div>
+        <div class="grid grid-cols-[200px_1fr] items-start gap-4">
+          <label class="pt-1.5 text-right">Коммитов при открытии</label>
+          <div>
+            <input value="2000" class="border-input h-8 w-64 rounded-md border bg-transparent px-2 text-sm" />
+            <p class="text-muted-foreground/70 mt-1 text-xs">Ноль — вся история. Открытие не делает сетевых вызовов ни при каком значении.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-[200px_1fr] items-start gap-4">
+          <label class="pt-1.5 text-right">Индекс commit-graph</label>
+          <div>
+            <button class="border-input hover:bg-surface-hover h-8 rounded-md border px-3 text-sm opacity-50">Построить для этого репозитория</button>
+            <p class="text-muted-foreground/70 mt-1 text-xs">У свежего клона индекса нет, и чтение идёт в двенадцать раз медленнее. Появится вместе со слоем операций.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{> statusbar}}
+</div>

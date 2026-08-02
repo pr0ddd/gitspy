@@ -1,0 +1,24 @@
+<!-- @dsCard group="Pages" name="Repositories" subtitle="Start tab: open, clone, create, recent" -->
+<div class="bg-surface text-foreground flex h-[820px] flex-col font-sans">
+  {{> tabs}}
+  <div class="min-h-0 flex-1 overflow-hidden">
+    <div class="mx-auto w-full max-w-2xl px-8 py-10">
+      <h1 class="mb-5 text-xl font-semibold tracking-tight">Репозитории</h1>
+      <div class="mb-8 flex gap-2">
+        <button class="bg-primary text-primary-foreground inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium">Открыть</button>
+        <button class="bg-secondary text-secondary-foreground inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium opacity-50">Clone</button>
+        <button class="bg-secondary text-secondary-foreground inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium opacity-50">Создать</button>
+      </div>
+      <h2 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Недавние</h2>
+      <ul class="-mx-2">
+        <li><div class="hover:bg-surface-hover flex h-8 items-baseline gap-3 rounded-md px-2"><span class="text-primary font-medium">gitspy</span><span class="text-muted-foreground truncate font-mono text-xs">~/projects/gitspy</span><span class="text-muted-foreground/60 ml-auto text-xs">только что</span></div></li>
+        <li><div class="bg-surface-hover flex h-8 items-baseline gap-3 rounded-md px-2"><span class="text-primary font-medium">quesk</span><span class="text-muted-foreground truncate font-mono text-xs">~/projects/quesk</span><span class="text-muted-foreground/60 ml-auto text-xs">2 часа назад</span><span class="text-muted-foreground ml-2">✕</span></div></li>
+        <li><div class="hover:bg-surface-hover flex h-8 items-baseline gap-3 rounded-md px-2"><span class="text-primary font-medium">react</span><span class="text-muted-foreground truncate font-mono text-xs">~/projects/react</span><span class="text-muted-foreground/60 ml-auto text-xs">вчера</span></div></li>
+        <li><div class="hover:bg-surface-hover flex h-8 items-baseline gap-3 rounded-md px-2"><span class="text-primary font-medium">awesome-game</span><span class="text-muted-foreground truncate font-mono text-xs">~/projects/awesome-game</span><span class="text-muted-foreground/60 ml-auto text-xs">3 дня назад</span></div></li>
+        <li><div class="flex h-8 items-baseline gap-3 rounded-md px-2 opacity-40"><span class="text-primary font-medium">My project</span><span class="text-muted-foreground truncate font-mono text-xs">~/My project</span><span class="text-muted-foreground/60 ml-auto text-xs">на прошлой неделе</span></div></li>
+      </ul>
+      <p class="text-muted-foreground/70 mt-3 text-xs">Приглушённая строка — папки больше нет на диске. Clone и Создать выключены до слоя операций.</p>
+    </div>
+  </div>
+  {{> statusbar}}
+</div>
