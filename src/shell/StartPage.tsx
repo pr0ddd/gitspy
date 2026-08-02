@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
-import { CloudDownload, FolderOpen, Plus, X } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { GIT } from '../vocabulary';
+import { Icon } from '../icons';
 import type { RecentRepo } from '../types';
 
 type Props = {
@@ -38,12 +39,12 @@ export function StartPage({ recent, onOpen, onOpenPath, onForget }: Props) {
 
         <div className="mb-8 flex gap-2">
           <Button onClick={onOpen} className="h-8">
-            <FolderOpen className="size-3.5" />
+            <Icon.open className="size-3.5" />
             {t('start.open')}
           </Button>
           {[
-            { label: GIT.clone, icon: CloudDownload },
-            { label: t('start.create'), icon: Plus },
+            { label: GIT.clone, icon: Icon.clone },
+            { label: t('start.create'), icon: Icon.add },
           ].map(({ label, icon: Icon }) => (
             <Tooltip key={label}>
               <TooltipTrigger asChild>
@@ -102,7 +103,7 @@ export function StartPage({ recent, onOpen, onOpenPath, onForget }: Props) {
                         onForget(entry.path);
                       }}
                     >
-                      <X className="size-3" />
+                      <Icon.close className="size-3" />
                     </span>
                   </Button>
                 </button>

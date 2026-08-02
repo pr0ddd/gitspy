@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Session } from '../session';
 import { TOOLBAR_ACTIONS } from '../vocabulary';
+import { Icon } from '../icons';
 
 type Props = { session: Session | null };
 
@@ -28,18 +29,22 @@ export function Toolbar({ session }: Props) {
       <Separator orientation="vertical" className="h-6" />
 
       <div className="flex items-center gap-1">
-        {TOOLBAR_ACTIONS.map((action) => (
-          <Tooltip key={action}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0}>
-                <Button variant="ghost" size="sm" disabled className="h-7 px-2.5">
-                  {action}
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{t('toolbar.needsOperations')}</TooltipContent>
-          </Tooltip>
-        ))}
+        {TOOLBAR_ACTIONS.map(({ label, icon }) => {
+          const Glyph = Icon[icon];
+          return (
+            <Tooltip key={label}>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>
+                  <Button variant="ghost" size="sm" disabled className="h-7 gap-1.5 px-2.5">
+                    <Glyph className="size-3.5" />
+                    {label}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('toolbar.needsOperations')}</TooltipContent>
+            </Tooltip>
+          );
+        })}
       </div>
     </div>
   );

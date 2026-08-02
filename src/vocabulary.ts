@@ -21,12 +21,14 @@ export const GIT = {
   sha: 'SHA',
 } as const;
 
-export const TOOLBAR_ACTIONS = [
-  GIT.fetch,
-  GIT.pull,
-  GIT.push,
-  GIT.branch,
-  GIT.stash,
-  GIT.pop,
-  GIT.terminal,
-] as const;
+import type { IconName } from './icons';
+
+export const TOOLBAR_ACTIONS: ReadonlyArray<{ label: string; icon: IconName }> = [
+  { label: GIT.fetch, icon: 'fetch' },
+  { label: GIT.pull, icon: 'pull' },
+  { label: GIT.push, icon: 'push' },
+  { label: GIT.branch, icon: 'branch' },
+  { label: GIT.stash, icon: 'stash' },
+  { label: GIT.pop, icon: 'stash' },
+  { label: GIT.terminal, icon: 'terminal' },
+];
