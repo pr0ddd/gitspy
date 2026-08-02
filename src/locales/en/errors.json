@@ -6,5 +6,9 @@
   "repo.notOpen": "No repository is open",
   "app.stateLock": "Application state is unavailable",
   "unknown": "Unexpected error",
-  "app.dataDir": "Could not reach the application data folder"
+  "app.dataDir": "Could not reach the application data folder",
+  "exec.gitNotFound": "git not found on this machine",
+  "exec.spawn": "Could not start git",
+  "exec.failed": "git failed",
+  "exec.cancelled": "Operation cancelled"
 }

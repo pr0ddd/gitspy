@@ -23,8 +23,14 @@ export const GIT = {
 
 import type { IconName } from './icons';
 
-export const TOOLBAR_ACTIONS: ReadonlyArray<{ label: string; icon: IconName }> = [
-  { label: GIT.fetch, icon: 'fetch' },
+import type { Operation } from './types';
+
+export const TOOLBAR_ACTIONS: ReadonlyArray<{
+  label: string;
+  icon: IconName;
+  operation?: Operation;
+}> = [
+  { label: GIT.fetch, icon: 'fetch', operation: 'fetchDryRun' },
   { label: GIT.pull, icon: 'pull' },
   { label: GIT.push, icon: 'push' },
   { label: GIT.branch, icon: 'branch' },
