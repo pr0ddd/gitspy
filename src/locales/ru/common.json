@@ -1,0 +1,20 @@
+{
+  "repo.open": "Открыть репозиторий",
+  "repo.opening": "Открываю…",
+  "repo.pickTitle": "Выбери репозиторий",
+  "repo.emptyHint": "Выбери локальный репозиторий, чтобы посмотреть граф",
+  "graph.avatars": "Аватарки",
+  "graph.commits_one": "{{count, number}} коммит",
+  "graph.commits_few": "{{count, number}} коммита",
+  "graph.commits_many": "{{count, number}} коммитов",
+  "graph.commits_other": "{{count, number}} коммита",
+  "graph.lanes_one": "{{count, number}} дорожка",
+  "graph.lanes_few": "{{count, number}} дорожки",
+  "graph.lanes_many": "{{count, number}} дорожек",
+  "graph.lanes_other": "{{count, number}} дорожки",
+  "graph.truncated": "история обрезана",
+  "stats.read": "чтение {{ms}} мс",
+  "stats.layout": "раскладка {{ms}} мс",
+  "stats.ipc": "IPC {{ms}} мс",
+  "stats.meta": "мета {{ms}} мс"
+}

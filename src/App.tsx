@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import {
@@ -18,6 +19,7 @@ import {
   type Metrics,
 } from './render';
 import { buildMinimap } from './view';
+import { describeError, type ShownError } from './errors';
 import type { CommitView, LayoutView, RefView } from './types';
 
 const PAGE = 5000;
@@ -46,8 +48,10 @@ const emptyFrame = (metrics: Metrics): Frame => ({
 });
 
 export default function App() {
+  const { t } = useTranslation();
+  const { t: tError } = useTranslation('errors');
   const [layout, setLayout] = useState<LayoutView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ShownError | null>(null);
   const [loading, setLoading] = useState(false);
   const [openMs, setOpenMs] = useState<number | null>(null);
   const [metaMs, setMetaMs] = useState<number | null>(null);
@@ -93,8 +97,6 @@ export default function App() {
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
   }, [metrics, patch, clampScroll]);
 
-  /* ---------------------------- размер вьюпорта ---------------------------- */
-
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -116,8 +118,6 @@ export default function App() {
     return () => ro.disconnect();
   }, [patch, clampScroll]);
 
-  /* -------------------------------- скролл -------------------------------- */
-
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -126,7 +126,7 @@ export default function App() {
       e.preventDefault();
       const f = frameRef.current;
       const unit = e.deltaMode === 1 ? f.metrics.rowH : e.deltaMode === 2 ? f.height : 1;
-      // Горизонталь с трекпада и Shift+колесо двигают граф, а не список.
+
       const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
       if (dx !== 0) {
         patch({ scrollX: clampScrollX(f.scrollX + dx * unit) });
@@ -157,8 +157,6 @@ export default function App() {
       window.removeEventListener('keydown', onKey);
     };
   }, [patch, clampScroll, clampScrollX]);
-
-  /* -------------------------------- мышь -------------------------------- */
 
   useEffect(() => {
     const host = hostRef.current;
@@ -232,14 +230,12 @@ export default function App() {
     };
   }, [patch, clampScroll, clampScrollX]);
 
-  /* ------------------------------ открытие ------------------------------ */
-
   const pickRepo = useCallback(async () => {
     setError(null);
     const picked = await openDialog({
       directory: true,
       multiple: false,
-      title: 'Выбери репозиторий',
+      title: t('repo.pickTitle'),
     });
     if (typeof picked !== 'string') return;
 
@@ -287,7 +283,7 @@ export default function App() {
       }
       setMetaMs(performance.now() - t1);
     } catch (e) {
-      setError(String(e));
+      setError(describeError(e, tError));
       setLayout(null);
       const f = frameRef.current;
       frameRef.current = { ...emptyFrame(f.metrics), width: f.width, height: f.height };
@@ -295,13 +291,13 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [schedule]);
+  }, [schedule, t, tError]);
 
   return (
     <div className="app">
       <header>
         <button onClick={pickRepo} disabled={loading}>
-          {loading ? 'Открываю…' : 'Открыть репозиторий'}
+          {loading ? t('repo.opening') : t('repo.open')}
         </button>
 
         {layout ? (
@@ -312,13 +308,20 @@ export default function App() {
                 checked={avatars}
                 onChange={(e) => setAvatars(e.target.checked)}
               />
-              Аватарки
+              {t('graph.avatars')}
             </label>
             <span className="stats">
-              <b>{layout.count.toLocaleString('ru')}</b> · дорожек {layout.max_lane + 1} ·{' '}
-              {layout.read_ms.toFixed(0)}/{layout.layout_ms.toFixed(1)} мс
-              {openMs !== null ? ` · IPC ${openMs.toFixed(0)}` : ''}
-              {metaMs !== null ? ` · мета ${metaMs.toFixed(0)}` : ''}
+              {[
+                t('graph.commits', { count: layout.count }),
+                t('graph.lanes', { count: layout.max_lane + 1 }),
+                t('stats.read', { ms: layout.read_ms.toFixed(0) }),
+                t('stats.layout', { ms: layout.layout_ms.toFixed(1) }),
+                openMs === null ? null : t('stats.ipc', { ms: openMs.toFixed(0) }),
+                metaMs === null ? null : t('stats.meta', { ms: metaMs.toFixed(0) }),
+                layout.truncated ? t('graph.truncated') : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </span>
           </>
         ) : null}
@@ -326,13 +329,18 @@ export default function App() {
         {layout ? <span className="path">{layout.path}</span> : null}
       </header>
 
-      {error ? <div className="error">{error}</div> : null}
+      {error ? (
+        <div className="error">
+          {error.message}
+          {error.detail ? <small>{error.detail}</small> : null}
+        </div>
+      ) : null}
 
       <div className="host" ref={hostRef} tabIndex={0}>
         <canvas ref={canvasRef} className="surface" />
         {!layout && !loading ? (
           <div className="empty" style={{ right: MINIMAP_W }}>
-            Выбери локальный репозиторий, чтобы посмотреть граф
+            {t('repo.emptyHint')}
           </div>
         ) : null}
       </div>

@@ -2,7 +2,6 @@ use crate::layout::Layout;
 use crate::state::{LayoutState, Snapshot};
 use crate::topology::{CommitIdx, Topology};
 
-/// Раскладывает всю топологию за один проход.
 pub fn layout(topo: &Topology) -> Layout {
     let mut state = LayoutState::new();
     let mut out = Layout::default();
@@ -15,9 +14,6 @@ pub fn layout(topo: &Topology) -> Layout {
     out
 }
 
-/// Раскладывает топологию полосами, сохраняя снапшот на границе каждой.
-///
-/// Результат обязан совпадать с `layout` при любом `chunk_size`.
 pub fn layout_chunked(topo: &Topology, chunk_size: usize) -> (Layout, Vec<Snapshot>) {
     assert!(chunk_size > 0, "размер полосы должен быть положительным");
 
@@ -29,8 +25,7 @@ pub fn layout_chunked(topo: &Topology, chunk_size: usize) -> (Layout, Vec<Snapsh
     let mut start = 0usize;
     while start < total {
         let end = (start + chunk_size).min(total);
-        // Явно проходим через снапшот, чтобы полоса считалась ровно так,
-        // как она считалась бы при досчёте с диска.
+
         state = LayoutState::resume(state.snapshot());
         for i in start..end {
             let (row, segments) = state.step(topo, i as CommitIdx);
@@ -58,7 +53,10 @@ mod tests {
         let l = layout(&parsed.topology);
         assert_eq!(l.len(), 6);
         assert_eq!(l.segments.len(), 6);
-        assert_eq!(l.rows.iter().map(|r| r.commit).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4, 5]);
+        assert_eq!(
+            l.rows.iter().map(|r| r.commit).collect::<Vec<_>>(),
+            vec![0, 1, 2, 3, 4, 5]
+        );
     }
 
     #[test]

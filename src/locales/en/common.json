@@ -1,0 +1,16 @@
+{
+  "repo.open": "Open repository",
+  "repo.opening": "Opening…",
+  "repo.pickTitle": "Choose a repository",
+  "repo.emptyHint": "Choose a local repository to see its graph",
+  "graph.avatars": "Avatars",
+  "graph.commits_one": "{{count, number}} commit",
+  "graph.commits_other": "{{count, number}} commits",
+  "graph.lanes_one": "{{count, number}} lane",
+  "graph.lanes_other": "{{count, number}} lanes",
+  "graph.truncated": "history truncated",
+  "stats.read": "read {{ms}} ms",
+  "stats.layout": "layout {{ms}} ms",
+  "stats.ipc": "IPC {{ms}} ms",
+  "stats.meta": "metadata {{ms}} ms"
+}
