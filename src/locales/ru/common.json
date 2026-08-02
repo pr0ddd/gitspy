@@ -43,5 +43,17 @@
   "diff.inline": "В строку",
   "diff.close": "Закрыть дифф",
   "diff.binary": "Двоичный файл — построчно показывать нечего",
-  "details.noChanges": "Этот коммит ничего не изменил"
+  "details.noChanges": "Этот коммит ничего не изменил",
+  "details.modified_one": "{{count}} изменён",
+  "details.modified_few": "{{count}} изменено",
+  "details.modified_many": "{{count}} изменено",
+  "details.modified_other": "{{count}} изменено",
+  "details.added_one": "{{count}} добавлен",
+  "details.added_few": "{{count}} добавлено",
+  "details.added_many": "{{count}} добавлено",
+  "details.added_other": "{{count}} добавлено",
+  "details.deleted_one": "{{count}} удалён",
+  "details.deleted_few": "{{count}} удалено",
+  "details.deleted_many": "{{count}} удалено",
+  "details.deleted_other": "{{count}} удалено"
 }

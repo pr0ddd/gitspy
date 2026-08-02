@@ -206,7 +206,12 @@ export default function App() {
         <>
           <Toolbar session={current} onRun={runOperation} busy={busy} />
           <div className="flex min-h-0 flex-1">
-            <Sidebar session={current} onPick={select} />
+            <Sidebar
+              session={current}
+              collapsed={openFile !== null}
+              onPick={select}
+              onExpand={() => setOpenFile(null)}
+            />
             <main className="flex min-h-0 min-w-0 flex-1 flex-col">
               {openFile && current.repo ? (
                 <DiffView
@@ -215,7 +220,8 @@ export default function App() {
                   file={openFile.file}
                   onClose={() => setOpenFile(null)}
                 />
-              ) : null}
+              ) : (
+                <>
               <GraphView
                 key={current.path}
                 session={current}
@@ -239,6 +245,8 @@ export default function App() {
                     .join(' · ')}
                 </footer>
               ) : null}
+                </>
+              )}
             </main>
             <Details
               session={current}

@@ -5,7 +5,19 @@ import * as ipc from '../ipc';
 import { languageOf, monaco, setUpMonaco, THEME } from '../monaco';
 import { notifyError } from '../toast';
 import { Icon } from '../icons';
+import { shortenDirectory, splitPath } from '../paths';
+import { cn } from '@/lib/utils';
 import type { ChangedFileView } from '../types';
+
+const STATUS_STYLE: Record<string, string> = {
+  A: 'text-added',
+  M: 'text-modified',
+  D: 'text-deleted',
+  R: 'text-renamed',
+  C: 'text-renamed',
+  T: 'text-modified',
+  U: 'text-conflict',
+};
 
 type Props = {
   repo: string;
@@ -72,9 +84,14 @@ export function DiffView({ repo, commit, file, onClose }: Props) {
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="bg-card border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
-        <span className="text-muted-foreground truncate font-mono text-xs">
-          {file.oldPath ? `${file.oldPath} → ` : ''}
-          {file.path}
+        <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[file.status])}>
+          {file.status}
+        </span>
+        <span className="flex min-w-0 items-baseline font-mono text-xs">
+          <span className="text-muted-foreground shrink-0">
+            {shortenDirectory(splitPath(file.path).directory, 46)}
+          </span>
+          <span className="text-foreground truncate font-medium">{splitPath(file.path).name}</span>
         </span>
 
         <div className="border-input ml-4 flex h-6 shrink-0 items-center overflow-hidden rounded-md border">

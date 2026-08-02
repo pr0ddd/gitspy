@@ -39,5 +39,11 @@
   "diff.inline": "Inline",
   "diff.close": "Close diff",
   "diff.binary": "Binary file — nothing to show line by line",
-  "details.noChanges": "This commit changed nothing"
+  "details.noChanges": "This commit changed nothing",
+  "details.modified_one": "{{count}} modified",
+  "details.modified_other": "{{count}} modified",
+  "details.added_one": "{{count}} added",
+  "details.added_other": "{{count}} added",
+  "details.deleted_one": "{{count}} deleted",
+  "details.deleted_other": "{{count}} deleted"
 }
