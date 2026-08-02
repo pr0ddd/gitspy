@@ -31,6 +31,35 @@ fn order_matches_git_date_order() {
 }
 
 #[test]
+fn parent_never_precedes_child_when_a_branch_points_at_the_parent() {
+    // Воспроизведение дефекта порядка. Обход по времени коммиттера кладёт
+    // вершины в кучу и достаёт самую новую. Родитель попадает в очередь только
+    // после выдачи потомка — поэтому в линейной цепочке порядок не сломать.
+    //
+    // Ломается он, когда на родителя смотрит ОТДЕЛЬНАЯ ветка: тогда обе
+    // вершины лежат в куче с самого начала, и родитель с более новой датой
+    // выходит раньше своего потомка.
+    let f = Fixture::new();
+    f.commit_at("родитель из будущего", 1_900_000_000);
+    f.run(&["branch", "points-at-parent"]);
+    f.commit_at("потомок с ранней датой", 1_600_000_000);
+
+    let history = gitspy_repo::read(f.path(), None).expect("репозиторий читается");
+
+    for i in 0..history.topology.len() as CommitIdx {
+        for &p in history.topology.parents(i) {
+            assert!(p > i, "родитель {p} стоит перед потомком {i}");
+        }
+        assert_eq!(
+            history.topology.outside_parents(i),
+            0,
+            "внешних родителей быть не должно: история загружена целиком"
+        );
+    }
+    assert_eq!(our_order(&f), f.git_date_order());
+}
+
+#[test]
 fn parent_never_precedes_child_even_with_clock_skew() {
     // Родитель с БОЛЕЕ НОВОЙ датой, чем потомок: ровно тот случай, который
     // ломал обход по времени коммиттера и порождал фантомных «внешних»

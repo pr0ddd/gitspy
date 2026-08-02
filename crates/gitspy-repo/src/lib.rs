@@ -5,7 +5,8 @@
 //! Раскладкой занимается `gitspy-core`; здесь только добыча данных с диска.
 
 use gitspy_core::topology::{CommitIdx, Topology};
-use std::collections::HashMap;
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap};
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,6 +156,8 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
     let mut order: Vec<gix::ObjectId> = Vec::new();
     let mut raw_parents: Vec<Vec<gix::ObjectId>> = Vec::new();
     let mut commits: Vec<CommitMeta> = Vec::new();
+    // Время коммиттера — именно по нему упорядочивает git log --date-order.
+    let mut committer_times: Vec<i64> = Vec::new();
     let mut truncated = false;
 
     for item in walk {
@@ -174,7 +177,9 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
         let decoded = commit.decode().map_err(|e| Error::Read(e.to_string()))?;
 
         let author = decoded.author().map_err(|e| Error::Read(e.to_string()))?;
+        let committer = decoded.committer().map_err(|e| Error::Read(e.to_string()))?;
         let message = decoded.message();
+        committer_times.push(committer.time().map(|t| t.seconds).unwrap_or(0));
 
         commits.push(CommitMeta {
             hash: oid.to_string(),
@@ -194,6 +199,12 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
         order.push(oid);
     }
 
+    // Обход по времени коммиттера НЕ гарантирует, что родитель идёт после
+    // потомка: вершины лежат в куче с самого начала, и родитель с более новой
+    // датой выходит раньше своего потомка. Досортировываем сами.
+    let permutation = date_order(&order, &raw_parents, &committer_times);
+    apply_permutation(&permutation, &mut order, &mut raw_parents, &mut commits);
+
     // Индексы по хешу — только для загруженного окна.
     let index: HashMap<gix::ObjectId, CommitIdx> = order
         .iter()
@@ -208,11 +219,22 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
         let mut outside_count = 0u32;
         for p in ps {
             match index.get(p) {
-                // Родитель обязан идти ПОСЛЕ потомка. Если обход выдал иной
-                // порядок, считаем родителя внешним — лучше нарисовать обрыв,
-                // чем построить некорректную топологию.
-                Some(&idx) if idx as usize > i && !known.contains(&idx) => known.push(idx),
-                _ => outside_count += 1,
+                Some(&idx) if known.contains(&idx) => {
+                    // Один и тот же родитель дважды — git такое допускает.
+                    // Это не внешний родитель, его надо просто пропустить.
+                }
+                Some(&idx) if (idx as usize) > i => known.push(idx),
+                Some(&idx) => {
+                    // После досортировки такого быть не может. Если случилось —
+                    // это дефект, и молчать о нём нельзя: нарисованный обрыв
+                    // неотличим от настоящего, поэтому дефект прожил бы годы.
+                    return Err(Error::Walk(format!(
+                        "родитель {idx} стоит перед потомком {i} после сортировки"
+                    )));
+                }
+                // Родителя нет в наборе — законно ровно тогда, когда обход
+                // упёрся в предел max_commits.
+                None => outside_count += 1,
             }
         }
         parents.push(known);
@@ -238,4 +260,89 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
     let head = head_oid.and_then(|oid| index.get(&oid).copied());
 
     Ok(History { topology, commits, refs, head, truncated })
+}
+
+/// Порядок «родитель всегда после потомка», максимально близкий к сортировке
+/// по времени коммиттера — то есть ровно семантика `git log --date-order`.
+///
+/// Алгоритм Кана: коммит можно выдать, когда выданы все его потомки. Среди
+/// готовых берём самый новый по времени коммиттера; при равном времени —
+/// пришедший раньше в исходном обходе, чтобы результат был детерминирован.
+///
+/// Возвращает перестановку: `result[новая позиция] = старая позиция`.
+fn date_order(
+    order: &[gix::ObjectId],
+    raw_parents: &[Vec<gix::ObjectId>],
+    committer_times: &[i64],
+) -> Vec<usize> {
+    let n = order.len();
+    let position: HashMap<gix::ObjectId, usize> =
+        order.iter().enumerate().map(|(i, oid)| (*oid, i)).collect();
+
+    // Сколько потомков ещё не выдано. Дубли-родители считаем один раз, иначе
+    // счётчик никогда не дойдёт до нуля и коммит потеряется.
+    let mut pending_children = vec![0usize; n];
+    let mut unique_parents: Vec<Vec<usize>> = Vec::with_capacity(n);
+    for ps in raw_parents {
+        let mut seen: Vec<usize> = Vec::with_capacity(ps.len());
+        for p in ps {
+            if let Some(&idx) = position.get(p) {
+                if !seen.contains(&idx) {
+                    seen.push(idx);
+                    pending_children[idx] += 1;
+                }
+            }
+        }
+        unique_parents.push(seen);
+    }
+
+    let mut heap: BinaryHeap<(i64, Reverse<usize>)> = BinaryHeap::with_capacity(n);
+    for i in 0..n {
+        if pending_children[i] == 0 {
+            heap.push((committer_times[i], Reverse(i)));
+        }
+    }
+
+    let mut result = Vec::with_capacity(n);
+    while let Some((_, Reverse(i))) = heap.pop() {
+        result.push(i);
+        for &p in &unique_parents[i] {
+            pending_children[p] -= 1;
+            if pending_children[p] == 0 {
+                heap.push((committer_times[p], Reverse(p)));
+            }
+        }
+    }
+
+    // Цикл в истории невозможен, но если счётчики почему-то не сошлись,
+    // молча терять коммиты нельзя — дописываем остаток в исходном порядке.
+    if result.len() < n {
+        let emitted: std::collections::HashSet<usize> = result.iter().copied().collect();
+        for i in 0..n {
+            if !emitted.contains(&i) {
+                result.push(i);
+            }
+        }
+    }
+
+    result
+}
+
+fn apply_permutation(
+    permutation: &[usize],
+    order: &mut Vec<gix::ObjectId>,
+    raw_parents: &mut Vec<Vec<gix::ObjectId>>,
+    commits: &mut Vec<CommitMeta>,
+) {
+    let mut new_order = Vec::with_capacity(order.len());
+    let mut new_parents = Vec::with_capacity(raw_parents.len());
+    let mut new_commits = Vec::with_capacity(commits.len());
+    for &old in permutation {
+        new_order.push(order[old]);
+        new_parents.push(std::mem::take(&mut raw_parents[old]));
+        new_commits.push(commits[old].clone());
+    }
+    *order = new_order;
+    *raw_parents = new_parents;
+    *commits = new_commits;
 }
