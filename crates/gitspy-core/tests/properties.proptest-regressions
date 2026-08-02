@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 76cda8894897a3bec1778359e78285558e041949e7d4877df5537ae6e284363f # shrinks to topo = Topology { parents: [[], [], [], [], [], [], [], [], [], [], [], [17, 12], [14, 15], [], [15, 22], [24, 20], [23, 20, 21, 18], [25], [25, 19, 21, 22], [20, 25], [25], [23, 22, 24], [25, 24, 23], [], [25], []], outside_parents: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 2, 2, 1, 2, 2, 2, 2, 2, 2] }

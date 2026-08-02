@@ -410,3 +410,40 @@ fn max_commits_truncates_and_reports_it() {
     assert_eq!(history.commits.len(), 3);
     assert!(history.truncated, "обрезание должно быть заявлено");
 }
+
+#[test]
+fn worktrees_list_the_main_checkout_and_every_linked_one() {
+    let f = Fixture::new();
+    f.commit("a");
+    f.run(&["branch", "побочная"]);
+    let linked = f.path().join("linked");
+    f.run(&[
+        "worktree",
+        "add",
+        linked.to_str().expect("путь"),
+        "побочная",
+    ]);
+
+    let found = gitspy_repo::worktrees(f.path()).expect("воркtree читаются");
+    let names: Vec<&str> = found.iter().map(|w| w.name.as_str()).collect();
+
+    assert_eq!(
+        found.len(),
+        2,
+        "основная копия и одна привязанная: {names:?}"
+    );
+    assert!(found[0].is_main, "первой идёт основная");
+    assert_eq!(found[0].branch.as_deref(), Some("main"));
+    assert_eq!(found[1].name, "linked");
+    assert_eq!(found[1].branch.as_deref(), Some("побочная"));
+}
+
+#[test]
+fn bare_repository_has_no_main_worktree() {
+    let f = Fixture::new();
+    f.commit("a");
+    let (_dir, path) = f.clone(&["--bare"]);
+
+    let found = gitspy_repo::worktrees(&path).expect("воркtree читаются");
+    assert!(found.is_empty(), "у голого репозитория рабочего дерева нет");
+}

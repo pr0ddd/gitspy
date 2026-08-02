@@ -42,6 +42,14 @@ export const SEGMENT_KIND = {
   merge: 2,
 } as const;
 
+export type WorktreeView = {
+  name: string;
+  path: string;
+  branch: string | null;
+  is_main: boolean;
+  is_locked: boolean;
+};
+
 export type CommitView = {
   index: number;
   hash: string;
