@@ -83,7 +83,61 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+#[derive(Debug, Clone)]
+pub struct Geometry {
+    pub topology: Topology,
+    pub refs: Vec<RefLabel>,
+    pub head: Option<CommitIdx>,
+    pub truncated: bool,
+}
+
 pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
+    let Some(prepared) = prepare(path)? else {
+        return Ok(empty_history());
+    };
+    let mut walked = walk(&prepared, max_commits, Metadata::Collect)?;
+    let assembled = assemble(&prepared, &mut walked)?;
+
+    Ok(History {
+        topology: assembled.topology,
+        commits: walked.commits,
+        refs: assembled.refs,
+        head: assembled.head,
+        truncated: walked.truncated,
+    })
+}
+
+pub fn read_geometry(path: &Path, max_commits: Option<usize>) -> Result<Geometry, Error> {
+    let Some(prepared) = prepare(path)? else {
+        let empty = empty_history();
+        return Ok(Geometry {
+            topology: empty.topology,
+            refs: empty.refs,
+            head: empty.head,
+            truncated: empty.truncated,
+        });
+    };
+    let mut walked = walk(&prepared, max_commits, Metadata::Skip)?;
+    let assembled = assemble(&prepared, &mut walked)?;
+
+    Ok(Geometry {
+        topology: assembled.topology,
+        refs: assembled.refs,
+        head: assembled.head,
+        truncated: walked.truncated,
+    })
+}
+
+struct Prepared {
+    repo: gix::Repository,
+    ref_records: Vec<RefRecord>,
+    head_ref_name: Option<String>,
+    head_oid: Option<gix::ObjectId>,
+    hidden: HashSet<gix::ObjectId>,
+    tips: Vec<gix::ObjectId>,
+}
+
+fn prepare(path: &Path) -> Result<Option<Prepared>, Error> {
     let repo = gix::open(path).map_err(|e| Error::OpenRepo {
         path: path.display().to_string(),
         detail: e.to_string(),
@@ -108,54 +162,67 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
     let mut tips: Vec<gix::ObjectId> = ref_records.iter().map(|r| r.oid).collect();
     tips.extend(head_oid);
     if tips.is_empty() {
-        return Ok(empty_history());
+        return Ok(None);
     }
     tips.sort();
     tips.dedup();
 
-    let walked = walk(&repo, tips, max_commits.unwrap_or(usize::MAX), &hidden)?;
-    let Walked {
-        mut order,
-        mut raw_parents,
-        mut commits,
-        committer_times,
-        truncated,
-    } = walked;
+    Ok(Some(Prepared {
+        repo,
+        ref_records,
+        head_ref_name,
+        head_oid,
+        hidden,
+        tips,
+    }))
+}
 
-    let permutation = git_date_order(&order, &raw_parents, &committer_times);
-    apply_permutation(&permutation, &mut order, &mut raw_parents, &mut commits);
+struct Assembled {
+    topology: Topology,
+    refs: Vec<RefLabel>,
+    head: Option<CommitIdx>,
+}
 
-    let index: HashMap<gix::ObjectId, CommitIdx> = order
+fn assemble(prepared: &Prepared, walked: &mut Walked) -> Result<Assembled, Error> {
+    let permutation = git_date_order(&walked.order, &walked.raw_parents, &walked.committer_times);
+    apply_permutation(
+        &permutation,
+        &mut walked.order,
+        &mut walked.raw_parents,
+        &mut walked.commits,
+    );
+
+    let index: HashMap<gix::ObjectId, CommitIdx> = walked
+        .order
         .iter()
         .enumerate()
         .map(|(i, oid)| (*oid, i as CommitIdx))
         .collect();
 
-    let (parents, outside) = resolve_parents(&raw_parents, &index, &hidden)?;
+    let (parents, outside) = resolve_parents(&walked.raw_parents, &index, &prepared.hidden)?;
     let topology = Topology::new(parents, outside).map_err(|e| Error::WalkHistory {
         detail: format!("{e:?}"),
     })?;
 
-    let refs = ref_records
-        .into_iter()
+    let refs = prepared
+        .ref_records
+        .iter()
         .filter_map(|record| {
             index.get(&record.oid).map(|&commit| RefLabel {
-                name: record.short_name,
+                name: record.short_name.clone(),
                 kind: record.kind,
                 commit,
-                is_head: head_ref_name.as_deref() == Some(record.full_name.as_str()),
+                is_head: prepared.head_ref_name.as_deref() == Some(record.full_name.as_str()),
             })
         })
         .collect();
 
-    let head = head_oid.and_then(|oid| index.get(&oid).copied());
+    let head = prepared.head_oid.and_then(|oid| index.get(&oid).copied());
 
-    Ok(History {
+    Ok(Assembled {
         topology,
-        commits,
         refs,
         head,
-        truncated,
     })
 }
 
@@ -276,14 +343,23 @@ struct Walked {
     truncated: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Metadata {
+    Collect,
+    Skip,
+}
+
 fn walk(
-    repo: &gix::Repository,
-    tips: Vec<gix::ObjectId>,
-    limit: usize,
-    hidden: &HashSet<gix::ObjectId>,
+    prepared: &Prepared,
+    max_commits: Option<usize>,
+    metadata: Metadata,
 ) -> Result<Walked, Error> {
+    let repo = &prepared.repo;
+    let hidden = &prepared.hidden;
+    let limit = max_commits.unwrap_or(usize::MAX);
+
     let walk = repo
-        .rev_walk(tips)
+        .rev_walk(prepared.tips.clone())
         .sorting(gix::revision::walk::Sorting::ByCommitTime(
             gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
         ))
@@ -313,10 +389,18 @@ fn walk(
             continue;
         }
 
-        let read = |e: gix::object::find::existing::Error| Error::ReadObject {
+        if metadata == Metadata::Skip {
+            walked.committer_times.push(info.commit_time.unwrap_or(0));
+            walked
+                .raw_parents
+                .push(info.parent_ids.into_iter().collect());
+            walked.order.push(oid);
+            continue;
+        }
+
+        let object = repo.find_object(oid).map_err(|e| Error::ReadObject {
             detail: e.to_string(),
-        };
-        let object = repo.find_object(oid).map_err(read)?;
+        })?;
         let commit = object.try_into_commit().map_err(|e| Error::ReadObject {
             detail: e.to_string(),
         })?;
@@ -441,13 +525,16 @@ fn apply_permutation(
     raw_parents: &mut Vec<Vec<gix::ObjectId>>,
     commits: &mut Vec<CommitMeta>,
 ) {
+    let metadata_collected = !commits.is_empty();
     let mut new_order = Vec::with_capacity(order.len());
     let mut new_parents = Vec::with_capacity(raw_parents.len());
     let mut new_commits = Vec::with_capacity(commits.len());
     for &old in permutation {
         new_order.push(order[old]);
         new_parents.push(std::mem::take(&mut raw_parents[old]));
-        new_commits.push(commits[old].clone());
+        if metadata_collected {
+            new_commits.push(commits[old].clone());
+        }
     }
     *order = new_order;
     *raw_parents = new_parents;
