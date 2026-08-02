@@ -8,11 +8,11 @@ export type LayoutView = {
   layout_ms: number;
   lanes: number[];
   colours: number[];
-  /** 0 Normal, 1 Merge, 2 Root, 3 Open */
+
   kinds: number[];
-  /** Сегменты строки i лежат в [seg_offsets[i], seg_offsets[i+1]) */
+
   seg_offsets: number[];
-  /** 0 through, 1 branch, 2 merge */
+
   seg_kind: number[];
   seg_from: number[];
   seg_to: number[];
@@ -20,13 +20,27 @@ export type LayoutView = {
   refs: RefView[];
 };
 
+export type RefKind = 'localBranch' | 'remoteBranch' | 'tag' | 'stash';
+
 export type RefView = {
   name: string;
-  /** 0 local, 1 remote, 2 tag */
-  kind: number;
+  kind: RefKind;
   commit: number;
   is_head: boolean;
 };
+
+export const NODE_KIND = {
+  normal: 0,
+  merge: 1,
+  root: 2,
+  open: 3,
+} as const;
+
+export const SEGMENT_KIND = {
+  through: 0,
+  branch: 1,
+  merge: 2,
+} as const;
 
 export type CommitView = {
   index: number;
@@ -38,7 +52,6 @@ export type CommitView = {
   body: string;
 };
 
-/** Двенадцать цветов, разложенных по кругу оттенков. Индекс приходит из ядра. */
 export const PALETTE = [
   '#1e90ff',
   '#7a2cff',

@@ -1,12 +1,8 @@
 #![forbid(unsafe_code)]
 
-//! Чтение репозитория через gix: топология, метаданные коммитов, refs.
-//!
-//! Раскладкой занимается `gitspy-core`; здесь только добыча данных с диска.
-
 use gitspy_core::topology::{CommitIdx, Topology};
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,7 +10,6 @@ pub struct CommitMeta {
     pub hash: String,
     pub author: String,
     pub email: String,
-    /// Секунды с эпохи, время автора.
     pub time: i64,
     pub subject: String,
     pub body: String,
@@ -25,6 +20,7 @@ pub enum RefKind {
     LocalBranch,
     RemoteBranch,
     Tag,
+    Stash,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,67 +36,165 @@ pub struct History {
     pub topology: Topology,
     pub commits: Vec<CommitMeta>,
     pub refs: Vec<RefLabel>,
-    /// Индекс коммита, на котором стоит HEAD.
     pub head: Option<CommitIdx>,
-    /// Обход упёрся в предел, история загружена не целиком.
     pub truncated: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
-    Open(String),
-    Walk(String),
-    Read(String),
+    OpenRepo { path: String, detail: String },
+    WalkHistory { detail: String },
+    ReadObject { detail: String },
+    ParentBeforeChild { parent: CommitIdx, child: CommitIdx },
+}
+
+impl Error {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Error::OpenRepo { .. } => "repo.open",
+            Error::WalkHistory { .. } => "repo.walk",
+            Error::ReadObject { .. } => "repo.readObject",
+            Error::ParentBeforeChild { .. } => "repo.parentBeforeChild",
+        }
+    }
+
+    pub fn detail(&self) -> Option<&str> {
+        match self {
+            Error::OpenRepo { detail, .. }
+            | Error::WalkHistory { detail }
+            | Error::ReadObject { detail } => Some(detail),
+            Error::ParentBeforeChild { .. } => None,
+        }
+    }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Open(m) => write!(f, "не удалось открыть репозиторий: {m}"),
-            Error::Walk(m) => write!(f, "не удалось обойти историю: {m}"),
-            Error::Read(m) => write!(f, "не удалось прочитать объект: {m}"),
+            Error::OpenRepo { path, detail } => write!(f, "repo.open {path}: {detail}"),
+            Error::WalkHistory { detail } => write!(f, "repo.walk: {detail}"),
+            Error::ReadObject { detail } => write!(f, "repo.readObject: {detail}"),
+            Error::ParentBeforeChild { parent, child } => {
+                write!(f, "repo.parentBeforeChild: {parent} before {child}")
+            }
         }
     }
 }
 
 impl std::error::Error for Error {}
 
-/// Читает историю репозитория целиком либо до предела `max_commits`.
 pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
-    let repo = gix::open(path).map_err(|e| Error::Open(e.to_string()))?;
+    let repo = gix::open(path).map_err(|e| Error::OpenRepo {
+        path: path.display().to_string(),
+        detail: e.to_string(),
+    })?;
 
-    // Вершины обхода — все локальные и удалённые ветки, теги и HEAD.
-    let mut tips: Vec<gix::ObjectId> = Vec::new();
-    // Полное имя ссылки хранится рядом с коротким: по нему определяется
-    // текущая ветка. Сравнивать по oid нельзя — две ветки на одном коммите
-    // обе получили бы отметку «вы здесь».
-    let mut ref_records: Vec<(String, String, RefKind, gix::ObjectId)> = Vec::new();
+    let head_ref_name = checked_out_branch(&repo);
+    let mut ref_records = branches_and_tags(&repo)?;
 
-    // Имя ссылки, на которую смотрит HEAD. При detached HEAD его нет вовсе.
-    let head_ref_name: Option<String> = repo
-        .head_ref()
+    let stash_entries = stash_entries(&repo);
+    let hidden = stash_snapshots(&repo, &stash_entries);
+    for (position, &oid) in stash_entries.iter().enumerate() {
+        let name = format!("stash@{{{position}}}");
+        ref_records.push(RefRecord {
+            short_name: name.clone(),
+            full_name: format!("refs/{name}"),
+            kind: RefKind::Stash,
+            oid,
+        });
+    }
+
+    let head_oid = repo.head_id().ok().map(|id| id.detach());
+    let mut tips: Vec<gix::ObjectId> = ref_records.iter().map(|r| r.oid).collect();
+    tips.extend(head_oid);
+    if tips.is_empty() {
+        return Ok(empty_history());
+    }
+    tips.sort();
+    tips.dedup();
+
+    let walked = walk(&repo, tips, max_commits.unwrap_or(usize::MAX), &hidden)?;
+    let Walked {
+        mut order,
+        mut raw_parents,
+        mut commits,
+        committer_times,
+        truncated,
+    } = walked;
+
+    let permutation = git_date_order(&order, &raw_parents, &committer_times);
+    apply_permutation(&permutation, &mut order, &mut raw_parents, &mut commits);
+
+    let index: HashMap<gix::ObjectId, CommitIdx> = order
+        .iter()
+        .enumerate()
+        .map(|(i, oid)| (*oid, i as CommitIdx))
+        .collect();
+
+    let (parents, outside) = resolve_parents(&raw_parents, &index, &hidden)?;
+    let topology = Topology::new(parents, outside).map_err(|e| Error::WalkHistory {
+        detail: format!("{e:?}"),
+    })?;
+
+    let refs = ref_records
+        .into_iter()
+        .filter_map(|record| {
+            index.get(&record.oid).map(|&commit| RefLabel {
+                name: record.short_name,
+                kind: record.kind,
+                commit,
+                is_head: head_ref_name.as_deref() == Some(record.full_name.as_str()),
+            })
+        })
+        .collect();
+
+    let head = head_oid.and_then(|oid| index.get(&oid).copied());
+
+    Ok(History {
+        topology,
+        commits,
+        refs,
+        head,
+        truncated,
+    })
+}
+
+struct RefRecord {
+    short_name: String,
+    full_name: String,
+    kind: RefKind,
+    oid: gix::ObjectId,
+}
+
+fn empty_history() -> History {
+    History {
+        topology: Topology::new(vec![], vec![]).expect("пустая топология корректна"),
+        commits: Vec::new(),
+        refs: Vec::new(),
+        head: None,
+        truncated: false,
+    }
+}
+
+fn checked_out_branch(repo: &gix::Repository) -> Option<String> {
+    repo.head_ref()
         .ok()
         .flatten()
-        .map(|r| r.name().as_bstr().to_string());
+        .map(|r| r.name().as_bstr().to_string())
+}
 
-    let platform = repo.references().map_err(|e| Error::Walk(e.to_string()))?;
-    let iter = platform.all().map_err(|e| Error::Walk(e.to_string()))?;
+fn branches_and_tags(repo: &gix::Repository) -> Result<Vec<RefRecord>, Error> {
+    let platform = repo.references().map_err(|e| Error::WalkHistory {
+        detail: e.to_string(),
+    })?;
+    let iter = platform.all().map_err(|e| Error::WalkHistory {
+        detail: e.to_string(),
+    })?;
+
+    let mut records = Vec::new();
     for reference in iter.flatten() {
         let full_name = reference.name().as_bstr().to_string();
-        let classified = if let Some(rest) = full_name.strip_prefix("refs/heads/") {
-            Some((rest.to_string(), RefKind::LocalBranch))
-        } else if let Some(rest) = full_name.strip_prefix("refs/remotes/") {
-            if rest.ends_with("/HEAD") {
-                None
-            } else {
-                Some((rest.to_string(), RefKind::RemoteBranch))
-            }
-        } else {
-            full_name
-                .strip_prefix("refs/tags/")
-                .map(|rest| (rest.to_string(), RefKind::Tag))
-        };
-        let Some((short, kind)) = classified else {
+        let Some((short_name, kind)) = classify(&full_name) else {
             continue;
         };
 
@@ -109,79 +203,139 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
             continue;
         };
         let oid = id.detach();
-
-        // Тег может указывать не на коммит, а на дерево или blob: peel_to_id
-        // разворачивает лишь цепочку тегов и останавливается на первом не-теге.
-        // Такой oid в вершинах обхода роняет чтение ВСЕГО репозитория.
-        // git log --all подобные ссылки молча пропускает — делаем так же.
-        let is_commit = repo
-            .find_header(oid)
-            .map(|h| h.kind() == gix::object::Kind::Commit)
-            .unwrap_or(false);
-        if !is_commit {
+        if !points_at_commit(repo, oid) {
             continue;
         }
 
-        tips.push(oid);
-        ref_records.push((short, full_name, kind, oid));
-    }
-
-    let head_oid = repo.head_id().ok().map(|id| id.detach());
-    if let Some(oid) = head_oid {
-        tips.push(oid);
-    }
-
-    if tips.is_empty() {
-        return Ok(History {
-            topology: Topology::new(vec![], vec![]).expect("пустая топология корректна"),
-            commits: Vec::new(),
-            refs: Vec::new(),
-            head: None,
-            truncated: false,
+        records.push(RefRecord {
+            short_name,
+            full_name,
+            kind,
+            oid,
         });
     }
+    Ok(records)
+}
 
-    tips.sort();
-    tips.dedup();
+fn classify(full_name: &str) -> Option<(String, RefKind)> {
+    if let Some(rest) = full_name.strip_prefix("refs/heads/") {
+        return Some((rest.to_string(), RefKind::LocalBranch));
+    }
+    if let Some(rest) = full_name.strip_prefix("refs/remotes/") {
+        if rest.ends_with("/HEAD") {
+            return None;
+        }
+        return Some((rest.to_string(), RefKind::RemoteBranch));
+    }
+    full_name
+        .strip_prefix("refs/tags/")
+        .map(|rest| (rest.to_string(), RefKind::Tag))
+}
 
+fn points_at_commit(repo: &gix::Repository, oid: gix::ObjectId) -> bool {
+    repo.find_header(oid)
+        .map(|header| header.kind() == gix::object::Kind::Commit)
+        .unwrap_or(false)
+}
+
+fn stash_entries(repo: &gix::Repository) -> Vec<gix::ObjectId> {
+    let Ok(Some(reference)) = repo.try_find_reference("refs/stash") else {
+        return Vec::new();
+    };
+    let mut platform = reference.log_iter();
+    let Ok(Some(lines)) = platform.all() else {
+        return Vec::new();
+    };
+
+    let mut newest_last: Vec<gix::ObjectId> = lines.flatten().map(|line| line.new_oid()).collect();
+    newest_last.reverse();
+    newest_last
+}
+
+fn stash_snapshots(repo: &gix::Repository, entries: &[gix::ObjectId]) -> HashSet<gix::ObjectId> {
+    let mut snapshots = HashSet::new();
+    for &oid in entries {
+        let Ok(object) = repo.find_object(oid) else {
+            continue;
+        };
+        let Ok(commit) = object.try_into_commit() else {
+            continue;
+        };
+        for parent in commit.parent_ids().skip(1) {
+            snapshots.insert(parent.detach());
+        }
+    }
+    snapshots
+}
+
+struct Walked {
+    order: Vec<gix::ObjectId>,
+    raw_parents: Vec<Vec<gix::ObjectId>>,
+    commits: Vec<CommitMeta>,
+    committer_times: Vec<i64>,
+    truncated: bool,
+}
+
+fn walk(
+    repo: &gix::Repository,
+    tips: Vec<gix::ObjectId>,
+    limit: usize,
+    hidden: &HashSet<gix::ObjectId>,
+) -> Result<Walked, Error> {
     let walk = repo
         .rev_walk(tips)
         .sorting(gix::revision::walk::Sorting::ByCommitTime(
             gix::traverse::commit::simple::CommitTimeOrder::NewestFirst,
         ))
         .all()
-        .map_err(|e| Error::Walk(e.to_string()))?;
+        .map_err(|e| Error::WalkHistory {
+            detail: e.to_string(),
+        })?;
 
-    let limit = max_commits.unwrap_or(usize::MAX);
-    let mut order: Vec<gix::ObjectId> = Vec::new();
-    let mut raw_parents: Vec<Vec<gix::ObjectId>> = Vec::new();
-    let mut commits: Vec<CommitMeta> = Vec::new();
-    // Время коммиттера — именно по нему упорядочивает git log --date-order.
-    let mut committer_times: Vec<i64> = Vec::new();
-    let mut truncated = false;
+    let mut walked = Walked {
+        order: Vec::new(),
+        raw_parents: Vec::new(),
+        commits: Vec::new(),
+        committer_times: Vec::new(),
+        truncated: false,
+    };
 
     for item in walk {
-        if order.len() >= limit {
-            truncated = true;
+        if walked.order.len() >= limit {
+            walked.truncated = true;
             break;
         }
-        let info = item.map_err(|e| Error::Walk(e.to_string()))?;
+        let info = item.map_err(|e| Error::WalkHistory {
+            detail: e.to_string(),
+        })?;
         let oid = info.id;
+        if hidden.contains(&oid) {
+            continue;
+        }
 
-        let object = repo
-            .find_object(oid)
-            .map_err(|e| Error::Read(e.to_string()))?;
-        let commit = object
-            .try_into_commit()
-            .map_err(|e| Error::Read(e.to_string()))?;
-        let decoded = commit.decode().map_err(|e| Error::Read(e.to_string()))?;
+        let read = |e: gix::object::find::existing::Error| Error::ReadObject {
+            detail: e.to_string(),
+        };
+        let object = repo.find_object(oid).map_err(read)?;
+        let commit = object.try_into_commit().map_err(|e| Error::ReadObject {
+            detail: e.to_string(),
+        })?;
+        let decoded = commit.decode().map_err(|e| Error::ReadObject {
+            detail: e.to_string(),
+        })?;
 
-        let author = decoded.author().map_err(|e| Error::Read(e.to_string()))?;
-        let committer = decoded.committer().map_err(|e| Error::Read(e.to_string()))?;
+        let author = decoded.author().map_err(|e| Error::ReadObject {
+            detail: e.to_string(),
+        })?;
+        let committer = decoded.committer().map_err(|e| Error::ReadObject {
+            detail: e.to_string(),
+        })?;
         let message = decoded.message();
-        committer_times.push(committer.time().map(|t| t.seconds).unwrap_or(0));
 
-        commits.push(CommitMeta {
+        walked
+            .committer_times
+            .push(committer.time().map(|t| t.seconds).unwrap_or(0));
+        walked.commits.push(CommitMeta {
             hash: oid.to_string(),
             author: author.name.to_string(),
             email: author.email.to_string(),
@@ -194,83 +348,46 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
                 .trim()
                 .to_string(),
         });
-
-        raw_parents.push(decoded.parents().collect());
-        order.push(oid);
+        walked.raw_parents.push(decoded.parents().collect());
+        walked.order.push(oid);
     }
 
-    // Обход по времени коммиттера НЕ гарантирует, что родитель идёт после
-    // потомка: вершины лежат в куче с самого начала, и родитель с более новой
-    // датой выходит раньше своего потомка. Досортировываем сами.
-    let permutation = date_order(&order, &raw_parents, &committer_times);
-    apply_permutation(&permutation, &mut order, &mut raw_parents, &mut commits);
-
-    // Индексы по хешу — только для загруженного окна.
-    let index: HashMap<gix::ObjectId, CommitIdx> = order
-        .iter()
-        .enumerate()
-        .map(|(i, oid)| (*oid, i as CommitIdx))
-        .collect();
-
-    let mut parents: Vec<Vec<CommitIdx>> = Vec::with_capacity(order.len());
-    let mut outside: Vec<u32> = Vec::with_capacity(order.len());
-    for (i, ps) in raw_parents.iter().enumerate() {
-        let mut known = Vec::new();
-        let mut outside_count = 0u32;
-        for p in ps {
-            match index.get(p) {
-                Some(&idx) if known.contains(&idx) => {
-                    // Один и тот же родитель дважды — git такое допускает.
-                    // Это не внешний родитель, его надо просто пропустить.
-                }
-                Some(&idx) if (idx as usize) > i => known.push(idx),
-                Some(&idx) => {
-                    // После досортировки такого быть не может. Если случилось —
-                    // это дефект, и молчать о нём нельзя: нарисованный обрыв
-                    // неотличим от настоящего, поэтому дефект прожил бы годы.
-                    return Err(Error::Walk(format!(
-                        "родитель {idx} стоит перед потомком {i} после сортировки"
-                    )));
-                }
-                // Родителя нет в наборе — законно ровно тогда, когда обход
-                // упёрся в предел max_commits.
-                None => outside_count += 1,
-            }
-        }
-        parents.push(known);
-        outside.push(outside_count);
-    }
-
-    let topology = Topology::new(parents, outside).map_err(|e| Error::Walk(format!("{e:?}")))?;
-
-    let refs: Vec<RefLabel> = ref_records
-        .into_iter()
-        .filter_map(|(name, full_name, kind, oid)| {
-            index.get(&oid).map(|&commit| RefLabel {
-                name,
-                kind,
-                commit,
-                // Только та ссылка, на которую смотрит HEAD. При detached HEAD
-                // текущей ветки нет, и отмечать нечего.
-                is_head: head_ref_name.as_deref() == Some(full_name.as_str()),
-            })
-        })
-        .collect();
-
-    let head = head_oid.and_then(|oid| index.get(&oid).copied());
-
-    Ok(History { topology, commits, refs, head, truncated })
+    Ok(walked)
 }
 
-/// Порядок «родитель всегда после потомка», максимально близкий к сортировке
-/// по времени коммиттера — то есть ровно семантика `git log --date-order`.
-///
-/// Алгоритм Кана: коммит можно выдать, когда выданы все его потомки. Среди
-/// готовых берём самый новый по времени коммиттера; при равном времени —
-/// пришедший раньше в исходном обходе, чтобы результат был детерминирован.
-///
-/// Возвращает перестановку: `result[новая позиция] = старая позиция`.
-fn date_order(
+fn resolve_parents(
+    raw_parents: &[Vec<gix::ObjectId>],
+    index: &HashMap<gix::ObjectId, CommitIdx>,
+    hidden: &HashSet<gix::ObjectId>,
+) -> Result<(Vec<Vec<CommitIdx>>, Vec<u32>), Error> {
+    let mut parents = Vec::with_capacity(raw_parents.len());
+    let mut outside = Vec::with_capacity(raw_parents.len());
+
+    for (child, ids) in raw_parents.iter().enumerate() {
+        let child = child as CommitIdx;
+        let mut known: Vec<CommitIdx> = Vec::new();
+        let mut beyond_loaded_history = 0u32;
+
+        for id in ids {
+            if hidden.contains(id) {
+                continue;
+            }
+            match index.get(id) {
+                None => beyond_loaded_history += 1,
+                Some(&parent) if known.contains(&parent) => {}
+                Some(&parent) if parent > child => known.push(parent),
+                Some(&parent) => return Err(Error::ParentBeforeChild { parent, child }),
+            }
+        }
+
+        parents.push(known);
+        outside.push(beyond_loaded_history);
+    }
+
+    Ok((parents, outside))
+}
+
+fn git_date_order(
     order: &[gix::ObjectId],
     raw_parents: &[Vec<gix::ObjectId>],
     committer_times: &[i64],
@@ -279,50 +396,40 @@ fn date_order(
     let position: HashMap<gix::ObjectId, usize> =
         order.iter().enumerate().map(|(i, oid)| (*oid, i)).collect();
 
-    // Сколько потомков ещё не выдано. Дубли-родители считаем один раз, иначе
-    // счётчик никогда не дойдёт до нуля и коммит потеряется.
     let mut pending_children = vec![0usize; n];
-    let mut unique_parents: Vec<Vec<usize>> = Vec::with_capacity(n);
-    for ps in raw_parents {
-        let mut seen: Vec<usize> = Vec::with_capacity(ps.len());
-        for p in ps {
-            if let Some(&idx) = position.get(p) {
-                if !seen.contains(&idx) {
-                    seen.push(idx);
-                    pending_children[idx] += 1;
+    let mut distinct_parents: Vec<Vec<usize>> = Vec::with_capacity(n);
+    for ids in raw_parents {
+        let mut distinct: Vec<usize> = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Some(&parent) = position.get(id) {
+                if !distinct.contains(&parent) {
+                    distinct.push(parent);
+                    pending_children[parent] += 1;
                 }
             }
         }
-        unique_parents.push(seen);
+        distinct_parents.push(distinct);
     }
 
-    let mut heap: BinaryHeap<(i64, Reverse<usize>)> = BinaryHeap::with_capacity(n);
-    for i in 0..n {
-        if pending_children[i] == 0 {
-            heap.push((committer_times[i], Reverse(i)));
-        }
-    }
+    let mut ready: BinaryHeap<(i64, Reverse<usize>)> = (0..n)
+        .filter(|&i| pending_children[i] == 0)
+        .map(|i| (committer_times[i], Reverse(i)))
+        .collect();
 
     let mut result = Vec::with_capacity(n);
-    while let Some((_, Reverse(i))) = heap.pop() {
+    while let Some((_, Reverse(i))) = ready.pop() {
         result.push(i);
-        for &p in &unique_parents[i] {
-            pending_children[p] -= 1;
-            if pending_children[p] == 0 {
-                heap.push((committer_times[p], Reverse(p)));
+        for &parent in &distinct_parents[i] {
+            pending_children[parent] -= 1;
+            if pending_children[parent] == 0 {
+                ready.push((committer_times[parent], Reverse(parent)));
             }
         }
     }
 
-    // Цикл в истории невозможен, но если счётчики почему-то не сошлись,
-    // молча терять коммиты нельзя — дописываем остаток в исходном порядке.
     if result.len() < n {
-        let emitted: std::collections::HashSet<usize> = result.iter().copied().collect();
-        for i in 0..n {
-            if !emitted.contains(&i) {
-                result.push(i);
-            }
-        }
+        let emitted: HashSet<usize> = result.iter().copied().collect();
+        result.extend((0..n).filter(|i| !emitted.contains(i)));
     }
 
     result

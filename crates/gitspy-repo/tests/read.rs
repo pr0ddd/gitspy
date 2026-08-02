@@ -1,20 +1,13 @@
-//! Дифференциальные тесты слоя чтения против настоящего git.
-//!
-//! Принцип: не «мы думаем, что правильно», а «совпадает с эталоном». Всё, что
-//! можно спросить у git, спрашивается у git.
-
 mod support;
 
 use gitspy_core::topology::CommitIdx;
+use gitspy_repo::RefKind;
 use support::Fixture;
 
-/// Хеши в порядке, в котором их выдал наш слой чтения.
 fn our_order(f: &Fixture) -> Vec<String> {
     let h = gitspy_repo::read(f.path(), None).expect("репозиторий читается");
     h.commits.iter().map(|c| c.hash.clone()).collect()
 }
-
-/* ------------------------------- порядок ------------------------------- */
 
 #[test]
 fn order_matches_git_date_order() {
@@ -32,13 +25,6 @@ fn order_matches_git_date_order() {
 
 #[test]
 fn parent_never_precedes_child_when_a_branch_points_at_the_parent() {
-    // Воспроизведение дефекта порядка. Обход по времени коммиттера кладёт
-    // вершины в кучу и достаёт самую новую. Родитель попадает в очередь только
-    // после выдачи потомка — поэтому в линейной цепочке порядок не сломать.
-    //
-    // Ломается он, когда на родителя смотрит ОТДЕЛЬНАЯ ветка: тогда обе
-    // вершины лежат в куче с самого начала, и родитель с более новой датой
-    // выходит раньше своего потомка.
     let f = Fixture::new();
     f.commit_at("родитель из будущего", 1_900_000_000);
     f.run(&["branch", "points-at-parent"]);
@@ -61,9 +47,6 @@ fn parent_never_precedes_child_when_a_branch_points_at_the_parent() {
 
 #[test]
 fn parent_never_precedes_child_even_with_clock_skew() {
-    // Родитель с БОЛЕЕ НОВОЙ датой, чем потомок: ровно тот случай, который
-    // ломал обход по времени коммиттера и порождал фантомных «внешних»
-    // родителей, а с ними — дорожки, которые никогда не закрываются.
     let f = Fixture::new();
     f.commit_at("старый предок", 1_600_000_000);
     f.commit_at("родитель из будущего", 1_900_000_000);
@@ -83,8 +66,6 @@ fn parent_never_precedes_child_even_with_clock_skew() {
     }
     assert_eq!(our_order(&f), f.git_date_order());
 }
-
-/* ------------------------------- ссылки ------------------------------- */
 
 #[test]
 fn refs_match_for_each_ref() {
@@ -116,18 +97,16 @@ fn annotated_tag_resolves_to_its_commit() {
     f.run(&["tag", "-a", "v1", "-m", "релиз"]);
 
     let history = gitspy_repo::read(f.path(), None).expect("репозиторий читается");
-    let tag = history.refs.iter().find(|r| r.name == "v1").expect("тег найден");
+    let tag = history
+        .refs
+        .iter()
+        .find(|r| r.name == "v1")
+        .expect("тег найден");
     assert_eq!(history.commits[tag.commit as usize].hash, sha);
 }
 
-/* ------------------------------ блокеры ------------------------------ */
-
 #[test]
 fn tag_pointing_at_blob_does_not_break_the_repository() {
-    // peel_to_id разворачивает тег до первого не-тега — это может оказаться
-    // blob. Такой oid уходил в вершины обхода и ронял чтение ВСЕГО
-    // репозитория: ноль коммитов, пустой экран. git log --all такие ссылки
-    // молча пропускает, и мы обязаны делать то же самое.
     let f = Fixture::new();
     f.commit("a");
     f.commit("b");
@@ -154,12 +133,8 @@ fn tag_pointing_at_tree_does_not_break_the_repository() {
     assert!(!history.refs.iter().any(|r| r.name == "treetag"));
 }
 
-/* ------------------------------- HEAD ------------------------------- */
-
 #[test]
 fn only_the_checked_out_branch_is_marked_head() {
-    // is_head считался сравнением oid, поэтому две ветки на одном коммите
-    // обе получали галочку «вы здесь».
     let f = Fixture::new();
     f.commit("a");
     f.run(&["branch", "dup"]);
@@ -191,7 +166,94 @@ fn detached_head_marks_nothing() {
     assert!(history.head.is_some(), "но сам HEAD известен");
 }
 
-/* --------------------------- краевые случаи --------------------------- */
+#[test]
+fn every_stash_entry_is_visible_not_just_the_top() {
+    let f = Fixture::new();
+    f.commit_file("a.txt", "первая версия", "начало");
+
+    f.write_file("a.txt", "старое изменение");
+    let older = f.stash("старый стэш", false);
+    f.write_file("a.txt", "новое изменение");
+    let newer = f.stash("новый стэш", false);
+
+    let history = gitspy_repo::read(f.path(), None).expect("репозиторий читается");
+    let stashes: Vec<(&str, &str)> = history
+        .refs
+        .iter()
+        .filter(|r| r.kind == RefKind::Stash)
+        .map(|r| {
+            (
+                r.name.as_str(),
+                history.commits[r.commit as usize].hash.as_str(),
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        stashes,
+        vec![("stash@{0}", newer.as_str()), ("stash@{1}", older.as_str())],
+        "нумерация как у git: нулевая запись — самая свежая"
+    );
+}
+
+#[test]
+fn stash_hangs_off_the_commit_it_was_made_on() {
+    let f = Fixture::new();
+    let base = f.commit_file("a.txt", "первая версия", "начало");
+    f.write_file("a.txt", "изменение");
+    let stash = f.stash("спрятанное", false);
+
+    let history = gitspy_repo::read(f.path(), None).expect("репозиторий читается");
+    assert_eq!(
+        history.commits.len(),
+        2,
+        "видны только начальный коммит и стэш"
+    );
+
+    let idx = history
+        .commits
+        .iter()
+        .position(|c| c.hash == stash)
+        .expect("запись стэша найдена") as CommitIdx;
+    let parents = history.topology.parents(idx);
+    assert_eq!(
+        parents.len(),
+        1,
+        "у записи стэша ровно один видимый родитель"
+    );
+    assert_eq!(
+        history.commits[parents[0] as usize].hash, base,
+        "и это коммит, на котором стэшили"
+    );
+    assert_eq!(
+        history.topology.outside_parents(idx),
+        0,
+        "снимок индекса скрыт сознательно, это не обрыв истории"
+    );
+}
+
+#[test]
+fn untracked_snapshot_of_a_stash_is_not_an_orphan_root() {
+    let f = Fixture::new();
+    f.commit_file("a.txt", "первая версия", "начало");
+    f.write_file("a.txt", "изменение");
+    f.write_file("новый.txt", "неотслеживаемый");
+    f.stash("со снимком неотслеживаемых", true);
+
+    let history = gitspy_repo::read(f.path(), None).expect("репозиторий читается");
+    assert_eq!(
+        history.commits.len(),
+        2,
+        "видны только начальный коммит и стэш"
+    );
+
+    let roots = (0..history.commits.len() as CommitIdx)
+        .filter(|&i| {
+            history.topology.parents(i).is_empty() && history.topology.outside_parents(i) == 0
+        })
+        .count();
+    assert_eq!(roots, 1, "корень в истории ровно один");
+}
 
 #[test]
 fn empty_repository_reads_as_empty() {
@@ -204,13 +266,20 @@ fn empty_repository_reads_as_empty() {
 
 #[test]
 fn duplicate_parent_is_not_counted_as_outside() {
-    // Коммит с одним и тем же родителем дважды — git такое допускает.
-    // Дубль уходил в счётчик внешних родителей и рисовался обрывом в никуда.
     let f = Fixture::new();
     let base = f.commit("base");
     let tree = f.run(&["rev-parse", "HEAD^{tree}"]);
     let weird = f
-        .try_run(&["commit-tree", &tree, "-p", &base, "-p", &base, "-m", "дубль-родитель"])
+        .try_run(&[
+            "commit-tree",
+            &tree,
+            "-p",
+            &base,
+            "-p",
+            &base,
+            "-m",
+            "дубль-родитель",
+        ])
         .expect("commit-tree отрабатывает");
     f.run(&["update-ref", "refs/heads/weird", &weird]);
 
@@ -225,7 +294,51 @@ fn duplicate_parent_is_not_counted_as_outside() {
         0,
         "дубль-родитель не внешний, его надо просто пропустить"
     );
-    assert_eq!(history.topology.parents(idx).len(), 1, "остаётся один родитель");
+    assert_eq!(
+        history.topology.parents(idx).len(),
+        1,
+        "остаётся один родитель"
+    );
+}
+
+#[test]
+fn bare_repository_reads_like_a_normal_one() {
+    let f = Fixture::new();
+    f.commit("a");
+    f.commit("b");
+    f.run(&["branch", "feature"]);
+
+    let (_dir, path) = f.clone(&["--bare"]);
+    let history = gitspy_repo::read(&path, None).expect("голый репозиторий читается");
+
+    assert_eq!(history.commits.len(), 2);
+    assert!(
+        history.refs.iter().any(|r| r.name == "feature"),
+        "ветки на месте"
+    );
+    assert!(
+        history.head.is_some(),
+        "HEAD у голого репозитория тоже есть"
+    );
+}
+
+#[test]
+fn shallow_clone_does_not_reach_past_its_cut() {
+    let f = Fixture::new();
+    for i in 0..5 {
+        f.commit(&format!("c{i}"));
+    }
+
+    let (_dir, path) = f.clone(&["--depth", "2"]);
+    let history = gitspy_repo::read(&path, None).expect("поверхностный клон читается");
+
+    assert_eq!(history.commits.len(), 2, "клон содержит ровно два коммита");
+    let cut = history.commits.len() as CommitIdx - 1;
+    assert_eq!(
+        history.topology.outside_parents(cut),
+        1,
+        "у нижнего коммита родитель за границей клона"
+    );
 }
 
 #[test]
