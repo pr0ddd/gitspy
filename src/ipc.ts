@@ -5,10 +5,12 @@ import type {
   DiffSides,
   Operation,
   OperationOutcome,
+  PathOperation,
   Progress,
   RecentRepo,
   RepoView,
   WindowView,
+  WorkingTreeView,
   WorktreeView,
 } from './types';
 
@@ -45,3 +47,8 @@ export const commitFiles = (repo: string, commit: string) =>
 
 export const diffSides = (repo: string, commit: string, path: string, oldPath: string | null) =>
   invoke<DiffSides>('diff_sides', { repo, commit, path, oldPath });
+
+export const workingTree = (repo: string) => invoke<WorkingTreeView>('working_tree', { repo });
+
+export const stage = (repo: string, operation: PathOperation) =>
+  invoke<WorkingTreeView>('stage', { repo, operation });

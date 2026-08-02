@@ -55,5 +55,17 @@
   "details.deleted_one": "{{count}} удалён",
   "details.deleted_few": "{{count}} удалено",
   "details.deleted_many": "{{count}} удалено",
-  "details.deleted_other": "{{count}} удалено"
+  "details.deleted_other": "{{count}} удалено",
+  "workingTree.title": "Рабочее дерево",
+  "workingTree.staged": "В индексе",
+  "workingTree.unstaged": "Не в индексе",
+  "workingTree.stage": "В индекс",
+  "workingTree.unstage": "Убрать",
+  "workingTree.stageAll": "Всё в индекс",
+  "workingTree.unstageAll": "Убрать всё",
+  "workingTree.clean": "Ничего не изменено",
+  "operation.stage": "добавление в индекс",
+  "operation.unstage": "изъятие из индекса",
+  "operation.discard": "откат изменений",
+  "details.commitTab": "Коммит"
 }

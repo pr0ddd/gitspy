@@ -181,6 +181,48 @@ pub fn build_changed_files(files: Vec<gitspy_exec::changes::ChangedFile>) -> Vec
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
+pub struct StatusEntryView {
+    pub staged: bool,
+    pub letter: String,
+    pub path: String,
+    pub old_path: Option<String>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct WorkingTreeView {
+    pub branch: Option<String>,
+    pub ahead: u32,
+    pub behind: u32,
+    pub staged: usize,
+    pub unstaged: usize,
+    pub entries: Vec<StatusEntryView>,
+}
+
+pub fn build_working_tree(tree: gitspy_exec::status::WorkingTree) -> WorkingTreeView {
+    WorkingTreeView {
+        branch: tree.branch.clone(),
+        ahead: tree.ahead,
+        behind: tree.behind,
+        staged: tree.staged(),
+        unstaged: tree.unstaged(),
+        entries: tree
+            .entries
+            .into_iter()
+            .map(|e| StatusEntryView {
+                staged: e.side == gitspy_exec::status::Side::Staged,
+                letter: e.letter.to_string(),
+                path: e.path,
+                old_path: e.old_path,
+            })
+            .collect(),
+    }
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct DiffSides {
     pub before: String,
     pub after: String,

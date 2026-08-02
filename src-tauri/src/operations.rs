@@ -13,6 +13,42 @@ pub enum Operation {
     FetchDryRun,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, TS, PartialEq, Eq)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum PathOperation {
+    Stage { paths: Vec<String> },
+    Unstage { paths: Vec<String> },
+    Discard { paths: Vec<String> },
+    StageAll,
+    UnstageAll,
+}
+
+impl PathOperation {
+    pub fn args(&self) -> Vec<String> {
+        let owned = |parts: &[&str]| parts.iter().map(|p| (*p).to_string()).collect::<Vec<_>>();
+        match self {
+            PathOperation::StageAll => owned(&["add", "-A"]),
+            PathOperation::UnstageAll => owned(&["reset", "-q", "HEAD", "--"]),
+            PathOperation::Stage { paths } => {
+                let mut args = owned(&["add", "--"]);
+                args.extend(paths.clone());
+                args
+            }
+            PathOperation::Unstage { paths } => {
+                let mut args = owned(&["reset", "-q", "HEAD", "--"]);
+                args.extend(paths.clone());
+                args
+            }
+            PathOperation::Discard { paths } => {
+                let mut args = owned(&["checkout", "--"]);
+                args.extend(paths.clone());
+                args
+            }
+        }
+    }
+}
+
 impl Operation {
     pub fn args(&self) -> &'static [&'static str] {
         match self {

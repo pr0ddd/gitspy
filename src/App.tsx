@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { METRICS_AVATARS } from './render';
@@ -8,7 +9,7 @@ import { notifyCopied, notifyError, notifyOperation } from './toast';
 import * as ipc from './ipc';
 import { groupRefsByCommit, newSession, type Session } from './session';
 import { CHUNK, RowCache } from './rows';
-import type { ChangedFileView, Operation, RecentRepo } from './types';
+import type { ChangedFileView, Operation, PathOperation, RecentRepo, WorkingTreeView } from './types';
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
 import { Sidebar } from './shell/Sidebar';
@@ -16,6 +17,7 @@ import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
 import { DiffView } from './shell/DiffView';
+import { WorkingTree } from './shell/WorkingTree';
 
 
 
@@ -28,6 +30,8 @@ export default function App() {
   const [redraw, setRedraw] = useState(0);
   const [busy, setBusy] = useState(false);
   const [openFile, setOpenFile] = useState<{ commit: string; file: ChangedFileView } | null>(null);
+  const [tree, setTree] = useState<WorkingTreeView | null>(null);
+  const [showTree, setShowTree] = useState(false);
   const caches = useRef(new Map<string, RowCache>());
 
   const cacheFor = useCallback((path: string) => {
@@ -44,6 +48,14 @@ export default function App() {
   useEffect(() => {
     ipc.recentRepos().then(setRecent).catch(notifyError);
   }, []);
+
+  useEffect(() => {
+    if (!active) {
+      setTree(null);
+      return;
+    }
+    ipc.workingTree(active).then(setTree).catch(notifyError);
+  }, [active, redraw]);
 
   useEffect(() => {
     const stop = ipc.onRepoChanged((path) => {
@@ -179,6 +191,19 @@ export default function App() {
     [active, fetchChunks],
   );
 
+  const runPathOperation = useCallback(
+    (operation: PathOperation) => {
+      if (!active) return;
+      setBusy(true);
+      ipc
+        .stage(active, operation)
+        .then(setTree)
+        .catch(notifyError)
+        .finally(() => setBusy(false));
+    },
+    [active],
+  );
+
   const copy = useCallback((text: string) => {
     void navigator.clipboard.writeText(text);
     notifyCopied(text);
@@ -248,12 +273,46 @@ export default function App() {
                 </>
               )}
             </main>
-            <Details
-              session={current}
-              rows={cacheFor(current.path)}
-              onCopy={copy}
-              onOpenFile={(commit, file) => setOpenFile({ commit, file })}
-            />
+            <aside className="bg-card border-border flex w-80 shrink-0 flex-col border-l">
+              <header className="border-border flex h-8 shrink-0 items-center gap-1 border-b px-2">
+                <Button
+                  variant={showTree ? 'ghost' : 'secondary'}
+                  size="sm"
+                  className="h-6 flex-1 text-xs"
+                  onClick={() => setShowTree(false)}
+                >
+                  {t('details.commitTab')}
+                </Button>
+                <Button
+                  variant={showTree ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 flex-1 gap-1.5 text-xs"
+                  onClick={() => setShowTree(true)}
+                >
+                  {t('workingTree.title')}
+                  {tree && tree.staged + tree.unstaged > 0 ? (
+                    <span className="text-modified tabular-nums">
+                      {tree.staged + tree.unstaged}
+                    </span>
+                  ) : null}
+                </Button>
+              </header>
+
+              {showTree ? (
+                tree && tree.entries.length > 0 ? (
+                  <WorkingTree tree={tree} busy={busy} onRun={runPathOperation} />
+                ) : (
+                  <p className="text-muted-foreground p-4 text-center">{t('workingTree.clean')}</p>
+                )
+              ) : (
+                <Details
+                  session={current}
+                  rows={cacheFor(current.path)}
+                  onCopy={copy}
+                  onOpenFile={(commit, file) => setOpenFile({ commit, file })}
+                />
+              )}
+            </aside>
           </div>
         </>
       )}

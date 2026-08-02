@@ -2,6 +2,7 @@
 
 pub mod changes;
 pub mod env;
+pub mod status;
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -165,6 +166,21 @@ impl Git {
             changes::parse_name_status(&names),
             changes::parse_numstat(&counts),
         ))
+    }
+
+    pub fn status(&self, repo: &Path) -> Result<status::WorkingTree, Error> {
+        let raw = self.read(
+            repo,
+            &[
+                "status",
+                "--porcelain=v2",
+                "-z",
+                "--branch",
+                "--untracked-files=all",
+                "--renames",
+            ],
+        )?;
+        Ok(status::parse(&raw))
     }
 
     pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {

@@ -42,9 +42,7 @@ const REF_STYLE: Record<RefKind, string> = {
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <aside className="bg-card border-border flex w-80 shrink-0 flex-col border-l">{children}</aside>
-  );
+  return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
 }
 
 export function Details({ session, rows, onCopy, onOpenFile }: Props) {

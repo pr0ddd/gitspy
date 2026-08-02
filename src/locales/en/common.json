@@ -45,5 +45,17 @@
   "details.added_one": "{{count}} added",
   "details.added_other": "{{count}} added",
   "details.deleted_one": "{{count}} deleted",
-  "details.deleted_other": "{{count}} deleted"
+  "details.deleted_other": "{{count}} deleted",
+  "workingTree.title": "Working tree",
+  "workingTree.staged": "Staged",
+  "workingTree.unstaged": "Unstaged",
+  "workingTree.stage": "Stage",
+  "workingTree.unstage": "Unstage",
+  "workingTree.stageAll": "Stage all",
+  "workingTree.unstageAll": "Unstage all",
+  "workingTree.clean": "Nothing changed",
+  "operation.stage": "staging",
+  "operation.unstage": "unstaging",
+  "operation.discard": "discarding",
+  "details.commitTab": "Commit"
 }
