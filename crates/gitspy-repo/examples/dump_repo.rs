@@ -1,6 +1,3 @@
-//! Быстрая проверка на настоящем репозитории:
-//!   cargo run -p gitspy-repo --example dump_repo -- <путь> [сколько_строк_показать]
-
 use gitspy_core::{chunk, dump};
 use std::time::Instant;
 

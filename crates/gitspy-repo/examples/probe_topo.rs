@@ -1,5 +1,3 @@
-//! Сколько стоит ЧИСТАЯ топология без распаковки сообщений:
-//!   cargo run --release -p gitspy-repo --example probe_topo -- <путь>
 use std::time::Instant;
 
 fn main() {
@@ -17,7 +15,6 @@ fn main() {
     tips.sort();
     tips.dedup();
 
-    // 1. Только обход: oid и родители, без find_object и decode.
     let t = Instant::now();
     let walk = repo
         .rev_walk(tips.clone())
@@ -33,9 +30,11 @@ fn main() {
         edges += info.parent_ids.len();
         n += 1;
     }
-    println!("топология:  {n} коммитов, {edges} рёбер — {:.1} мс", t.elapsed().as_secs_f64() * 1000.0);
+    println!(
+        "топология:  {n} коммитов, {edges} рёбер — {:.1} мс",
+        t.elapsed().as_secs_f64() * 1000.0
+    );
 
-    // 2. Обход + распаковка метаданных, как сейчас в gitspy-repo.
     let t = Instant::now();
     let walk = repo
         .rev_walk(tips)
@@ -52,5 +51,9 @@ fn main() {
         let d = commit.decode().expect("decode");
         bytes += d.message.len();
     }
-    println!("+ метаданные: {:.1} мс, сообщений {:.1} МБ", t.elapsed().as_secs_f64() * 1000.0, bytes as f64 / 1048576.0);
+    println!(
+        "+ метаданные: {:.1} мс, сообщений {:.1} МБ",
+        t.elapsed().as_secs_f64() * 1000.0,
+        bytes as f64 / 1048576.0
+    );
 }

@@ -1,25 +1,28 @@
 import { identicon } from './avatar';
-import { colourOf, type LayoutView, type RefView } from './types';
+import { colourOf, SEGMENT_KIND, type LayoutView, type RefKind, type RefView } from './types';
 import type { Minimap } from './view';
+
+const REF_CHIP_FILL: Record<RefKind, string> = {
+  localBranch: '#2b5ea8',
+  remoteBranch: '#44506b',
+  tag: '#7a5c1e',
+  stash: '#5c3f7a',
+};
 
 export const MINIMAP_W = 56;
 export const HEADER_H = 26;
 export const BRANCH_W = 210;
 const PAD_X = 14;
 const CORNER = 7;
-/** Линия графа. ОДНА толщина на всё: сквозные участки и повороты — это части
- *  одной линии, и если развести их по весу, линия меняет толщину на изгибе. */
+
 const GRAPH_W = 2;
-/** Выноска от бэйджа ветки к узлу. Служебная: намекает на связь, но не спорит
- *  с графом — потому тоньше и заметно бледнее. */
+
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.18;
 const CAP_W = 2;
-/** Ширина тени по краю колонки графа. Узкая: она лишь намекает на границу,
- *  а не выгрызает из графа отдельную тёмную колонку. */
+
 const SHADOW_BAND = 14;
 
-/** Размеры зависят от режима: с аватарками строка выше и дорожки шире. */
 export type Metrics = {
   readonly rowH: number;
   readonly laneW: number;
@@ -59,16 +62,12 @@ const ROW_LINE = 'rgba(255,255,255,0.035)';
 const HOVER = 'rgba(255,255,255,0.05)';
 const SELECT = 'rgba(255,255,255,0.10)';
 
-/** Высота полосы горизонтальной прокрутки под колонкой графа. */
 export const HSCROLL_H = 9;
-/** Сколько места нужно колонкам справа от графа. */
+
 const RIGHT_COLS_W = 620;
 const GRAPH_MIN_W = 140;
 const GRAPH_MAX_W = 760;
 
-/** Ширина видимой части графа. Фиксирована: иначе на репозитории с тремя
- *  десятками веток граф съедает весь экран и мержи тянут горизонтали через
- *  всю ширину. Что не влезло — доступно горизонтальной прокруткой. */
 export function graphViewWidth(width: number): number {
   const rest = listWidth(width) - BRANCH_W - RIGHT_COLS_W;
   return Math.max(GRAPH_MIN_W, Math.min(GRAPH_MAX_W, rest));
@@ -77,22 +76,17 @@ export function graphViewWidth(width: number): number {
 export const graphLeft = (): number => BRANCH_W;
 export const graphRight = (width: number): number => BRANCH_W + graphViewWidth(width);
 
-/** Полная ширина содержимого графа — сколько нужно, чтобы показать все дорожки. */
 export const graphContentWidth = (m: Metrics, maxLane: number): number =>
   PAD_X * 2 + maxLane * m.laneW + (m.avatars ? m.nodeR * 2 : m.nodeR * 2);
 
 export const pinWidth = (m: Metrics): number => m.nodeR * 2 + 10;
 
-/** Влезает ли граф целиком. Если нет — с ОБЕИХ сторон резервируются столбики
- *  прижатия, и их наличие не зависит от позиции прокрутки: столбик либо есть
- *  (не влезло по ширине), либо его нет (влезло). Ничего не мигает на краях. */
 export const graphScrollable = (m: Metrics, maxLane: number, width: number): boolean =>
   graphContentWidth(m, maxLane) > graphViewWidth(width);
 
 export const maxScrollX = (m: Metrics, maxLane: number, width: number): number => {
   if (!graphScrollable(m, maxLane, width)) return 0;
-  // Столбики зарезервированы в раскладке, поэтому прокручиваемая область —
-  // это ширина колонки за вычетом обоих столбиков.
+
   return graphContentWidth(m, maxLane) - (graphViewWidth(width) - 2 * pinWidth(m));
 };
 
@@ -158,28 +152,18 @@ export function maxScroll(m: Metrics, count: number, viewportH: number): number 
   return Math.max(0, count * m.rowH - contentHeight(viewportH));
 }
 
-/**
- * Геометрия колонки графа. Считается ОДИН раз на кадр и используется всеми
- * слоями без исключения.
- *
- * Прошлые дефекты прижатия — скачущие узлы, линии сквозь столбик, тень не с
- * той стороны, разрыв между линией и узлом — росли из одного корня: каждый
- * слой считал геометрию по-своему. Единый объект делает рассинхрон невозможным.
- */
 type GraphGeometry = {
   readonly gLeft: number;
   readonly gRight: number;
-  /** Тень — индикатор скрытого: она есть только когда за этим краем реально
-   *  спрятано содержимое. Место под столбик при этом зарезервировано всегда
-   *  (пока граф не влезает), но пустой столбик тень не отбрасывает. */
+
   readonly leftShadow: boolean;
   readonly rightShadow: boolean;
-  /** Позиция дорожки в текущем кадре (с учётом прокрутки и столбиков). */
+
   readonly laneAt: (lane: number) => number;
-  /** Область, где живут ЛИНИИ. Всё за её пределами уезжает под столбики. */
+
   readonly contentLeft: number;
   readonly contentRight: number;
-  /** Положение узла: едет с прокруткой непрерывно, у края прилипает. */
+
   readonly nodeX: (lane: number) => number;
   readonly isStuck: (lane: number) => boolean;
 };
@@ -194,14 +178,10 @@ function graphGeometry(
   const gRight = graphRight(width);
   const pinW = pinWidth(m);
   const scrollable = graphScrollable(m, maxLane, width);
-  // Столбики зарезервированы в раскладке: дорожки живут между ними, поэтому
-  // на краю прокрутки крайняя дорожка полностью видна в области содержимого,
-  // а столбик остаётся на месте — пустой, но на месте.
+
   const contentLeft = gLeft + (scrollable ? pinW : 0);
   const contentRight = gRight - (scrollable ? pinW : 0);
-  // Центры столбиков — конечные позиции прилипшего узла. Узел движется к ним
-  // непрерывно: между краем области линий и центром столбика он всё ещё едет,
-  // его линия уже гаснет под тенью, а сам он скользит поверх неё.
+
   const lo = gLeft + pinW / 2;
   const hi = gRight - pinW / 2;
   const maxX = maxScrollX(m, maxLane, width);
@@ -252,8 +232,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
   if (layout && layout.count > 0) {
     const first = Math.max(0, Math.floor(scrollY / m.rowH));
-    // Смещение округляем до физического пикселя: дробная прокрутка с трекпада
-    // иначе кладёт текст на нецелые координаты и он размывается.
+
     const shift = Math.round((HEADER_H - (scrollY - first * m.rowH)) * dpr) / dpr;
     const last = Math.min(layout.count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
     const half = m.rowH / 2;
@@ -263,7 +242,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.rect(0, HEADER_H, listW, height - HEADER_H);
     ctx.clip();
 
-    // Слой 1: фон строки — наведение и выделение, на всю ширину списка.
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       if (i === selected) {
@@ -273,20 +251,16 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fillStyle = HOVER;
         ctx.fillRect(0, y, listW, m.rowH);
       }
-      // Разделитель строк живёт только в текстовой части. Ни в колонке веток,
-      // ни в графе ему делать нечего — там он читается как обрывки линий.
+
       ctx.fillStyle = ROW_LINE;
       ctx.fillRect(g.gRight, y + m.rowH - 1, listW - g.gRight, 1);
     }
 
-    // Дальше всё в колонке графа.
     ctx.save();
     ctx.beginPath();
     ctx.rect(g.gLeft, HEADER_H, g.gRight - g.gLeft, height - HEADER_H);
     ctx.clip();
 
-    // Слой 2: заливка строки цветом дорожки — от узла вправо, СКВОЗЬ столбики.
-    // Столбик не перекрашивает фон, потому и читается как та же колонка.
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       const x = g.nodeX(layout.lanes[i]) - m.nodeR;
@@ -294,9 +268,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillRect(x, y + 1, Math.max(0, g.gRight - x), m.rowH - 2);
     }
 
-    // Слой 3: линии — ТОЛЬКО внутри области содержимого. У границы столбика
-    // линия уходит под тень и пропадает; узел при этом продолжает ехать
-    // поверх тени, пока не прилипнет.
     ctx.save();
     ctx.beginPath();
     ctx.rect(
@@ -317,10 +288,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         if (Math.max(a, b) < g.contentLeft - 40 || Math.min(a, b) > g.contentRight + 40) continue;
         ctx.strokeStyle = colourOf(layout.seg_colour[s]);
         ctx.beginPath();
-        if (kind === 0) {
+        if (kind === SEGMENT_KIND.through) {
           ctx.moveTo(a, y - half);
           ctx.lineTo(a, y + half);
-        } else if (kind === 2) {
+        } else if (kind === SEGMENT_KIND.merge) {
           ctx.moveTo(a, y - half);
           ctx.arcTo(a, y, b, y, CORNER);
           ctx.lineTo(b, y);
@@ -334,8 +305,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     }
     ctx.restore();
 
-    // Слой 4: тень на границе столбика, падает с него на область линий.
-    // Фон под тенью не меняется — впечатление столбика создаёт только она.
     if (g.leftShadow) {
       const sh = ctx.createLinearGradient(g.contentLeft, 0, g.contentLeft + SHADOW_BAND, 0);
       sh.addColorStop(0, 'rgba(0,0,0,0.55)');
@@ -351,14 +320,12 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillRect(g.contentRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
     }
 
-    // Слой 5: колпачок цвета дорожки у правой границы колонки.
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       ctx.fillStyle = colourOf(layout.colours[i]);
       ctx.fillRect(g.gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
     }
 
-    // Слой 6: узлы — поверх линий и тени, позиция из той же геометрии.
     for (let i = first; i < last; i++) {
       const y = Math.round(shift + (i - first) * m.rowH + half);
       const lane = layout.lanes[i];
@@ -366,8 +333,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const colour = colourOf(layout.colours[i]);
 
       if (g.isStuck(lane)) {
-        // Прилипший узел отделяем от фона лёгким ореолом — линий под ним нет,
-        // но заливки соседних строк проходят сквозь столбик.
+
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 5;
@@ -409,9 +375,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.lineWidth = GRAPH_W;
     }
 
-    ctx.restore(); // конец колонки графа
+    ctx.restore();
 
-    // Слой 7: бэйджи веток слева и выноска до узла.
     ctx.textBaseline = 'middle';
     ctx.font = FONT_CHIP;
     for (let i = first; i < last; i++) {
@@ -422,15 +387,14 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const nodeX = g.nodeX(layout.lanes[i]);
 
       let left = 12;
-      // Правый край последнего чипа: выноска начинается ВПЛОТНУЮ к нему,
-      // иначе между чипом и линией зияет зазор.
+
       let chipEnd = left;
       for (const label of labels) {
         const text = label.is_head ? `✓ ${label.name}` : label.name;
         const fitted = fitText(ctx, text, 150);
         const w = ctx.measureText(fitted).width + 14;
         if (left + w > BRANCH_W - 14) break;
-        ctx.fillStyle = label.kind === 0 ? '#2b5ea8' : label.kind === 1 ? '#44506b' : '#7a5c1e';
+        ctx.fillStyle = REF_CHIP_FILL[label.kind];
         roundRect(ctx, left, y - 9, w, 18, 3);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
@@ -450,7 +414,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.lineWidth = GRAPH_W;
     }
 
-    // Слой 8: текст строки.
     for (let i = first; i < last; i++) {
       const yc = Math.round(shift + (i - first) * m.rowH + half);
       ctx.font = m.font;
@@ -492,7 +455,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   drawMinimap(ctx, frame, listW);
 }
 
-/** Горизонтальная прокрутка графа — отдельная полоса под его колонкой. */
 function drawHScroll(
   ctx: CanvasRenderingContext2D,
   frame: Frame,
