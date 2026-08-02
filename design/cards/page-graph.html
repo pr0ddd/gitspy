@@ -1,0 +1,37 @@
+<!-- @dsCard group="Pages" name="Graph" subtitle="Main view: sidebar, graph, commit details" -->
+<div class="bg-surface text-foreground flex h-[820px] flex-col font-sans">
+  {{> tabs}}
+  {{> toolbar}}
+  <div class="flex min-h-0 flex-1">
+    {{> sidebar}}
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      {{> graph}}
+    </div>
+    <aside class="bg-card border-border flex w-80 shrink-0 flex-col border-l">
+      <header class="border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+        <span class="text-muted-foreground text-xs tracking-wide uppercase">Commit</span>
+        <button class="border-input ml-auto h-6 rounded-md border px-2 font-mono text-xs">f3208d3a</button>
+      </header>
+      <div class="space-y-3 p-3">
+        <p class="text-sm leading-snug">Фаза 1 закрыта: замер на миллионе коммитов, кэш не строим</p>
+        <pre class="bg-surface text-muted-foreground rounded-md p-2 font-sans text-xs leading-relaxed whitespace-pre-wrap">Решает не длина истории, а наличие commit-graph:
+git 85 061 коммит: 689 мс → 59 мс</pre>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          <dt class="text-muted-foreground">Автор</dt><dd class="truncate">pr0d <span class="text-muted-foreground">pavel@example.com</span></dd>
+          <dt class="text-muted-foreground">Дата</dt><dd>2 авг 2026, 14:30</dd>
+        </dl>
+      </div>
+      <div class="border-border border-t p-3">
+        <div class="mb-2 flex items-center gap-3 text-xs">
+          <span class="text-modified">✎ 3 изменено</span><span class="text-added">+ 2 добавлено</span><span class="text-deleted">− 1 удалено</span>
+        </div>
+        <div class="space-y-0.5 font-mono text-xs">
+          <div class="hover:bg-surface-hover flex h-6 items-center gap-2 rounded-sm px-1"><span class="text-modified w-3">✎</span><span class="truncate">crates/gitspy-repo/src/lib.rs</span></div>
+          <div class="bg-surface-hover flex h-6 items-center gap-2 rounded-sm px-1"><span class="text-added w-3">+</span><span class="truncate">crates/gitspy-core/examples/probe_layout.rs</span></div>
+          <div class="hover:bg-surface-hover flex h-6 items-center gap-2 rounded-sm px-1"><span class="text-deleted w-3">−</span><span class="truncate">src/styles.css</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  {{> statusbar}}
+</div>

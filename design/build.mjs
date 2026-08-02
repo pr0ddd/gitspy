@@ -5,8 +5,22 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cards = join(here, 'cards');
+const partials = join(here, 'partials');
 const dist = join(here, 'dist');
 const compiled = join(here, '.compiled.css');
+
+const shared = new Map(
+  readdirSync(partials)
+    .filter((f) => f.endsWith('.html'))
+    .map((f) => [f.replace(/\.html$/, ''), readFileSync(join(partials, f), 'utf8').trimEnd()]),
+);
+
+const expand = (html) =>
+  html.replace(/\{\{>\s*([\w-]+)\s*\}\}/g, (_, name) => {
+    const partial = shared.get(name);
+    if (partial === undefined) throw new Error(`неизвестная часть: ${name}`);
+    return partial;
+  });
 
 execFileSync(
   'npx',
@@ -40,7 +54,7 @@ for (const file of readdirSync(cards).filter((f) => f.endsWith('.html'))) {
   if (!marker.startsWith('<!-- @dsCard')) {
     throw new Error(`${file}: первая строка обязана быть маркером @dsCard`);
   }
-  writeFileSync(join(dist, file), page(marker, source.slice(newline + 1).trimEnd()));
+  writeFileSync(join(dist, file), page(marker, expand(source.slice(newline + 1).trimEnd())));
   count += 1;
 }
 
