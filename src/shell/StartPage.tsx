@@ -26,6 +26,7 @@ export function StartPage({ recent, onOpen, onOpenPath, onForget }: Props) {
   const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' });
 
   const ago = (seconds: number) => {
+    if (!Number.isFinite(seconds)) return '';
     const delta = Math.round(seconds - Date.now() / 1000);
     if (Math.abs(delta) < 3600) return relative.format(Math.round(delta / 60), 'minute');
     if (Math.abs(delta) < 86400) return relative.format(Math.round(delta / 3600), 'hour');

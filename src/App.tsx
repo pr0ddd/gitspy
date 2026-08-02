@@ -7,6 +7,7 @@ import { METRICS_AVATARS } from './render';
 import { notifyCopied, notifyError } from './toast';
 import * as ipc from './ipc';
 import { groupRefsByCommit, newSession, type Session } from './session';
+import { CHUNK, RowCache } from './rows';
 import type { RecentRepo } from './types';
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
@@ -15,7 +16,7 @@ import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
 
-const MARGIN = 200;
+
 
 export default function App() {
   const { t } = useTranslation();
@@ -23,7 +24,17 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentRepo[]>([]);
-  const pending = useRef(new Map<string, { start: number; len: number }>());
+  const [redraw, setRedraw] = useState(0);
+  const caches = useRef(new Map<string, RowCache>());
+
+  const cacheFor = useCallback((path: string) => {
+    let cache = caches.current.get(path);
+    if (!cache) {
+      cache = new RowCache();
+      caches.current.set(path, cache);
+    }
+    return cache;
+  }, []);
 
   const current = sessions.find((s) => s.path === active) ?? null;
 
@@ -39,10 +50,11 @@ export default function App() {
     async (path: string) => {
       try {
         const repo = await ipc.openRepo(path);
-        const window = await ipc.graphWindow(path, 0, MARGIN);
+        const cache = cacheFor(path);
+        cache.clear();
+        cache.put(0, await ipc.graphWindow(path, 0, CHUNK));
         update(path, {
           repo,
-          window,
           refsByCommit: groupRefsByCommit(repo.refs),
           loading: false,
         });
@@ -55,23 +67,23 @@ export default function App() {
         setActive(null);
       }
     },
-    [update],
+    [update, cacheFor],
   );
 
-  const requestWindow = useCallback(
-    (path: string, first: number, last: number) => {
-      const session = pending.current.get(path);
-      const start = Math.max(0, first - MARGIN);
-      const len = last - start + MARGIN;
-      if (session && session.start <= first && session.start + session.len >= last) return;
-      pending.current.set(path, { start, len });
-
-      ipc
-        .graphWindow(path, start, len)
-        .then((window) => update(path, { window }))
-        .catch(notifyError);
+  const fetchChunks = useCallback(
+    (path: string, chunks: number[]) => {
+      const cache = cacheFor(path);
+      for (const chunk of chunks) {
+        ipc
+          .graphWindow(path, chunk * CHUNK, CHUNK)
+          .then((window) => {
+            cache.put(chunk, window);
+            setRedraw((n) => n + 1);
+          })
+          .catch(notifyError);
+      }
     },
-    [update],
+    [cacheFor],
   );
 
   const openPath = useCallback(
@@ -112,6 +124,13 @@ export default function App() {
     [active, update],
   );
 
+  const onNeed = useCallback(
+    (chunks: number[]) => {
+      if (active) fetchChunks(active, chunks);
+    },
+    [active, fetchChunks],
+  );
+
   const copy = useCallback((text: string) => {
     void navigator.clipboard.writeText(text);
     notifyCopied(text);
@@ -142,10 +161,13 @@ export default function App() {
             <Sidebar session={current} onPick={select} />
             <main className="flex min-w-0 min-h-0 flex-1 flex-col">
               <GraphView
+                key={current.path}
                 session={current}
+                rows={cacheFor(current.path)}
+                redraw={redraw}
                 metrics={METRICS_AVATARS}
                 onSelect={select}
-                onRange={(first, last) => requestWindow(current.path, first, last)}
+                onNeed={onNeed}
               />
               {current.repo ? (
                 <footer className="bg-card border-border text-muted-foreground shrink-0 border-t px-3 py-1 text-xs">
@@ -161,7 +183,7 @@ export default function App() {
                 </footer>
               ) : null}
             </main>
-            <Details session={current} onCopy={copy} />
+            <Details session={current} rows={cacheFor(current.path)} onCopy={copy} />
           </div>
         </>
       )}

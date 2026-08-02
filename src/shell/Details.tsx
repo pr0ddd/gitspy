@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { rowAt, type Session } from '../session';
+import type { Session } from '../session';
+import type { RowCache } from '../rows';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import type { RefKind } from '../types';
 
 type Props = {
   session: Session | null;
+  rows: RowCache;
   onCopy: (text: string) => void;
 };
 
@@ -27,7 +29,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Details({ session, onCopy }: Props) {
+export function Details({ session, rows, onCopy }: Props) {
   const { t, i18n } = useTranslation();
   const index = session?.selected ?? null;
 
@@ -39,7 +41,7 @@ export function Details({ session, onCopy }: Props) {
     );
   }
 
-  const row = rowAt(session.window, index);
+  const row = rows.row(index);
   if (!row || row.kind !== 'commit') {
     return (
       <Shell>
