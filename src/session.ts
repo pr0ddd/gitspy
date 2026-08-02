@@ -1,27 +1,15 @@
-import type { Meta } from './render';
-import type { LayoutView, RefView, WorktreeView } from './types';
+import type { RefView, RepoView, RowView, WindowView, WorktreeView } from './types';
 
 export type Session = {
   path: string;
   name: string;
-  layout: LayoutView | null;
-  meta: Meta;
+  repo: RepoView | null;
+  window: WindowView | null;
   refsByCommit: Map<number, RefView[]>;
   worktrees: WorktreeView[];
   selected: number | null;
   loading: boolean;
-  openMs: number | null;
-  metaMs: number | null;
 };
-
-export const emptyMeta = (): Meta => ({
-  hash: [],
-  author: [],
-  email: [],
-  time: [],
-  subject: [],
-  body: [],
-});
 
 export const repoName = (path: string): string =>
   path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path;
@@ -29,14 +17,12 @@ export const repoName = (path: string): string =>
 export const newSession = (path: string): Session => ({
   path,
   name: repoName(path),
-  layout: null,
-  meta: emptyMeta(),
+  repo: null,
+  window: null,
   refsByCommit: new Map(),
   worktrees: [],
   selected: null,
   loading: true,
-  openMs: null,
-  metaMs: null,
 });
 
 export const groupRefsByCommit = (refs: RefView[]): Map<number, RefView[]> => {
@@ -47,4 +33,10 @@ export const groupRefsByCommit = (refs: RefView[]): Map<number, RefView[]> => {
     else byCommit.set(ref.commit, [ref]);
   }
   return byCommit;
+};
+
+export const rowAt = (window: WindowView | null, index: number): RowView | null => {
+  if (!window) return null;
+  const offset = index - window.start;
+  return offset >= 0 && offset < window.rows.length ? window.rows[offset] : null;
 };

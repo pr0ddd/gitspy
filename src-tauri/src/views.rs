@@ -1,7 +1,10 @@
+use gitspy_core::chunk::Skeleton;
 use gitspy_core::layout::{Layout, NodeKind, Segment};
-use gitspy_repo::{History, RefKind};
+use gitspy_repo::{CommitMeta, History, RefKind};
 use serde::Serialize;
 use std::collections::BTreeMap;
+
+pub const MINIMAP_BUCKETS: usize = 2048;
 
 mod node_kind {
     pub const NORMAL: u8 = 0;
@@ -69,7 +72,8 @@ pub fn state_lock_failed() -> ErrorView {
 }
 
 #[derive(Serialize)]
-pub struct LayoutView {
+#[serde(rename_all = "camelCase")]
+pub struct RepoView {
     pub path: String,
     pub count: usize,
     pub max_lane: u16,
@@ -77,14 +81,7 @@ pub struct LayoutView {
     pub truncated: bool,
     pub read_ms: f64,
     pub layout_ms: f64,
-    pub lanes: Vec<u16>,
-    pub colours: Vec<u8>,
-    pub kinds: Vec<u8>,
-    pub seg_offsets: Vec<u32>,
-    pub seg_kind: Vec<u8>,
-    pub seg_from: Vec<u16>,
-    pub seg_to: Vec<u16>,
-    pub seg_colour: Vec<u8>,
+    pub minimap: Vec<u32>,
     pub refs: Vec<RefView>,
 }
 
@@ -98,6 +95,7 @@ pub enum RefKindView {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefView {
     pub name: String,
     pub kind: RefKindView,
@@ -106,6 +104,7 @@ pub struct RefView {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorktreeView {
     pub name: String,
     pub path: String,
@@ -115,17 +114,46 @@ pub struct WorktreeView {
 }
 
 #[derive(Serialize)]
-pub struct CommitView {
-    pub index: u32,
-    pub hash: String,
-    pub author: String,
-    pub email: String,
-    pub time: i64,
-    pub subject: String,
-    pub body: String,
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[allow(dead_code)]
+pub enum RowView {
+    #[serde(rename_all = "camelCase")]
+    Commit {
+        index: u32,
+        lane: u16,
+        colour: u8,
+        node: u8,
+        hash: String,
+        author: String,
+        email: String,
+        time: i64,
+        subject: String,
+        body: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    WorkingTree {
+        index: u32,
+        lane: u16,
+        colour: u8,
+        node: u8,
+        staged: u32,
+        unstaged: u32,
+    },
 }
 
-pub fn node_kind_code(kind: NodeKind) -> u8 {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowView {
+    pub start: u32,
+    pub rows: Vec<RowView>,
+    pub seg_offsets: Vec<u32>,
+    pub seg_kind: Vec<u8>,
+    pub seg_from: Vec<u16>,
+    pub seg_to: Vec<u16>,
+    pub seg_colour: Vec<u8>,
+}
+
+fn node_kind_code(kind: NodeKind) -> u8 {
     match kind {
         NodeKind::Normal => node_kind::NORMAL,
         NodeKind::Merge => node_kind::MERGE,
@@ -134,7 +162,7 @@ pub fn node_kind_code(kind: NodeKind) -> u8 {
     }
 }
 
-pub fn ref_kind_view(kind: RefKind) -> RefKindView {
+fn ref_kind_view(kind: RefKind) -> RefKindView {
     match kind {
         RefKind::LocalBranch => RefKindView::LocalBranch,
         RefKind::RemoteBranch => RefKindView::RemoteBranch,
@@ -143,16 +171,38 @@ pub fn ref_kind_view(kind: RefKind) -> RefKindView {
     }
 }
 
-pub fn build_layout_view(
+pub fn build_repo_view(
     path: &str,
     history: &History,
-    layout: &Layout,
+    skeleton: &Skeleton,
+    minimap: Vec<u32>,
     read_ms: f64,
     layout_ms: f64,
-) -> LayoutView {
-    let count = layout.len();
+) -> RepoView {
+    RepoView {
+        path: path.to_string(),
+        count: skeleton.len(),
+        max_lane: skeleton.max_lane,
+        head: history.head,
+        truncated: history.truncated,
+        read_ms,
+        layout_ms,
+        minimap,
+        refs: history
+            .refs
+            .iter()
+            .map(|r| RefView {
+                name: r.name.clone(),
+                kind: ref_kind_view(r.kind),
+                commit: r.commit,
+                is_head: r.is_head,
+            })
+            .collect(),
+    }
+}
 
-    let mut seg_offsets = Vec::with_capacity(count + 1);
+pub fn build_window_view(start: usize, layout: &Layout, commits: &[CommitMeta]) -> WindowView {
+    let mut seg_offsets = Vec::with_capacity(layout.len() + 1);
     let mut seg_kind = Vec::new();
     let mut seg_from = Vec::new();
     let mut seg_to = Vec::new();
@@ -174,31 +224,35 @@ pub fn build_layout_view(
         seg_offsets.push(seg_kind.len() as u32);
     }
 
-    LayoutView {
-        path: path.to_string(),
-        count,
-        max_lane: layout.max_lane,
-        head: history.head,
-        truncated: history.truncated,
-        read_ms,
-        layout_ms,
-        lanes: layout.rows.iter().map(|r| r.lane).collect(),
-        colours: layout.rows.iter().map(|r| r.colour).collect(),
-        kinds: layout.rows.iter().map(|r| node_kind_code(r.kind)).collect(),
+    let rows = layout
+        .rows
+        .iter()
+        .enumerate()
+        .map(|(offset, row)| {
+            let index = (start + offset) as u32;
+            let meta = &commits[offset];
+            RowView::Commit {
+                index,
+                lane: row.lane,
+                colour: row.colour,
+                node: node_kind_code(row.kind),
+                hash: meta.hash.clone(),
+                author: meta.author.clone(),
+                email: meta.email.clone(),
+                time: meta.time,
+                subject: meta.subject.clone(),
+                body: meta.body.clone(),
+            }
+        })
+        .collect();
+
+    WindowView {
+        start: start as u32,
+        rows,
         seg_offsets,
         seg_kind,
         seg_from,
         seg_to,
         seg_colour,
-        refs: history
-            .refs
-            .iter()
-            .map(|r| RefView {
-                name: r.name.clone(),
-                kind: ref_kind_view(r.kind),
-                commit: r.commit,
-                is_head: r.is_head,
-            })
-            .collect(),
     }
 }

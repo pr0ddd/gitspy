@@ -1,64 +1,30 @@
-export type LayoutView = {
-  path: string;
-  count: number;
-  max_lane: number;
-  head: number | null;
-  truncated: boolean;
-  read_ms: number;
-  layout_ms: number;
-  lanes: number[];
-  colours: number[];
-
-  kinds: number[];
-
-  seg_offsets: number[];
-
-  seg_kind: number[];
-  seg_from: number[];
-  seg_to: number[];
-  seg_colour: number[];
-  refs: RefView[];
-};
-
 export type RefKind = 'localBranch' | 'remoteBranch' | 'tag' | 'stash';
 
 export type RefView = {
   name: string;
   kind: RefKind;
   commit: number;
-  is_head: boolean;
+  isHead: boolean;
 };
 
-export const NODE_KIND = {
-  normal: 0,
-  merge: 1,
-  root: 2,
-  open: 3,
-} as const;
-
-export const SEGMENT_KIND = {
-  through: 0,
-  branch: 1,
-  merge: 2,
-} as const;
-
-export type RecentRepo = {
+export type RepoView = {
   path: string;
-  name: string;
-  opened_at: number;
-  exists: boolean;
+  count: number;
+  maxLane: number;
+  head: number | null;
+  truncated: boolean;
+  readMs: number;
+  layoutMs: number;
+  minimap: number[];
+  refs: RefView[];
 };
 
-export type WorktreeView = {
-  name: string;
-  path: string;
-  branch: string | null;
-  is_main: boolean;
-  is_locked: boolean;
-};
-
-export type CommitView = {
+export type CommitRow = {
+  kind: 'commit';
   index: number;
+  lane: number;
+  colour: number;
+  node: number;
   hash: string;
   author: string;
   email: string;
@@ -66,3 +32,43 @@ export type CommitView = {
   subject: string;
   body: string;
 };
+
+export type WorkingTreeRow = {
+  kind: 'workingTree';
+  index: number;
+  lane: number;
+  colour: number;
+  node: number;
+  staged: number;
+  unstaged: number;
+};
+
+export type RowView = CommitRow | WorkingTreeRow;
+
+export type WindowView = {
+  start: number;
+  rows: RowView[];
+  segOffsets: number[];
+  segKind: number[];
+  segFrom: number[];
+  segTo: number[];
+  segColour: number[];
+};
+
+export type RecentRepo = {
+  path: string;
+  name: string;
+  openedAt: number;
+  exists: boolean;
+};
+
+export type WorktreeView = {
+  name: string;
+  path: string;
+  branch: string | null;
+  isMain: boolean;
+  isLocked: boolean;
+};
+
+export const NODE_KIND = { normal: 0, merge: 1, root: 2, open: 3 } as const;
+export const SEGMENT_KIND = { through: 0, branch: 1, merge: 2 } as const;

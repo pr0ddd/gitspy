@@ -4,7 +4,7 @@
 mod recent;
 mod views;
 
-use gitspy_core::chunk;
+use gitspy_core::chunk::{self, Skeleton};
 use gitspy_repo::History;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -12,7 +12,8 @@ use std::sync::Mutex;
 use std::time::Instant;
 use tauri::{Manager, State};
 use views::{
-    build_layout_view, state_lock_failed, CommitView, ErrorView, LayoutView, WorktreeView,
+    build_repo_view, build_window_view, state_lock_failed, ErrorView, RepoView, WindowView,
+    WorktreeView, MINIMAP_BUCKETS,
 };
 
 #[derive(Default)]
@@ -23,6 +24,7 @@ struct AppState {
 struct OpenRepo {
     path: PathBuf,
     history: History,
+    skeleton: Skeleton,
 }
 
 fn with_repo<T>(
@@ -43,30 +45,60 @@ fn data_dir(app: &tauri::AppHandle) -> Result<PathBuf, ErrorView> {
         .map_err(|e| ErrorView::new("app.dataDir").detail(e.to_string()))
 }
 
+struct Opened {
+    history: History,
+    skeleton: Skeleton,
+    minimap: Vec<u32>,
+    read_ms: f64,
+    layout_ms: f64,
+}
+
+fn open_on_a_blocking_thread(path: PathBuf) -> Result<Opened, ErrorView> {
+    let started_reading = Instant::now();
+    let history = gitspy_repo::read(&path, None)?;
+    let read_ms = started_reading.elapsed().as_secs_f64() * 1000.0;
+
+    let started_layout = Instant::now();
+    let skeleton = chunk::skeleton(&history.topology, chunk::CHUNK);
+    let minimap = chunk::minimap(&skeleton, MINIMAP_BUCKETS);
+    let layout_ms = started_layout.elapsed().as_secs_f64() * 1000.0;
+
+    Ok(Opened {
+        history,
+        skeleton,
+        minimap,
+        read_ms,
+        layout_ms,
+    })
+}
+
 #[tauri::command]
 async fn open_repo(
     path: String,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<LayoutView, ErrorView> {
+) -> Result<RepoView, ErrorView> {
     let repo_path = PathBuf::from(&path);
+    let opened = tauri::async_runtime::spawn_blocking(move || open_on_a_blocking_thread(repo_path))
+        .await
+        .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))??;
 
-    let started_reading = Instant::now();
-    let history = gitspy_repo::read(&repo_path, None)?;
-    let read_ms = started_reading.elapsed().as_secs_f64() * 1000.0;
-
-    let started_layout = Instant::now();
-    let layout = chunk::layout(&history.topology);
-    let layout_ms = started_layout.elapsed().as_secs_f64() * 1000.0;
-
-    let view = build_layout_view(&path, &history, &layout, read_ms, layout_ms);
+    let view = build_repo_view(
+        &path,
+        &opened.history,
+        &opened.skeleton,
+        opened.minimap,
+        opened.read_ms,
+        opened.layout_ms,
+    );
 
     let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
     guard.insert(
         path.clone(),
         OpenRepo {
-            path: repo_path,
-            history,
+            path: PathBuf::from(&path),
+            history: opened.history,
+            skeleton: opened.skeleton,
         },
     );
     drop(guard);
@@ -76,6 +108,23 @@ async fn open_repo(
     }
 
     Ok(view)
+}
+
+#[tauri::command]
+fn graph_window(
+    repo: String,
+    start: u32,
+    len: u32,
+    state: State<'_, AppState>,
+) -> Result<WindowView, ErrorView> {
+    with_repo(&state, &repo, |open| {
+        let total = open.skeleton.len();
+        let from = (start as usize).min(total);
+        let to = (from + len as usize).min(total);
+
+        let layout = chunk::window(&open.history.topology, &open.skeleton, from, to - from);
+        build_window_view(from, &layout, &open.history.commits[from..to])
+    })
 }
 
 #[tauri::command]
@@ -105,34 +154,6 @@ fn open_repos(state: State<'_, AppState>) -> Result<Vec<String>, ErrorView> {
 }
 
 #[tauri::command]
-fn commit_range(
-    repo: String,
-    start: u32,
-    len: u32,
-    state: State<'_, AppState>,
-) -> Result<Vec<CommitView>, ErrorView> {
-    with_repo(&state, &repo, |open| {
-        let total = open.history.commits.len();
-        let from = (start as usize).min(total);
-        let to = (from + len as usize).min(total);
-
-        open.history.commits[from..to]
-            .iter()
-            .enumerate()
-            .map(|(offset, c)| CommitView {
-                index: (from + offset) as u32,
-                hash: c.hash.clone(),
-                author: c.author.clone(),
-                email: c.email.clone(),
-                time: c.time,
-                subject: c.subject.clone(),
-                body: c.body.clone(),
-            })
-            .collect()
-    })
-}
-
-#[tauri::command]
 fn worktrees(repo: String) -> Result<Vec<WorktreeView>, ErrorView> {
     let found = gitspy_repo::worktrees(&PathBuf::from(&repo))?;
     Ok(found
@@ -155,7 +176,7 @@ fn main() {
             open_repo,
             close_repo,
             open_repos,
-            commit_range,
+            graph_window,
             worktrees,
             recent_repos,
             forget_repo

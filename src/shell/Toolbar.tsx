@@ -19,7 +19,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 export function Toolbar({ session }: Props) {
   const { t } = useTranslation();
-  const head = session?.layout?.refs.find((r) => r.is_head);
+  const head = session?.repo?.refs.find((r) => r.isHead);
 
   return (
     <div className="bg-card border-border flex shrink-0 items-center gap-5 border-b px-3 py-1.5">

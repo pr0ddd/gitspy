@@ -14,19 +14,20 @@ import {
   type Metrics,
 } from '../render';
 import { buildMinimap } from '../view';
-import { emptyMeta, type Session } from '../session';
+import type { Session } from '../session';
 import { GIT } from '../vocabulary';
 
 type Props = {
   session: Session | null;
   metrics: Metrics;
   onSelect: (index: number | null) => void;
+  onRange: (first: number, last: number) => void;
 };
 
 const emptyFrame = (metrics: Metrics, columns: Frame['columns']): Frame => ({
-  layout: null,
+  repo: null,
+  window: null,
   columns,
-  meta: emptyMeta(),
   refsByCommit: new Map(),
   minimap: null,
   metrics,
@@ -38,7 +39,7 @@ const emptyFrame = (metrics: Metrics, columns: Frame['columns']): Frame => ({
   height: 0,
 });
 
-export function GraphView({ session, metrics, onSelect }: Props) {
+export function GraphView({ session, metrics, onSelect, onRange }: Props) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -60,8 +61,14 @@ export function GraphView({ session, metrics, onSelect }: Props) {
       rafRef.current = null;
       const canvas = canvasRef.current;
       if (canvas) drawFrame(canvas, frameRef.current);
+
+      const f = frameRef.current;
+      if (!f.repo || f.repo.count === 0) return;
+      const first = Math.max(0, Math.floor(f.scrollY / f.metrics.rowH));
+      const last = Math.min(f.repo.count, first + Math.ceil(f.height / f.metrics.rowH) + 1);
+      onRange(first, last);
     });
-  }, []);
+  }, [onRange]);
 
   const patch = useCallback(
     (next: Partial<Frame>) => {
@@ -73,23 +80,23 @@ export function GraphView({ session, metrics, onSelect }: Props) {
 
   const clampScroll = useCallback((value: number) => {
     const f = frameRef.current;
-    return Math.max(0, Math.min(value, maxScroll(f.metrics, f.layout?.count ?? 0, f.height)));
+    return Math.max(0, Math.min(value, maxScroll(f.metrics, f.repo?.count ?? 0, f.height)));
   }, []);
 
   const clampScrollX = useCallback((value: number) => {
     const f = frameRef.current;
-    return Math.max(0, Math.min(value, maxScrollX(f.metrics, f.layout?.max_lane ?? 0, f.width)));
+    return Math.max(0, Math.min(value, maxScrollX(f.metrics, f.repo?.maxLane ?? 0, f.width)));
   }, []);
 
   useEffect(() => {
     const f = frameRef.current;
-    const sameRepo = f.layout?.path === session?.layout?.path;
+    const sameRepo = f.repo?.path === session?.repo?.path;
     frameRef.current = {
       ...f,
-      layout: session?.layout ?? null,
-      meta: session?.meta ?? emptyMeta(),
+      repo: session?.repo ?? null,
+      window: session?.window ?? null,
       refsByCommit: session?.refsByCommit ?? new Map(),
-      minimap: buildMinimap(session?.layout ?? null, f.height),
+      minimap: buildMinimap(session?.repo ?? null, f.height),
       columns,
       selected: session?.selected ?? null,
       scrollY: sameRepo ? f.scrollY : 0,
@@ -115,7 +122,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
         ...f,
         width: Math.max(0, Math.round(rect.width)),
         height,
-        minimap: buildMinimap(f.layout, height),
+        minimap: buildMinimap(f.repo, height),
       };
       patch({ scrollY: clampScroll(frameRef.current.scrollY) });
     };
@@ -143,7 +150,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
 
     const onKey = (e: KeyboardEvent) => {
       const f = frameRef.current;
-      const count = f.layout?.count ?? 0;
+      const count = f.repo?.count ?? 0;
       let next: number | null = null;
       if (e.key === 'PageDown') next = f.scrollY + (f.height - f.metrics.rowH * 2);
       else if (e.key === 'PageUp') next = f.scrollY - (f.height - f.metrics.rowH * 2);
@@ -175,7 +182,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
 
     const jumpFromMinimap = (y: number) => {
       const f = frameRef.current;
-      const total = (f.layout?.count ?? 0) * f.metrics.rowH;
+      const total = (f.repo?.count ?? 0) * f.metrics.rowH;
       patch({ scrollY: clampScroll((y / Math.max(1, f.height)) * total - f.height / 2) });
     };
 
@@ -183,7 +190,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
       const f = frameRef.current;
       const left = graphLeft();
       const track = graphRight(f.width) - left;
-      const max = maxScrollX(f.metrics, f.layout?.max_lane ?? 0, f.width);
+      const max = maxScrollX(f.metrics, f.repo?.maxLane ?? 0, f.width);
       patch({ scrollX: clampScrollX(((x - left) / Math.max(1, track)) * max * 1.15) });
     };
 
@@ -193,7 +200,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
       if (dragRef.current === 'minimap') return jumpFromMinimap(y);
       if (dragRef.current === 'hscroll') return dragHScroll(x);
       const index =
-        x >= listWidth(f.width) ? null : rowAtY(f.metrics, y, f.scrollY, f.layout?.count ?? 0);
+        x >= listWidth(f.width) ? null : rowAtY(f.metrics, y, f.scrollY, f.repo?.count ?? 0);
       if (index !== f.hover) patch({ hover: index });
     };
 
@@ -210,7 +217,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
         dragHScroll(x);
         return;
       }
-      const picked = rowAtY(f.metrics, y, f.scrollY, f.layout?.count ?? 0);
+      const picked = rowAtY(f.metrics, y, f.scrollY, f.repo?.count ?? 0);
       patch({ selected: picked });
       onSelect(picked);
     };
@@ -235,7 +242,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden outline-none" ref={hostRef} tabIndex={0}>
       <canvas ref={canvasRef} className="absolute inset-0 block size-full" />
-      {!session || (!session.layout && !session.loading) ? (
+      {!session || (!session.repo && !session.loading) ? (
         <div
           className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
           style={{ right: MINIMAP_W }}
