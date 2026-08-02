@@ -1,22 +1,40 @@
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import type { Session } from '../session';
+import { GIT } from '../vocabulary';
+import type { RefKind } from '../types';
 
 type Props = {
   session: Session | null;
   onCopy: (text: string) => void;
 };
 
-const shortHash = (hash: string) => hash.slice(0, 8);
+const REF_STYLE: Record<RefKind, string> = {
+  localBranch: 'bg-ref-local text-white',
+  remoteBranch: 'bg-ref-remote text-white',
+  tag: 'bg-ref-tag text-white',
+  stash: 'bg-ref-stash text-white',
+};
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <aside className="bg-card border-border flex w-80 shrink-0 flex-col border-l">{children}</aside>
+  );
+}
 
 export function Details({ session, onCopy }: Props) {
   const { t, i18n } = useTranslation();
-
   const index = session?.selected ?? null;
+
   if (!session || index === null) {
     return (
-      <aside className="details">
-        <div className="details-empty">{t('details.pickCommit')}</div>
-      </aside>
+      <Shell>
+        <p className="text-muted-foreground p-4 text-center">{t('details.pickCommit')}</p>
+      </Shell>
     );
   }
 
@@ -24,9 +42,9 @@ export function Details({ session, onCopy }: Props) {
   const hash = meta.hash[index];
   if (!hash) {
     return (
-      <aside className="details">
-        <div className="details-empty">{t('details.loading')}</div>
-      </aside>
+      <Shell>
+        <p className="text-muted-foreground p-4 text-center">{t('details.loading')}</p>
+      </Shell>
     );
   }
 
@@ -34,42 +52,69 @@ export function Details({ session, onCopy }: Props) {
   const labels = session.refsByCommit.get(index) ?? [];
 
   return (
-    <aside className="details">
-      <header className="details-header">
-        <span className="details-title">{t('details.commit')}</span>
-        <button className="hash" onClick={() => onCopy(hash)} title={t('details.copyHash')}>
-          {shortHash(hash)}
-        </button>
+    <Shell>
+      <header className="border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+        <span className="text-muted-foreground text-xs tracking-wide uppercase">
+          {GIT.commit}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onCopy(hash)}
+          title={t('details.copyHash')}
+          className="ml-auto h-6 font-mono text-xs"
+        >
+          {hash.slice(0, 8)}
+        </Button>
       </header>
 
-      <div className="details-body">
-        <p className="subject">{meta.subject[index]}</p>
-        {meta.body[index] ? <pre className="body">{meta.body[index]}</pre> : null}
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-3 p-3">
+          <p className="text-sm leading-snug">{meta.subject[index]}</p>
 
-        <dl className="fields">
-          <dt>{t('details.author')}</dt>
-          <dd>
-            {meta.author[index]} <span className="dim">{meta.email[index]}</span>
-          </dd>
-          <dt>{t('details.date')}</dt>
-          <dd>{new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(when)}</dd>
-        </dl>
+          {meta.body[index] ? (
+            <pre className="bg-surface text-muted-foreground rounded-md p-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
+              {meta.body[index]}
+            </pre>
+          ) : null}
 
-        {labels.length ? (
-          <div className="chips">
-            {labels.map((ref) => (
-              <span key={`${ref.kind}:${ref.name}`} className={`chip ${ref.kind}`}>
-                {ref.name}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <dt className="text-muted-foreground">{t('details.author')}</dt>
+            <dd className="truncate">
+              {meta.author[index]}{' '}
+              <span className="text-muted-foreground">{meta.email[index]}</span>
+            </dd>
+            <dt className="text-muted-foreground">{t('details.date')}</dt>
+            <dd>
+              {new Intl.DateTimeFormat(i18n.language, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              }).format(when)}
+            </dd>
+          </dl>
 
-      <section className="details-files">
-        <header>{t('details.files')}</header>
-        <p className="planned-note">{t('details.filesPlanned')}</p>
+          {labels.length ? (
+            <div className="flex flex-wrap gap-1">
+              {labels.map((ref) => (
+                <Badge
+                  key={`${ref.kind}:${ref.name}`}
+                  className={cn('rounded-sm px-1.5 py-0 text-2xs', REF_STYLE[ref.kind])}
+                >
+                  {ref.name}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </ScrollArea>
+
+      <Separator />
+      <section className="shrink-0 p-3">
+        <h3 className="text-muted-foreground mb-1.5 text-xs tracking-wide uppercase">
+          {t('details.files')}
+        </h3>
+        <p className="text-muted-foreground/70 leading-relaxed">{t('details.filesPlanned')}</p>
       </section>
-    </aside>
+    </Shell>
   );
 }

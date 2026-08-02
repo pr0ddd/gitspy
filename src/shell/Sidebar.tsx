@@ -1,18 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronRight, Search } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import type { Session } from '../session';
+import { GIT } from '../vocabulary';
 import type { RefKind, RefView } from '../types';
 
 type Props = {
   session: Session | null;
   onPick: (commit: number) => void;
-};
-
-type Group = {
-  key: string;
-  title: string;
-  entries: Entry[];
-  planned?: boolean;
 };
 
 type Entry = {
@@ -22,109 +21,106 @@ type Entry = {
   isHead: boolean;
 };
 
+type Group = {
+  key: string;
+  title: string;
+  entries: Entry[];
+  planned?: boolean;
+};
+
 const fromRefs = (refs: RefView[], kind: RefKind): Entry[] =>
   refs
     .filter((r) => r.kind === kind)
     .map((r) => ({ label: r.name, commit: r.commit, isHead: r.is_head }));
 
-const byRemote = (refs: RefView[]): Map<string, Entry[]> => {
-  const grouped = new Map<string, Entry[]>();
-  for (const ref of refs) {
-    if (ref.kind !== 'remoteBranch') continue;
-    const slash = ref.name.indexOf('/');
-    const remote = slash === -1 ? ref.name : ref.name.slice(0, slash);
-    const rest = slash === -1 ? ref.name : ref.name.slice(slash + 1);
-    const list = grouped.get(remote);
-    const entry: Entry = { label: rest, commit: ref.commit, isHead: false };
-    if (list) list.push(entry);
-    else grouped.set(remote, [entry]);
-  }
-  return grouped;
-};
-
 export function Sidebar({ session, onPick }: Props) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const refs = session?.layout?.refs ?? [];
-  const remotes = useMemo(() => byRemote(refs), [refs]);
 
-  const groups: Group[] = [
-    { key: 'local', title: t('sidebar.local'), entries: fromRefs(refs, 'localBranch') },
-    {
-      key: 'remote',
-      title: t('sidebar.remote'),
-      entries: [...remotes].flatMap(([remote, entries]) =>
-        entries.map((e) => ({ ...e, label: `${remote}/${e.label}` })),
-      ),
-    },
-    {
-      key: 'worktrees',
-      title: t('sidebar.worktrees'),
-      entries: (session?.worktrees ?? []).map((w) => ({
-        label: w.name,
-        detail: w.branch ?? undefined,
-        commit: null,
-        isHead: w.is_main,
-      })),
-    },
-    { key: 'stashes', title: t('sidebar.stashes'), entries: fromRefs(refs, 'stash') },
-    { key: 'tags', title: t('sidebar.tags'), entries: fromRefs(refs, 'tag') },
-    { key: 'pullRequests', title: t('sidebar.pullRequests'), entries: [], planned: true },
-    { key: 'issues', title: t('sidebar.issues'), entries: [], planned: true },
-  ];
+  const groups: Group[] = useMemo(
+    () => [
+      { key: 'local', title: GIT.local, entries: fromRefs(refs, 'localBranch') },
+      { key: 'remote', title: GIT.remote, entries: fromRefs(refs, 'remoteBranch') },
+      {
+        key: 'worktrees',
+        title: GIT.worktrees,
+        entries: (session?.worktrees ?? []).map((w) => ({
+          label: w.name,
+          detail: w.branch ?? undefined,
+          commit: null,
+          isHead: w.is_main,
+        })),
+      },
+      { key: 'stashes', title: GIT.stashes, entries: fromRefs(refs, 'stash') },
+      { key: 'tags', title: GIT.tags, entries: fromRefs(refs, 'tag') },
+      { key: 'pullRequests', title: GIT.pullRequests, entries: [], planned: true },
+      { key: 'issues', title: GIT.issues, entries: [], planned: true },
+    ],
+    [refs, session?.worktrees],
+  );
 
   const needle = filter.trim().toLowerCase();
-  const visible = groups.map((group) => ({
-    ...group,
-    shown: needle
-      ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
-      : group.entries,
-  }));
 
   return (
-    <aside className="sidebar">
-      <input
-        className="filter"
-        value={filter}
-        placeholder={t('sidebar.filter')}
-        onChange={(e) => setFilter(e.target.value)}
-      />
+    <aside className="bg-card border-border flex w-64 shrink-0 flex-col border-r">
+      <div className="relative p-2">
+        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-3 -translate-y-1/2" />
+        <Input
+          value={filter}
+          placeholder={t('sidebar.filter')}
+          onChange={(e) => setFilter(e.target.value)}
+          className="h-7 pl-7 text-xs"
+        />
+      </div>
 
-      <div className="sections">
-        {visible.map((group) => {
-          const isCollapsed = collapsed[group.key] ?? false;
+      <ScrollArea className="min-h-0 flex-1">
+        {groups.map((group) => {
+          const shown = needle
+            ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
+            : group.entries;
+
           return (
-            <section key={group.key} className={group.planned ? 'section planned' : 'section'}>
-              <header
-                onClick={() => setCollapsed((c) => ({ ...c, [group.key]: !isCollapsed }))}
+            <Collapsible key={group.key} defaultOpen className="group/section">
+              <CollapsibleTrigger
                 title={group.planned ? t('sidebar.plannedHint') : undefined}
+                className={cn(
+                  'hover:bg-surface-hover flex h-7 w-full items-center gap-1.5 px-2 text-xs tracking-wide uppercase transition-colors',
+                  group.planned ? 'text-muted-foreground/60' : 'text-muted-foreground',
+                )}
               >
-                <span className={isCollapsed ? 'chevron' : 'chevron open'}>›</span>
-                <span className="section-title">{group.title}</span>
-                <span className="section-count">{group.entries.length}</span>
-              </header>
+                <ChevronRight className="size-3 transition-transform group-data-[state=open]/section:rotate-90" />
+                <span className="flex-1 text-left">{group.title}</span>
+                <span className="text-muted-foreground/70 tabular-nums">
+                  {group.entries.length}
+                </span>
+              </CollapsibleTrigger>
 
-              {isCollapsed ? null : (
-                <ul>
-                  {group.shown.map((entry) => (
-                    <li
-                      key={`${group.key}:${entry.label}`}
-                      className={entry.isHead ? 'entry head' : 'entry'}
-                      onClick={() => entry.commit !== null && onPick(entry.commit)}
-                      title={entry.detail ?? entry.label}
-                    >
-                      <span className="entry-label">{entry.label}</span>
-                      {entry.detail ? <span className="entry-detail">{entry.detail}</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+              <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
+                {shown.map((entry) => (
+                  <button
+                    key={`${group.key}:${entry.label}`}
+                    onClick={() => entry.commit !== null && onPick(entry.commit)}
+                    title={entry.detail ?? entry.label}
+                    className={cn(
+                      'hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 border-l-2 border-transparent pr-2 pl-6 text-left transition-colors',
+                      entry.isHead && 'border-l-primary text-foreground font-medium',
+                    )}
+                  >
+                    <span className="truncate">{entry.label}</span>
+                    {entry.detail ? (
+                      <span className="text-muted-foreground truncate text-xs">
+                        {entry.detail}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
           );
         })}
-      </div>
+      </ScrollArea>
     </aside>
   );
 }

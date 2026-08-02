@@ -15,6 +15,7 @@ import {
 } from '../render';
 import { buildMinimap } from '../view';
 import { emptyMeta, type Session } from '../session';
+import { GIT } from '../vocabulary';
 
 type Props = {
   session: Session | null;
@@ -22,8 +23,9 @@ type Props = {
   onSelect: (index: number | null) => void;
 };
 
-const emptyFrame = (metrics: Metrics): Frame => ({
+const emptyFrame = (metrics: Metrics, columns: Frame['columns']): Frame => ({
   layout: null,
+  columns,
   meta: emptyMeta(),
   refsByCommit: new Map(),
   minimap: null,
@@ -40,7 +42,15 @@ export function GraphView({ session, metrics, onSelect }: Props) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const frameRef = useRef<Frame>(emptyFrame(metrics));
+  const columns = {
+    branchTag: GIT.branchTag,
+    graph: GIT.graph,
+    message: GIT.commitMessage,
+    author: t('column.author'),
+    date: t('column.date'),
+    sha: GIT.sha,
+  };
+  const frameRef = useRef<Frame>(emptyFrame(metrics, columns));
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<'minimap' | 'hscroll' | null>(null);
 
@@ -80,6 +90,7 @@ export function GraphView({ session, metrics, onSelect }: Props) {
       meta: session?.meta ?? emptyMeta(),
       refsByCommit: session?.refsByCommit ?? new Map(),
       minimap: buildMinimap(session?.layout ?? null, f.height),
+      columns,
       selected: session?.selected ?? null,
       scrollY: sameRepo ? f.scrollY : 0,
       scrollX: sameRepo ? f.scrollX : 0,
@@ -222,10 +233,13 @@ export function GraphView({ session, metrics, onSelect }: Props) {
   }, [patch, clampScroll, clampScrollX, onSelect]);
 
   return (
-    <div className="host" ref={hostRef} tabIndex={0}>
-      <canvas ref={canvasRef} className="surface" />
+    <div className="relative min-h-0 flex-1 overflow-hidden outline-none" ref={hostRef} tabIndex={0}>
+      <canvas ref={canvasRef} className="absolute inset-0 block size-full" />
       {!session || (!session.layout && !session.loading) ? (
-        <div className="empty" style={{ right: MINIMAP_W }}>
+        <div
+          className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{ right: MINIMAP_W }}
+        >
           {t('repo.emptyHint')}
         </div>
       ) : null}

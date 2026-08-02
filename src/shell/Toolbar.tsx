@@ -1,41 +1,46 @@
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Session } from '../session';
+import { TOOLBAR_ACTIONS } from '../vocabulary';
 
-const ACTIONS = ['undo', 'redo', 'pull', 'push', 'branch', 'stash', 'pop', 'terminal'] as const;
+type Props = { session: Session | null };
 
-type Props = {
-  session: Session | null;
-  avatars: boolean;
-  onAvatars: (on: boolean) => void;
-};
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <span className="text-muted-foreground text-2xs lowercase">{label}</span>
+      <span className="max-w-44 truncate text-sm font-medium">{value}</span>
+    </div>
+  );
+}
 
-export function Toolbar({ session, avatars, onAvatars }: Props) {
+export function Toolbar({ session }: Props) {
   const { t } = useTranslation();
   const head = session?.layout?.refs.find((r) => r.is_head);
 
   return (
-    <div className="toolbar">
-      <div className="toolbar-repo">
-        <span className="field-label">{t('toolbar.repositoryLabel')}</span>
-        <span className="field-value">{session?.name ?? '—'}</span>
-      </div>
-      <div className="toolbar-repo">
-        <span className="field-label">{t('toolbar.branchLabel')}</span>
-        <span className="field-value">{head?.name ?? '—'}</span>
-      </div>
+    <div className="bg-card border-border flex shrink-0 items-center gap-5 border-b px-3 py-1.5">
+      <Field label={t('toolbar.repositoryLabel')} value={session?.name ?? '—'} />
+      <Field label={t('toolbar.branchLabel')} value={head?.name ?? '—'} />
 
-      <div className="toolbar-actions">
-        {ACTIONS.map((action) => (
-          <button key={action} className="action" disabled title={t('toolbar.notYet')}>
-            {t(`toolbar.${action}` as 'toolbar.pull')}
-          </button>
+      <Separator orientation="vertical" className="h-6" />
+
+      <div className="flex items-center gap-1">
+        {TOOLBAR_ACTIONS.map((action) => (
+          <Tooltip key={action}>
+            <TooltipTrigger asChild>
+              <span tabIndex={0}>
+                <Button variant="ghost" size="sm" disabled className="h-7 px-2.5">
+                  {action}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{t('toolbar.needsOperations')}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
-
-      <label className="toggle">
-        <input type="checkbox" checked={avatars} onChange={(e) => onAvatars(e.target.checked)} />
-        {t('graph.avatars')}
-      </label>
     </div>
   );
 }

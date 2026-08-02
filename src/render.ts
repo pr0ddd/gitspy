@@ -1,13 +1,7 @@
 import { identicon } from './avatar';
-import { colourOf, SEGMENT_KIND, type LayoutView, type RefKind, type RefView } from './types';
+import { SEGMENT_KIND, type LayoutView, type RefView } from './types';
+import { laneColour, laneColourAlpha, theme } from './theme';
 import type { Minimap } from './view';
-
-const REF_CHIP_FILL: Record<RefKind, string> = {
-  localBranch: '#2b5ea8',
-  remoteBranch: '#44506b',
-  tag: '#7a5c1e',
-  stash: '#5c3f7a',
-};
 
 export const MINIMAP_W = 56;
 export const HEADER_H = 26;
@@ -53,14 +47,6 @@ export const METRICS_COMPACT: Metrics = {
 const FONT_CHIP = '11px ui-sans-serif, system-ui, sans-serif';
 const FONT_HEAD = '10px ui-sans-serif, system-ui, sans-serif';
 
-const BG = '#12141a';
-const BG_HEAD = '#171b23';
-const FG = '#dde3ec';
-const FG_DIM = '#8996a8';
-const FG_FAINT = '#626d7d';
-const ROW_LINE = 'rgba(255,255,255,0.035)';
-const HOVER = 'rgba(255,255,255,0.05)';
-const SELECT = 'rgba(255,255,255,0.10)';
 
 export const HSCROLL_H = 9;
 
@@ -99,8 +85,18 @@ export type Meta = {
   readonly body: string[];
 };
 
+export type Columns = {
+  readonly branchTag: string;
+  readonly graph: string;
+  readonly message: string;
+  readonly author: string;
+  readonly date: string;
+  readonly sha: string;
+};
+
 export type Frame = {
   readonly layout: LayoutView | null;
+  readonly columns: Columns;
   readonly meta: Meta;
   readonly refsByCommit: ReadonlyMap<number, RefView[]>;
   readonly minimap: Minimap | null;
@@ -207,6 +203,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   const { layout, meta, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
   const { width, height } = frame;
 
+  const t = theme();
   const dpr = window.devicePixelRatio || 1;
   const wantW = Math.round(width * dpr);
   const wantH = Math.round(height * dpr);
@@ -218,7 +215,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = BG;
+  ctx.fillStyle = t.surface;
   ctx.fillRect(0, 0, width, height);
 
   const listW = listWidth(width);
@@ -245,14 +242,14 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       if (i === selected) {
-        ctx.fillStyle = SELECT;
+        ctx.fillStyle = t.rowSelected;
         ctx.fillRect(0, y, listW, m.rowH);
       } else if (i === hover) {
-        ctx.fillStyle = HOVER;
+        ctx.fillStyle = t.rowHover;
         ctx.fillRect(0, y, listW, m.rowH);
       }
 
-      ctx.fillStyle = ROW_LINE;
+      ctx.fillStyle = t.rowLine;
       ctx.fillRect(g.gRight, y + m.rowH - 1, listW - g.gRight, 1);
     }
 
@@ -264,7 +261,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
       const x = g.nodeX(layout.lanes[i]) - m.nodeR;
-      ctx.fillStyle = `${colourOf(layout.colours[i])}1c`;
+      ctx.fillStyle = laneColourAlpha(layout.colours[i], 11);
       ctx.fillRect(x, y + 1, Math.max(0, g.gRight - x), m.rowH - 2);
     }
 
@@ -286,7 +283,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const a = g.laneAt(layout.seg_from[s]);
         const b = g.laneAt(layout.seg_to[s]);
         if (Math.max(a, b) < g.contentLeft - 40 || Math.min(a, b) > g.contentRight + 40) continue;
-        ctx.strokeStyle = colourOf(layout.seg_colour[s]);
+        ctx.strokeStyle = laneColour(layout.seg_colour[s]);
         ctx.beginPath();
         if (kind === SEGMENT_KIND.through) {
           ctx.moveTo(a, y - half);
@@ -322,7 +319,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
-      ctx.fillStyle = colourOf(layout.colours[i]);
+      ctx.fillStyle = laneColour(layout.colours[i]);
       ctx.fillRect(g.gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
     }
 
@@ -330,14 +327,14 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const y = Math.round(shift + (i - first) * m.rowH + half);
       const lane = layout.lanes[i];
       const x = g.nodeX(lane);
-      const colour = colourOf(layout.colours[i]);
+      const colour = laneColour(layout.colours[i]);
 
       if (g.isStuck(lane)) {
 
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 5;
-        ctx.fillStyle = BG;
+        ctx.fillStyle = t.surface;
         ctx.beginPath();
         ctx.arc(x, y, m.nodeR + 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -366,7 +363,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
 
       if (i === selected) {
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = t.surface;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(x, y, m.nodeR + 2.5, 0, Math.PI * 2);
@@ -383,7 +380,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
       const y = Math.round(shift + (i - first) * m.rowH + half);
-      const colour = colourOf(layout.colours[i]);
+      const colour = laneColour(layout.colours[i]);
       const nodeX = g.nodeX(layout.lanes[i]);
 
       let left = 12;
@@ -394,10 +391,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const fitted = fitText(ctx, text, 150);
         const w = ctx.measureText(fitted).width + 14;
         if (left + w > BRANCH_W - 14) break;
-        ctx.fillStyle = REF_CHIP_FILL[label.kind];
+        ctx.fillStyle = theme().ref[label.kind];
         roundRect(ctx, left, y - 9, w, 18, 3);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = t.foreground;
         ctx.fillText(fitted, left + 7, y);
         chipEnd = left + w;
         left = chipEnd + 4;
@@ -420,13 +417,13 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       const subject = meta.subject[i];
       if (subject === undefined) {
-        ctx.fillStyle = FG_FAINT;
+        ctx.fillStyle = t.faint;
         ctx.fillText('—', msgX, yc);
         continue;
       }
 
       const subjMax = colAuthor - msgX - 12;
-      ctx.fillStyle = FG;
+      ctx.fillStyle = t.foreground;
       const fitted = fitText(ctx, subject, subjMax);
       ctx.fillText(fitted, msgX, yc);
 
@@ -435,12 +432,12 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const used = ctx.measureText(subject).width;
         const rest = subjMax - used - 10;
         if (rest > 20) {
-          ctx.fillStyle = FG_FAINT;
+          ctx.fillStyle = t.faint;
           ctx.fillText(fitText(ctx, body.split('\n')[0], rest), msgX + used + 10, yc);
         }
       }
 
-      ctx.fillStyle = FG_DIM;
+      ctx.fillStyle = t.muted;
       ctx.fillText(fitText(ctx, meta.author[i] ?? '', colDate - colAuthor - 10), colAuthor, yc);
       ctx.fillText(dateFmt.format(new Date(meta.time[i] * 1000)), colDate, yc);
       ctx.font = m.fontMono;
@@ -451,7 +448,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     drawHScroll(ctx, frame, g.gLeft, g.gRight);
   }
 
-  drawHeader(ctx, listW, g.gLeft, g.gRight, msgX, colAuthor, colDate, colHash);
+  drawHeader(ctx, listW, g.gLeft, g.gRight, msgX, colAuthor, colDate, colHash, frame.columns);
   drawMinimap(ctx, frame, listW);
 }
 
@@ -489,22 +486,24 @@ function drawHeader(
   colAuthor: number,
   colDate: number,
   colHash: number,
+  columns: Columns,
 ): void {
-  ctx.fillStyle = BG_HEAD;
+  const t = theme();
+  ctx.fillStyle = t.surfaceRaised;
   ctx.fillRect(0, 0, listW, HEADER_H);
-  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  ctx.fillStyle = t.border;
   ctx.fillRect(0, HEADER_H - 1, listW, 1);
 
   ctx.font = FONT_HEAD;
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = FG_DIM;
+  ctx.fillStyle = t.muted;
   const y = Math.round(HEADER_H / 2);
-  ctx.fillText('ВЕТКА / ТЕГ', 12, y);
-  ctx.fillText('ГРАФ', gLeft + 6, y);
-  ctx.fillText('СООБЩЕНИЕ', msgX, y);
-  ctx.fillText('АВТОР', colAuthor, y);
-  ctx.fillText('ДАТА', colDate, y);
-  ctx.fillText('ХЕШ', colHash, y);
+  ctx.fillText(columns.branchTag, 12, y);
+  ctx.fillText(columns.graph, gLeft + 6, y);
+  ctx.fillText(columns.message, msgX, y);
+  ctx.fillText(columns.author, colAuthor, y);
+  ctx.fillText(columns.date, colDate, y);
+  ctx.fillText(columns.sha, colHash, y);
 
   ctx.fillStyle = 'rgba(255,255,255,0.05)';
   for (const x of [gLeft, gRight]) ctx.fillRect(x, 0, 1, HEADER_H);
@@ -515,7 +514,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
   if (!minimap || !layout) return;
 
   const x0 = listW;
-  ctx.fillStyle = '#0e1015';
+  ctx.fillStyle = theme().surface;
   ctx.fillRect(x0, 0, width - x0, height);
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.fillRect(x0, 0, 1, height);
@@ -528,7 +527,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
     if (mask === 0) continue;
     for (let lane = 0; lane <= minimap.maxLane; lane++) {
       if ((mask & (1 << lane)) === 0) continue;
-      ctx.fillStyle = colourOf(lane);
+      ctx.fillStyle = laneColour(lane);
       ctx.fillRect(x0 + 4 + lane * laneW, b, Math.max(1, laneW - 0.5), 1);
     }
   }
