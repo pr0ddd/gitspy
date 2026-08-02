@@ -1,0 +1,76 @@
+:root {
+  --surface-0: #0e1013;
+  --surface-1: #14161a;
+  --surface-2: #1a1d22;
+  --surface-3: #22262d;
+  --surface-4: #2b3038;
+
+  --line: #23272e;
+  --line-strong: #333944;
+
+  --text-1: #e6e8ec;
+  --text-2: #939aa6;
+  --text-3: #626a76;
+
+  --accent: #7c5cff;
+  --accent-hover: #9179ff;
+  --accent-quiet: #211c3a;
+  --accent-ghost: #191630;
+
+  --added: #3fb950;
+  --deleted: #f85149;
+  --modified: #d29922;
+  --renamed: #58a6ff;
+  --conflict: #db6d28;
+  --ahead: #3fb950;
+  --behind: #d29922;
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+
+  --graph-1: #1e90ff;
+  --graph-2: #7a2cff;
+  --graph-3: #ff2aa1;
+  --graph-4: #ff2b2b;
+  --graph-5: #ffc22b;
+  --graph-6: #2ecc1a;
+  --graph-7: #12dada;
+  --graph-8: #0a60ff;
+  --graph-9: #ff6ac6;
+  --graph-10: #ff5757;
+  --graph-11: #ffb61a;
+  --graph-12: #8c49ff;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --row-h: 24px;
+  --control-h-sm: 22px;
+  --control-h: 26px;
+  --control-h-lg: 32px;
+
+  --radius-sm: 3px;
+  --radius: 5px;
+  --radius-lg: 10px;
+
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-caption: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-title: 20px;
+
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.6);
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fast: 90ms;
+  --normal: 150ms;
+}

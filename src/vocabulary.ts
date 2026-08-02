@@ -1,0 +1,32 @@
+export const GIT = {
+  local: 'Local',
+  remote: 'Remote',
+  worktrees: 'Worktrees',
+  stashes: 'Stashes',
+  tags: 'Tags',
+  pullRequests: 'Pull Requests',
+  issues: 'Issues',
+  commit: 'Commit',
+  branch: 'Branch',
+  clone: 'Clone',
+  fetch: 'Fetch',
+  pull: 'Pull',
+  push: 'Push',
+  stash: 'Stash',
+  pop: 'Pop',
+  terminal: 'Terminal',
+  graph: 'Graph',
+  branchTag: 'Branch / Tag',
+  commitMessage: 'Commit Message',
+  sha: 'SHA',
+} as const;
+
+export const TOOLBAR_ACTIONS = [
+  GIT.fetch,
+  GIT.pull,
+  GIT.push,
+  GIT.branch,
+  GIT.stash,
+  GIT.pop,
+  GIT.terminal,
+] as const;

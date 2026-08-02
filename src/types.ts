@@ -42,6 +42,13 @@ export const SEGMENT_KIND = {
   merge: 2,
 } as const;
 
+export type RecentRepo = {
+  path: string;
+  name: string;
+  opened_at: number;
+  exists: boolean;
+};
+
 export type WorktreeView = {
   name: string;
   path: string;
@@ -59,20 +66,3 @@ export type CommitView = {
   subject: string;
   body: string;
 };
-
-export const PALETTE = [
-  '#1e90ff',
-  '#7a2cff',
-  '#ff2aa1',
-  '#ff2b2b',
-  '#ffc22b',
-  '#2ecc1a',
-  '#12dada',
-  '#0a60ff',
-  '#ff6ac6',
-  '#ff5757',
-  '#ffb61a',
-  '#8c49ff',
-] as const;
-
-export const colourOf = (index: number): string => PALETTE[index % PALETTE.length];

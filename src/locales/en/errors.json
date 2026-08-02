@@ -5,5 +5,6 @@
   "repo.parentBeforeChild": "History order is broken: parent {{parent}} comes before child {{child}}",
   "repo.notOpen": "No repository is open",
   "app.stateLock": "Application state is unavailable",
-  "unknown": "Unexpected error"
+  "unknown": "Unexpected error",
+  "app.dataDir": "Could not reach the application data folder"
 }
