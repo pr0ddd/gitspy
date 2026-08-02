@@ -1,6 +1,102 @@
-use crate::layout::Layout;
+use crate::layout::{LaneIdx, Layout};
 use crate::state::{LayoutState, Snapshot};
 use crate::topology::{CommitIdx, Topology};
+
+pub const CHUNK: usize = 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Skeleton {
+    pub chunk: usize,
+    pub snapshots: Vec<Snapshot>,
+    pub lanes: Vec<LaneIdx>,
+    pub max_lane: LaneIdx,
+}
+
+impl Skeleton {
+    pub fn len(&self) -> usize {
+        self.lanes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.lanes.is_empty()
+    }
+}
+
+pub fn skeleton(topo: &Topology, chunk: usize) -> Skeleton {
+    assert!(chunk > 0, "размер полосы должен быть положительным");
+
+    let total = topo.len();
+    let mut state = LayoutState::new();
+    let mut snapshots = Vec::with_capacity(total.div_ceil(chunk));
+    let mut lanes = Vec::with_capacity(total);
+    let mut scratch = Vec::new();
+
+    for i in 0..total {
+        if i % chunk == 0 {
+            snapshots.push(state.snapshot());
+        }
+        let row = state.step_into(topo, i as CommitIdx, &mut scratch);
+        lanes.push(row.lane);
+    }
+
+    Skeleton {
+        chunk,
+        snapshots,
+        lanes,
+        max_lane: state.max_lane(),
+    }
+}
+
+pub fn window(topo: &Topology, skeleton: &Skeleton, start: usize, len: usize) -> Layout {
+    let total = topo.len();
+    let from = start.min(total);
+    let to = (from + len).min(total);
+
+    let mut out = Layout {
+        rows: Vec::new(),
+        segments: Vec::new(),
+        max_lane: skeleton.max_lane,
+    };
+    if from >= to {
+        return out;
+    }
+
+    let chunk_index = from / skeleton.chunk;
+    let mut state = match skeleton.snapshots.get(chunk_index) {
+        Some(snapshot) => LayoutState::resume(snapshot.clone()),
+        None => LayoutState::new(),
+    };
+
+    let mut scratch = Vec::new();
+    for i in (chunk_index * skeleton.chunk)..from {
+        state.step_into(topo, i as CommitIdx, &mut scratch);
+    }
+
+    for i in from..to {
+        let mut segments = Vec::new();
+        let row = state.step_into(topo, i as CommitIdx, &mut segments);
+        out.rows.push(row);
+        out.segments.push(segments);
+    }
+
+    out
+}
+
+pub fn minimap(skeleton: &Skeleton, buckets: usize) -> Vec<u32> {
+    const LANES: LaneIdx = 32;
+
+    let mut mask = vec![0u32; buckets];
+    let total = skeleton.lanes.len();
+    if total == 0 || buckets == 0 {
+        return mask;
+    }
+
+    for (i, &lane) in skeleton.lanes.iter().enumerate() {
+        let bucket = (i * buckets / total).min(buckets - 1);
+        mask[bucket] |= 1 << lane.min(LANES - 1);
+    }
+    mask
+}
 
 pub fn layout(topo: &Topology) -> Layout {
     let mut state = LayoutState::new();

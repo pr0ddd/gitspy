@@ -11,8 +11,12 @@ fn main() {
     let read_ms = started.elapsed().as_secs_f64() * 1000.0;
 
     let started = Instant::now();
-    let layout = chunk::layout(&geometry.topology);
+    let skeleton = chunk::skeleton(&geometry.topology, chunk::CHUNK);
     let layout_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    let started = Instant::now();
+    let window = chunk::window(&geometry.topology, &skeleton, 0, 60);
+    let window_ms = started.elapsed().as_secs_f64() * 1000.0;
 
     let outside: u32 = (0..geometry.topology.len() as u32)
         .map(|i| geometry.topology.outside_parents(i))
@@ -22,13 +26,14 @@ fn main() {
         "коммитов {}  ссылок {}  дорожек {}  внешних родителей {}",
         geometry.topology.len(),
         geometry.refs.len(),
-        layout.max_lane as usize + 1,
+        skeleton.max_lane as usize + 1,
         outside
     );
     println!(
-        "геометрия {read_ms:.0} мс   раскладка {layout_ms:.0} мс   итого {:.0} мс",
+        "геометрия {read_ms:.0} мс   скелет {layout_ms:.0} мс   окно {window_ms:.2} мс   итого {:.0} мс",
         read_ms + layout_ms
     );
+    let _ = window.len();
 
     if with_metadata {
         let started = Instant::now();
