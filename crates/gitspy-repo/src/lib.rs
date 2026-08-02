@@ -70,7 +70,17 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
 
     // Вершины обхода — все локальные и удалённые ветки, теги и HEAD.
     let mut tips: Vec<gix::ObjectId> = Vec::new();
-    let mut ref_records: Vec<(String, RefKind, gix::ObjectId)> = Vec::new();
+    // Полное имя ссылки хранится рядом с коротким: по нему определяется
+    // текущая ветка. Сравнивать по oid нельзя — две ветки на одном коммите
+    // обе получили бы отметку «вы здесь».
+    let mut ref_records: Vec<(String, String, RefKind, gix::ObjectId)> = Vec::new();
+
+    // Имя ссылки, на которую смотрит HEAD. При detached HEAD его нет вовсе.
+    let head_ref_name: Option<String> = repo
+        .head_ref()
+        .ok()
+        .flatten()
+        .map(|r| r.name().as_bstr().to_string());
 
     let platform = repo.references().map_err(|e| Error::Walk(e.to_string()))?;
     let iter = platform.all().map_err(|e| Error::Walk(e.to_string()))?;
@@ -98,8 +108,21 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
             continue;
         };
         let oid = id.detach();
+
+        // Тег может указывать не на коммит, а на дерево или blob: peel_to_id
+        // разворачивает лишь цепочку тегов и останавливается на первом не-теге.
+        // Такой oid в вершинах обхода роняет чтение ВСЕГО репозитория.
+        // git log --all подобные ссылки молча пропускает — делаем так же.
+        let is_commit = repo
+            .find_header(oid)
+            .map(|h| h.kind() == gix::object::Kind::Commit)
+            .unwrap_or(false);
+        if !is_commit {
+            continue;
+        }
+
         tips.push(oid);
-        ref_records.push((short, kind, oid));
+        ref_records.push((short, full_name, kind, oid));
     }
 
     let head_oid = repo.head_id().ok().map(|id| id.detach());
@@ -200,12 +223,14 @@ pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
 
     let refs: Vec<RefLabel> = ref_records
         .into_iter()
-        .filter_map(|(name, kind, oid)| {
+        .filter_map(|(name, full_name, kind, oid)| {
             index.get(&oid).map(|&commit| RefLabel {
                 name,
                 kind,
                 commit,
-                is_head: Some(oid) == head_oid && kind == RefKind::LocalBranch,
+                // Только та ссылка, на которую смотрит HEAD. При detached HEAD
+                // текущей ветки нет, и отмечать нечего.
+                is_head: head_ref_name.as_deref() == Some(full_name.as_str()),
             })
         })
         .collect();
