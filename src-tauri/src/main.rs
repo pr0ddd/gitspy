@@ -9,7 +9,7 @@ mod watcher;
 use gitspy_core::chunk::{self, Skeleton};
 use gitspy_exec::{Cancel, Git};
 use gitspy_repo::History;
-use operations::{Operation, OperationOutcome, Progress, Queue};
+use operations::{Operation, OperationOutcome, PathOperation, Progress, Queue};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -18,8 +18,9 @@ use tauri::ipc::Channel;
 use tauri::Emitter;
 use tauri::{Manager, State};
 use views::{
-    build_changed_files, build_repo_view, build_window_view, state_lock_failed, ChangedFileView,
-    DiffSides, ErrorView, RepoView, WindowView, WorktreeView, MINIMAP_BUCKETS,
+    build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
+    ChangedFileView, DiffSides, ErrorView, RepoView, WindowView, WorkingTreeView, WorktreeView,
+    MINIMAP_BUCKETS,
 };
 
 #[derive(Default)]
@@ -237,6 +238,48 @@ async fn diff_sides(
 }
 
 #[tauri::command]
+async fn working_tree(
+    repo: String,
+    state: State<'_, AppState>,
+) -> Result<WorkingTreeView, ErrorView> {
+    let git = state.git()?;
+    let path = PathBuf::from(&repo);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        git.status(&path)
+            .map(build_working_tree)
+            .map_err(exec_error)
+    })
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))?
+}
+
+#[tauri::command]
+async fn stage(
+    repo: String,
+    operation: PathOperation,
+    state: State<'_, AppState>,
+) -> Result<WorkingTreeView, ErrorView> {
+    let git = state.git()?;
+    let lane = state.queue.lane(&repo);
+    let path = PathBuf::from(&repo);
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let args: Vec<String> = operation.args();
+        let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+
+        git.run(&path, &borrowed, &Cancel::new(), &mut |_| {})
+            .map_err(exec_error)?;
+        git.status(&path)
+            .map(build_working_tree)
+            .map_err(exec_error)
+    })
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))?
+}
+
+#[tauri::command]
 fn recent_repos(app: tauri::AppHandle) -> Result<Vec<recent::RecentRepo>, ErrorView> {
     Ok(recent::list(&data_dir(&app)?))
 }
@@ -293,7 +336,9 @@ fn main() {
             forget_repo,
             run_operation,
             commit_files,
-            diff_sides
+            diff_sides,
+            working_tree,
+            stage
         ])
         .run(tauri::generate_context!())
         .expect("приложение запускается")
