@@ -188,6 +188,27 @@ impl Git {
         ))
     }
 
+    pub fn refs(&self, repo: &Path) -> Result<Vec<refs::RefLine>, Error> {
+        let format = format!("--format={}", refs::FORMAT);
+        let raw = self.read(repo, &["for-each-ref", &format])?;
+        let mut found = refs::parse_for_each_ref(&raw);
+
+        if refs::mentions_stash(&raw) {
+            let listed = self.read(repo, &["stash", "list", "--format=%H%x09%gd%x09%gs"])?;
+            found.extend(refs::parse_stash_list(&listed));
+        }
+
+        Ok(found)
+    }
+
+    pub fn head_oid(&self, repo: &Path) -> Option<String> {
+        let raw = self
+            .read(repo, &["rev-parse", "-q", "--verify", "HEAD"])
+            .ok()?;
+        let trimmed = raw.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    }
+
     pub fn status(&self, repo: &Path) -> Result<status::WorkingTree, Error> {
         let raw = self.read(
             repo,
