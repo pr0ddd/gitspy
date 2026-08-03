@@ -40,8 +40,10 @@ export const chipsFor = (labels: readonly RefView[], remotes: readonly string[])
         : undefined;
       const onRemote = upstream ?? (r.kind === 'remoteBranch' ? r : undefined);
 
+      const prefix = r.kind === 'remoteBranch' ? remoteOf(r.name, remotes) : null;
+
       return {
-        name: r.name,
+        name: prefix ? r.name.slice(prefix.length + 1) : r.name,
         kind: r.kind,
         isHead: r.isHead,
         marks: upstream ? (['local', 'remote'] as const) : marksOf(r.kind),
