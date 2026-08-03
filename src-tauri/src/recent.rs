@@ -47,8 +47,14 @@ fn save(dir: &Path, entries: &[RecentRepo]) {
     if std::fs::create_dir_all(dir).is_err() {
         return;
     }
-    if let Ok(text) = serde_json::to_string_pretty(entries) {
-        let _ = std::fs::write(file(dir), text);
+    let Ok(text) = serde_json::to_string_pretty(entries) else {
+        return;
+    };
+
+    let target = file(dir);
+    let scratch = target.with_extension(format!("{}.tmp", std::process::id()));
+    if std::fs::write(&scratch, text).is_ok() && std::fs::rename(&scratch, &target).is_err() {
+        let _ = std::fs::remove_file(&scratch);
     }
 }
 
@@ -85,4 +91,49 @@ pub fn forget(dir: &Path, path: &str) -> Vec<RecentRepo> {
     entries.retain(|e| e.path != path);
     save(dir, &entries);
     with_existence(entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_shorter_list_does_not_leave_the_tail_of_the_longer_one_behind() {
+        let dir = tempfile::tempdir().expect("временный каталог");
+        for path in ["/one", "/two", "/three"] {
+            remember(dir.path(), path);
+        }
+        let long = std::fs::metadata(file(dir.path()))
+            .expect("файл есть")
+            .len();
+
+        forget(dir.path(), "/two");
+        forget(dir.path(), "/three");
+
+        let text = std::fs::read_to_string(file(dir.path())).expect("файл читается");
+        assert!(
+            (text.len() as u64) < long,
+            "файл обязан стать короче, иначе поверх длинного списка лежит короткий"
+        );
+        assert!(
+            serde_json::from_str::<Vec<RecentRepo>>(&text).is_ok(),
+            "остаток прежней записи делает список нечитаемым, и вся история пропадает молча"
+        );
+        assert_eq!(list(dir.path()).len(), 1);
+    }
+
+    #[test]
+    fn nothing_temporary_is_left_lying_next_to_the_list() {
+        let dir = tempfile::tempdir().expect("временный каталог");
+        remember(dir.path(), "/one");
+
+        let stray: Vec<String> = std::fs::read_dir(dir.path())
+            .expect("каталог читается")
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|name| name != FILE)
+            .collect();
+
+        assert!(stray.is_empty(), "остались файлы: {stray:?}");
+    }
 }
