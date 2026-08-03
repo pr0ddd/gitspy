@@ -1,3 +1,4 @@
+use crate::views::RefKindView;
 use gitspy_exec::{Cancel, Event, Git};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,6 +17,7 @@ pub enum Operation {
     Push,
     PushSetUpstream { remote: String, branch: String },
     Checkout { branch: String },
+    CheckoutTracking { upstream: String, local: String },
     Branch { name: String, checkout: bool },
     Stash { message: String },
     StashPop,
@@ -77,6 +79,13 @@ impl Operation {
                 args.push(branch.clone());
                 args
             }
+            Operation::CheckoutTracking { upstream, local } => {
+                let mut args = owned(&["checkout", "-b"]);
+                args.push(local.clone());
+                args.push("--track".to_string());
+                args.push(upstream.clone());
+                args
+            }
             Operation::Branch { name, checkout } => {
                 let mut args = owned(if *checkout {
                     &["checkout", "-b"]
@@ -103,7 +112,7 @@ impl Operation {
             Operation::Fetch => "operation.fetch",
             Operation::Pull => "operation.pull",
             Operation::Push | Operation::PushSetUpstream { .. } => "operation.push",
-            Operation::Checkout { .. } => "operation.checkout",
+            Operation::Checkout { .. } | Operation::CheckoutTracking { .. } => "operation.checkout",
             Operation::Branch { .. } => "operation.branch",
             Operation::Stash { .. } => "operation.stash",
             Operation::StashPop => "operation.stashPop",
@@ -119,6 +128,35 @@ impl Operation {
                 | Operation::Push
                 | Operation::PushSetUpstream { .. }
         )
+    }
+}
+
+pub fn checkout_for(
+    name: &str,
+    kind: RefKindView,
+    locals: &[String],
+    remotes: &[String],
+) -> Option<Operation> {
+    match kind {
+        RefKindView::LocalBranch => Some(Operation::Checkout {
+            branch: name.to_string(),
+        }),
+        RefKindView::RemoteBranch => {
+            let local = remotes
+                .iter()
+                .filter_map(|remote| name.strip_prefix(&format!("{remote}/")))
+                .min_by_key(|rest| rest.len())?
+                .to_string();
+
+            if locals.iter().any(|existing| existing == &local) {
+                return Some(Operation::Checkout { branch: local });
+            }
+            Some(Operation::CheckoutTracking {
+                upstream: name.to_string(),
+                local,
+            })
+        }
+        RefKindView::Tag | RefKindView::Stash => None,
     }
 }
 
@@ -294,6 +332,97 @@ mod local_tests {
             quiet.args(),
             ["stash", "push"],
             "пустое -m сделало бы стеш без подписи вместо стеша по умолчанию"
+        );
+    }
+
+    #[test]
+    fn tracking_a_remote_branch_creates_the_local_one_and_follows_it() {
+        let go = Operation::CheckoutTracking {
+            upstream: "origin/dev/x".to_string(),
+            local: "dev/x".to_string(),
+        };
+        assert_eq!(
+            go.args(),
+            ["checkout", "-b", "dev/x", "--track", "origin/dev/x"],
+            "без --track ветка создалась бы без upstream, и стрелок у неё не было бы"
+        );
+    }
+
+    #[test]
+    fn an_existing_local_branch_is_switched_to_rather_than_recreated() {
+        let locals = vec!["dev/x".to_string()];
+        let remotes = vec!["origin".to_string()];
+        assert_eq!(
+            checkout_for("origin/dev/x", RefKindView::RemoteBranch, &locals, &remotes),
+            Some(Operation::Checkout {
+                branch: "dev/x".to_string()
+            }),
+            "checkout -b на существующей ветке падает"
+        );
+    }
+
+    #[test]
+    fn a_remote_prefix_is_stripped_by_the_remote_list_not_by_the_first_slash() {
+        let remotes = vec!["origin".to_string()];
+        assert_eq!(
+            checkout_for(
+                "origin/builds/facebook-fbsource",
+                RefKindView::RemoteBranch,
+                &[],
+                &remotes
+            ),
+            Some(Operation::CheckoutTracking {
+                upstream: "origin/builds/facebook-fbsource".to_string(),
+                local: "builds/facebook-fbsource".to_string(),
+            }),
+            "резать до первого слэша значило бы потерять builds/"
+        );
+    }
+
+    #[test]
+    fn a_remote_whose_name_is_unknown_gives_no_command_rather_than_a_wrong_one() {
+        let remotes = vec!["upstream".to_string()];
+        assert_eq!(
+            checkout_for("origin/main", RefKindView::RemoteBranch, &[], &remotes),
+            None,
+            "угадав remote, мы создали бы ветку с именем origin/main целиком"
+        );
+    }
+
+    #[test]
+    fn the_longest_matching_remote_wins_so_nested_names_survive() {
+        let remotes = vec!["origin".to_string(), "origin/mirror".to_string()];
+        assert_eq!(
+            checkout_for(
+                "origin/mirror/main",
+                RefKindView::RemoteBranch,
+                &[],
+                &remotes
+            ),
+            Some(Operation::CheckoutTracking {
+                upstream: "origin/mirror/main".to_string(),
+                local: "main".to_string(),
+            }),
+            "иначе короткий remote съел бы имя длинного"
+        );
+    }
+
+    #[test]
+    fn a_local_branch_is_checked_out_by_its_own_name() {
+        assert_eq!(
+            checkout_for("main", RefKindView::LocalBranch, &[], &[]),
+            Some(Operation::Checkout {
+                branch: "main".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn a_tag_and_a_stash_are_not_things_to_switch_to() {
+        assert_eq!(checkout_for("v1.0", RefKindView::Tag, &[], &[]), None);
+        assert_eq!(
+            checkout_for("stash@{0}", RefKindView::Stash, &[], &[]),
+            None
         );
     }
 

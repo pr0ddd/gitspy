@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRefTree, openPathsFor, type TreeNode } from './refTree';
+import { buildRefTree, filterRefTree, openPathsFor, type TreeNode } from './refTree';
 import type { RefView } from './types';
 
 const ref = (name: string): RefView => ({
@@ -63,6 +63,33 @@ describe('buildRefTree', () => {
 
   it('пустой список даёт пустое дерево, а не корень из ничего', () => {
     expect(buildRefTree([])).toEqual([]);
+  });
+});
+
+describe('filterRefTree', () => {
+  it('оставляет только ветви с совпадением', () => {
+    const tree = buildRefTree([ref('ci/daemon-workflow'), ref('feat/login')]);
+    expect(shape(filterRefTree(tree, 'daemon'))).toEqual(['ci/', '  daemon-workflow']);
+  });
+
+  it('пустая папка после отсева не остаётся висеть', () => {
+    const tree = buildRefTree([ref('ci/one'), ref('ci/two'), ref('feat/x')]);
+    expect(shape(filterRefTree(tree, 'two'))).toEqual(['ci/', '  two']);
+  });
+
+  it('совпадение по имени папки оставляет её содержимое', () => {
+    const tree = buildRefTree([ref('ci/one'), ref('feat/x')]);
+    expect(shape(filterRefTree(tree, 'ci/'))).toEqual(['ci/', '  one']);
+  });
+
+  it('пустой запрос отдаёт дерево как есть', () => {
+    const tree = buildRefTree([ref('ci/one')]);
+    expect(filterRefTree(tree, '  ')).toBe(tree);
+  });
+
+  it('ничего не совпало — пусто, а не всё', () => {
+    const tree = buildRefTree([ref('ci/one')]);
+    expect(filterRefTree(tree, 'нетакого')).toEqual([]);
   });
 });
 

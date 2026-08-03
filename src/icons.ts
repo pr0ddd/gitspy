@@ -29,6 +29,9 @@ import {
   Terminal,
   Upload,
   X,
+  Folder,
+  SquareCheckBig,
+  Unlink,
 } from 'lucide-react';
 
 export const Icon = {
@@ -64,6 +67,9 @@ export const Icon = {
   wrap: AlignLeft,
   edit: Pencil,
   expand: PanelLeftOpen,
+  folder: Folder,
+  current: SquareCheckBig,
+  detached: Unlink,
 } as const;
 
 export type IconName = keyof typeof Icon;
