@@ -108,6 +108,64 @@ pub struct RefView {
     pub kind: RefKindView,
     pub commit: u32,
     pub is_head: bool,
+    pub upstream: Option<String>,
+    pub ahead: u32,
+    pub behind: u32,
+    pub gone: bool,
+}
+
+#[cfg(test)]
+mod ref_view_tests {
+    use super::*;
+
+    fn line(name: &str, ahead: u32, behind: u32, gone: bool) -> RefLine {
+        RefLine {
+            name: name.to_string(),
+            full_name: format!("refs/heads/{name}"),
+            kind: RefKind::LocalBranch,
+            oid: "aaa".to_string(),
+            is_head: false,
+            upstream: Some("origin/main".to_string()),
+            ahead,
+            behind,
+            gone,
+        }
+    }
+
+    #[test]
+    fn a_ref_whose_commit_is_outside_the_walk_is_not_shown() {
+        let rows = HashMap::new();
+        assert!(
+            build_ref_views(&[line("main", 0, 0, false)], &rows).is_empty(),
+            "ссылка без строки нарисовалась бы указывающей в никуда"
+        );
+    }
+
+    #[test]
+    fn counts_travel_to_the_boundary_unchanged() {
+        let rows = HashMap::from([("aaa".to_string(), 7u32)]);
+        let built = build_ref_views(&[line("main", 3, 1, false)], &rows);
+
+        assert_eq!((built[0].ahead, built[0].behind), (3, 1));
+        assert_eq!(built[0].commit, 7);
+        assert!(!built[0].gone);
+        assert_eq!(built[0].upstream.as_deref(), Some("origin/main"));
+    }
+
+    #[test]
+    fn two_refs_on_one_commit_both_reach_the_boundary() {
+        let rows = HashMap::from([("aaa".to_string(), 7u32)]);
+        let built = build_ref_views(
+            &[line("main", 0, 0, false), line("dup", 0, 0, false)],
+            &rows,
+        );
+
+        assert_eq!(
+            built.len(),
+            2,
+            "строки схлопываются по oid, ссылки схлопываться не должны"
+        );
+    }
 }
 
 #[derive(Serialize, TS)]
@@ -436,6 +494,10 @@ pub fn build_ref_views(refs: &[RefLine], rows: &HashMap<String, u32>) -> Vec<Ref
                 kind: ref_kind_view(r.kind),
                 commit,
                 is_head: r.is_head,
+                upstream: r.upstream.clone(),
+                ahead: r.ahead,
+                behind: r.behind,
+                gone: r.gone,
             })
         })
         .collect()
