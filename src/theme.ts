@@ -12,8 +12,9 @@ export type Theme = {
   rowLine: string;
   rowHover: string;
   rowSelected: string;
-  staged: string;
-  unstaged: string;
+  added: string;
+  modified: string;
+  deleted: string;
   conflict: string;
 };
 
@@ -55,8 +56,9 @@ const build = (): Theme => ({
   rowLine: mix('--border', 55),
   rowHover: mix('--surface-hover', 70),
   rowSelected: token('--surface-hover'),
-  staged: token('--status-added'),
-  unstaged: token('--status-modified'),
+  added: token('--status-added'),
+  modified: token('--status-modified'),
+  deleted: token('--status-deleted'),
   conflict: token('--status-conflict'),
 });
 

@@ -21,6 +21,7 @@ ts-rs = "12.0.1"
 gitspy-exec = { version = "0.1.0", path = "../crates/gitspy-exec" }
 notify = "8.2.0"
 notify-debouncer-full = "0.7.0"
+futures-util = { version = "0.3", default-features = false }
 gitspy-hosts = { version = "0.1.0", path = "../crates/gitspy-hosts" }
 
 [dev-dependencies]

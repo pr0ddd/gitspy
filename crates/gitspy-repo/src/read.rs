@@ -37,8 +37,9 @@ pub fn read_with_working_tree(
     let mut nodes: Vec<Node> = Vec::with_capacity(walked.commits.len() + 1);
     if let Some(tip) = &tip {
         nodes.push(Node::WorkingTree {
-            staged: tip.staged,
-            unstaged: tip.unstaged,
+            added: tip.added,
+            modified: tip.modified,
+            deleted: tip.deleted,
             conflicts: tip.conflicts,
             in_progress: tip.in_progress.clone(),
         });

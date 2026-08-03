@@ -6,6 +6,15 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use ts_rs::TS;
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, TS, PartialEq, Eq)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub enum ResetMode {
+    Soft,
+    Mixed,
+    Hard,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -15,11 +24,83 @@ pub enum Operation {
     Fetch,
     Pull,
     Push,
-    PushSetUpstream { remote: String, branch: String },
-    Checkout { branch: String },
-    CheckoutTracking { upstream: String, local: String },
-    Branch { name: String, checkout: bool },
-    Stash { message: String },
+    PushSetUpstream {
+        remote: String,
+        branch: String,
+    },
+    Checkout {
+        branch: String,
+    },
+    CheckoutTracking {
+        upstream: String,
+        local: String,
+    },
+    Branch {
+        name: String,
+        checkout: bool,
+    },
+    BranchAt {
+        name: String,
+        hash: String,
+    },
+    BranchDelete {
+        name: String,
+    },
+    BranchRename {
+        from: String,
+        to: String,
+    },
+    AmendMessage {
+        message: String,
+    },
+    Merge {
+        branch: String,
+    },
+    Rebase {
+        onto: String,
+    },
+    CherryPick {
+        hash: String,
+    },
+    Revert {
+        hash: String,
+    },
+    Drop {
+        hash: String,
+    },
+    Reset {
+        hash: String,
+        mode: ResetMode,
+    },
+    TagAt {
+        name: String,
+        hash: String,
+    },
+    AnnotatedTagAt {
+        name: String,
+        message: String,
+        hash: String,
+    },
+    WorktreeAdd {
+        path: String,
+        at: String,
+    },
+    FetchInto {
+        remote: String,
+        from: String,
+        into: String,
+    },
+    PushBranch {
+        remote: String,
+        branch: String,
+    },
+    PushDelete {
+        remote: String,
+        branch: String,
+    },
+    Stash {
+        message: String,
+    },
     StashPop,
 }
 
@@ -95,6 +176,107 @@ impl Operation {
                 args.push(name.clone());
                 args
             }
+            Operation::BranchAt { name, hash } => {
+                let mut args = owned(&["branch"]);
+                args.push(name.clone());
+                args.push(hash.clone());
+                args
+            }
+            Operation::BranchDelete { name } => {
+                let mut args = owned(&["branch", "-d"]);
+                args.push(name.clone());
+                args
+            }
+            Operation::BranchRename { from, to } => {
+                let mut args = owned(&["branch", "-m"]);
+                args.push(from.clone());
+                args.push(to.clone());
+                args
+            }
+            Operation::AmendMessage { message } => {
+                let mut args = owned(&["commit", "--amend", "--only", "-m"]);
+                args.push(message.clone());
+                args
+            }
+            Operation::Merge { branch } => {
+                let mut args = owned(&["merge", "--no-edit"]);
+                args.push(branch.clone());
+                args
+            }
+            Operation::Rebase { onto } => {
+                let mut args = owned(&["rebase"]);
+                args.push(onto.clone());
+                args
+            }
+            Operation::CherryPick { hash } => {
+                let mut args = owned(&["cherry-pick"]);
+                args.push(hash.clone());
+                args
+            }
+            Operation::Revert { hash } => {
+                let mut args = owned(&["revert", "--no-edit"]);
+                args.push(hash.clone());
+                args
+            }
+            Operation::Reset { hash, mode } => {
+                let flag = match mode {
+                    ResetMode::Soft => "--soft",
+                    ResetMode::Mixed => "--mixed",
+                    ResetMode::Hard => "--hard",
+                };
+                let mut args = owned(&["reset", flag]);
+                args.push(hash.clone());
+                args
+            }
+            Operation::TagAt { name, hash } => {
+                let mut args = owned(&["tag"]);
+                args.push(name.clone());
+                args.push(hash.clone());
+                args
+            }
+            Operation::Drop { hash } => {
+                let mut args = owned(&["rebase", "--onto"]);
+                args.push(format!("{hash}^"));
+                args.push(hash.clone());
+                args
+            }
+            Operation::AnnotatedTagAt {
+                name,
+                message,
+                hash,
+            } => {
+                let mut args = owned(&["tag", "-a"]);
+                args.push(name.clone());
+                args.push("-m".to_string());
+                args.push(message.clone());
+                args.push(hash.clone());
+                args
+            }
+            Operation::WorktreeAdd { path, at } => {
+                let mut args = owned(&["worktree", "add"]);
+                args.push(path.clone());
+                args.push(at.clone());
+                args
+            }
+            Operation::FetchInto { remote, from, into } => {
+                let mut args = owned(&["fetch"]);
+                args.push(remote.clone());
+                args.push(format!("{from}:{into}"));
+                args
+            }
+            Operation::PushBranch { remote, branch } => {
+                let mut args = owned(&["push", "--progress"]);
+                args.push(remote.clone());
+                args.push(branch.clone());
+                args
+            }
+            Operation::PushDelete { remote, branch } => {
+                let mut args = owned(&["push"]);
+                args.push(remote.clone());
+                args.push("--delete".to_string());
+                args.push(branch.clone());
+                args
+            }
             Operation::Stash { message } if message.trim().is_empty() => owned(&["stash", "push"]),
             Operation::Stash { message } => {
                 let mut args = owned(&["stash", "push", "-m"]);
@@ -113,21 +295,39 @@ impl Operation {
             Operation::Pull => "operation.pull",
             Operation::Push | Operation::PushSetUpstream { .. } => "operation.push",
             Operation::Checkout { .. } | Operation::CheckoutTracking { .. } => "operation.checkout",
-            Operation::Branch { .. } => "operation.branch",
+            Operation::Branch { .. } | Operation::BranchAt { .. } => "operation.branch",
+            Operation::BranchDelete { .. } => "operation.branchDelete",
+            Operation::BranchRename { .. } => "operation.branchRename",
+            Operation::AmendMessage { .. } => "operation.amend",
+            Operation::Merge { .. } => "operation.merge",
+            Operation::Rebase { .. } => "operation.rebase",
+            Operation::CherryPick { .. } => "operation.cherryPick",
+            Operation::Revert { .. } => "operation.revert",
+            Operation::Drop { .. } => "operation.drop",
+            Operation::Reset { .. } => "operation.reset",
+            Operation::TagAt { .. } | Operation::AnnotatedTagAt { .. } => "operation.tag",
+            Operation::WorktreeAdd { .. } => "operation.worktreeAdd",
+            Operation::FetchInto { remote, .. } if remote == "." => "operation.fastForward",
+            Operation::FetchInto { .. } => "operation.fetch",
+            Operation::PushBranch { .. } => "operation.push",
+            Operation::PushDelete { .. } => "operation.pushDelete",
             Operation::Stash { .. } => "operation.stash",
             Operation::StashPop => "operation.stashPop",
         }
     }
 
     pub fn reaches_the_network(&self) -> bool {
-        matches!(
-            self,
+        match self {
             Operation::FetchDryRun
-                | Operation::Fetch
-                | Operation::Pull
-                | Operation::Push
-                | Operation::PushSetUpstream { .. }
-        )
+            | Operation::Fetch
+            | Operation::Pull
+            | Operation::Push
+            | Operation::PushSetUpstream { .. }
+            | Operation::PushBranch { .. }
+            | Operation::PushDelete { .. } => true,
+            Operation::FetchInto { remote, .. } => remote != ".",
+            _ => false,
+        }
     }
 }
 
@@ -238,9 +438,238 @@ pub fn run(
     })
 }
 
+pub fn commit_args(message: &str, amend: bool) -> Vec<String> {
+    let mut args = vec!["commit".to_string()];
+    if amend {
+        args.push("--amend".to_string());
+    }
+    args.push("-m".to_string());
+    args.push(message.to_string());
+    args
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_plain_commit_is_just_a_message() {
+        assert_eq!(
+            commit_args("fix: thing", false),
+            ["commit", "-m", "fix: thing"]
+        );
+    }
+
+    #[test]
+    fn history_surgery_operations_speak_plain_git() {
+        let hash = "abc123".to_string();
+        assert_eq!(
+            Operation::CherryPick { hash: hash.clone() }.args(),
+            ["cherry-pick", "abc123"]
+        );
+        assert_eq!(
+            Operation::Revert { hash: hash.clone() }.args(),
+            ["revert", "--no-edit", "abc123"],
+            "редактор обезврежен, сообщение ревёрта должно собраться без него"
+        );
+        assert_eq!(
+            Operation::Reset {
+                hash: hash.clone(),
+                mode: ResetMode::Hard
+            }
+            .args(),
+            ["reset", "--hard", "abc123"]
+        );
+        assert_eq!(
+            Operation::Reset {
+                hash,
+                mode: ResetMode::Soft
+            }
+            .args(),
+            ["reset", "--soft", "abc123"]
+        );
+    }
+
+    #[test]
+    fn branch_bookkeeping_operations_speak_plain_git() {
+        assert_eq!(
+            Operation::BranchAt {
+                name: "fix".into(),
+                hash: "abc".into()
+            }
+            .args(),
+            ["branch", "fix", "abc"]
+        );
+        assert_eq!(
+            Operation::BranchDelete { name: "old".into() }.args(),
+            ["branch", "-d", "old"],
+            "-d отказывается удалять неслитое — принудительное удаление не наше решение"
+        );
+        assert_eq!(
+            Operation::BranchRename {
+                from: "a".into(),
+                to: "b".into()
+            }
+            .args(),
+            ["branch", "-m", "a", "b"]
+        );
+        assert_eq!(
+            Operation::TagAt {
+                name: "v1".into(),
+                hash: "abc".into()
+            }
+            .args(),
+            ["tag", "v1", "abc"]
+        );
+    }
+
+    #[test]
+    fn amending_only_the_message_leaves_the_index_out_of_the_commit() {
+        assert_eq!(
+            Operation::AmendMessage {
+                message: "better".into()
+            }
+            .args(),
+            ["commit", "--amend", "--only", "-m", "better"],
+            "без --only заготовленный индекс тихо въехал бы в чужой коммит"
+        );
+    }
+
+    #[test]
+    fn a_worktree_grows_at_the_chosen_path_from_the_chosen_ref() {
+        assert_eq!(
+            Operation::WorktreeAdd {
+                path: "/tmp/wt".into(),
+                at: "feature".into()
+            }
+            .args(),
+            ["worktree", "add", "/tmp/wt", "feature"]
+        );
+    }
+
+    #[test]
+    fn dropping_a_commit_replays_its_children_onto_its_parent() {
+        assert_eq!(
+            Operation::Drop {
+                hash: "abc123".into()
+            }
+            .args(),
+            ["rebase", "--onto", "abc123^", "abc123"],
+            "иначе выбросить середину истории без интерактивного ребейза нельзя"
+        );
+    }
+
+    #[test]
+    fn an_annotated_tag_carries_its_message_inline() {
+        assert_eq!(
+            Operation::AnnotatedTagAt {
+                name: "v1".into(),
+                message: "релиз".into(),
+                hash: "abc".into()
+            }
+            .args(),
+            ["tag", "-a", "v1", "-m", "релиз", "abc"]
+        );
+    }
+
+    #[test]
+    fn fetch_into_fast_forwards_a_branch_that_is_not_checked_out() {
+        assert_eq!(
+            Operation::FetchInto {
+                remote: ".".into(),
+                from: "branches".into(),
+                into: "old".into()
+            }
+            .args(),
+            ["fetch", ".", "branches:old"],
+            "точка значит этот же репозиторий — локальный fast-forward без checkout"
+        );
+        assert_eq!(
+            Operation::FetchInto {
+                remote: "origin".into(),
+                from: "dev".into(),
+                into: "dev".into()
+            }
+            .args(),
+            ["fetch", "origin", "dev:dev"]
+        );
+    }
+
+    #[test]
+    fn a_branch_is_pushed_or_deleted_on_its_remote_by_name() {
+        assert_eq!(
+            Operation::PushBranch {
+                remote: "origin".into(),
+                branch: "dev".into()
+            }
+            .args(),
+            ["push", "--progress", "origin", "dev"]
+        );
+        assert_eq!(
+            Operation::PushDelete {
+                remote: "origin".into(),
+                branch: "dev".into()
+            }
+            .args(),
+            ["push", "origin", "--delete", "dev"]
+        );
+    }
+
+    #[test]
+    fn network_operations_know_they_reach_the_network() {
+        assert!(Operation::PushBranch {
+            remote: "o".into(),
+            branch: "b".into()
+        }
+        .reaches_the_network());
+        assert!(Operation::PushDelete {
+            remote: "o".into(),
+            branch: "b".into()
+        }
+        .reaches_the_network());
+        assert!(Operation::FetchInto {
+            remote: "origin".into(),
+            from: "a".into(),
+            into: "a".into()
+        }
+        .reaches_the_network());
+        assert!(
+            !Operation::FetchInto {
+                remote: ".".into(),
+                from: "a".into(),
+                into: "b".into()
+            }
+            .reaches_the_network(),
+            "локальный fast-forward в сеть не ходит и токена не требует"
+        );
+    }
+
+    #[test]
+    fn merge_and_rebase_do_not_wait_for_an_editor() {
+        assert_eq!(
+            Operation::Merge {
+                branch: "feature".into()
+            }
+            .args(),
+            ["merge", "--no-edit", "feature"]
+        );
+        assert_eq!(
+            Operation::Rebase {
+                onto: "main".into()
+            }
+            .args(),
+            ["rebase", "main"]
+        );
+    }
+
+    #[test]
+    fn an_amend_rewrites_the_previous_commit_with_the_new_message() {
+        assert_eq!(
+            commit_args("better words", true),
+            ["commit", "--amend", "-m", "better words"],
+            "без --amend история получила бы второй коммит вместо исправленного"
+        );
+    }
 
     #[test]
     fn fetch_does_not_prune_behind_the_users_back() {

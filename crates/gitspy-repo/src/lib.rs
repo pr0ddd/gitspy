@@ -24,11 +24,12 @@ mod node_tests {
         })
     }
 
-    fn tip(staged: u32, unstaged: u32) -> WorkingTreeTip {
+    fn tip(added: u32, modified: u32) -> WorkingTreeTip {
         WorkingTreeTip {
             parents: Vec::new(),
-            staged,
-            unstaged,
+            added,
+            modified,
+            deleted: 0,
             conflicts: 0,
             in_progress: None,
         }
@@ -72,8 +73,9 @@ mod node_tests {
     #[test]
     fn the_working_tree_row_is_not_a_search_result() {
         let node = Node::WorkingTree {
-            staged: 1,
-            unstaged: 0,
+            added: 1,
+            modified: 0,
+            deleted: 0,
             conflicts: 0,
             in_progress: None,
         };
@@ -84,8 +86,9 @@ mod node_tests {
     fn edited_counters_update_the_node_in_place_without_a_new_shape() {
         let mut read = history(vec![
             Node::WorkingTree {
-                staged: 0,
-                unstaged: 1,
+                added: 0,
+                modified: 1,
+                deleted: 0,
                 conflicts: 0,
                 in_progress: None,
             },
@@ -97,8 +100,9 @@ mod node_tests {
         assert_eq!(
             read.nodes.first(),
             Some(&Node::WorkingTree {
-                staged: 2,
-                unstaged: 5,
+                added: 2,
+                modified: 5,
+                deleted: 0,
                 conflicts: 0,
                 in_progress: None,
             })
@@ -109,8 +113,9 @@ mod node_tests {
     fn a_tree_going_clean_or_dirty_changes_the_shape() {
         let mut dirty = history(vec![
             Node::WorkingTree {
-                staged: 1,
-                unstaged: 0,
+                added: 1,
+                modified: 0,
+                deleted: 0,
                 conflicts: 0,
                 in_progress: None,
             },

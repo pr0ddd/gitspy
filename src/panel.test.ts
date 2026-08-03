@@ -22,8 +22,9 @@ const workingTree = {
   lane: 0,
   colour: 0,
   node: 0,
-  staged: 1,
-  unstaged: 2,
+  added: 1,
+  modified: 2,
+  deleted: 0,
   conflicts: 0,
   inProgress: null,
 } satisfies RowView;

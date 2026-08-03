@@ -210,6 +210,43 @@ struct CommitEntry {
     commit: CommitDetail,
 }
 
+pub fn parse_commit_author(body: &str) -> Option<(String, String)> {
+    let entry: CommitEntry = serde_json::from_str(body).ok()?;
+    let author = entry.author?;
+    let email = entry.commit.author.and_then(|a| a.email)?;
+    Some((email.to_lowercase(), author.avatar_url))
+}
+
+#[cfg(test)]
+mod commit_author_tests {
+    use super::*;
+
+    #[test]
+    fn a_single_commit_names_its_author_and_avatar() {
+        let body = r#"{"author":{"avatar_url":"https://a/u.png"},"commit":{"author":{"email":"X@E.com"}}}"#;
+        assert_eq!(
+            parse_commit_author(body),
+            Some(("x@e.com".to_string(), "https://a/u.png".to_string())),
+            "почта приводится к нижнему регистру, как весь индекс аватарок"
+        );
+    }
+
+    #[test]
+    fn a_commit_whose_author_has_no_github_account_gives_nothing() {
+        let body = r#"{"author":null,"commit":{"author":{"email":"x@e.com"}}}"#;
+        assert_eq!(
+            parse_commit_author(body),
+            None,
+            "аккаунта нет — скачивать нечего, это честный отказ"
+        );
+    }
+
+    #[test]
+    fn garbage_from_the_network_is_a_refusal_not_a_crash() {
+        assert_eq!(parse_commit_author("<html>"), None);
+    }
+}
+
 pub fn parse_commit_avatars(body: &str) -> Result<Vec<(String, String)>, Error> {
     let entries: Vec<CommitEntry> = serde_json::from_str(body).map_err(|e| Error::Unexpected {
         status: 200,
@@ -340,6 +377,17 @@ impl GitHub {
             return Err(Error::NoToken);
         }
         parse_account(&self.get(token, &format!("{API}/user")).await?)
+    }
+
+    pub async fn commit_author(
+        &self,
+        token: &str,
+        owner: &str,
+        repo: &str,
+        sha: &str,
+    ) -> Option<(String, String)> {
+        let url = format!("{API}/repos/{owner}/{repo}/commits/{sha}");
+        parse_commit_author(&self.get(token, &url).await.ok()?)
     }
 
     pub async fn commit_avatars(

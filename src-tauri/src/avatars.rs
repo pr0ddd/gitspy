@@ -9,13 +9,27 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tauri::{Emitter, State};
 
-#[derive(Serialize, Deserialize, Default)]
+const RESOLVER_GENERATION: u32 = 2;
+
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Index {
     #[serde(default)]
     pub files: HashMap<String, String>,
     #[serde(default)]
     pub refused: Vec<String>,
+    #[serde(default)]
+    pub version: u32,
+}
+
+impl Default for Index {
+    fn default() -> Self {
+        Self {
+            files: HashMap::new(),
+            refused: Vec::new(),
+            version: RESOLVER_GENERATION,
+        }
+    }
 }
 
 fn hashed(email: &str) -> String {
@@ -36,10 +50,15 @@ fn index_file(dir: &Path) -> PathBuf {
 }
 
 pub fn read_index(dir: &Path) -> Index {
-    std::fs::read_to_string(index_file(dir))
+    let mut index: Index = std::fs::read_to_string(index_file(dir))
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if index.version < RESOLVER_GENERATION {
+        index.refused.clear();
+        index.version = RESOLVER_GENERATION;
+    }
+    index
 }
 
 pub fn save_index(dir: &Path, index: &Index) {
@@ -99,6 +118,56 @@ async fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
     response.bytes().await.ok().map(|b| b.to_vec())
 }
 
+const EXACT_LOOKUPS_PER_RUN: usize = 500;
+const LOOKUPS_AT_ONCE: usize = 8;
+
+async fn resolve_on_github(
+    client: &gitspy_hosts::github::GitHub,
+    token: &str,
+    owner: &str,
+    name: &str,
+    remote: &[(String, String)],
+    wanted: &mut HashMap<String, String>,
+    index: &mut Index,
+) {
+    if let Ok(found) = client.commit_avatars(token, owner, name, 5).await {
+        for (email, url) in found {
+            if remote.iter().any(|(known, _)| known == &email) {
+                wanted.insert(email, url);
+            }
+        }
+    }
+
+    let leftovers: Vec<&(String, String)> = remote
+        .iter()
+        .filter(|(email, _)| !wanted.contains_key(email))
+        .take(EXACT_LOOKUPS_PER_RUN)
+        .collect();
+
+    for chunk in leftovers.chunks(LOOKUPS_AT_ONCE) {
+        let asked = futures_util::future::join_all(chunk.iter().map(|(email, hash)| async move {
+            (
+                email.clone(),
+                client.commit_author(token, owner, name, hash).await,
+            )
+        }))
+        .await;
+
+        for (email, resolved) in asked {
+            match resolved {
+                Some((_, url)) => {
+                    wanted.insert(email, url);
+                }
+                None => {
+                    if !index.refused.contains(&email) {
+                        index.refused.push(email);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn resolve_avatars(
     repo: String,
@@ -108,34 +177,34 @@ pub async fn resolve_avatars(
     let dir = data_dir(&app)?;
     let mut index = read_index(&dir);
 
-    let emails: Vec<String> = with_repo(&state, &repo, |open| {
-        let mut seen = Vec::new();
+    let authors: Vec<(String, String)> = with_repo(&state, &repo, |open| {
+        let mut seen: Vec<(String, String)> = Vec::new();
         for node in &open.history.nodes {
             let Some(meta) = node.commit() else { continue };
             let email = meta.email.to_lowercase();
-            if !seen.contains(&email) {
-                seen.push(email);
+            if !seen.iter().any(|(known, _)| known == &email) {
+                seen.push((email, meta.hash.clone()));
             }
         }
         seen
     })?;
 
-    let unknown: Vec<String> = emails
+    let unknown: Vec<(String, String)> = authors
         .into_iter()
-        .filter(|email| !index.files.contains_key(email) && !index.refused.contains(email))
+        .filter(|(email, _)| !index.files.contains_key(email) && !index.refused.contains(email))
         .collect();
     if unknown.is_empty() {
         return Ok(());
     }
 
     let mut wanted: HashMap<String, String> = HashMap::new();
-    let mut remote: Vec<String> = Vec::new();
-    for email in unknown {
+    let mut remote: Vec<(String, String)> = Vec::new();
+    for (email, hash) in unknown {
         match service_avatar(&email) {
             Some(url) => {
                 wanted.insert(email, url);
             }
-            None => remote.push(email),
+            None => remote.push((email, hash)),
         }
     }
 
@@ -146,19 +215,17 @@ pub async fn resolve_avatars(
             let remotes = crate::state::on_reader(move || Ok(git.remote_urls(&path))).await?;
             if let Some((owner, name)) = gitspy_hosts::remote::preferred_github_remote(&remotes) {
                 if let Ok(client) = gitspy_hosts::github::GitHub::new() {
-                    if let Ok(found) = client.commit_avatars(&token, &owner, &name, 5).await {
-                        for (email, url) in found {
-                            if remote.contains(&email) {
-                                wanted.insert(email, url);
-                            }
-                        }
-                    }
+                    resolve_on_github(
+                        &client,
+                        &token,
+                        &owner,
+                        &name,
+                        &remote,
+                        &mut wanted,
+                        &mut index,
+                    )
+                    .await;
                 }
-            }
-        }
-        for email in &remote {
-            if !wanted.contains_key(email) && !index.refused.contains(email) {
-                index.refused.push(email.clone());
             }
         }
     }
@@ -217,6 +284,28 @@ mod tests {
         assert!(read_index(dir.path())
             .refused
             .contains(&"nobody@example.com".to_string()));
+    }
+
+    #[test]
+    fn refusals_of_an_older_resolver_are_retried_and_files_are_kept() {
+        let dir = tempfile::TempDir::new().expect("временный каталог");
+        std::fs::create_dir_all(dir.path().join("avatars")).expect("каталог аватарок");
+        std::fs::write(
+            dir.path().join("avatars").join("index.json"),
+            r#"{"files":{"a@e":"x.img"},"refused":["b@e"]}"#,
+        )
+        .expect("старый индекс без версии");
+
+        let back = read_index(dir.path());
+        assert!(
+            back.refused.is_empty(),
+            "старые отказы делались слабым резолвером и заслуживают второй попытки"
+        );
+        assert_eq!(
+            back.files.get("a@e").map(String::as_str),
+            Some("x.img"),
+            "скачанные картинки переживают смену резолвера"
+        );
     }
 
     #[test]

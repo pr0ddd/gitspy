@@ -38,6 +38,11 @@ import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from './types
 import type { RowCache } from './rows';
 import { laneColour, laneColourAlpha, theme } from './theme';
 import type { Minimap } from './view';
+import { chipsFor, remoteAvatarKey } from './chips';
+import { chipAt, placeChips, type ChipMetrics, type PlacedChip } from './chipLayout';
+import { GLYPH, strokeGlyphInSlot } from './glyphs';
+
+export { chipAt, placeChips };
 
 const CORNER = 7;
 
@@ -50,6 +55,7 @@ const CAP_W = 2;
 const SHADOW_BAND = 14;
 
 const CHIP_PAD = 9;
+const MARK_GAP = 4;
 
 const FONT_CHIP = '11px ui-sans-serif, system-ui, sans-serif';
 const FONT_HEAD = '10px ui-sans-serif, system-ui, sans-serif';
@@ -65,12 +71,23 @@ export type Columns = {
   readonly inProgress: string;
 };
 
+export type HoverChip = { readonly row: number; readonly at: number };
+
+export const chipMetricsFor = (m: Metrics): ChipMetrics => ({
+  pad: CHIP_PAD,
+  markSize: m.fontPx,
+  pullSize: m.fontPx - 2,
+  gap: MARK_GAP,
+});
+
 export type Frame = {
   readonly repo: RepoView | null;
   readonly rows: RowCache;
   readonly columns: Columns;
   readonly cols: Cols;
   readonly avatars: AvatarCache | null;
+  readonly pullHeads: ReadonlySet<string>;
+  readonly hoverChip: HoverChip | null;
   readonly refsByCommit: ReadonlyMap<number, RefView[]>;
   readonly minimap: Minimap | null;
   readonly metrics: Metrics;
@@ -82,7 +99,7 @@ export type Frame = {
   readonly height: number;
 };
 
-const dateFmt = new Intl.DateTimeFormat('ru', {
+const dateFmt = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
@@ -156,12 +173,15 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     for (let i = first; i < last; i++) {
       const y = shift + (i - first) * m.rowH;
-      if (i === selected) {
-        ctx.fillStyle = t.rowSelected;
-        ctx.fillRect(0, y, listW, m.rowH);
-      } else if (i === hover) {
-        ctx.fillStyle = t.rowHover;
-        ctx.fillRect(0, y, listW, m.rowH);
+      if (i === selected || i === hover) {
+        ctx.fillStyle = i === selected ? t.rowSelected : t.rowHover;
+        const capX = g.nodeX(rows.row(i)?.lane ?? 0);
+        ctx.beginPath();
+        ctx.arc(capX, y + half, half, Math.PI / 2, -Math.PI / 2);
+        ctx.lineTo(listW, y);
+        ctx.lineTo(listW, y + m.rowH);
+        ctx.closePath();
+        ctx.fill();
       }
 
       ctx.fillStyle = t.rowLine;
@@ -344,6 +364,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.textBaseline = 'middle';
     ctx.font = m.font;
     const chipH = m.rowH - 6;
+    const chipM = chipMetricsFor(m);
+    const remoteNames = repo.remotes.map((r) => r.name);
+    const remoteAvatarUrls = new Map(repo.remotes.map((r) => [r.name, r.avatarUrl]));
+    const measure = (text: string) => ctx.measureText(text).width;
     for (let i = first; i < last; i++) {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
@@ -353,24 +377,17 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const colour = laneColour(row.colour);
       const nodeX = g.nodeX(row.lane);
 
-      let left = 12;
-
-      let chipEnd = left;
-      for (const label of labels) {
-        const room = cols.branchTag.width - 14 - left;
-        if (room < 10) break;
-
-        const text = label.isHead ? `✓ ${label.name}` : label.name;
-        const fitted = room < 30 ? '' : fitText(ctx, text, Math.min(170, room - CHIP_PAD * 2));
-        const w = fitted ? ctx.measureText(fitted).width + CHIP_PAD * 2 : Math.min(room, 18);
-        ctx.fillStyle = theme().ref[label.kind];
-        roundRect(ctx, left, y - chipH / 2, w, chipH, 3);
-        ctx.fill();
-        ctx.fillStyle = t.foreground;
-        if (fitted) ctx.fillText(fitted, left + CHIP_PAD, y);
-        chipEnd = left + w;
-        left = chipEnd + 4;
+      const placed = placeChips(
+        chipsFor(labels, remoteNames),
+        measure,
+        cols.branchTag.width - 14,
+        chipM,
+        frame.pullHeads,
+      );
+      for (const one of placed) {
+        drawChip(ctx, one, y, chipH, chipM, t, frame.avatars, remoteAvatarUrls, false);
       }
+      const chipEnd = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w : 12;
 
       ctx.strokeStyle = colour;
       ctx.globalAlpha = LEADER_ALPHA;
@@ -397,17 +414,21 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (row.kind === 'workingTree') {
         ctx.font = FONT_CHIP;
 
+        const badge = Math.max(9, m.fontPx - 3);
         let at = colAuthor;
-        for (const [count, tint, mark] of [
-          [row.staged, t.staged, '+'],
-          [row.unstaged, t.unstaged, '~'],
-          [row.conflicts, t.conflict, '!'],
+        for (const [count, tint, glyph] of [
+          [row.modified, t.modified, GLYPH.modified],
+          [row.added, t.added, GLYPH.added],
+          [row.deleted, t.deleted, GLYPH.deleted],
+          [row.conflicts, t.conflict, GLYPH.conflict],
         ] as const) {
           if (count === 0) continue;
-          const shown = `${mark}${count}`;
           ctx.fillStyle = tint;
-          ctx.fillText(shown, at, yc);
-          at += ctx.measureText(shown).width + 10;
+          ctx.strokeStyle = tint;
+          strokeGlyphInSlot(ctx, glyph, at, yc, badge);
+          const shown = String(count);
+          ctx.fillText(shown, at + badge + 3, yc);
+          at += badge + 3 + ctx.measureText(shown).width + 10;
         }
 
         if (row.inProgress) {
@@ -447,6 +468,85 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
   drawHeader(ctx, width, cols, msgX, colAuthor, colDate, colHash, frame.columns);
   drawMinimap(ctx, frame, listW);
+  drawHoveredChip(ctx, frame);
+}
+
+function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
+  const { repo, hoverChip, metrics: m, scrollY, height } = frame;
+  if (!repo || !hoverChip) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const { first, last, shift } = visibleRange(m, scrollY, height, repo.count, dpr);
+  if (hoverChip.row < first || hoverChip.row >= last) return;
+
+  const labels = frame.refsByCommit.get(hoverChip.row);
+  if (!labels) return;
+
+  ctx.font = m.font;
+  ctx.textBaseline = 'middle';
+  const chipM = chipMetricsFor(m);
+  const placed = placeChips(
+    chipsFor(labels, repo.remotes.map((r) => r.name)),
+    (text) => ctx.measureText(text).width,
+    frame.cols.branchTag.width - 14,
+    chipM,
+    frame.pullHeads,
+  );
+  const one = placed[hoverChip.at];
+  if (!one) return;
+
+  const y = Math.round(shift + (hoverChip.row - first) * m.rowH + m.rowH / 2);
+  const remoteAvatarUrls = new Map(repo.remotes.map((r) => [r.name, r.avatarUrl]));
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 8;
+  drawChip(ctx, one, y, m.rowH - 6, chipM, theme(), frame.avatars, remoteAvatarUrls, true);
+  ctx.restore();
+}
+
+function drawChip(
+  ctx: CanvasRenderingContext2D,
+  placed: PlacedChip,
+  y: number,
+  chipH: number,
+  chipM: ChipMetrics,
+  t: ReturnType<typeof theme>,
+  avatars: AvatarCache | null,
+  remoteAvatarUrls: ReadonlyMap<string, string | null>,
+  expanded: boolean,
+): void {
+  const { chip } = placed;
+  const text = expanded ? placed.fullText : placed.text;
+  const w = expanded ? placed.fullW : placed.w;
+
+  ctx.fillStyle = t.ref[chip.kind];
+  roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 3);
+  ctx.fill();
+  if (!text) return;
+
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = t.foreground;
+  ctx.strokeStyle = t.foreground;
+  ctx.fillText(text, placed.x + chipM.pad, y);
+
+  let markX = placed.x + chipM.pad + ctx.measureText(text).width + chipM.gap;
+  for (const mark of chip.marks) {
+    if (mark === 'remote') {
+      drawRemoteMark(
+        ctx,
+        avatars,
+        (chip.remote && remoteAvatarUrls.get(chip.remote)) || null,
+        markX,
+        y,
+        chipM.markSize,
+      );
+    } else {
+      strokeGlyphInSlot(ctx, GLYPH.local, markX, y, chipM.markSize);
+    }
+    markX += chipM.markSize + chipM.gap;
+  }
+  if (placed.hasPull) strokeGlyphInSlot(ctx, GLYPH.pull, markX, y, chipM.pullSize);
 }
 
 function drawHScroll(
@@ -506,6 +606,27 @@ function drawHeader(
   for (const divider of dividers(cols)) {
     ctx.fillRect(Math.round(divider.x), 5, 1, HEADER_H - 10);
   }
+}
+
+function drawRemoteMark(
+  ctx: CanvasRenderingContext2D,
+  avatars: AvatarCache | null,
+  avatarUrl: string | null,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  const look = avatarUrl ? avatars?.lookOf(remoteAvatarKey(avatarUrl)) : undefined;
+  if (look?.kind === 'image') {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(look.image, x, y - size / 2, size, size);
+    ctx.restore();
+    return;
+  }
+  strokeGlyphInSlot(ctx, GLYPH.remote, x, y, size);
 }
 
 function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number): void {

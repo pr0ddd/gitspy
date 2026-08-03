@@ -102,4 +102,24 @@ describe('кэш строк', () => {
     expect(cache.row(0)).toBeNull();
     expect(cache.missing(0, 10, CHUNK * 4)).toEqual([0, 1]);
   });
+
+  it('подмена целиком: старые полосы уходят, новая встаёт одним шагом', () => {
+    const cache = new RowCache();
+    cache.put(0, window(0));
+    cache.put(3, window(3));
+    cache.missing(3 * CHUNK, 3 * CHUNK + 10, CHUNK * 8);
+
+    cache.replaceAll(window(0));
+
+    const swapped = cache.row(5);
+    expect(
+      swapped?.kind === 'commit' && swapped.hash,
+      'новая полоса на месте',
+    ).toBe('hash-5');
+    expect(cache.row(3 * CHUNK + 1), 'глубокие полосы прошлой жизни выброшены').toBeNull();
+    expect(
+      cache.missing(3 * CHUNK, 3 * CHUNK + 10, CHUNK * 8),
+      'полосы в полёте забыты, их можно просить заново',
+    ).toContain(3);
+  });
 });

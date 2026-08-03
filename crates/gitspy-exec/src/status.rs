@@ -33,6 +33,14 @@ impl InProgress {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ChangeCounts {
+    pub added: u32,
+    pub modified: u32,
+    pub deleted: u32,
+    pub conflicts: u32,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkingTree {
     pub branch: Option<String>,
@@ -62,6 +70,19 @@ impl WorkingTree {
 
     pub fn conflicts(&self) -> usize {
         self.entries.iter().filter(|e| e.letter == 'U').count()
+    }
+
+    pub fn change_counts(&self) -> ChangeCounts {
+        let mut counts = ChangeCounts::default();
+        for e in &self.entries {
+            match e.letter {
+                'U' => counts.conflicts += 1,
+                'A' | '?' => counts.added += 1,
+                'D' => counts.deleted += 1,
+                _ => counts.modified += 1,
+            }
+        }
+        counts
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -267,5 +288,72 @@ mod tests {
     fn a_detached_head_has_no_branch() {
         let tree = parse("# branch.head (detached)\0");
         assert_eq!(tree.branch, None);
+    }
+
+    fn entry(side: Side, letter: char, path: &str) -> StatusEntry {
+        StatusEntry {
+            side,
+            letter,
+            path: path.to_string(),
+            old_path: None,
+        }
+    }
+
+    fn tree_of(entries: Vec<StatusEntry>) -> WorkingTree {
+        WorkingTree {
+            entries,
+            ..WorkingTree::default()
+        }
+    }
+
+    #[test]
+    fn counts_group_files_by_what_happened_to_them() {
+        let tree = tree_of(vec![
+            entry(Side::Staged, 'A', "new.rs"),
+            entry(Side::Unstaged, '?', "untracked.rs"),
+            entry(Side::Unstaged, 'M', "edited.rs"),
+            entry(Side::Unstaged, 'D', "gone.rs"),
+        ]);
+
+        let counts = tree.change_counts();
+        assert_eq!(
+            counts.added, 2,
+            "новый в индексе и неотслеживаемый — оба добавленные"
+        );
+        assert_eq!(counts.modified, 1);
+        assert_eq!(counts.deleted, 1);
+        assert_eq!(counts.conflicts, 0);
+    }
+
+    #[test]
+    fn a_partially_staged_file_counts_on_both_sides_like_gitkraken_does() {
+        let tree = tree_of(vec![
+            entry(Side::Staged, 'M', "same.rs"),
+            entry(Side::Unstaged, 'M', "same.rs"),
+        ]);
+
+        assert_eq!(
+            tree.change_counts().modified,
+            2,
+            "сверено с GitKraken на живом дереве: 21 в индексе + 21 рядом = 42"
+        );
+    }
+
+    #[test]
+    fn a_new_file_edited_after_staging_is_both_added_and_modified() {
+        let tree = tree_of(vec![
+            entry(Side::Staged, 'A', "fresh.rs"),
+            entry(Side::Unstaged, 'M', "fresh.rs"),
+        ]);
+
+        let counts = tree.change_counts();
+        assert_eq!(counts.added, 1);
+        assert_eq!(counts.modified, 1, "каждая запись статуса — своя единица");
+    }
+
+    #[test]
+    fn a_rename_is_an_edit_not_a_mystery() {
+        let tree = tree_of(vec![entry(Side::Staged, 'R', "renamed.rs")]);
+        assert_eq!(tree.change_counts().modified, 1);
     }
 }

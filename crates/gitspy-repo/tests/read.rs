@@ -497,8 +497,9 @@ fn a_working_tree_row_becomes_the_child_of_head_without_shifting_anything_by_han
 
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![head.clone()],
-        staged: 1,
-        unstaged: 2,
+        added: 1,
+        modified: 2,
+        deleted: 0,
         conflicts: 0,
         in_progress: None,
     };
@@ -516,8 +517,8 @@ fn a_working_tree_row_becomes_the_child_of_head_without_shifting_anything_by_han
         matches!(
             with_tree.nodes[0],
             gitspy_repo::Node::WorkingTree {
-                staged: 1,
-                unstaged: 2,
+                added: 1,
+                modified: 2,
                 ..
             }
         ),
@@ -546,8 +547,9 @@ fn adding_a_working_tree_row_moves_refs_and_head_with_the_commits() {
     .expect("без рабочего дерева");
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![head.clone()],
-        staged: 0,
-        unstaged: 1,
+        added: 0,
+        modified: 1,
+        deleted: 0,
         conflicts: 0,
         in_progress: None,
     };
@@ -590,8 +592,9 @@ fn a_working_tree_during_a_merge_has_both_parents() {
 
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![main.clone(), side.clone()],
-        staged: 0,
-        unstaged: 1,
+        added: 0,
+        modified: 1,
+        deleted: 0,
         conflicts: 1,
         in_progress: Some("merge".into()),
     };
@@ -616,8 +619,9 @@ fn a_working_tree_in_a_repository_without_commits_is_a_root() {
     let f = Fixture::new();
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![],
-        staged: 0,
-        unstaged: 1,
+        added: 0,
+        modified: 1,
+        deleted: 0,
         conflicts: 0,
         in_progress: None,
     };

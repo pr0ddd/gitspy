@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  chipAt,
+  chipMetricsFor,
   drawFrame,
   listWidth,
   maxScroll,
   maxScrollX,
   MINIMAP_W,
+  placeChips,
   type Frame,
+  type HoverChip,
   type Metrics,
 } from '../render';
-import { minimapFraction, rowTop, scrollToReveal } from '../scene';
+import { minimapFraction, rowAtY, rowTop, scrollToReveal } from '../scene';
+import { chipsFor } from '../chips';
 import { pointerTarget, type PointerScene } from '../graphInput';
 import {
   layoutColumns,
@@ -22,9 +27,13 @@ import {
 } from '../columns';
 import { Icon } from '../icons';
 import { buildMinimap } from '../view';
+import { buildChipMenu, buildCommitMenu, type MenuAction, type MenuContext } from '../menuItems';
+import { showNativeMenu } from '../nativeMenu';
 import type { Session } from '../session';
 import type { AvatarCache } from '../avatarCache';
 import type { RowCache } from '../rows';
+import type { Ask } from './AskDialog';
+import type { Operation, RefView } from '../types';
 import { GIT } from '../vocabulary';
 
 type Props = {
@@ -33,7 +42,16 @@ type Props = {
   rows: RowCache;
   redraw: number;
   metrics: Metrics;
+  pullHeads: ReadonlySet<string>;
+  veil: string | null;
+  currentBranch: string | null;
   onSelect: (index: number) => void;
+  onCheckoutRef: (ref: RefView) => void;
+  onRun: (operation: Operation) => void;
+  onCopy: (text: string) => void;
+  onAsk: (ask: Ask) => void;
+  onWorktree: (at: string) => void;
+  onOpenUrl: (url: string) => void;
   onNeed: (chunks: number[]) => void;
   message: string;
   onMessage: (text: string) => void;
@@ -46,6 +64,8 @@ const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns'])
   columns,
   avatars: null,
   cols: layoutColumns(listWidth(0), {}),
+  pullHeads: new Set(),
+  hoverChip: null,
   refsByCommit: new Map(),
   minimap: null,
   metrics,
@@ -63,7 +83,16 @@ export function GraphView({
   rows,
   redraw,
   metrics,
+  pullHeads,
+  veil,
+  currentBranch,
   onSelect,
+  onCheckoutRef,
+  onRun,
+  onCopy,
+  onAsk,
+  onWorktree,
+  onOpenUrl,
   onNeed,
   message,
   onMessage,
@@ -164,6 +193,7 @@ export function GraphView({
       repo: session?.repo ?? null,
       rows,
       avatars,
+      pullHeads,
       refsByCommit: session?.refsByCommit ?? new Map(),
       minimap: buildMinimap(session?.repo ?? null, f.height),
       columns,
@@ -171,9 +201,10 @@ export function GraphView({
       scrollY: sameRepo ? f.scrollY : 0,
       scrollX: sameRepo ? f.scrollX : 0,
       hover: sameRepo ? f.hover : null,
+      hoverChip: sameRepo ? f.hoverChip : null,
     };
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
-  }, [session, redraw, patch, clampScroll]);
+  }, [session, redraw, pullHeads, patch, clampScroll]);
 
   useEffect(() => {
     frameRef.current = { ...frameRef.current, metrics };
@@ -181,13 +212,16 @@ export function GraphView({
   }, [metrics, patch, clampScroll]);
 
   const chosen = session?.selected ?? 0;
+  const revealedRef = useRef(chosen);
   useEffect(() => {
+    if (revealedRef.current === chosen) return;
+    revealedRef.current = chosen;
     const f = frameRef.current;
     if (!f.repo) return;
     patch({
-      scrollY: scrollToReveal(f.metrics, chosen, f.scrollY, f.height, f.repo.count),
+      scrollY: clampScroll(scrollToReveal(f.metrics, chosen, f.scrollY, f.height, f.repo.count)),
     });
-  }, [chosen, patch]);
+  }, [chosen, patch, clampScroll]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -251,6 +285,103 @@ export function GraphView({
     };
   }, [patch, clampScroll, clampScrollX]);
 
+  const chipHitAt = useCallback((x: number, y: number) => {
+    const f = frameRef.current;
+    if (!f.repo || x >= f.cols.branchTag.width) return null;
+    const row = rowAtY(f.metrics, y, f.scrollY, f.repo.count);
+    if (row === null) return null;
+    const labels = f.refsByCommit.get(row);
+    if (!labels) return null;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.font = f.metrics.font;
+    const placed = placeChips(
+      chipsFor(
+        labels,
+        f.repo.remotes.map((r) => r.name),
+      ),
+      (text) => ctx.measureText(text).width,
+      f.cols.branchTag.width - 14,
+      chipMetricsFor(f.metrics),
+      f.pullHeads,
+    );
+    const one = chipAt(placed, x);
+    if (!one) return null;
+    return { row, at: placed.indexOf(one), chip: one.chip };
+  }, []);
+
+  const onMenuAction = useCallback(
+    (action: MenuAction) => {
+      if (action.kind === 'checkoutRef') onCheckoutRef(action.ref);
+      else if (action.kind === 'run') onRun(action.operation);
+      else if (action.kind === 'copy') onCopy(action.text);
+      else if (action.kind === 'worktree') onWorktree(action.at);
+      else if (action.kind === 'openUrl') onOpenUrl(action.url);
+      else onAsk(action.ask);
+    },
+    [onCheckoutRef, onRun, onCopy, onAsk, onWorktree, onOpenUrl],
+  );
+
+  const menuContext = useCallback((): MenuContext => {
+    const f = frameRef.current;
+    const headIndex = f.repo?.head ?? null;
+    const headRow = headIndex !== null ? f.rows.row(headIndex) : null;
+    return {
+      currentBranch,
+      remotes: f.repo?.remotes.map((r) => ({ name: r.name, webUrl: r.webUrl })) ?? [],
+      head:
+        headRow?.kind === 'commit'
+          ? { oid: headRow.hash, subject: headRow.subject, body: headRow.body }
+          : null,
+    };
+  }, [currentBranch]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    const onContext = (e: MouseEvent) => {
+      const f = frameRef.current;
+      if (!f.repo) return;
+      e.preventDefault();
+
+      const rect = host.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const chipTarget = chipHitAt(x, y);
+      if (chipTarget) {
+        const sections = buildChipMenu(chipTarget.chip, menuContext());
+        if (sections.length) void showNativeMenu(sections, (key, params) => t(key as 'menu.copyBranch', params), onMenuAction);
+        return;
+      }
+
+      const target = pointerTarget(x, y, {
+        width: f.width,
+        height: f.height,
+        cols: f.cols,
+        metrics: f.metrics,
+        scrollY: f.scrollY,
+        count: f.repo.count,
+      });
+      if (target.kind !== 'row') return;
+      const row = f.rows.row(target.index);
+      if (!row || row.kind !== 'commit') return;
+
+      patch({ selected: target.index });
+      onSelect(target.index);
+      void showNativeMenu(
+        buildCommitMenu(row.hash, menuContext()),
+        (key, params) => t(key as 'menu.copySha', params),
+        onMenuAction,
+      );
+    };
+
+    host.addEventListener('contextmenu', onContext);
+    return () => host.removeEventListener('contextmenu', onContext);
+  }, [chipHitAt, menuContext, onSelect, patch, t, onMenuAction]);
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -301,6 +432,9 @@ export function GraphView({
       count: f.repo?.count ?? 0,
     });
 
+    const sameChip = (a: HoverChip | null, b: HoverChip | null) =>
+      a === b || (a !== null && b !== null && a.row === b.row && a.at === b.at);
+
     const onMove = (e: MouseEvent) => {
       const { x, y } = local(e);
       const f = frameRef.current;
@@ -309,9 +443,13 @@ export function GraphView({
       if (typeof dragRef.current === 'object' && dragRef.current !== null) return dragDivider(x);
 
       const target = pointerTarget(x, y, sceneOf(f));
-      host.style.cursor = target.kind === 'divider' ? 'col-resize' : '';
+      const hit = chipHitAt(x, y);
+      host.style.cursor = hit ? 'pointer' : target.kind === 'divider' ? 'col-resize' : '';
       const index = target.kind === 'row' ? target.index : null;
-      if (index !== f.hover) patch({ hover: index });
+      const hovered = hit ? { row: hit.row, at: hit.at } : null;
+      if (index !== f.hover || !sameChip(hovered, f.hoverChip)) {
+        patch({ hover: index, hoverChip: hovered });
+      }
     };
 
     const onDown = (e: MouseEvent) => {
@@ -347,10 +485,15 @@ export function GraphView({
     const onUp = () => {
       dragRef.current = null;
     };
-    const onLeave = () => patch({ hover: null });
+    const onLeave = () => patch({ hover: null, hoverChip: null });
 
     const onDouble = (e: MouseEvent) => {
       const { x, y } = local(e);
+      const hit = chipHitAt(x, y);
+      if (hit && hit.chip.refs.length > 0) {
+        onCheckoutRef(hit.chip.refs[0]);
+        return;
+      }
       const target = pointerTarget(x, y, sceneOf(frameRef.current));
       if (target.kind !== 'divider') return;
       let cleaned = storedRef.current;
@@ -373,7 +516,7 @@ export function GraphView({
       host.removeEventListener('mouseleave', onLeave);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [patch, clampScroll, clampScrollX, onSelect, reflow]);
+  }, [patch, clampScroll, clampScrollX, onSelect, onCheckoutRef, chipHitAt, reflow]);
 
   return (
     <div
@@ -407,6 +550,13 @@ export function GraphView({
         >
           <Icon.waiting className="size-5 animate-spin" />
           <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
+        </div>
+      ) : null}
+
+      {veil !== null ? (
+        <div className="bg-background/60 text-foreground animate-in fade-in fill-mode-backwards absolute inset-0 flex flex-col items-center justify-center gap-2 backdrop-blur-xs delay-150 duration-200">
+          <Icon.waiting className="size-5 animate-spin" />
+          <span className="text-sm">{veil}</span>
         </div>
       ) : null}
 
