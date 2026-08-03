@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shortenDirectory, splitPath } from './paths';
+import { directoryFromUrl, shortenDirectory, splitPath } from './paths';
 
 describe('разбор пути', () => {
   it('имя файла отделяется от каталога', () => {
@@ -37,5 +37,19 @@ describe('сокращение каталога', () => {
 
   it('нулевой запас не роняет и не удлиняет', () => {
     expect(shortenDirectory('a/b/', 0)).toBe('…');
+  });
+});
+
+describe('имя папки из адреса репозитория', () => {
+  it('снимает .git, потому что папка так не называется', () => {
+    expect(directoryFromUrl('https://github.com/pr0ddd/gitspy.git')).toBe('gitspy');
+  });
+
+  it('понимает адрес по ssh, где владелец отделён двоеточием', () => {
+    expect(directoryFromUrl('git@github.com:pr0ddd/gitspy.git')).toBe('gitspy');
+  });
+
+  it('переживает косую черту в конце', () => {
+    expect(directoryFromUrl('https://github.com/pr0ddd/gitspy/')).toBe('gitspy');
   });
 });

@@ -2,13 +2,29 @@
 
 pub mod changes;
 pub mod env;
+pub mod progress;
+pub mod refusal;
 pub mod status;
 
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+
+const TOKEN_VARIABLE: &str = "GITSPY_HOST_TOKEN";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Credential<'a> {
+    pub url: &'a str,
+    pub token: &'a str,
+}
+
+pub fn helper_for(url: &str) -> String {
+    format!(
+        "credential.{url}.helper=!f() {{ echo username=x-access-token; echo password=${TOKEN_VARIABLE}; }}; f"
+    )
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
@@ -23,7 +39,10 @@ impl Error {
         match self {
             Error::GitNotFound => "exec.gitNotFound",
             Error::Spawn { .. } => "exec.spawn",
-            Error::Failed { .. } => "exec.failed",
+            Error::Failed { stderr, .. } => match refusal::of(stderr) {
+                Some(named) => named.code(),
+                None => "exec.failed",
+            },
             Error::Cancelled => "exec.cancelled",
         }
     }
@@ -180,7 +199,70 @@ impl Git {
                 "--renames",
             ],
         )?;
-        Ok(status::parse(&raw))
+        let mut tree = status::parse(&raw);
+        tree.extra_parents = self.merge_heads(repo);
+        tree.in_progress = self.in_progress(repo);
+        Ok(tree)
+    }
+
+    fn git_dir(&self, repo: &Path) -> PathBuf {
+        let dot = repo.join(".git");
+        if dot.is_dir() {
+            dot
+        } else {
+            repo.to_path_buf()
+        }
+    }
+
+    fn merge_heads(&self, repo: &Path) -> Vec<String> {
+        std::fs::read_to_string(self.git_dir(repo).join("MERGE_HEAD"))
+            .map(|text| {
+                text.lines()
+                    .map(str::trim)
+                    .filter(|l| !l.is_empty())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn in_progress(&self, repo: &Path) -> Option<status::InProgress> {
+        let dir = self.git_dir(repo);
+        let has = |name: &str| dir.join(name).exists();
+
+        if has("MERGE_HEAD") {
+            return Some(status::InProgress::Merge);
+        }
+        if has("rebase-merge") || has("rebase-apply") {
+            return Some(status::InProgress::Rebase);
+        }
+        if has("CHERRY_PICK_HEAD") {
+            return Some(status::InProgress::CherryPick);
+        }
+        if has("REVERT_HEAD") {
+            return Some(status::InProgress::Revert);
+        }
+        if has("BISECT_LOG") {
+            return Some(status::InProgress::Bisect);
+        }
+        None
+    }
+
+    pub fn working_tree_sides(
+        &self,
+        repo: &Path,
+        path: &str,
+        staged: bool,
+    ) -> Result<(String, String), Error> {
+        if staged {
+            let before = self.file_at(repo, "HEAD", path)?;
+            let after = self.file_at(repo, "", path)?;
+            return Ok((before, after));
+        }
+
+        let before = self.file_at(repo, "", path)?;
+        let after = std::fs::read_to_string(repo.join(path)).unwrap_or_default();
+        Ok((before, after))
     }
 
     pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {
@@ -191,6 +273,123 @@ impl Git {
         }
     }
 
+    pub fn remotes(&self, repo: &Path) -> Vec<String> {
+        self.read(repo, &["remote"])
+            .map(|text| {
+                text.lines()
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn remote_urls(&self, repo: &Path) -> Vec<(String, String)> {
+        self.read(repo, &["remote", "-v"])
+            .map(|text| {
+                let mut found: Vec<(String, String)> = Vec::new();
+                for line in text.lines() {
+                    let mut parts = line.split_whitespace();
+                    if let (Some(name), Some(url)) = (parts.next(), parts.next()) {
+                        if !found.iter().any(|(known, _)| known == name) {
+                            found.push((name.to_string(), url.to_string()));
+                        }
+                    }
+                }
+                found
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn init(&self, path: &Path) -> Result<(), Error> {
+        self.read(path, &["init"]).map(|_| ())
+    }
+
+    fn prepared(&self, credential: Option<&Credential>) -> Command {
+        let environment = env::environment(self.askpass.as_deref());
+
+        let mut command = Command::new(&self.program);
+        for name in &environment.removed {
+            command.env_remove(name);
+        }
+        for (name, value) in &environment.set {
+            command.env(name, value);
+        }
+
+        if let Some(credential) = credential {
+            command.env(TOKEN_VARIABLE, credential.token);
+            command.arg("-c").arg(helper_for(credential.url));
+        }
+        command
+    }
+
+    pub fn clone_into(
+        &self,
+        url: &str,
+        into: &Path,
+        credential: Option<Credential<'_>>,
+        cancel: &Cancel,
+        steps: &mut dyn FnMut(progress::Step),
+    ) -> Result<(), Error> {
+        let mut command = self.prepared(credential.as_ref());
+
+        let mut child = command
+            .arg("clone")
+            .arg("--progress")
+            .arg(url)
+            .arg(into)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| Error::Spawn {
+                detail: e.to_string(),
+            })?;
+
+        let mut stderr = child.stderr.take().expect("stderr запрошен");
+        let mut said = Vec::new();
+        let mut buffer = [0u8; 4096];
+        let mut last = None;
+
+        loop {
+            let read = stderr.read(&mut buffer).unwrap_or(0);
+            if read == 0 {
+                break;
+            }
+            said.extend_from_slice(&buffer[..read]);
+
+            let chunk = String::from_utf8_lossy(&buffer[..read]).into_owned();
+            for line in progress::split_progress(&chunk) {
+                let Some(step) = progress::parse(line) else {
+                    continue;
+                };
+                if last != Some(step) {
+                    last = Some(step);
+                    steps(step);
+                }
+            }
+
+            if cancel.asked() {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(Error::Cancelled);
+            }
+        }
+
+        let status = child.wait().map_err(|e| Error::Spawn {
+            detail: e.to_string(),
+        })?;
+
+        if !status.success() {
+            return Err(Error::Failed {
+                code: status.code(),
+                stderr: String::from_utf8_lossy(&said).into_owned(),
+            });
+        }
+        Ok(())
+    }
+
     pub fn run(
         &self,
         repo: &Path,
@@ -198,9 +397,18 @@ impl Git {
         cancel: &Cancel,
         events: &mut dyn FnMut(Event),
     ) -> Result<Outcome, Error> {
-        let environment = env::environment(self.askpass.as_deref());
+        self.run_as(repo, args, None, cancel, events)
+    }
 
-        let mut command = Command::new(&self.program);
+    pub fn run_as(
+        &self,
+        repo: &Path,
+        args: &[&str],
+        credential: Option<Credential<'_>>,
+        cancel: &Cancel,
+        events: &mut dyn FnMut(Event),
+    ) -> Result<Outcome, Error> {
+        let mut command = self.prepared(credential.as_ref());
         command
             .arg("-C")
             .arg(repo)
@@ -208,13 +416,6 @@ impl Git {
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-
-        for name in &environment.removed {
-            command.env_remove(name);
-        }
-        for (name, value) in &environment.set {
-            command.env(name, value);
-        }
 
         events(Event::Started {
             program: self.program.display().to_string(),
@@ -285,5 +486,47 @@ impl Git {
             stdout,
             stderr,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_helper_is_bound_to_one_host_so_the_token_never_goes_elsewhere() {
+        let helper = helper_for("https://github.com");
+        assert!(
+            helper.starts_with("credential.https://github.com.helper="),
+            "без привязки к адресу токен github ушёл бы и на чужой https-хост"
+        );
+    }
+
+    #[test]
+    fn the_token_itself_never_appears_in_the_command_line() {
+        let helper = helper_for("https://github.com");
+        assert!(
+            helper.contains("$GITSPY_HOST_TOKEN") && !helper.contains("gho_"),
+            "командную строку видит любой ps, поэтому секрет идёт окружением"
+        );
+    }
+
+    #[test]
+    fn a_named_refusal_reaches_the_frontend_as_its_own_code() {
+        let rejected = Error::Failed {
+            code: Some(1),
+            stderr: " ! [rejected]  master -> master (non-fast-forward)".to_string(),
+        };
+        assert_eq!(
+            rejected.code(),
+            "exec.rejected",
+            "иначе человек читает «git failed» и не знает, что делать"
+        );
+
+        let unknown = Error::Failed {
+            code: Some(128),
+            stderr: "fatal: not a git repository".to_string(),
+        };
+        assert_eq!(unknown.code(), "exec.failed");
     }
 }

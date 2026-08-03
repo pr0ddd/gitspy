@@ -16,12 +16,18 @@ const isErrorView = (value: unknown): value is ErrorView =>
   value !== null &&
   typeof (value as { code?: unknown }).code === 'string';
 
+export const isNotOpen = (error: unknown): boolean =>
+  isErrorView(error) && error.code === 'repo.notOpen';
+
 export function describeError(error: unknown, t: TFunction<'errors'>): ShownError {
   if (!isErrorView(error)) {
     return { message: t('unknown'), detail: String(error) };
   }
   return {
-    message: t(error.code as 'unknown', { ...error.params, defaultValue: t('unknown') }),
+    message: t(error.code as 'unknown', {
+      ...error.params,
+      defaultValue: t('unknown'),
+    }),
     detail: error.detail ?? null,
   };
 }

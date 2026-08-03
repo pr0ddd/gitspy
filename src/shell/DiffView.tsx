@@ -7,6 +7,7 @@ import { notifyError } from '../toast';
 import { Icon } from '../icons';
 import { shortenDirectory, splitPath } from '../paths';
 import { cn } from '@/lib/utils';
+import { DIFF_MODES, DIFF_MODE_LABEL, editorOptionsFor, type DiffMode } from '../diff';
 import type { ChangedFileView } from '../types';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -19,18 +20,32 @@ const STATUS_STYLE: Record<string, string> = {
   U: 'text-conflict',
 };
 
+export type DiffTarget =
+  | { kind: 'commit'; commit: string; file: ChangedFileView }
+  | { kind: 'workingTree'; path: string; status: string; staged: boolean };
+
 type Props = {
   repo: string;
-  commit: string;
-  file: ChangedFileView;
+  target: DiffTarget;
   onClose: () => void;
 };
 
-export function DiffView({ repo, commit, file, onClose }: Props) {
+const worktreePath = (repo: string, path: string) => `${repo}/${path}`;
+
+export function DiffView({ repo, target, onClose }: Props) {
+  const path = target.kind === 'commit' ? target.file.path : target.path;
+  const status = target.kind === 'commit' ? target.file.status : target.status;
+  const binary = target.kind === 'commit' ? target.file.binary : false;
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement | null>(null);
   const editor = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
-  const [inline, setInline] = useState(false);
+  const [mode, setMode] = useState<DiffMode>('split');
+  const [whitespace, setWhitespace] = useState(false);
+  const [wrap, setWrap] = useState(false);
+  const [sides, setSides] = useState<{ before: string; after: string } | null>(null);
+  const [view, setView] = useState<'diff' | 'file'>('diff');
+  const plain = useRef<HTMLDivElement | null>(null);
+  const file = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   useEffect(() => {
     setUpMonaco();
@@ -40,7 +55,6 @@ export function DiffView({ repo, commit, file, onClose }: Props) {
     const created = monaco.editor.createDiffEditor(element, {
       theme: THEME,
       readOnly: true,
-      renderSideBySide: !inline,
       automaticLayout: true,
       fontSize: 12,
       lineHeight: 18,
@@ -56,16 +70,59 @@ export function DiffView({ repo, commit, file, onClose }: Props) {
       created.dispose();
       editor.current = null;
     };
-  }, [inline]);
+  }, []);
+
+  useEffect(() => {
+    editor.current?.updateOptions({
+      ...editorOptionsFor(mode),
+      ignoreTrimWhitespace: whitespace,
+      diffWordWrap: wrap ? 'on' : 'off',
+    });
+    editor.current?.getModifiedEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+    editor.current?.getOriginalEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+  }, [mode, whitespace, wrap]);
+
+  useEffect(() => {
+    if (view !== 'file' || !plain.current || !sides) return;
+
+    const created = monaco.editor.create(plain.current, {
+      theme: THEME,
+      readOnly: true,
+      automaticLayout: true,
+      fontSize: 12,
+      lineHeight: 18,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      wordWrap: wrap ? 'on' : 'off',
+      value: sides.after,
+      language: languageOf(path),
+    });
+    file.current = created;
+
+    return () => {
+      created.getModel()?.dispose();
+      created.dispose();
+      file.current = null;
+    };
+  }, [view, sides, path, wrap]);
+
+  const step = (where: 'previous' | 'next') => {
+    editor.current?.goToDiff(where);
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    ipc
-      .diffSides(repo, commit, file.path, file.oldPath ?? null)
+    const reading =
+      target.kind === 'commit'
+        ? ipc.diffSides(repo, target.commit, target.file.path, target.file.oldPath ?? null)
+        : ipc.workingTreeDiff(repo, target.path, target.staged);
+
+    reading
       .then((sides) => {
         if (cancelled || !editor.current) return;
-        const language = languageOf(file.path);
+        setSides(sides);
+        const language = languageOf(path);
         const previous = editor.current.getModel();
         editor.current.setModel({
           original: monaco.editor.createModel(sides.before, language),
@@ -79,44 +136,101 @@ export function DiffView({ repo, commit, file, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [repo, commit, file.path, file.oldPath]);
+  }, [repo, target, path]);
 
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="bg-card border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
-        <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[file.status])}>
-          {file.status}
+        <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[status])}>
+          {status}
         </span>
         <span className="flex min-w-0 items-baseline font-mono text-xs">
           <span className="text-muted-foreground shrink-0">
-            {shortenDirectory(splitPath(file.path).directory, 46)}
+            {shortenDirectory(splitPath(path).directory, 46)}
           </span>
-          <span className="text-foreground truncate font-medium">{splitPath(file.path).name}</span>
+          <span className="text-foreground truncate font-medium">{splitPath(path).name}</span>
         </span>
 
-        <div className="border-input ml-4 flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <Button
-            variant={inline ? 'ghost' : 'default'}
+            variant="ghost"
             size="sm"
-            className="h-full rounded-none px-2 text-xs"
-            onClick={() => setInline(false)}
+            className="h-6 gap-1.5 px-2 text-xs"
+            title={t('diff.editHint')}
+            onClick={() => ipc.openInEditor(worktreePath(repo, path)).catch(notifyError)}
           >
-            {t('diff.sideBySide')}
+            <Icon.edit className="size-3.5" />
+            {t('diff.edit')}
           </Button>
           <Button
-            variant={inline ? 'default' : 'ghost'}
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            title={t('diff.previous')}
+            onClick={() => step('previous')}
+          >
+            <Icon.up className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            title={t('diff.next')}
+            onClick={() => step('next')}
+          >
+            <Icon.down className="size-3.5" />
+          </Button>
+          <Button
+            variant={whitespace ? 'secondary' : 'ghost'}
+            size="icon"
+            className="size-6"
+            title={t('diff.whitespace')}
+            onClick={() => setWhitespace((now) => !now)}
+          >
+            <Icon.whitespace className="size-3.5" />
+          </Button>
+          <Button
+            variant={wrap ? 'secondary' : 'ghost'}
+            size="icon"
+            className="size-6"
+            title={t('diff.wrap')}
+            onClick={() => setWrap((now) => !now)}
+          >
+            <Icon.wrap className="size-3.5" />
+          </Button>
+        </div>
+
+        <span className="text-muted-foreground/60 shrink-0 font-mono text-2xs">UTF-8</span>
+
+        <div className="border-input flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
+          <Button
+            variant={view === 'file' ? 'default' : 'ghost'}
             size="sm"
             className="h-full rounded-none px-2 text-xs"
-            onClick={() => setInline(true)}
+            onClick={() => setView('file')}
           >
-            {t('diff.inline')}
+            {t('diff.fileView')}
           </Button>
+          {DIFF_MODES.map((shown) => (
+            <Button
+              key={shown}
+              variant={view === 'diff' && mode === shown ? 'default' : 'ghost'}
+              size="sm"
+              className="h-full rounded-none px-2 text-xs"
+              onClick={() => {
+                setView('diff');
+                setMode(shown);
+              }}
+            >
+              {DIFF_MODE_LABEL[shown]}
+            </Button>
+          ))}
         </div>
 
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto size-6 shrink-0"
+          className="size-6 shrink-0"
           onClick={onClose}
           title={t('diff.close')}
         >
@@ -124,10 +238,13 @@ export function DiffView({ repo, commit, file, onClose }: Props) {
         </Button>
       </header>
 
-      {file.binary ? (
+      {binary ? (
         <p className="text-muted-foreground p-6 text-center">{t('diff.binary')}</p>
       ) : (
-        <div ref={host} className="min-h-0 flex-1" />
+        <>
+          <div ref={host} className={cn('min-h-0 flex-1', view === 'file' && 'hidden')} />
+          <div ref={plain} className={cn('min-h-0 flex-1', view === 'diff' && 'hidden')} />
+        </>
       )}
     </div>
   );

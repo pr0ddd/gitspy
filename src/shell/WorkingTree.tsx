@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { shortenDirectory, splitPath } from '../paths';
@@ -10,6 +9,7 @@ type Props = {
   tree: WorkingTreeView;
   busy: boolean;
   onRun: (operation: PathOperation) => void;
+  onOpen: (path: string, status: string, staged: boolean) => void;
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -27,26 +27,36 @@ function FileRow({
   entry,
   action,
   onAct,
+  onOpen,
 }: {
   entry: StatusEntryView;
   action: string;
   onAct: () => void;
+  onOpen: () => void;
 }) {
   const { directory, name } = splitPath(entry.path);
   return (
     <li>
-      <div className="group hover:bg-surface-hover flex h-6 items-baseline gap-1.5 rounded-sm px-1 font-mono text-xs">
+      <div
+        onClick={onOpen}
+        className="group hover:bg-surface-hover flex h-6 cursor-pointer items-baseline gap-1.5 rounded-sm px-1 font-mono text-xs"
+      >
         <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[entry.letter])}>
           {entry.letter}
         </span>
-        <span className="text-muted-foreground shrink-0">{shortenDirectory(directory, 16)}</span>
-        <span className="truncate" title={entry.path}>
+        <span className="text-muted-foreground min-w-0 flex-1 shrink-[100] truncate text-left [direction:rtl]">
+          {'\u200e' + shortenDirectory(directory, 64) + '\u200e'}
+        </span>
+        <span className="min-w-16 truncate" title={entry.path}>
           {name}
         </span>
         <Button
           variant="ghost"
           size="sm"
-          onClick={onAct}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAct();
+          }}
           className="ml-auto h-5 shrink-0 px-1.5 text-2xs opacity-0 transition-opacity group-hover:opacity-100"
         >
           {action}
@@ -64,6 +74,7 @@ function Section({
   rowAction,
   onAll,
   onRow,
+  onOpen,
 }: {
   title: string;
   count: number;
@@ -72,6 +83,7 @@ function Section({
   rowAction: string;
   onAll: () => void;
   onRow: (path: string) => void;
+  onOpen: (entry: StatusEntryView) => void;
 }) {
   return (
     <>
@@ -86,7 +98,7 @@ function Section({
           </Button>
         ) : null}
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <ul className="space-y-0.5 p-1">
           {entries.map((entry) => (
             <FileRow
@@ -94,15 +106,16 @@ function Section({
               entry={entry}
               action={rowAction}
               onAct={() => onRow(entry.path)}
+              onOpen={() => onOpen(entry)}
             />
           ))}
         </ul>
-      </ScrollArea>
+      </div>
     </>
   );
 }
 
-export function WorkingTree({ tree, busy, onRun }: Props) {
+export function WorkingTree({ tree, busy, onRun, onOpen }: Props) {
   const { t } = useTranslation();
   const staged = tree.entries.filter((e) => e.staged);
   const unstaged = tree.entries.filter((e) => !e.staged);
@@ -117,6 +130,7 @@ export function WorkingTree({ tree, busy, onRun }: Props) {
         rowAction={t('workingTree.stage')}
         onAll={() => onRun({ kind: 'stageAll' })}
         onRow={(path) => onRun({ kind: 'stage', paths: [path] })}
+        onOpen={(entry) => onOpen(entry.path, entry.letter, false)}
       />
 
       <Separator />
@@ -129,6 +143,7 @@ export function WorkingTree({ tree, busy, onRun }: Props) {
         rowAction={t('workingTree.unstage')}
         onAll={() => onRun({ kind: 'unstageAll' })}
         onRow={(path) => onRun({ kind: 'unstage', paths: [path] })}
+        onOpen={(entry) => onOpen(entry.path, entry.letter, true)}
       />
     </div>
   );

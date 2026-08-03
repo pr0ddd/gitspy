@@ -3,17 +3,21 @@ import { motion } from 'motion/react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
-import type { RecentRepo } from '../types';
+import { HostRepos } from './HostRepos';
+import type { AccountView, RecentRepo } from '../types';
 
 type Props = {
   recent: RecentRepo[];
+  account: AccountView | null;
   onOpen: () => void;
   onOpenPath: (path: string) => void;
   onForget: (path: string) => void;
+  onClone: (url: string) => void;
+  onCreate: () => void;
+  onConnect: () => void;
 };
 
 const shorten = (path: string) => {
@@ -21,7 +25,16 @@ const shorten = (path: string) => {
   return match ? `~${match[1] ?? ''}` : path;
 };
 
-export function StartPage({ recent, onOpen, onOpenPath, onForget }: Props) {
+export function StartPage({
+  recent,
+  account,
+  onOpen,
+  onOpenPath,
+  onForget,
+  onClone,
+  onCreate,
+  onConnect,
+}: Props) {
   const { t, i18n } = useTranslation();
   const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' });
 
@@ -34,85 +47,98 @@ export function StartPage({ recent, onOpen, onOpenPath, onForget }: Props) {
   };
 
   return (
-    <ScrollArea className="min-h-0 flex-1">
-      <div className="mx-auto w-full max-w-2xl px-8 py-10">
-        <h1 className="mb-5 text-xl font-semibold tracking-tight">{t('start.title')}</h1>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="bg-card border-border flex shrink-0 items-center justify-between border-b px-4 py-2.5">
+        <div>
+          <h1 className="text-sm font-medium">{t('start.title')}</h1>
+          <p className="text-muted-foreground text-xs">
+            {t('start.repoCount', { count: recent.length })}
+          </p>
+        </div>
 
-        <div className="mb-8 flex gap-2">
-          <Button onClick={onOpen} className="h-8">
+        <div className="flex gap-2">
+          <Button onClick={onOpen} size="sm" className="h-7">
             <Icon.open className="size-3.5" />
             {t('start.open')}
           </Button>
-          {[
-            { label: GIT.clone, icon: Icon.clone },
-            { label: t('start.create'), icon: Icon.add },
-          ].map(({ label, icon: Icon }) => (
-            <Tooltip key={label}>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button variant="secondary" disabled className="h-8">
-                    <Icon className="size-3.5" />
-                    {label}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('start.needsOperations')}</TooltipContent>
-            </Tooltip>
-          ))}
+          <Button variant="secondary" size="sm" onClick={() => onClone('')} className="h-7">
+            <Icon.clone className="size-3.5" />
+            {GIT.clone}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onCreate} className="h-7">
+            <Icon.add className="size-3.5" />
+            {t('start.create')}
+          </Button>
         </div>
+      </header>
 
-        <h2 className="text-muted-foreground mb-2 text-xs tracking-wide uppercase">
-          {t('start.recent')}
-        </h2>
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_22rem]">
+        <ScrollArea className="min-h-0">
+          <div className="p-3">
+            <h2 className="text-muted-foreground mb-2 px-1 text-xs tracking-wide uppercase">
+              {t('start.recent')}
+            </h2>
 
-        {recent.length === 0 ? (
-          <p className="text-muted-foreground/70">{t('start.recentEmpty')}</p>
-        ) : (
-          <ul className="-mx-2">
-            {recent.map((entry, i) => (
-              <motion.li
-                key={entry.path}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, delay: Math.min(i, 8) * 0.02 }}
-              >
-                <button
-                  onClick={() => entry.exists && onOpenPath(entry.path)}
-                  title={entry.exists ? entry.path : t('start.missing')}
-                  className={cn(
-                    'group hover:bg-surface-hover flex h-8 w-full items-baseline gap-3 rounded-md px-2 text-left transition-colors',
-                    !entry.exists && 'opacity-40',
-                  )}
-                >
-                  <span className="text-primary font-medium">{entry.name}</span>
-                  <span className="text-muted-foreground truncate font-mono text-xs">
-                    {shorten(entry.path)}
-                  </span>
-                  <span className="text-muted-foreground/60 ml-auto shrink-0 text-xs">
-                    {ago(entry.openedAt)}
-                  </span>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-foreground size-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+            {recent.length === 0 ? (
+              <p className="text-muted-foreground/70 px-1 text-sm">{t('start.recentEmpty')}</p>
+            ) : (
+              <ul className="space-y-1">
+                {recent.map((entry, i) => (
+                  <motion.li
+                    key={entry.path}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.18, delay: Math.min(i, 8) * 0.02 }}
                   >
-                    <span
-                      title={t('start.forget')}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onForget(entry.path);
-                      }}
+                    <button
+                      onClick={() => entry.exists && onOpenPath(entry.path)}
+                      title={entry.exists ? entry.path : t('start.missing')}
+                      className={cn(
+                        'group bg-card border-border hover:border-primary/40 hover:bg-surface-hover flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors',
+                        !entry.exists && 'opacity-40',
+                      )}
                     >
-                      <Icon.close className="size-3" />
-                    </span>
-                  </Button>
-                </button>
-              </motion.li>
-            ))}
-          </ul>
-        )}
+                      <span className="bg-surface-raised flex size-7 shrink-0 items-center justify-center rounded-md">
+                        <Icon.branch className="text-muted-foreground size-3.5" />
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{entry.name}</span>
+                        <span className="text-muted-foreground/70 block truncate font-mono text-xs">
+                          {shorten(entry.path)}
+                        </span>
+                      </span>
+
+                      <span className="text-muted-foreground/60 shrink-0 text-xs">
+                        {ago(entry.openedAt)}
+                      </span>
+
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground size-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <span
+                          title={t('start.forget')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onForget(entry.path);
+                          }}
+                        >
+                          <Icon.close className="size-3" />
+                        </span>
+                      </Button>
+                    </button>
+                  </motion.li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </ScrollArea>
+
+        <HostRepos account={account} onClone={onClone} onConnect={onConnect} />
       </div>
-    </ScrollArea>
+    </div>
   );
 }

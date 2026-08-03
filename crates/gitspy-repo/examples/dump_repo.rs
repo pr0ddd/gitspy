@@ -32,7 +32,7 @@ fn main() {
     println!("коммитов с внешними родителями: {with_outside}, рёбер: {outside_total}");
     println!(
         "коммитов: {}  refs: {}  max_lane: {}  truncated: {}",
-        history.commits.len(),
+        history.nodes.len(),
         history.refs.len(),
         layout.max_lane,
         history.truncated
@@ -41,8 +41,9 @@ fn main() {
     println!();
 
     let names: Vec<String> = history
-        .commits
+        .nodes
         .iter()
+        .filter_map(gitspy_repo::Node::commit)
         .map(|c| format!("{} {}", &c.hash[..7], truncate(&c.subject, 44)))
         .collect();
 

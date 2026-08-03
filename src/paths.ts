@@ -20,3 +20,8 @@ export const shortenDirectory = (directory: string, budget: number): string => {
   if (lastSegment.length + 1 >= budget) return `…${lastSegment}`;
   return `${directory.slice(0, budget - lastSegment.length - 1)}…${lastSegment}`;
 };
+
+export const directoryFromUrl = (url: string): string => {
+  const tail = url.trim().replace(/\/+$/, '').split(/[/:]/).pop() ?? '';
+  return tail.replace(/\.git$/i, '');
+};

@@ -1,0 +1,15 @@
+[package]
+name = "gitspy-hosts"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+
+[dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "webpki-roots", "json", "form", "charset", "http2"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+tempfile = "3"

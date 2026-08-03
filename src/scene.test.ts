@@ -1,25 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HEADER_H,
+  METRICS_AVATARS,
+  METRICS_COMPACT,
+  MINIMAP_TOP,
   anchorAt,
   contentHeight,
   graphGeometry,
-  graphLeft,
-  graphRight,
-  hashColumnLeft,
-  hitTest,
-  HEADER_H,
+  listWidth,
   maxScroll,
   maxScrollX,
-  METRICS_AVATARS,
-  METRICS_COMPACT,
+  minimapBand,
+  minimapFraction,
   rowAtY,
+  rowTop,
   scrollForAnchor,
   visibleRange,
 } from './scene';
+import { layoutColumns } from './columns';
 
 const M = METRICS_AVATARS;
 const WIDTH = 1400;
 const HEIGHT = 800;
+
+const colsWith = (graph: number) => layoutColumns(listWidth(WIDTH), { graph });
+const COLS = layoutColumns(listWidth(WIDTH), {});
 
 describe('видимый диапазон', () => {
   it('в начале истории показывает строки с нуля', () => {
@@ -81,54 +86,123 @@ describe('предел прокрутки', () => {
 
 describe('геометрия графа', () => {
   it('узкий граф не прокручивается вбок и не прижимает узлы', () => {
-    const g = graphGeometry(M, 2, 0, WIDTH);
-    expect(maxScrollX(M, 2, WIDTH)).toBe(0);
+    const g = graphGeometry(M, 2, 0, COLS);
+    expect(maxScrollX(M, 2, COLS.graph.width)).toBe(0);
     expect(g.isStuck(0)).toBe(false);
     expect(g.nodeX(1)).toBe(g.laneAt(1));
   });
 
   it('широкий граф прижимает узлы за краем к краю', () => {
-    const g = graphGeometry(M, 200, 0, WIDTH);
-    expect(maxScrollX(M, 200, WIDTH)).toBeGreaterThan(0);
+    const g = graphGeometry(M, 200, 0, COLS);
+    expect(maxScrollX(M, 200, COLS.graph.width)).toBeGreaterThan(0);
     expect(g.isStuck(199)).toBe(true);
-    expect(g.nodeX(199)).toBeLessThanOrEqual(graphRight(WIDTH));
+    expect(g.nodeX(199)).toBeLessThanOrEqual(COLS.graph.left + COLS.graph.width);
   });
 
   it('тень слева появляется только когда слева что-то скрыто', () => {
-    expect(graphGeometry(M, 200, 0, WIDTH).leftShadow).toBe(false);
-    expect(graphGeometry(M, 200, 40, WIDTH).leftShadow).toBe(true);
+    expect(graphGeometry(M, 200, 0, COLS).leftShadow).toBe(false);
+    expect(graphGeometry(M, 200, 40, COLS).leftShadow).toBe(true);
   });
 
   it('тень справа исчезает на самом правом краю', () => {
-    const max = maxScrollX(M, 200, WIDTH);
-    expect(graphGeometry(M, 200, 0, WIDTH).rightShadow).toBe(true);
-    expect(graphGeometry(M, 200, max, WIDTH).rightShadow).toBe(false);
+    const max = maxScrollX(M, 200, COLS.graph.width);
+    expect(graphGeometry(M, 200, 0, COLS).rightShadow).toBe(true);
+    expect(graphGeometry(M, 200, max, COLS).rightShadow).toBe(false);
   });
 
   it('дорожки идут слева направо с шагом в ширину дорожки', () => {
-    const g = graphGeometry(M, 10, 0, WIDTH);
+    const g = graphGeometry(M, 10, 0, COLS);
     expect(g.laneAt(3) - g.laneAt(2)).toBe(M.laneW);
   });
 });
 
-describe('попадание клика', () => {
-  it('справа от списка — мини-карта', () => {
-    expect(hitTest(WIDTH - 10, 400, WIDTH, HEIGHT)).toBe('minimap');
+describe('место поля ввода в строке', () => {
+  it('верх строки уезжает вверх ровно на прокрутку', () => {
+    expect(rowTop(M, 0, 0)).toBe(HEADER_H);
+    expect(rowTop(M, 0, 40)).toBe(HEADER_H - 40);
+    expect(rowTop(M, 3, 0)).toBe(HEADER_H + 3 * M.rowH);
+  });
+});
+
+describe('минимапа под шапкой', () => {
+  it('щелчок в самый верх полосы не уводит выше начала', () => {
+    expect(minimapFraction(0, 800)).toBe(0);
+    expect(minimapFraction(MINIMAP_TOP, 800)).toBe(0);
   });
 
-  it('колонка хеша копируется кликом, а не выделяется', () => {
-    expect(hitTest(hashColumnLeft(WIDTH) + 10, 200, WIDTH, HEIGHT)).toBe('hash');
+  it('щелчок в самый низ даёт конец истории', () => {
+    expect(minimapFraction(800, 800)).toBe(1);
   });
 
-  it('середина строки выбирает коммит', () => {
-    expect(hitTest(600, 200, WIDTH, HEIGHT)).toBe('row');
+  it('середина полосы — середина истории, а не середина окна', () => {
+    const height = 800;
+    const middle = MINIMAP_TOP + minimapBand(height) / 2;
+    expect(minimapFraction(middle, height)).toBeCloseTo(0.5);
+  });
+});
+
+describe('якорь дорожек', () => {
+  it('порог прокручиваемости не сдвигает дорожки: ворота режут, а не двигают', () => {
+    const narrow = colsWith(300);
+    const wide = colsWith(1200);
+    const before = graphGeometry(M, 20, 0, narrow);
+    const after = graphGeometry(M, 20, 0, wide);
+    expect(before.laneAt(0)).toBe(after.laneAt(0));
+  });
+});
+
+describe('прижатие в покое', () => {
+  it('без прокрутки ни один узел прокручиваемого графа не прижат', () => {
+    const narrow = colsWith(200);
+    const g = graphGeometry(M, 60, 0, narrow);
+    expect(g.isStuck(0)).toBe(false);
+    expect(g.nodeX(0)).toBe(g.laneAt(0));
+  });
+});
+
+describe('узкая колонка графа', () => {
+  it('шаг дорожек не зависит от ширины колонки — граница не зумит содержимое', () => {
+    const wide = graphGeometry(M, 99, 0, colsWith(700));
+    const tight = graphGeometry(M, 99, 0, colsWith(120));
+    expect(wide.laneAt(1) - wide.laneAt(0)).toBe(M.laneW);
+    expect(tight.laneAt(1) - tight.laneAt(0)).toBe(M.laneW);
   });
 
-  it('в шапке ничего не выбирается', () => {
-    expect(hitTest(600, 5, WIDTH, HEIGHT)).toBe('none');
+  it('не влезающие узлы прижимаются в колонну у края', () => {
+    const g = graphGeometry(M, 99, 0, colsWith(70));
+    expect(g.nodeX(60)).toBe(g.nodeX(99));
+    expect(g.isStuck(60)).toBe(true);
+  });
+});
+
+describe('минимальная колонка графа', () => {
+  it('свободный аватар стоит на месте, пока край до него не доехал', () => {
+    const roomy = graphGeometry(M, 99, 0, colsWith(200));
+    const tight = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
+    expect(roomy.nodeX(0)).toBe(roomy.laneAt(0));
+    expect(tight.nodeX(0)).toBe(tight.laneAt(0));
   });
 
-  it('полоса горизонтальной прокрутки перехватывает клик у нижнего края', () => {
-    expect(hitTest(graphLeft() + 20, HEIGHT - 3, WIDTH, HEIGHT)).toBe('hscroll');
+  it('в минимуме колонна и свободный узел сливаются в один ряд', () => {
+    const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
+    expect(Math.abs(g.nodeX(99) - g.nodeX(0))).toBeLessThanOrEqual(M.nodeR);
+  });
+
+  it('линии забранных дорожек вливаются в ось колонны, а не пропадают', () => {
+    const g = graphGeometry(M, 99, 0, colsWith(90));
+    expect(Math.min(g.laneAt(50), g.pinX)).toBe(g.pinX);
+    expect(g.pinX).toBe(g.nodeX(50));
+  });
+
+  it('просторный граф ничего не прижимает', () => {
+    const g = graphGeometry(M, 3, 0, colsWith(400));
+    expect(g.pinX).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe('дно колонки графа', () => {
+  it('в минимуме все узлы становятся в один ряд без остатка', () => {
+    const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 28 }));
+    expect(g.nodeX(0)).toBe(g.nodeX(99));
   });
 });

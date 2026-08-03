@@ -1,3 +1,11 @@
+export type { AccountView } from './generated/AccountView';
+export type { CloneStepView } from './generated/CloneStepView';
+export type { TipView } from './generated/TipView';
+export type { PullView } from './generated/PullView';
+export type { PullListView } from './generated/PullListView';
+export type { PullCardView } from './generated/PullCardView';
+export type { DeviceView } from './generated/DeviceView';
+export type { RepoListingView } from './generated/RepoListingView';
 export type { ChangedFileView } from './generated/ChangedFileView';
 export type { DiffSides } from './generated/DiffSides';
 export type { ErrorView } from './generated/ErrorView';
