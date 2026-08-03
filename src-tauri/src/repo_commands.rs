@@ -195,6 +195,8 @@ pub async fn run_operation(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<OperationOutcome, ErrorView> {
+    state.cancel_autofetch(&repo);
+
     let git = state.git()?;
     let lane = state.queue.lane(&repo);
     let path = PathBuf::from(&repo);
@@ -421,6 +423,7 @@ pub async fn checkout_ref(
         return Ok(());
     };
 
+    state.cancel_autofetch(&repo);
     let lane = state.queue.lane(&repo);
     on_reader(move || {
         let _held = lane.lock().expect("полоса очереди не отравлена");

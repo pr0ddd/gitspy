@@ -16,6 +16,7 @@ pub struct AppState {
     pub watchers: watcher::Watchers,
     git: Mutex<Option<Git>>,
     stale: Mutex<HashMap<String, bool>>,
+    autofetch: Mutex<HashMap<String, gitspy_exec::Cancel>>,
 }
 
 pub struct OpenRepo {
@@ -42,6 +43,26 @@ impl AppState {
     pub fn mark_stale(&self, repo: &str) {
         if let Ok(mut known) = self.stale.lock() {
             known.insert(repo.to_string(), true);
+        }
+    }
+
+    pub fn remember_autofetch(&self, repo: &str, cancel: gitspy_exec::Cancel) {
+        if let Ok(mut running) = self.autofetch.lock() {
+            running.insert(repo.to_string(), cancel);
+        }
+    }
+
+    pub fn forget_autofetch(&self, repo: &str) {
+        if let Ok(mut running) = self.autofetch.lock() {
+            running.remove(repo);
+        }
+    }
+
+    pub fn cancel_autofetch(&self, repo: &str) {
+        if let Ok(mut running) = self.autofetch.lock() {
+            if let Some(cancel) = running.remove(repo) {
+                cancel.ask();
+            }
         }
     }
 
