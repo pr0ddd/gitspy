@@ -46,10 +46,11 @@ const GRAPH_W = 2;
 
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.18;
-const MARK_W = 11;
-const MARK_GAP = 4;
-const CHIP_H = 19;
-const CHIP_R = 2;
+const MARK_GAP = 5;
+const CHIP_R = 3;
+
+const chipHeight = (m: Metrics): number => m.rowH - 6;
+const markSize = (m: Metrics): number => Math.round(chipHeight(m) * 0.62);
 const CAP_W = 2;
 
 const SHADOW_BAND = 14;
@@ -355,8 +356,11 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.restore();
 
     ctx.textBaseline = 'middle';
-    ctx.font = FONT_CHIP;
+    ctx.font = m.font;
     const remoteNames = repo.remotes.map((r) => r.name);
+    const chipH = chipHeight(m);
+    const markW = markSize(m);
+    const padX = Math.round(chipH * 0.36);
     for (let i = first; i < last; i++) {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
@@ -370,29 +374,30 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       let chipEnd = left;
       for (const chip of chipsFor(labels, remoteNames)) {
-        const marks = chip.marks.length * (MARK_W + MARK_GAP);
+        const marks = chip.marks.length * (markW + MARK_GAP);
+        const sides = padX * 2;
         const room = cols.branchTag.width - 14 - left;
         if (room < 10) break;
 
         const text = chip.isHead ? `✓ ${chip.name}` : chip.name;
         const fitted =
-          room < 26 + marks ? '' : fitText(ctx, text, Math.min(150, room - 14 - marks));
-        const w = fitted ? ctx.measureText(fitted).width + 14 + marks : Math.min(room, 18);
+          room < sides + marks + 12 ? '' : fitText(ctx, text, Math.min(180, room - sides - marks));
+        const w = fitted ? ctx.measureText(fitted).width + sides + marks : Math.min(room, 18);
         ctx.fillStyle = theme().ref[chip.kind];
-        roundRect(ctx, left, y - CHIP_H / 2, w, CHIP_H, CHIP_R);
+        roundRect(ctx, left, y - chipH / 2, w, chipH, CHIP_R);
         ctx.fill();
         ctx.fillStyle = t.foreground;
-        if (fitted) ctx.fillText(fitted, left + 7, y);
+        if (fitted) ctx.fillText(fitted, left + padX, y);
 
         if (fitted) {
           ctx.save();
           ctx.strokeStyle = t.foreground;
           ctx.fillStyle = t.foreground;
-          let markX = left + w - 7 - marks + MARK_GAP;
+          let markX = left + w - padX - marks + MARK_GAP;
           for (const mark of chip.marks) {
-            if (mark === 'local') drawLocalMark(ctx, markX, y);
-            else if (chip.remote) drawRemoteMark(ctx, markX, y, chip.remote, avatars);
-            markX += MARK_W + MARK_GAP;
+            if (mark === 'local') drawLocalMark(ctx, markX, y, markW);
+            else if (chip.remote) drawRemoteMark(ctx, markX, y, chip.remote, avatars, markW);
+            markX += markW + MARK_GAP;
           }
           ctx.restore();
         }
@@ -581,15 +586,19 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
   }
 }
 
-function drawLocalMark(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  ctx.lineWidth = 1.2;
+function drawLocalMark(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  const screenW = size * 0.74;
+  const screenH = size * 0.6;
+  const foot = size * 0.42;
+
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
-  roundRect(ctx, x + 1.5, y - 4.5, 8, 6.5, 1);
+  roundRect(ctx, x + (size - screenW) / 2, y - foot, screenW, screenH, 1.5);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(x - 0.5, y + 4.5);
-  ctx.lineTo(x + 10.5, y + 4.5);
+  ctx.moveTo(x, y + foot);
+  ctx.lineTo(x + size, y + foot);
   ctx.stroke();
 }
 
@@ -599,8 +608,8 @@ function drawRemoteMark(
   y: number,
   remote: string,
   avatars: AvatarCache | null,
+  size: number,
 ): void {
-  const size = MARK_W;
   const key = remoteAvatarKey(remote);
   const look = avatars?.lookOf(key) ?? { kind: 'identicon' as const };
 
