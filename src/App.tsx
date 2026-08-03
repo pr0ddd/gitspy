@@ -4,7 +4,13 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { METRICS_AVATARS } from './render';
-import { notifyCopied, notifyError, notifyOperation, operationLabel } from './toast';
+import {
+  notifyCopied,
+  notifyError,
+  notifyOperation,
+  notifyOperationFailed,
+  operationLabel,
+} from './toast';
 import * as ipc from './ipc';
 import { EMPTY, sessionsReducer } from './session';
 import { useRepoData } from './repoData';
@@ -282,12 +288,14 @@ export default function App() {
 
       ipc
         .runOperation(active, operation, () => {})
-        .then(() => {
-          notifyOperation(operation, 'finished');
-          void ipc.resolveAvatars(active).catch(() => undefined);
-          return reload(active);
-        })
-        .catch(notifyError)
+        .then(
+          () => {
+            notifyOperation(operation, 'finished');
+            void ipc.resolveAvatars(active).catch(() => undefined);
+            return reload(active).catch(notifyError);
+          },
+          (e) => notifyOperationFailed(operation, e),
+        )
         .finally(() => {
           setBusy(false);
           setVeil(null);

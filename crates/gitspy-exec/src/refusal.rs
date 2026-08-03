@@ -3,6 +3,7 @@ pub enum Refusal {
     Rejected,
     Conflict,
     CheckoutBlocked,
+    PullDiverged,
 }
 
 impl Refusal {
@@ -11,6 +12,7 @@ impl Refusal {
             Refusal::Rejected => "exec.rejected",
             Refusal::Conflict => "exec.conflict",
             Refusal::CheckoutBlocked => "exec.checkoutBlocked",
+            Refusal::PullDiverged => "exec.pullDiverged",
         }
     }
 }
@@ -18,6 +20,9 @@ impl Refusal {
 pub fn of(stderr: &str) -> Option<Refusal> {
     if stderr.contains("[rejected]") && stderr.contains("non-fast-forward") {
         return Some(Refusal::Rejected);
+    }
+    if stderr.contains("Need to specify how to reconcile divergent branches") {
+        return Some(Refusal::PullDiverged);
     }
     if stderr.contains("would be overwritten by checkout")
         || stderr.contains("before you switch branches")
@@ -86,5 +91,18 @@ mod tests {
     fn an_unknown_failure_stays_unknown_instead_of_being_guessed() {
         assert_eq!(of("fatal: not a git repository"), None);
         assert_eq!(of(""), None);
+    }
+
+    #[test]
+    fn a_pull_into_diverged_branches_asks_for_a_strategy_instead_of_dumping_hints() {
+        let stderr =
+            "hint: You have divergent branches and need to specify how to reconcile them.\n\
+                      hint: git config pull.rebase false  # merge\n\
+                      fatal: Need to specify how to reconcile divergent branches.";
+        assert_eq!(
+            of(stderr),
+            Some(Refusal::PullDiverged),
+            "стена hint-ов от git нечитаема, человеку нужен выбор merge или rebase"
+        );
     }
 }

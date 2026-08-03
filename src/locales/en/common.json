@@ -88,6 +88,7 @@
   "operation.cherryPick": "cherry-pick",
   "operation.discard": "discarding",
   "operation.drop": "drop",
+  "operation.failed": "{{what}} failed",
   "operation.fastForward": "fast-forward",
   "operation.fetch": "fetch",
   "operation.fetchDryRun": "fetch --dry-run",
