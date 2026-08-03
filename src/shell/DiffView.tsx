@@ -5,6 +5,7 @@ import * as ipc from '../ipc';
 import { languageOf, monaco, setUpMonaco, THEME } from '../monaco';
 import { notifyError } from '../toast';
 import { Icon } from '../icons';
+import { ViewBar } from './parts';
 import { shortenDirectory, splitPath } from '../paths';
 import { cn } from '@/lib/utils';
 import { DIFF_MODES, DIFF_MODE_LABEL, editorOptionsFor, type DiffMode } from '../diff';
@@ -141,7 +142,7 @@ export function DiffView({ repo, target, onClose }: Props) {
 
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="bg-card border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+      <ViewBar>
         <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[status])}>{status}</span>
         <span className="flex min-w-0 items-baseline font-mono text-xs">
           <span className="text-muted-foreground shrink-0">
@@ -154,8 +155,7 @@ export function DiffView({ repo, target, onClose }: Props) {
           <Hint text={t('diff.editHint')}>
             <Button
               variant="ghost"
-              size="sm"
-              className="h-6 gap-1.5 px-2 text-xs"
+              size="xs"
               onClick={() => ipc.openInEditor(worktreePath(repo, path)).catch(notifyError)}
             >
               <Icon.edit className="size-3.5" />
@@ -194,7 +194,7 @@ export function DiffView({ repo, target, onClose }: Props) {
           </Hint>
         </div>
 
-        <span className="text-muted-foreground/60 shrink-0 font-mono text-2xs">UTF-8</span>
+        <span className="text-muted-foreground text-2xs shrink-0 font-mono">UTF-8</span>
 
         <div className="border-input flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
           <Button
@@ -226,7 +226,7 @@ export function DiffView({ repo, target, onClose }: Props) {
             <Icon.close className="size-3.5" />
           </Button>
         </Hint>
-      </header>
+      </ViewBar>
 
       {binary ? (
         <p className="text-muted-foreground p-6 text-center">{t('diff.binary')}</p>

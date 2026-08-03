@@ -135,7 +135,7 @@ export function Toolbar({
             <span
               className={cn(
                 'flex items-center gap-0.5',
-                tree.ahead ? 'text-ahead' : 'text-muted-foreground/40',
+                tree.ahead ? 'text-ahead' : 'text-muted-foreground',
               )}
             >
               <Icon.push className="size-3" />
@@ -144,7 +144,7 @@ export function Toolbar({
             <span
               className={cn(
                 'flex items-center gap-0.5',
-                tree.behind ? 'text-behind' : 'text-muted-foreground/40',
+                tree.behind ? 'text-behind' : 'text-muted-foreground',
               )}
             >
               <Icon.pull className="size-3" />

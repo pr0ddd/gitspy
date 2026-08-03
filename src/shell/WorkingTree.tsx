@@ -3,9 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { shortenDirectory, splitPath } from '../paths';
+import { FilePath, ListRow, SectionHeader } from './parts';
 import type { PathOperation, StatusEntryView, WorkingTreeView } from '../types';
-import { Hint } from '@/components/ui/tooltip';
 
 export type PreviousCommit = { readonly subject: string; readonly body: string };
 
@@ -46,22 +45,13 @@ function FileRow({
   onAct: () => void;
   onOpen: () => void;
 }) {
-  const { directory, name } = splitPath(entry.path);
   return (
     <li>
-      <div
-        onClick={onOpen}
-        className="group hover:bg-surface-hover flex h-6 cursor-pointer items-baseline gap-1.5 rounded-sm px-1 font-mono text-xs"
-      >
+      <ListRow as="div" mono hint={entry.path} onClick={onOpen}>
         <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[entry.letter])}>
           {entry.letter}
         </span>
-        <span className="text-muted-foreground min-w-0 flex-1 shrink-[100] truncate text-left [direction:rtl]">
-          {'\u200e' + shortenDirectory(directory, 64) + '\u200e'}
-        </span>
-        <Hint text={entry.path}>
-          <span className="min-w-16 truncate">{name}</span>
-        </Hint>
+        <FilePath path={entry.path} />
         <Button
           variant="ghost"
           size="2xs"
@@ -74,7 +64,7 @@ function FileRow({
         >
           {action}
         </Button>
-      </div>
+      </ListRow>
     </li>
   );
 }
@@ -100,19 +90,17 @@ function Section({
 }) {
   return (
     <>
-      <div className="border-border flex h-7 shrink-0 items-center gap-2 border-b px-3">
-        <span className="text-muted-foreground flex-1 text-xs tracking-wide uppercase">
-          {title}
-        </span>
-        <span className="text-muted-foreground tabular-nums">{count}</span>
+      <SectionHeader border="bottom">
+        <span className="min-w-0 flex-1 truncate text-left">{title}</span>
+        <span className="shrink-0 tabular-nums">{count}</span>
         {count > 0 ? (
-          <Button variant="outline" size="sm" onClick={onAll} className="h-5 px-1.5 text-2xs">
+          <Button variant="outline" size="2xs" onClick={onAll}>
             {action}
           </Button>
         ) : null}
-      </div>
+      </SectionHeader>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <ul className="space-y-0.5 p-1">
+        <ul>
           {entries.map((entry) => (
             <FileRow
               key={`${entry.staged}:${entry.path}`}

@@ -26,6 +26,18 @@ const remoteOf = (name: string, remotes: readonly string[]): string | null =>
       return longest && longest.length >= remote.length ? longest : remote;
     }, null);
 
+const KIND_ORDER: Record<RefKind, number> = {
+  localBranch: 0,
+  remoteBranch: 1,
+  tag: 2,
+  stash: 3,
+};
+
+const byProminence = (a: Chip, b: Chip): number =>
+  Number(b.isHead) - Number(a.isHead) ||
+  KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
+  a.name.localeCompare(b.name);
+
 export const chipsFor = (labels: readonly RefView[], remotes: readonly string[]): Chip[] => {
   const here = new Set(labels.map((r) => r.name));
   const tracked = (r: RefView) =>
@@ -33,7 +45,7 @@ export const chipsFor = (labels: readonly RefView[], remotes: readonly string[])
 
   const absorbed = new Set(labels.map(tracked).filter((name): name is string => name !== null));
 
-  return labels
+  const built = labels
     .filter((r) => !(r.kind === 'remoteBranch' && absorbed.has(r.name)))
     .map((r) => {
       const upstreamName = tracked(r);
@@ -53,4 +65,6 @@ export const chipsFor = (labels: readonly RefView[], remotes: readonly string[])
         refs: upstream ? [r, upstream] : [r],
       };
     });
+
+  return built.sort(byProminence);
 };

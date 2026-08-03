@@ -9,8 +9,8 @@ import type { RowCache } from '../rows';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import * as ipc from '../ipc';
-import { shortenDirectory, splitPath } from '../paths';
 import { notifyError } from '../toast';
+import { FilePath, ListRow, PanelBar, PanelNote } from './parts';
 import type { ChangedFileView, RefKind } from '../types';
 import { Hint } from '@/components/ui/tooltip';
 
@@ -73,7 +73,7 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
   if (!session || !row || row.kind !== 'commit') {
     return (
       <Shell>
-        <p className="text-muted-foreground p-4 text-center">{t('details.loading')}</p>
+        <PanelNote>{t('details.loading')}</PanelNote>
       </Shell>
     );
   }
@@ -97,9 +97,9 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
         </button>
       ) : null}
 
-      <header className="border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+      <PanelBar>
         <Icon.commit className="text-muted-foreground size-3.5" />
-        <span className="text-muted-foreground text-xs tracking-wide uppercase">{GIT.commit}</span>
+        <span className="text-muted-foreground tracking-wide uppercase">{GIT.commit}</span>
         <Hint text={t('details.copyHash')}>
           <Button
             variant="outline"
@@ -111,7 +111,7 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
             {row.hash.slice(0, 8)}
           </Button>
         </Hint>
-      </header>
+      </PanelBar>
 
       <div className="max-h-64 shrink-0 overflow-y-auto">
         <div className="space-y-3 p-3">
@@ -123,18 +123,22 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
             </pre>
           ) : null}
 
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            <dt className="text-muted-foreground">{t('details.author')}</dt>
-            <dd className="truncate">
-              {row.author} <span className="text-muted-foreground">{row.email}</span>
-            </dd>
-            <dt className="text-muted-foreground">{t('details.date')}</dt>
-            <dd>
-              {new Intl.DateTimeFormat(i18n.language, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              }).format(when)}
-            </dd>
+          <dl className="space-y-1">
+            <div className="flex gap-3">
+              <dt className="text-muted-foreground w-14 shrink-0">{t('details.author')}</dt>
+              <dd className="min-w-0 truncate">
+                {row.author} <span className="text-muted-foreground">{row.email}</span>
+              </dd>
+            </div>
+            <div className="flex gap-3">
+              <dt className="text-muted-foreground w-14 shrink-0">{t('details.date')}</dt>
+              <dd>
+                {new Intl.DateTimeFormat(i18n.language, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                }).format(when)}
+              </dd>
+            </div>
           </dl>
 
           {labels.length ? (
@@ -167,32 +171,28 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
         </div>
 
         {files.length === 0 ? (
-          <p className="text-muted-foreground/70">{t('details.noChanges')}</p>
+          <p className="text-muted-foreground text-xs">{t('details.noChanges')}</p>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <ul className="space-y-0.5 font-mono text-xs">
+            <ul>
               {files.map((file) => (
                 <li key={file.path}>
-                  <Hint text={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}>
-                    <button
-                      onClick={() => onOpenFile(row.hash, file)}
-                      className="hover:bg-surface-hover flex h-6 w-full items-baseline gap-1.5 rounded-sm px-1 text-left"
-                    >
-                      <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
-                        {file.status}
+                  <ListRow
+                    mono
+                    hint={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+                    onClick={() => onOpenFile(row.hash, file)}
+                  >
+                    <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
+                      {file.status}
+                    </span>
+                    <FilePath path={file.path} />
+                    {file.binary ? null : (
+                      <span className="ml-auto shrink-0 tabular-nums">
+                        <span className="text-added">+{file.added ?? 0}</span>{' '}
+                        <span className="text-deleted">−{file.deleted ?? 0}</span>
                       </span>
-                      <span className="text-muted-foreground min-w-0 flex-1 shrink-[100] truncate text-left [direction:rtl]">
-                        {'\u200e' + shortenDirectory(splitPath(file.path).directory, 64) + '\u200e'}
-                      </span>
-                      <span className="min-w-16 truncate">{splitPath(file.path).name}</span>
-                      {file.binary ? null : (
-                        <span className="ml-auto shrink-0 tabular-nums">
-                          <span className="text-added">+{file.added ?? 0}</span>{' '}
-                          <span className="text-deleted">−{file.deleted ?? 0}</span>
-                        </span>
-                      )}
-                    </button>
-                  </Hint>
+                    )}
+                  </ListRow>
                 </li>
               ))}
             </ul>

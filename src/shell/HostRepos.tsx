@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Icon } from '../icons';
+import { ListRow } from './parts';
 import * as ipc from '../ipc';
 import { GIT } from '../vocabulary';
 import type { AccountView, RepoListingView } from '../types';
@@ -62,14 +63,14 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
   }, [repos, query]);
 
   return (
-    <aside className="bg-card border-border flex min-h-0 flex-col border-l">
+    <aside className="bg-card border-border flex min-h-0 shrink-0 flex-col border-l lg:w-96">
       <div className="border-border flex h-10 shrink-0 items-center gap-2 border-b px-3">
         <Icon.host className="text-muted-foreground size-3.5" />
         <h2 className="text-sm font-medium">GitHub</h2>
 
         {account && (
           <>
-            <span className="text-muted-foreground/60 text-xs">
+            <span className="text-muted-foreground text-xs">
               {t('host.repoCount', { count: repos.length })}
             </span>
             <Hint text={t('host.refresh')}>
@@ -93,7 +94,7 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
             <Icon.host className="text-muted-foreground size-5" />
           </span>
           <p className="text-muted-foreground text-xs leading-relaxed">{t('host.connectHint')}</p>
-          <Button size="sm" onClick={onConnect} className="h-7">
+          <Button size="xs" onClick={onConnect}>
             {t('settings.connect')}
           </Button>
         </div>
@@ -105,7 +106,7 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
               <span className="block truncate text-xs font-medium">
                 {account.name ?? account.login}
               </span>
-              <span className="text-muted-foreground/70 block truncate font-mono text-xs">
+              <span className="text-muted-foreground block truncate font-mono text-xs">
                 {account.login}
               </span>
             </span>
@@ -123,45 +124,44 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
           <ScrollArea className="min-h-0 flex-1">
             <ul className="px-2 pb-2">
               {shown.map((repo) => (
-                <li
-                  key={repo.fullName}
-                  className="group hover:bg-surface-hover flex h-8 items-center gap-1.5 rounded-md px-2"
-                >
-                  <span className="min-w-0 truncate text-xs">
-                    <span className="text-muted-foreground/60">{repo.fullName.split('/')[0]}/</span>
-                    <span className="font-medium">{repo.fullName.split('/')[1]}</span>
-                  </span>
+                <li key={repo.fullName}>
+                  <ListRow as="div">
+                    <span className="min-w-0 truncate">
+                      <span className="text-muted-foreground">{repo.fullName.split('/')[0]}/</span>
+                      <span className="font-medium">{repo.fullName.split('/')[1]}</span>
+                    </span>
 
-                  {repo.private && (
-                    <Icon.private className="text-muted-foreground/50 size-3 shrink-0" />
-                  )}
+                    {repo.private && (
+                      <Icon.private className="text-muted-foreground size-3 shrink-0" />
+                    )}
 
                   <Button
-                    size="2xs"
-                    variant="secondary"
-                    reveal
-                    onClick={() => onClone(repo.cloneUrl)}
-                    className="ml-auto"
-                  >
-                    {GIT.clone}
-                  </Button>
+                      size="2xs"
+                      variant="secondary"
+                      reveal
+                      onClick={() => onClone(repo.cloneUrl)}
+                      className="ml-auto"
+                    >
+                      {GIT.clone}
+                    </Button>
+                  </ListRow>
                 </li>
               ))}
             </ul>
 
             {busy && repos.length === 0 && (
-              <p className="text-muted-foreground/60 flex items-center gap-1.5 px-4 py-2 text-xs">
+              <p className="text-muted-foreground flex items-center gap-1.5 px-4 py-2 text-xs">
                 <Icon.waiting className="size-3 animate-spin" />
                 {t('host.loading')}
               </p>
             )}
 
             {!busy && failed && (
-              <p className="text-muted-foreground/60 px-4 py-2 text-xs">{t('host.failed')}</p>
+              <p className="text-muted-foreground px-4 py-2 text-xs">{t('host.failed')}</p>
             )}
 
             {!busy && !failed && repos.length > 0 && shown.length === 0 && (
-              <p className="text-muted-foreground/60 px-4 py-2 text-xs">{t('host.searchEmpty')}</p>
+              <p className="text-muted-foreground px-4 py-2 text-xs">{t('host.searchEmpty')}</p>
             )}
           </ScrollArea>
         </>

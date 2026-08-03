@@ -89,7 +89,7 @@ export function Settings({ open, account, onOpenChange, onDisconnected }: Props)
                 <Icon.host className="size-3.5" />
                 {t('settings.connect')}
               </Button>
-              <p className="text-muted-foreground/70 text-xs leading-relaxed">
+              <p className="text-muted-foreground text-xs leading-relaxed">
                 {t('settings.connectHint')}
               </p>
             </div>
@@ -106,14 +106,14 @@ function DeviceCode({ device }: { device: DeviceView }) {
   return (
     <div className="bg-surface-raised space-y-3 rounded-md p-4 text-center">
       <p className="text-muted-foreground text-xs">{t('settings.codeHint')}</p>
-      <div className="font-mono text-2xl font-semibold tracking-[0.3em] select-all">
+      <div className="font-mono text-2xl font-semibold tracking-widest select-all">
         {device.userCode}
       </div>
-      <div className="text-muted-foreground/70 flex items-center justify-center gap-1.5 text-xs">
+      <div className="text-muted-foreground flex items-center justify-center gap-1.5 text-xs">
         <Icon.waiting className="size-3 animate-spin" />
         {t('settings.waiting')}
       </div>
-      <div className="text-muted-foreground/70 font-mono text-xs break-all">
+      <div className="text-muted-foreground font-mono text-xs break-all">
         {device.verificationUri}
       </div>
     </div>
