@@ -10,7 +10,6 @@ type ListRowProps = {
   as?: 'button' | 'div';
   depth?: number;
   current?: boolean;
-  mono?: boolean;
   hint?: string;
   hintSide?: React.ComponentProps<typeof Hint>['side'];
   className?: string;
@@ -24,7 +23,6 @@ export function ListRow({
   as = 'button',
   depth = 0,
   current,
-  mono,
   hint,
   hintSide,
   className,
@@ -47,11 +45,10 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
+        'hover:bg-surface-hover flex h-7 w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
         indentAt(depth),
         as === 'div' && 'group cursor-pointer',
         current && 'bg-ahead/15 font-medium',
-        mono && 'font-mono',
         className,
       )}
     >
@@ -80,7 +77,7 @@ export function SectionHeader({ border = 'top', onClick, className, children }: 
     <Tag
       onClick={onClick}
       className={cn(
-        'border-border/50 text-muted-foreground flex h-7 w-full shrink-0 items-center gap-1.5 px-2 text-xs tracking-wide uppercase transition-colors',
+        'border-border/50 text-muted-foreground flex h-8 w-full shrink-0 items-center gap-1.5 px-2 text-xs tracking-wide uppercase transition-colors',
         border === 'top' ? 'border-t' : 'border-b',
         onClick && 'hover:bg-surface-hover',
         className,
@@ -131,7 +128,7 @@ export function PanelBar({
 
 export function InlineNote({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-muted-foreground flex h-6 items-center gap-1.5 pl-6 text-xs">{children}</p>
+    <p className="text-muted-foreground flex h-7 items-center gap-1.5 pl-6 text-xs">{children}</p>
   );
 }
 
@@ -142,7 +139,7 @@ export function PanelNote({ children }: { children: React.ReactNode }) {
 export function FilePath({ path, budget = 64 }: { path: string; budget?: number }) {
   const { directory, name } = splitPath(path);
   return (
-    <span className="flex min-w-0 items-baseline font-mono">
+    <span className="flex min-w-0 items-baseline">
       <span className="text-muted-foreground min-w-0 truncate">
         {shortenDirectory(directory, budget)}
       </span>

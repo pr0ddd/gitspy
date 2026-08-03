@@ -352,6 +352,39 @@ describe('метки на чипах', () => {
     ).toBe(true);
   });
 
+  it('наведённая строка без своих ссылок показывает ветку-владельца приглушённо', () => {
+    calls.length = 0;
+    texts.length = 0;
+    placedTexts.length = 0;
+    strokedGlyphs.length = 0;
+    drawnImages.length = 0;
+    filledRects.length = 0;
+    arcs.length = 0;
+    const frame = frameWith([ref('wip', 'localBranch')]);
+    drawFrame(canvas(), { ...frame, hover: 2 });
+
+    const shown = placedTexts.filter((t) => t.text === 'wip');
+    expect(shown.length, 'имя ветки видно и на вершине, и призраком на наведённой').toBe(2);
+    expect(shown[0].y, 'призрак стоит на другой строке').not.toBe(shown[1].y);
+  });
+
+  it('у строки со своими ссылками призрака нет', () => {
+    calls.length = 0;
+    texts.length = 0;
+    placedTexts.length = 0;
+    strokedGlyphs.length = 0;
+    drawnImages.length = 0;
+    filledRects.length = 0;
+    arcs.length = 0;
+    const frame = frameWith([ref('wip', 'localBranch')]);
+    drawFrame(canvas(), { ...frame, hover: 0 });
+
+    expect(
+      placedTexts.filter((t) => t.text === 'wip').length,
+      'своя ссылка уже нарисована — второй раз не нужно',
+    ).toBe(1);
+  });
+
   it('не влезшие чипы показываются счётчиком +N', () => {
     const painted = paint([
       ref('very-long-branch-name-one', 'localBranch'),

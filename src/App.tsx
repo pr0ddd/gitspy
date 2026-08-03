@@ -52,6 +52,9 @@ export default function App() {
   const [main, setMain] = useState<Main>({ kind: 'graph' });
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
+  const adoptTree = useCallback((next: WorkingTreeView) => {
+    setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, []);
   const [message, setMessage] = useState('');
   const [description, setDescription] = useState('');
   const [amend, setAmend] = useState(false);
@@ -168,7 +171,7 @@ export default function App() {
       setTree(null);
       return;
     }
-    ipc.workingTree(active).then(setTree).catch(notifyError);
+    ipc.workingTree(active).then(adoptTree).catch(notifyError);
   }, [active]);
 
   const warmAvatars = useCallback(async (path: string, remotes: RemoteView[]) => {
@@ -224,7 +227,7 @@ export default function App() {
           await warmAvatars(path, repo.remotes);
           dispatch({ kind: 'loaded', path, repo });
           if (activeRef.current === path) {
-            void ipc.workingTree(path).then(setTree).catch(notifyError);
+            void ipc.workingTree(path).then(adoptTree).catch(notifyError);
           }
           void ipc
             .worktrees(path)
@@ -260,7 +263,7 @@ export default function App() {
         } else {
           await refillFirstWindow(path);
         }
-        if (path === active) ipc.workingTree(path).then(setTree).catch(notifyError);
+        if (path === active) ipc.workingTree(path).then(adoptTree).catch(notifyError);
       } catch {
         return;
       }
@@ -382,12 +385,7 @@ export default function App() {
   const runPathOperation = useCallback(
     (operation: PathOperation) => {
       if (!active) return;
-      setBusy(true);
-      ipc
-        .stage(active, operation)
-        .then(setTree)
-        .catch(notifyError)
-        .finally(() => setBusy(false));
+      ipc.stage(active, operation).then(adoptTree).catch(notifyError);
     },
     [active],
   );

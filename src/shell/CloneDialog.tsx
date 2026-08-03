@@ -91,7 +91,7 @@ export function CloneDialog({ open, url, onOpenChange, onCloned }: Props) {
             onKeyDown={(e) => e.key === 'Enter' && start()}
             placeholder="https://github.com/owner/repo.git"
             disabled={running}
-            className="font-mono text-xs"
+            className="text-xs"
           />
 
           <div className="flex gap-2">
@@ -99,7 +99,7 @@ export function CloneDialog({ open, url, onOpenChange, onCloned }: Props) {
               value={parent}
               onChange={(e) => setParent(e.target.value)}
               disabled={running}
-              className="min-w-0 flex-1 font-mono text-xs"
+              className="min-w-0 flex-1 text-xs"
             />
             <Button variant="secondary" onClick={browse} disabled={running} className="shrink-0">
               <Icon.open className="size-3.5" />
@@ -112,7 +112,7 @@ export function CloneDialog({ open, url, onOpenChange, onCloned }: Props) {
             onChange={(e) => setName(e.target.value)}
             disabled={running}
             placeholder={t('clone.directory')}
-            className="font-mono text-xs"
+            className="text-xs"
           />
         </div>
 
@@ -121,7 +121,7 @@ export function CloneDialog({ open, url, onOpenChange, onCloned }: Props) {
             <Progress value={step.overall} />
             <div className="text-muted-foreground flex justify-between text-xs">
               <span>{knownStage(step.stage) ? t(knownStage(step.stage)!) : ''}</span>
-              <span className="font-mono">{step.overall}%</span>
+              <span className="tabular-nums">{step.overall}%</span>
             </div>
           </div>
         ) : (

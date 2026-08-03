@@ -75,7 +75,7 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
         <Icon.pullRequest className="text-muted-foreground size-3.5 shrink-0" />
-        <span className="text-muted-foreground shrink-0 font-mono text-xs">#{pull.number}</span>
+        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">#{pull.number}</span>
         <span className="truncate text-sm font-medium">{pull.title}</span>
         <Badge className="bg-added shrink-0 rounded-sm px-1.5 py-0 text-2xs text-white">
           {pull.draft ? t('pull.draft') : t('pull.open')}
@@ -95,7 +95,7 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
       <PanelBar className="text-muted-foreground">
         <img src={pull.authorAvatarUrl} alt="" className="size-4 rounded-full" />
         <span>{pull.author}</span>
-        <span className="font-mono">
+        <span>
           {pull.headBranch} → {pull.baseBranch}
         </span>
         {pull.fromFork ? <Badge variant="outline">fork</Badge> : null}
