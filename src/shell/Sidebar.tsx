@@ -1,14 +1,18 @@
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ChevronRight } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import type { Session } from '../session';
-import { GIT } from '../vocabulary';
-import { Icon, type IconName } from '../icons';
-import { buildRefTree, filterRefTree, openPathsFor, type TreeNode } from '../refTree';
-import type { PullListView, PullView, RefKind, RefView } from '../types';
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import type { Session } from "../session";
+import { GIT } from "../vocabulary";
+import { Icon, type IconName } from "../icons";
+import { buildRefTree, filterRefTree, type TreeNode } from "../refTree";
+import type { PullListView, PullView, RefKind, RefView } from "../types";
 
 type Props = {
   session: Session | null;
@@ -55,7 +59,7 @@ function Tracking({ view }: { view: RefView }) {
         <TooltipTrigger asChild>
           <Icon.detached className="text-destructive size-3 shrink-0" />
         </TooltipTrigger>
-        <TooltipContent>{t('branch.gone')}</TooltipContent>
+        <TooltipContent>{t("branch.gone")}</TooltipContent>
       </Tooltip>
     );
   }
@@ -73,7 +77,9 @@ function Tracking({ view }: { view: RefView }) {
               <Icon.up className="size-3" />
             </span>
           </TooltipTrigger>
-          <TooltipContent>{t('branch.ahead', { count: view.ahead })}</TooltipContent>
+          <TooltipContent>
+            {t("branch.ahead", { count: view.ahead })}
+          </TooltipContent>
         </Tooltip>
       ) : null}
       {view.behind ? (
@@ -84,29 +90,41 @@ function Tracking({ view }: { view: RefView }) {
               <Icon.down className="size-3" />
             </span>
           </TooltipTrigger>
-          <TooltipContent>{t('branch.behind', { count: view.behind })}</TooltipContent>
+          <TooltipContent>
+            {t("branch.behind", { count: view.behind })}
+          </TooltipContent>
         </Tooltip>
       ) : null}
     </span>
   );
 }
 
+const EVERYTHING_OPEN: ReadonlySet<string> = new Set();
+
 type BranchesProps = {
   nodes: TreeNode[];
   depth: number;
-  open: Set<string>;
+  closed: ReadonlySet<string>;
   onFlip: (path: string) => void;
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
 };
 
-function Branches({ nodes, depth, open, onFlip, onPick, onCheckout }: BranchesProps) {
+function Branches({
+  nodes,
+  depth,
+  closed,
+  onFlip,
+  onPick,
+  onCheckout,
+}: BranchesProps) {
+  const { t } = useTranslation();
   const pad = (extra: number) => ({ paddingLeft: `${depth * 12 + extra}px` });
 
   return (
     <>
       {nodes.map((node) =>
-        node.kind === 'folder' ? (
+        node.kind === "folder" ? (
           <div key={node.path}>
             <button
               onClick={() => onFlip(node.path)}
@@ -116,55 +134,58 @@ function Branches({ nodes, depth, open, onFlip, onPick, onCheckout }: BranchesPr
             >
               <ChevronRight
                 className={cn(
-                  'size-3 shrink-0 transition-transform',
-                  open.has(node.path) && 'rotate-90',
+                  "size-3 shrink-0 transition-transform",
+                  !closed.has(node.path) && "rotate-90",
                 )}
               />
               <Icon.folder className="text-muted-foreground/70 size-3 shrink-0" />
               <span className="truncate text-xs">{node.name}</span>
             </button>
-            {open.has(node.path) ? (
+            {closed.has(node.path) ? null : (
               <Branches
                 nodes={node.children}
                 depth={depth + 1}
-                open={open}
+                closed={closed}
                 onFlip={onFlip}
                 onPick={onPick}
                 onCheckout={onCheckout}
               />
-            ) : null}
+            )}
           </div>
         ) : (
-          <Tooltip key={node.path}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => onPick(node.ref.commit)}
-                onDoubleClick={() => onCheckout(node.ref)}
-                style={pad(24)}
-                className={cn(
-                  'hover:bg-surface-hover group flex h-6 w-full items-center gap-1.5 pr-2 text-left transition-colors',
-                  node.ref.isHead && 'bg-ahead/15 font-medium',
-                )}
-              >
-                {node.ref.isHead ? (
-                  <Icon.current className="text-ahead size-3 shrink-0" />
-                ) : (
-                  <Icon.branch className="text-muted-foreground/70 size-3 shrink-0" />
-                )}
-                <span className="min-w-0 flex-1 truncate text-xs">{node.name}</span>
-                <Tracking view={node.ref} />
-                <span
-                  role="button"
-                  tabIndex={-1}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-muted-foreground hover:text-foreground hidden shrink-0 group-hover:block"
+          <div
+            key={node.path}
+            className={cn(
+              "hover:bg-surface-hover group flex h-6 items-center pr-2 transition-colors",
+              node.ref.isHead && "bg-ahead/15 font-medium",
+            )}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onPick(node.ref.commit)}
+                  onDoubleClick={() => onCheckout(node.ref)}
+                  style={pad(24)}
+                  className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
                 >
-                  <Icon.more className="size-3" />
-                </span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{node.path}</TooltipContent>
-          </Tooltip>
+                  {node.ref.isHead ? (
+                    <Icon.current className="text-ahead size-3 shrink-0" />
+                  ) : (
+                    <Icon.branch className="text-muted-foreground/70 size-3 shrink-0" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-xs">{node.name}</span>
+                  <Tracking view={node.ref} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{node.path}</TooltipContent>
+            </Tooltip>
+            <button
+              aria-label={t("branch.menu", { name: node.path })}
+              className="text-muted-foreground hover:text-foreground ml-1 hidden shrink-0 group-hover:block"
+            >
+              <Icon.more className="size-3" />
+            </button>
+          </div>
         ),
       )}
     </>
@@ -182,13 +203,16 @@ export function Sidebar({
   onPickPull,
 }: Props) {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  const [folders, setFolders] = useState<Set<string>>(new Set());
+  const [closed, setClosed] = useState<Set<string>>(new Set());
   const flip = (key: string) =>
-    setOpen((now) => ({ ...now, [key]: !(now[key] ?? key !== 'pullRequests') }));
+    setOpen((now) => ({
+      ...now,
+      [key]: !(now[key] ?? key !== "pullRequests"),
+    }));
   const flipFolder = (path: string) =>
-    setFolders((now) => {
+    setClosed((now) => {
       const next = new Set(now);
       if (!next.delete(path)) next.add(path);
       return next;
@@ -199,23 +223,23 @@ export function Sidebar({
   const groups: Group[] = useMemo(
     () => [
       {
-        key: 'local',
+        key: "local",
         title: GIT.local,
-        icon: 'branch',
-        entries: fromRefs(refs, 'localBranch'),
-        tree: treeOf(refs, 'localBranch'),
+        icon: "branch",
+        entries: fromRefs(refs, "localBranch"),
+        tree: treeOf(refs, "localBranch"),
       },
       {
-        key: 'remote',
+        key: "remote",
         title: GIT.remote,
-        icon: 'remote',
-        entries: fromRefs(refs, 'remoteBranch'),
-        tree: treeOf(refs, 'remoteBranch'),
+        icon: "remote",
+        entries: fromRefs(refs, "remoteBranch"),
+        tree: treeOf(refs, "remoteBranch"),
       },
       {
-        key: 'worktrees',
+        key: "worktrees",
         title: GIT.worktrees,
-        icon: 'worktree',
+        icon: "worktree",
         entries: (session?.worktrees ?? []).map((w) => ({
           label: w.name,
           detail: w.branch ?? undefined,
@@ -224,16 +248,16 @@ export function Sidebar({
         })),
       },
       {
-        key: 'stashes',
+        key: "stashes",
         title: GIT.stashes,
-        icon: 'stash',
-        entries: fromRefs(refs, 'stash'),
+        icon: "stash",
+        entries: fromRefs(refs, "stash"),
       },
       {
-        key: 'tags',
+        key: "tags",
         title: GIT.tags,
-        icon: 'tag',
-        entries: fromRefs(refs, 'tag'),
+        icon: "tag",
+        entries: fromRefs(refs, "tag"),
       },
     ],
     [refs, session?.worktrees],
@@ -246,7 +270,7 @@ export function Sidebar({
       <aside className="bg-card border-border flex w-11 shrink-0 flex-col items-center gap-1 border-r py-2">
         <button
           onClick={onToggle}
-          title={t('sidebar.expand')}
+          title={t("sidebar.expand")}
           className="hover:bg-surface-hover text-muted-foreground hover:text-foreground mb-1 flex size-9 items-center justify-center rounded-md transition-colors"
         >
           <Icon.expand className="size-4" />
@@ -262,7 +286,9 @@ export function Sidebar({
               className="hover:bg-surface-hover text-muted-foreground hover:text-foreground flex h-9 w-9 flex-col items-center justify-center gap-0.5 rounded-md transition-colors"
             >
               <Glyph className="size-3.5" />
-              <span className="text-2xs tabular-nums">{group.entries.length}</span>
+              <span className="text-2xs tabular-nums">
+                {group.entries.length}
+              </span>
             </button>
           );
         })}
@@ -275,19 +301,21 @@ export function Sidebar({
       <div className="flex items-center gap-1 p-2 pb-0">
         <button
           onClick={onToggle}
-          title={t('sidebar.collapse')}
+          title={t("sidebar.collapse")}
           className="hover:bg-surface-hover text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
         >
           <Icon.collapse className="size-4" />
         </button>
-        <span className="text-muted-foreground truncate text-xs">{session?.name ?? ''}</span>
+        <span className="text-muted-foreground truncate text-xs">
+          {session?.name ?? ""}
+        </span>
       </div>
 
       <div className="relative p-2">
         <Icon.search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-3 -translate-y-1/2" />
         <Input
           value={filter}
-          placeholder={t('sidebar.filter')}
+          placeholder={t("sidebar.filter")}
           onChange={(e) => setFilter(e.target.value)}
           className="h-7 pl-7 text-xs"
         />
@@ -296,7 +324,9 @@ export function Sidebar({
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {groups.map((group) => {
           const shown = needle
-            ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
+            ? group.entries.filter((e) =>
+                e.label.toLowerCase().includes(needle),
+              )
             : group.entries;
 
           if (group.tree) {
@@ -314,7 +344,7 @@ export function Sidebar({
                 <Branches
                   nodes={matching}
                   depth={0}
-                  open={needle ? new Set([...folders, ...openPathsFor(group.tree, needle)]) : folders}
+                  closed={needle ? EVERYTHING_OPEN : closed}
                   onFlip={flipFolder}
                   onPick={onPick}
                   onCheckout={onCheckout}
@@ -337,17 +367,22 @@ export function Sidebar({
                 return (
                   <button
                     key={`${group.key}:${entry.label}`}
-                    onClick={() => entry.commit !== null && onPick(entry.commit)}
+                    onClick={() =>
+                      entry.commit !== null && onPick(entry.commit)
+                    }
                     title={entry.detail ?? entry.label}
                     className={cn(
-                      'hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 border-l-2 border-transparent pr-2 pl-6 text-left transition-colors',
-                      entry.isHead && 'border-l-primary text-foreground font-medium',
+                      "hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 border-l-2 border-transparent pr-2 pl-6 text-left transition-colors",
+                      entry.isHead &&
+                        "border-l-primary text-foreground font-medium",
                     )}
                   >
                     <Glyph className="text-muted-foreground/70 size-3 shrink-0" />
                     <span className="truncate">{entry.label}</span>
                     {entry.detail ? (
-                      <span className="text-muted-foreground truncate text-xs">{entry.detail}</span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {entry.detail}
+                      </span>
                     ) : null}
                   </button>
                 );
@@ -363,44 +398,50 @@ export function Sidebar({
           open={open.pullRequests ?? false}
           onToggle={() => {
             if (!(open.pullRequests ?? false)) onPullsExpanded();
-            flip('pullRequests');
+            flip("pullRequests");
           }}
         >
           {pulls === null ? (
             <p className="text-muted-foreground/60 flex h-6 items-center gap-1.5 pl-6 text-xs">
               <Icon.waiting className="size-3 animate-spin" />
-              {t('host.loading')}
+              {t("host.loading")}
             </p>
           ) : (
             <>
               <PullGroup
-                title={t('pull.mine')}
+                title={t("pull.mine")}
                 pulls={pulls.pulls.filter((p) => p.mine)}
                 onPickPull={onPickPull}
               />
               <PullGroup
-                title={t('pull.assignedToMe')}
+                title={t("pull.assignedToMe")}
                 pulls={pulls.pulls.filter((p) => p.assignedToMe)}
                 onPickPull={onPickPull}
               />
               <PullGroup
-                title={t('pull.awaitingMyReview')}
+                title={t("pull.awaitingMyReview")}
                 pulls={pulls.pulls.filter((p) => p.awaitingMyReview)}
                 onPickPull={onPickPull}
               />
               {pulls.pulls
-                .filter((p) => !p.mine && !p.assignedToMe && !p.awaitingMyReview)
+                .filter(
+                  (p) => !p.mine && !p.assignedToMe && !p.awaitingMyReview,
+                )
                 .map((pull) => (
-                  <PullItem key={pull.number} pull={pull} onPickPull={onPickPull} />
+                  <PullItem
+                    key={pull.number}
+                    pull={pull}
+                    onPickPull={onPickPull}
+                  />
                 ))}
               {pulls.truncated ? (
                 <p className="text-muted-foreground/60 flex h-6 items-center pl-6 text-xs">
-                  {t('pull.truncated', { count: pulls.pulls.length })}
+                  {t("pull.truncated", { count: pulls.pulls.length })}
                 </p>
               ) : null}
               {pulls.pulls.length === 0 ? (
                 <p className="text-muted-foreground/60 flex h-6 items-center pl-6 text-xs">
-                  {t('pull.empty')}
+                  {t("pull.empty")}
                 </p>
               ) : null}
             </>
@@ -420,20 +461,43 @@ type SectionProps = {
   children: React.ReactNode;
 };
 
-function Section({ title, icon, count, open, onToggle, children }: SectionProps) {
+function Section({
+  title,
+  icon,
+  count,
+  open,
+  onToggle,
+  children,
+}: SectionProps) {
   const Glyph = Icon[icon];
   return (
-    <section className={cn('flex flex-col', open ? 'min-h-24 flex-1 basis-0' : 'shrink-0')}>
+    <section
+      className={cn(
+        "flex flex-col",
+        open ? "min-h-24 flex-1 basis-0" : "shrink-0",
+      )}
+    >
       <button
         onClick={onToggle}
         className="border-border/50 hover:bg-surface-hover flex h-7 w-full shrink-0 items-center gap-1.5 border-t px-2 text-xs tracking-wide uppercase transition-colors"
       >
-        <ChevronRight className={cn('size-3 shrink-0 transition-transform', open && 'rotate-90')} />
+        <ChevronRight
+          className={cn(
+            "size-3 shrink-0 transition-transform",
+            open && "rotate-90",
+          )}
+        />
         <Glyph className="text-muted-foreground size-3.5 shrink-0" />
-        <span className="text-muted-foreground min-w-0 flex-1 truncate text-left">{title}</span>
-        <span className="text-muted-foreground/70 shrink-0 tabular-nums">{count ?? ''}</span>
+        <span className="text-muted-foreground min-w-0 flex-1 truncate text-left">
+          {title}
+        </span>
+        <span className="text-muted-foreground/70 shrink-0 tabular-nums">
+          {count ?? ""}
+        </span>
       </button>
-      {open ? <div className="min-h-0 flex-1 overflow-y-auto">{children}</div> : null}
+      {open ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      ) : null}
     </section>
   );
 }
@@ -459,14 +523,22 @@ function PullGroup({ title, pulls, onPickPull }: PullGroupProps) {
   );
 }
 
-function PullItem({ pull, onPickPull }: { pull: PullView; onPickPull: (pull: PullView) => void }) {
+function PullItem({
+  pull,
+  onPickPull,
+}: {
+  pull: PullView;
+  onPickPull: (pull: PullView) => void;
+}) {
   return (
     <button
       onClick={() => onPickPull(pull)}
       title={pull.title}
       className="hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 pr-2 pl-6 text-left transition-colors"
     >
-      <span className="text-muted-foreground/70 shrink-0 font-mono text-xs">#{pull.number}</span>
+      <span className="text-muted-foreground/70 shrink-0 font-mono text-xs">
+        #{pull.number}
+      </span>
       <span className="truncate text-xs">{pull.title}</span>
     </button>
   );

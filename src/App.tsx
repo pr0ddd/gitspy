@@ -18,6 +18,7 @@ import type {
   PullListView,
   PullView,
   RecentRepo,
+  RefView,
   WorkingTreeView,
 } from './types';
 
@@ -200,6 +201,19 @@ export default function App() {
     [active, reload],
   );
 
+  const checkoutRef = useCallback(
+    (ref: RefView) => {
+      if (!active) return;
+      setBusy(true);
+      ipc
+        .checkoutRef(active, ref.name, ref.kind)
+        .then(() => reload(active))
+        .catch(notifyError)
+        .finally(() => setBusy(false));
+    },
+    [active, reload],
+  );
+
   const openPath = useCallback(
     (path: string) => {
       dispatch({ kind: 'open', path });
@@ -347,6 +361,7 @@ export default function App() {
                 collapsed={railed}
                 pulls={pulls}
                 onPick={select}
+                onCheckout={checkoutRef}
                 onToggle={() => setRailed((now) => !now)}
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}

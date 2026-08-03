@@ -5,6 +5,7 @@
   "branch.create": "Create",
   "branch.current": "current branch",
   "branch.gone": "upstream is gone",
+  "branch.menu": "actions for {{name}}",
   "branch.name": "Branch name",
   "branch.title": "New branch",
   "clone.browse": "Choose",

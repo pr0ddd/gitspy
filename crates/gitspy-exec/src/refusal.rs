@@ -2,6 +2,7 @@
 pub enum Refusal {
     Rejected,
     Conflict,
+    CheckoutBlocked,
 }
 
 impl Refusal {
@@ -9,6 +10,7 @@ impl Refusal {
         match self {
             Refusal::Rejected => "exec.rejected",
             Refusal::Conflict => "exec.conflict",
+            Refusal::CheckoutBlocked => "exec.checkoutBlocked",
         }
     }
 }
@@ -16,6 +18,11 @@ impl Refusal {
 pub fn of(stderr: &str) -> Option<Refusal> {
     if stderr.contains("[rejected]") && stderr.contains("non-fast-forward") {
         return Some(Refusal::Rejected);
+    }
+    if stderr.contains("would be overwritten by checkout")
+        || stderr.contains("before you switch branches")
+    {
+        return Some(Refusal::CheckoutBlocked);
     }
     if stderr.contains("CONFLICT (") || stderr.contains("Automatic merge failed") {
         return Some(Refusal::Conflict);
@@ -39,6 +46,30 @@ mod tests {
         let stderr = "CONFLICT (content): Merge conflict in src/App.tsx\n\
                       Automatic merge failed; fix conflicts and then commit the result.";
         assert_eq!(of(stderr), Some(Refusal::Conflict));
+    }
+
+    #[test]
+    fn a_checkout_blocked_by_local_changes_is_not_called_a_merge_conflict() {
+        let stderr =
+            "error: Your local changes to the following files would be overwritten by checkout:\n\
+                      \tsrc/App.tsx\n\
+                      Please commit your changes or stash them before you switch branches.\n\
+                      Aborting";
+        assert_eq!(
+            of(stderr),
+            Some(Refusal::CheckoutBlocked),
+            "человеку надо предложить стеш, а не разрешение конфликта"
+        );
+    }
+
+    #[test]
+    fn an_untracked_file_in_the_way_blocks_checkout_the_same_way() {
+        let stderr =
+            "error: The following untracked working tree files would be overwritten by checkout:\n\
+                      \tnotes.md\n\
+                      Please move or remove them before you switch branches.\n\
+                      Aborting";
+        assert_eq!(of(stderr), Some(Refusal::CheckoutBlocked));
     }
 
     #[test]

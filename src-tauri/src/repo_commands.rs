@@ -398,6 +398,40 @@ pub async fn checkout_pull(
 }
 
 #[tauri::command]
+pub async fn checkout_ref(
+    repo: String,
+    name: String,
+    kind: crate::views::RefKindView,
+    state: State<'_, AppState>,
+) -> Result<(), ErrorView> {
+    let locals = with_repo(&state, &repo, |open| {
+        open.view
+            .refs
+            .iter()
+            .filter(|r| r.kind == crate::views::RefKindView::LocalBranch)
+            .map(|r| r.name.clone())
+            .collect::<Vec<_>>()
+    })?;
+
+    let git = state.git()?;
+    let path = PathBuf::from(&repo);
+    let remotes = git.remotes(&path);
+
+    let Some(operation) = operations::checkout_for(&name, kind, &locals, &remotes) else {
+        return Ok(());
+    };
+
+    let lane = state.queue.lane(&repo);
+    on_reader(move || {
+        let _held = lane.lock().expect("полоса очереди не отравлена");
+        operations::run(&git, &path, operation, None, &Cancel::new(), &mut |_| {})
+            .map_err(exec_error)
+            .map(|_| ())
+    })
+    .await
+}
+
+#[tauri::command]
 pub fn recent_repos(app: tauri::AppHandle) -> Result<Vec<recent::RecentRepo>, ErrorView> {
     Ok(recent::list(&data_dir(&app)?))
 }
