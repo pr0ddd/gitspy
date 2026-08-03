@@ -3,6 +3,7 @@
 pub mod changes;
 pub mod env;
 pub mod progress;
+pub mod refs;
 pub mod refusal;
 pub mod status;
 
