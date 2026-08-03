@@ -374,12 +374,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     const remoteNames = repo.remotes.map((r) => r.name);
     const remoteAvatarUrls = new Map(repo.remotes.map((r) => [r.name, r.avatarUrl]));
     const measure = (text: string) => ctx.measureText(text).width;
-    for (let i = first; i < last; i++) {
-      const labels = refsByCommit.get(i);
-      if (!labels) continue;
-      const row = rows.row(i);
-      if (!row) continue;
-      const y = Math.round(shift + (i - first) * m.rowH + half);
+
+    const drawRefRow = (labels: readonly RefView[], row: RowView, y: number) => {
       const colour = laneColour(row.colour);
       const nodeX = g.nodeX(row.lane);
 
@@ -407,7 +403,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
           : 12;
 
       ctx.strokeStyle = colour;
-      ctx.globalAlpha = LEADER_ALPHA;
+      ctx.globalAlpha = Math.min(1, ctx.globalAlpha * LEADER_ALPHA);
       ctx.lineWidth = LEADER_W;
       ctx.beginPath();
       ctx.moveTo(chipEnd, y + 0.5);
@@ -415,6 +411,34 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = GRAPH_W;
+    };
+
+    for (let i = first; i < last; i++) {
+      const labels = refsByCommit.get(i);
+      if (!labels) continue;
+      const row = rows.row(i);
+      if (!row) continue;
+      drawRefRow(labels, row, Math.round(shift + (i - first) * m.rowH + half));
+    }
+
+    if (hover !== null && hover >= first && hover < last && !refsByCommit.has(hover)) {
+      const hovered = rows.row(hover);
+      if (hovered && hovered.kind === 'commit') {
+        let donor = -1;
+        for (const [tipRow] of refsByCommit) {
+          if (tipRow > hover || tipRow <= donor) continue;
+          const tip = rows.row(tipRow);
+          if (tip && tip.colour === hovered.colour) donor = tipRow;
+        }
+        const labels = donor === -1 ? undefined : refsByCommit.get(donor);
+        if (labels) {
+          ctx.save();
+          ctx.globalAlpha = 0.45;
+          drawRefRow(labels, hovered, Math.round(shift + (hover - first) * m.rowH + half));
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        }
+      }
     }
 
     for (let i = first; i < last; i++) {

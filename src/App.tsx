@@ -382,12 +382,7 @@ export default function App() {
   const runPathOperation = useCallback(
     (operation: PathOperation) => {
       if (!active) return;
-      setBusy(true);
-      ipc
-        .stage(active, operation)
-        .then(setTree)
-        .catch(notifyError)
-        .finally(() => setBusy(false));
+      ipc.stage(active, operation).then(setTree).catch(notifyError);
     },
     [active],
   );
