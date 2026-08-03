@@ -13,6 +13,7 @@ import { Icon } from '../icons';
 import * as ipc from '../ipc';
 import { notifyError } from '../toast';
 import type { PullCardView, PullView } from '../types';
+import { Hint } from '@/components/ui/tooltip';
 
 type Props = {
   repo: string;
@@ -58,7 +59,9 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
       .finally(() => setSwitching(false));
   };
 
-  const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' });
+  const relative = new Intl.RelativeTimeFormat(i18n.language, {
+    numeric: 'auto',
+  });
   const ago = (iso: string) => {
     const delta = Math.round((Date.parse(iso) - Date.now()) / 1000);
     if (!Number.isFinite(delta)) return '';
@@ -86,15 +89,11 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
           <Icon.branch className="size-3" />
           {t('pull.checkout')}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-6 shrink-0"
-          onClick={onClose}
-          title={t('diff.close')}
-        >
-          <Icon.close className="size-3.5" />
-        </Button>
+        <Hint text={t('diff.close')}>
+          <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={onClose}>
+            <Icon.close className="size-3.5" />
+          </Button>
+        </Hint>
       </header>
 
       <div className="border-border text-muted-foreground flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs">

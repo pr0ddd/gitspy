@@ -1,11 +1,7 @@
 {
-  "branch.ahead": "впереди upstream на {{count, number}}",
-  "branch.behind": "позади upstream на {{count, number}}",
   "branch.checkout": "Перейти на неё",
   "branch.create": "Создать",
-  "branch.current": "текущая ветка",
   "branch.gone": "upstream пропал",
-  "branch.menu": "действия для {{name}}",
   "branch.name": "Имя ветки",
   "branch.title": "Новая ветка",
   "clone.browse": "Выбрать",

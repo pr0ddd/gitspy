@@ -70,4 +70,6 @@ export const laneColour = (index: number): string => {
 };
 
 export const laneColourAlpha = (index: number, percent: number): string =>
-  resolve(`color-mix(in oklab, var(--graph-${(index % GRAPH_LANES) + 1}) ${percent}%, transparent)`);
+  resolve(
+    `color-mix(in oklab, var(--graph-${(index % GRAPH_LANES) + 1}) ${percent}%, transparent)`,
+  );

@@ -1,13 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Sidebar } from "./Sidebar";
-import { newSession, type Session } from "../session";
-import type { RefView, RepoView } from "../types";
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { Sidebar } from './Sidebar';
+import { newSession, type Session } from '../session';
+import type { RefView, RepoView } from '../types';
 
 const branch = (patch: Partial<RefView> = {}): RefView => ({
-  name: "main",
-  kind: "localBranch",
+  name: 'main',
+  kind: 'localBranch',
   commit: 7,
   isHead: false,
   upstream: null,
@@ -18,7 +18,7 @@ const branch = (patch: Partial<RefView> = {}): RefView => ({
 });
 
 const repo = (refs: RefView[]): RepoView => ({
-  path: "/repo",
+  path: '/repo',
   count: 10,
   maxLane: 1,
   head: 0,
@@ -31,15 +31,12 @@ const repo = (refs: RefView[]): RepoView => ({
 });
 
 const sessionWith = (refs: RefView[]): Session => ({
-  ...newSession("/repo"),
+  ...newSession('/repo'),
   repo: repo(refs),
   loading: false,
 });
 
-const draw = (
-  refs: RefView[],
-  handlers: { onPick?: () => void; onCheckout?: () => void } = {},
-) =>
+const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () => void } = {}) =>
   render(
     <TooltipProvider>
       <Sidebar
@@ -55,68 +52,68 @@ const draw = (
     </TooltipProvider>,
   );
 
-const row = (name: string) => screen.getByText(name).closest("button") as HTMLElement;
+const row = (name: string) => screen.getByText(name).closest('button') as HTMLElement;
 
-describe("щелчки по ветке", () => {
-  it("одинарный щелчок выделяет коммит и не переключает ветку", () => {
+describe('щелчки по ветке', () => {
+  it('одинарный щелчок выделяет коммит и не переключает ветку', () => {
     const onPick = vi.fn();
     const onCheckout = vi.fn();
     draw([branch()], { onPick, onCheckout });
 
-    fireEvent.click(row("main"));
+    fireEvent.click(row('main'));
 
     expect(onPick).toHaveBeenCalledWith(7);
     expect(onCheckout).not.toHaveBeenCalled();
   });
 
-  it("двойной щелчок переключает на ветку", () => {
+  it('двойной щелчок переключает на ветку', () => {
     const onCheckout = vi.fn();
     draw([branch()], { onCheckout });
 
-    fireEvent.doubleClick(row("main"));
+    fireEvent.doubleClick(row('main'));
 
     expect(onCheckout).toHaveBeenCalledTimes(1);
   });
 
-  it("щелчок по стрелке не промахивается мимо ветки", () => {
+  it('щелчок по стрелке не промахивается мимо ветки', () => {
     const onPick = vi.fn();
     draw([branch({ ahead: 3 })], { onPick });
 
-    fireEvent.click(screen.getByText("3"));
+    fireEvent.click(screen.getByText('3'));
 
     expect(onPick).toHaveBeenCalledWith(7);
   });
 });
 
-describe("дерево и стрелки", () => {
-  it("ветка в папке показывается коротким именем, папка отдельной строкой", () => {
-    draw([branch({ name: "pr/36451" })]);
+describe('дерево и стрелки', () => {
+  it('ветка в папке показывается коротким именем, папка отдельной строкой', () => {
+    draw([branch({ name: 'pr/36451' })]);
 
-    expect(row("pr").textContent).toBe("pr");
-    expect(row("36451").textContent).toBe("36451");
+    expect(row('pr').textContent).toBe('pr');
+    expect(row('36451').textContent).toBe('36451');
   });
 
-  it("папки раскрыты сразу, иначе репозиторий открывается без единой ветки", () => {
-    draw([branch({ name: "a/b/c/deep" })]);
+  it('папки раскрыты сразу, иначе репозиторий открывается без единой ветки', () => {
+    draw([branch({ name: 'a/b/c/deep' })]);
 
-    expect(row("deep")).toBeDefined();
+    expect(row('deep')).toBeDefined();
   });
 
-  it("без upstream стрелок нет вовсе, а не нули", () => {
+  it('без upstream стрелок нет вовсе, а не нули', () => {
     draw([branch()]);
 
-    expect(row("main").textContent).toBe("main");
+    expect(row('main').textContent).toBe('main');
   });
 
-  it("впереди и позади показываются числами рядом с именем", () => {
+  it('впереди и позади показываются числами рядом с именем', () => {
     draw([branch({ ahead: 3, behind: 1 })]);
 
-    expect(row("main").textContent).toBe("main31");
+    expect(row('main').textContent).toBe('main31');
   });
 
-  it("больше сотни показывается потолком, а не точным числом", () => {
+  it('больше сотни показывается потолком, а не точным числом', () => {
     draw([branch({ behind: 1234 })]);
 
-    expect(row("main").textContent).toBe("main99+");
+    expect(row('main').textContent).toBe('main99+');
   });
 });

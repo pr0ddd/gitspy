@@ -12,6 +12,7 @@ import * as ipc from '../ipc';
 import { shortenDirectory, splitPath } from '../paths';
 import { notifyError } from '../toast';
 import type { ChangedFileView, RefKind } from '../types';
+import { Hint } from '@/components/ui/tooltip';
 
 type Props = {
   session: Session | null;
@@ -46,14 +47,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
 }
 
-export function Details({
-  session,
-  rows,
-  pending,
-  onCopy,
-  onOpenWorkingTree,
-  onOpenFile,
-}: Props) {
+export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onOpenFile }: Props) {
   const { t, i18n } = useTranslation();
   const index = session?.selected ?? 0;
   const row = session ? rows.row(index) : null;
@@ -105,19 +99,18 @@ export function Details({
 
       <header className="border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
         <Icon.commit className="text-muted-foreground size-3.5" />
-        <span className="text-muted-foreground text-xs tracking-wide uppercase">
-          {GIT.commit}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onCopy(row.hash)}
-          title={t('details.copyHash')}
-          className="ml-auto h-6 gap-1.5 font-mono text-xs"
-        >
-          <Icon.copy className="size-3" />
-          {row.hash.slice(0, 8)}
-        </Button>
+        <span className="text-muted-foreground text-xs tracking-wide uppercase">{GIT.commit}</span>
+        <Hint text={t('details.copyHash')}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onCopy(row.hash)}
+            className="ml-auto h-6 gap-1.5 font-mono text-xs"
+          >
+            <Icon.copy className="size-3" />
+            {row.hash.slice(0, 8)}
+          </Button>
+        </Hint>
       </header>
 
       <div className="max-h-64 shrink-0 overflow-y-auto">
@@ -180,25 +173,26 @@ export function Details({
             <ul className="space-y-0.5 font-mono text-xs">
               {files.map((file) => (
                 <li key={file.path}>
-                  <button
-                    onClick={() => onOpenFile(row.hash, file)}
-                    title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
-                    className="hover:bg-surface-hover flex h-6 w-full items-baseline gap-1.5 rounded-sm px-1 text-left"
-                  >
-                    <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
-                      {file.status}
-                    </span>
-                    <span className="text-muted-foreground min-w-0 flex-1 shrink-[100] truncate text-left [direction:rtl]">
-                      {'\u200e' + shortenDirectory(splitPath(file.path).directory, 64) + '\u200e'}
-                    </span>
-                    <span className="min-w-16 truncate">{splitPath(file.path).name}</span>
-                    {file.binary ? null : (
-                      <span className="ml-auto shrink-0 tabular-nums">
-                        <span className="text-added">+{file.added ?? 0}</span>{' '}
-                        <span className="text-deleted">−{file.deleted ?? 0}</span>
+                  <Hint text={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}>
+                    <button
+                      onClick={() => onOpenFile(row.hash, file)}
+                      className="hover:bg-surface-hover flex h-6 w-full items-baseline gap-1.5 rounded-sm px-1 text-left"
+                    >
+                      <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
+                        {file.status}
                       </span>
-                    )}
-                  </button>
+                      <span className="text-muted-foreground min-w-0 flex-1 shrink-[100] truncate text-left [direction:rtl]">
+                        {'\u200e' + shortenDirectory(splitPath(file.path).directory, 64) + '\u200e'}
+                      </span>
+                      <span className="min-w-16 truncate">{splitPath(file.path).name}</span>
+                      {file.binary ? null : (
+                        <span className="ml-auto shrink-0 tabular-nums">
+                          <span className="text-added">+{file.added ?? 0}</span>{' '}
+                          <span className="text-deleted">−{file.deleted ?? 0}</span>
+                        </span>
+                      )}
+                    </button>
+                  </Hint>
                 </li>
               ))}
             </ul>

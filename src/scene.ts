@@ -53,6 +53,23 @@ export const maxScrollX = (m: Metrics, maxLane: number, graphW: number): number 
 export const maxScroll = (m: Metrics, count: number, viewportH: number): number =>
   Math.max(0, count * m.rowH - contentHeight(viewportH));
 
+export function scrollToReveal(
+  m: Metrics,
+  index: number,
+  scrollY: number,
+  height: number,
+  count: number,
+): number {
+  const band = contentHeight(height);
+  const top = index * m.rowH;
+  const bottom = top + m.rowH;
+  const limit = maxScroll(m, count, height);
+
+  if (top < scrollY) return Math.max(0, Math.min(top, limit));
+  if (bottom > scrollY + band) return Math.max(0, Math.min(bottom - band, limit));
+  return scrollY;
+}
+
 export function rowAtY(m: Metrics, y: number, scrollY: number, count: number): number | null {
   if (y < HEADER_H) return null;
   const index = Math.floor((y - HEADER_H + scrollY) / m.rowH);

@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { shortenDirectory, splitPath } from '../paths';
 import type { PathOperation, StatusEntryView, WorkingTreeView } from '../types';
+import { Hint } from '@/components/ui/tooltip';
 
 type Props = {
   tree: WorkingTreeView;
@@ -47,17 +48,18 @@ function FileRow({
         <span className="text-muted-foreground min-w-0 flex-1 shrink-[100] truncate text-left [direction:rtl]">
           {'\u200e' + shortenDirectory(directory, 64) + '\u200e'}
         </span>
-        <span className="min-w-16 truncate" title={entry.path}>
-          {name}
-        </span>
+        <Hint text={entry.path}>
+          <span className="min-w-16 truncate">{name}</span>
+        </Hint>
         <Button
           variant="ghost"
-          size="sm"
+          size="2xs"
+          reveal
           onClick={(e) => {
             e.stopPropagation();
             onAct();
           }}
-          className="ml-auto h-5 shrink-0 px-1.5 text-2xs opacity-0 transition-opacity group-hover:opacity-100"
+          className="ml-auto"
         >
           {action}
         </Button>

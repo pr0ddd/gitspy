@@ -77,9 +77,9 @@ describe('прокрутка графа', () => {
           metrics={METRICS_AVATARS}
           onSelect={() => {}}
           onNeed={() => {}}
-        message=""
-        onMessage={() => {}}
-        onCommit={() => {}}
+          message=""
+          onMessage={() => {}}
+          onCommit={() => {}}
         />
       </Profiler>,
     );
@@ -90,7 +90,11 @@ describe('прокрутка графа', () => {
     act(() => {
       for (let i = 0; i < 30; i++) {
         host.dispatchEvent(
-          new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }),
+          new WheelEvent('wheel', {
+            deltaY: 120,
+            bubbles: true,
+            cancelable: true,
+          }),
         );
       }
     });

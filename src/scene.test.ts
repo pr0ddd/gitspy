@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  scrollToReveal,
   HEADER_H,
   METRICS_AVATARS,
   METRICS_COMPACT,
@@ -204,5 +205,34 @@ describe('дно колонки графа', () => {
   it('в минимуме все узлы становятся в один ряд без остатка', () => {
     const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 28 }));
     expect(g.nodeX(0)).toBe(g.nodeX(99));
+  });
+});
+
+describe('проматывание к выделенной строке', () => {
+  const H = 26 + M.rowH * 10;
+  const COUNT = 1000;
+
+  it('видимую строку не трогает вовсе', () => {
+    const at = M.rowH * 100;
+    expect(scrollToReveal(M, 105, at, H, COUNT)).toBe(at);
+  });
+
+  it('строку выше окна подводит к его верхнему краю', () => {
+    expect(scrollToReveal(M, 3, M.rowH * 100, H, COUNT)).toBe(M.rowH * 3);
+  });
+
+  it('строку ниже окна подводит к нижнему краю, а не к верхнему', () => {
+    const got = scrollToReveal(M, 200, 0, H, COUNT);
+    expect(got).toBe(M.rowH * 201 - M.rowH * 10);
+    expect(got).toBeLessThan(M.rowH * 200);
+  });
+
+  it('последняя строка не уезжает за предел прокрутки', () => {
+    const got = scrollToReveal(M, COUNT - 1, 0, H, COUNT);
+    expect(got).toBe(maxScroll(M, COUNT, H));
+  });
+
+  it('в репозитории короче окна прокрутка остаётся нулевой', () => {
+    expect(scrollToReveal(M, 2, 0, H, 3)).toBe(0);
   });
 });
