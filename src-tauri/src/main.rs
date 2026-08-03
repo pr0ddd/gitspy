@@ -46,6 +46,7 @@ fn main() {
             hosts::pull_requests,
             hosts::pull_card,
             repo_commands::checkout_pull,
+            repo_commands::checkout_ref,
             clone::default_clone_dir,
             clone::clone_repo,
             clone::init_repo,
