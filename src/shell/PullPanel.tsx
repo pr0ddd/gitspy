@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Icon } from '../icons';
+import { PanelBar, ViewBar } from './parts';
 import * as ipc from '../ipc';
 import { notifyError } from '../toast';
 import type { PullCardView, PullView } from '../types';
@@ -72,7 +73,7 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
 
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="bg-card border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+      <ViewBar>
         <Icon.pullRequest className="text-muted-foreground size-3.5 shrink-0" />
         <span className="text-muted-foreground shrink-0 font-mono text-xs">#{pull.number}</span>
         <span className="truncate text-sm font-medium">{pull.title}</span>
@@ -80,23 +81,18 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
           {pull.draft ? t('pull.draft') : t('pull.open')}
         </Badge>
 
-        <Button
-          size="sm"
-          disabled={busy || switching}
-          onClick={checkout}
-          className="ml-auto h-6 shrink-0 gap-1.5 text-xs"
-        >
+        <Button size="xs" disabled={busy || switching} onClick={checkout} className="ml-auto shrink-0">
           <Icon.branch className="size-3" />
           {t('pull.checkout')}
         </Button>
         <Hint text={t('diff.close')}>
-          <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={onClose}>
+          <Button variant="ghost" size="icon-xs" className="shrink-0" onClick={onClose}>
             <Icon.close className="size-3.5" />
           </Button>
         </Hint>
-      </header>
+      </ViewBar>
 
-      <div className="border-border text-muted-foreground flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs">
+      <PanelBar className="text-muted-foreground">
         <img src={pull.authorAvatarUrl} alt="" className="size-4 rounded-full" />
         <span>{pull.author}</span>
         <span className="font-mono">
@@ -111,7 +107,7 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
             <span className="text-deleted">−{card.deletions}</span>
           </span>
         ) : null}
-      </div>
+      </PanelBar>
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto w-full max-w-3xl space-y-4 px-6 py-4">
@@ -135,7 +131,7 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
               {card.body ? (
                 <Body text={card.body} />
               ) : (
-                <p className="text-muted-foreground/70 text-sm">{t('pull.noDescription')}</p>
+                <p className="text-muted-foreground text-sm">{t('pull.noDescription')}</p>
               )}
 
               <Separator />

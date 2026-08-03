@@ -22,7 +22,7 @@ beforeAll(() => {
 
 const calls: string[] = [];
 const texts: string[] = [];
-const placedTexts: { text: string; x: number }[] = [];
+const placedTexts: { text: string; x: number; y: number }[] = [];
 const strokedGlyphs: { d: string; x: number }[] = [];
 const drawnImages: { image: unknown; x: number }[] = [];
 const filledRects: { x: number; y: number; w: number; h: number }[] = [];
@@ -52,7 +52,7 @@ const context = () =>
           calls.push(key);
           if (key === 'fillText' && typeof args[0] === 'string') {
             texts.push(args[0]);
-            placedTexts.push({ text: args[0], x: Number(args[1]) });
+            placedTexts.push({ text: args[0], x: Number(args[1]), y: Number(args[2]) });
           }
           if (key === 'drawImage') {
             drawnImages.push({ image: args[0], x: Number(args[1]) });
@@ -161,7 +161,7 @@ const frameWith = (
   refs: RefView[],
   avatars: AvatarCache | null = null,
   pullHeads: ReadonlySet<string> = new Set(),
-  hoverChip: { row: number; at: number } | null = null,
+  hoverChip: { row: number; at: number | 'more' } | null = null,
   workingTree = false,
 ): Frame => {
   const rows = new RowCache();
@@ -202,7 +202,7 @@ const paint = (
   refs: RefView[],
   avatars: AvatarCache | null = null,
   pullHeads: ReadonlySet<string> = new Set(),
-  hoverChip: { row: number; at: number } | null = null,
+  hoverChip: { row: number; at: number | 'more' } | null = null,
   workingTree = false,
 ) => {
   calls.length = 0;
@@ -350,6 +350,38 @@ describe('метки на чипах', () => {
       painted.arcs.some((a) => a.r === METRICS_AVATARS.rowH / 2),
       'левый край подсветки — полукруг радиусом в полстроки вокруг узла',
     ).toBe(true);
+  });
+
+  it('не влезшие чипы показываются счётчиком +N', () => {
+    const painted = paint([
+      ref('very-long-branch-name-one', 'localBranch'),
+      ref('very-long-branch-name-two', 'localBranch'),
+      ref('very-long-branch-name-three', 'localBranch'),
+    ]);
+
+    expect(painted.texts, 'счётчик сообщает, сколько спрятано').toContain('+2');
+  });
+
+  it('ховер по счётчику раскрывает все чипы стопкой', () => {
+    const painted = paint(
+      [
+        ref('very-long-branch-name-one', 'localBranch'),
+        ref('very-long-branch-name-two', 'localBranch'),
+        ref('very-long-branch-name-three', 'localBranch'),
+      ],
+      null,
+      new Set(),
+      { row: 0, at: 'more' },
+    );
+
+    const one = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
+    const two = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-two');
+    expect(one.length, 'первый чип в стопке с полным именем').toBeGreaterThan(0);
+    expect(two.length, 'спрятанный чип в стопке с полным именем').toBeGreaterThan(0);
+    expect(
+      one[one.length - 1].y,
+      'стопка вертикальная — имена на разных строках',
+    ).not.toBe(two[two.length - 1].y);
   });
 
   it('наведённый чип раскрывается и рисуется поверх всего остального', () => {

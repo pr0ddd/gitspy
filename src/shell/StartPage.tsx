@@ -60,30 +60,30 @@ export function StartPage({
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={onOpen} size="sm" className="h-7">
+          <Button onClick={onOpen} size="xs">
             <Icon.open className="size-3.5" />
             {t('start.open')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => onClone('')} className="h-7">
+          <Button variant="secondary" size="xs" onClick={() => onClone('')}>
             <Icon.clone className="size-3.5" />
             {GIT.clone}
           </Button>
-          <Button variant="secondary" size="sm" onClick={onCreate} className="h-7">
+          <Button variant="secondary" size="xs" onClick={onCreate}>
             <Icon.add className="size-3.5" />
             {t('start.create')}
           </Button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_22rem]">
-        <ScrollArea className="min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <ScrollArea className="min-h-0 flex-1">
           <div className="p-3">
             <h2 className="text-muted-foreground mb-2 px-1 text-xs tracking-wide uppercase">
               {t('start.recent')}
             </h2>
 
             {recent.length === 0 ? (
-              <p className="text-muted-foreground/70 px-1 text-sm">{t('start.recentEmpty')}</p>
+              <p className="text-muted-foreground px-1 text-sm">{t('start.recentEmpty')}</p>
             ) : (
               <ul className="space-y-1">
                 {recent.map((entry, i) => (
@@ -114,12 +114,12 @@ export function StartPage({
 
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium">{entry.name}</span>
-                            <span className="text-muted-foreground/70 block truncate font-mono text-xs">
+                            <span className="text-muted-foreground block truncate font-mono text-xs">
                               {shorten(entry.path)}
                             </span>
                           </span>
 
-                          <span className="text-muted-foreground/60 shrink-0 text-xs">
+                          <span className="text-muted-foreground shrink-0 text-xs">
                             {ago(entry.openedAt)}
                           </span>
                         </button>

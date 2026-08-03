@@ -24,7 +24,7 @@ const place = (
   refs: RefView[],
   room = 400,
   pullHeads: ReadonlySet<string> = new Set(),
-) => placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads);
+) => placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads).placed;
 
 describe('раскладка чипов', () => {
   it('первый чип начинается с отступа, следующий — после зазора', () => {
@@ -59,10 +59,39 @@ describe('раскладка чипов', () => {
     expect(placed.fullW, 'полная ширина шире показанной').toBeGreaterThan(placed.w);
   });
 
-  it('когда места нет совсем, чипы дальше не раскладываются', () => {
-    const placed = place([ref('a', 'localBranch'), ref('b', 'localBranch')], 40);
+  it('не влезшие чипы схлопываются в счётчик +N, а не в огрызки', () => {
+    const { placed, more } = placeChips(
+      chipsFor(
+        [ref('first', 'localBranch'), ref('second', 'localBranch'), ref('third', 'localBranch')],
+        ['origin'],
+      ),
+      measure,
+      110,
+      METRICS,
+      new Set(),
+    );
 
-    expect(placed.length).toBeLessThan(2);
+    expect(placed.length, 'первый чип показан целиком').toBe(1);
+    expect(more, 'остальные спрятаны за счётчиком').not.toBeNull();
+    expect(more!.count).toBe(2);
+    expect(more!.chips.map((c) => c.name), 'счётчик помнит всех спрятанных').toEqual([
+      'second',
+      'third',
+    ]);
+    expect(more!.x, 'счётчик стоит сразу после последнего чипа').toBe(
+      placed[0].x + placed[0].w + 4,
+    );
+  });
+
+  it('когда все чипы влезают, счётчика нет', () => {
+    const { more } = placeChips(
+      chipsFor([ref('a', 'localBranch'), ref('b', 'localBranch')], ['origin']),
+      measure,
+      400,
+      METRICS,
+      new Set(),
+    );
+    expect(more).toBeNull();
   });
 
   it('chipAt находит чип по координате, а мимо чипов — никого', () => {

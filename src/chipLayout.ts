@@ -17,10 +17,21 @@ export type PlacedChip = {
   readonly hasPull: boolean;
 };
 
+export type ChipOverflow = {
+  readonly x: number;
+  readonly w: number;
+  readonly count: number;
+  readonly chips: readonly Chip[];
+};
+
+export type PlacedChips = {
+  readonly placed: PlacedChip[];
+  readonly more: ChipOverflow | null;
+};
+
 const FIRST_CHIP_X = 12;
 const CHIP_SPACING = 4;
 const NAME_CAP = 170;
-const BARE_CHIP_W = 18;
 const SMALLEST_USEFUL = 30;
 
 const shortened = (measure: (text: string) => number, text: string, max: number): string => {
@@ -45,13 +56,14 @@ export function placeChips(
   room: number,
   metrics: ChipMetrics,
   pullHeads: ReadonlySet<string>,
-): PlacedChip[] {
+): PlacedChips {
   const placed: PlacedChip[] = [];
   let left = FIRST_CHIP_X;
 
-  for (const chip of chips) {
-    const avail = room - left;
-    if (avail < 10) break;
+  for (const [at, chip] of chips.entries()) {
+    const hidden = chips.length - at;
+    const counterW = at + 1 < chips.length ? moreWidth(measure, hidden - 1, metrics) : 0;
+    const avail = room - left - counterW;
 
     const hasPull = wantsPull(chip, pullHeads);
     const trailW =
@@ -59,13 +71,24 @@ export function placeChips(
       (hasPull ? metrics.pullSize + metrics.gap : 0);
     const fullText = chip.isHead ? `✓ ${chip.name}` : chip.name;
     const text =
-      avail < SMALLEST_USEFUL + trailW
+      avail < SMALLEST_USEFUL + trailW && at > 0
         ? ''
-        : shortened(measure, fullText, Math.min(NAME_CAP, avail - metrics.pad * 2 - trailW));
-    const w = text
-      ? measure(text) + metrics.pad * 2 + trailW
-      : Math.min(avail, BARE_CHIP_W);
+        : shortened(
+            measure,
+            fullText,
+            Math.min(NAME_CAP, Math.max(0, avail - metrics.pad * 2 - trailW)),
+          );
 
+    if (!text && at > 0) {
+      const rest = chips.slice(at);
+      const w = moreWidth(measure, rest.length, metrics);
+      return {
+        placed,
+        more: { x: left, w, count: rest.length, chips: rest },
+      };
+    }
+
+    const w = measure(text) + metrics.pad * 2 + trailW;
     placed.push({
       chip,
       x: left,
@@ -77,8 +100,16 @@ export function placeChips(
     });
     left += w + CHIP_SPACING;
   }
-  return placed;
+  return { placed, more: null };
 }
+
+export const moreLabel = (count: number): string => `+${count}`;
+
+const moreWidth = (
+  measure: (text: string) => number,
+  count: number,
+  metrics: ChipMetrics,
+): number => measure(moreLabel(Math.max(1, count))) + metrics.pad * 2;
 
 export const chipAt = (placed: readonly PlacedChip[], x: number): PlacedChip | null =>
   placed.find((p) => x >= p.x && x < p.x + p.w) ?? null;

@@ -104,4 +104,19 @@ describe('чипы веток', () => {
     const remote = ref('origin/main', 'remoteBranch');
     expect(shape([remote, local])).toEqual(shape([local, remote]));
   });
+
+  it('текущая ветка встаёт первой, локальные раньше остальных', () => {
+    const shaped = shape([
+      ref('v1', 'tag'),
+      ref('origin/dev', 'remoteBranch'),
+      ref('branches', 'localBranch'),
+      ref('master', 'localBranch', { isHead: true }),
+    ]);
+    expect(shaped).toEqual([
+      '✓ master [local]',
+      'branches [local]',
+      'dev [remote]',
+      'v1 []',
+    ]);
+  });
 });

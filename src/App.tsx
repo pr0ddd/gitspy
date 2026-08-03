@@ -37,6 +37,7 @@ import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
 import { AskDialog, type Ask } from './shell/AskDialog';
 import { PullPanel } from './shell/PullPanel';
+import { PanelNote } from './shell/parts';
 import { remoteAvatarKey } from './chips';
 import { composeCommitMessage } from './commitMessage';
 
@@ -572,12 +573,10 @@ export default function App() {
                       }
                     />
                   ) : (
-                    <p className="text-muted-foreground p-4 text-center">
-                      {t('workingTree.clean')}
-                    </p>
+                    <PanelNote>{t('workingTree.clean')}</PanelNote>
                   )
                 ) : panel === 'noCommits' ? (
-                  <p className="text-muted-foreground p-4 text-center">{t('repo.emptyHint')}</p>
+                  <PanelNote>{t('repo.emptyHint')}</PanelNote>
                 ) : (
                   <Details
                     session={current}

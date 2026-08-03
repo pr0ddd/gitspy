@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
-import { Hint, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Session } from '../session';
 import { GIT } from '../vocabulary';
@@ -10,6 +10,7 @@ import { buildRefTree, filterRefTree, type TreeNode } from '../refTree';
 import { chipsFor } from '../chips';
 import { buildChipMenu, type MenuAction } from '../menuItems';
 import { showNativeMenu } from '../nativeMenu';
+import { InlineNote, ListRow, SectionHeader } from './parts';
 import type { Ask } from './AskDialog';
 import type { Operation, PullListView, PullView, RefKind, RefView } from '../types';
 
@@ -54,10 +55,6 @@ const treeOf = (refs: RefView[], kind: RefKind): TreeNode[] =>
   buildRefTree(refs.filter((r) => r.kind === kind));
 
 const CAP = 99;
-const INDENT = ['pl-3', 'pl-6', 'pl-9', 'pl-12', 'pl-16', 'pl-20'] as const;
-
-const indentAt = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];
-
 function Tracking({ view }: { view: RefView }) {
   if (view.gone) {
     return <Icon.detached className="text-destructive size-3 shrink-0" />;
@@ -116,40 +113,23 @@ function Row({
   onContextMenu,
 }: RowProps) {
   const Glyph = Icon[icon];
-  const button = (
-    <button
+  return (
+    <ListRow
+      depth={depth + 1}
+      current={current}
+      hint={hint}
+      hintSide="right"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      onContextMenu={
-        onContextMenu
-          ? (e) => {
-              e.preventDefault();
-              onContextMenu();
-            }
-          : undefined
-      }
-      className={cn(
-        'hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
-        indentAt(depth),
-        current && 'bg-ahead/15 font-medium',
-      )}
+      onContextMenu={onContextMenu}
     >
       {leading}
-      <Glyph className={cn('size-3 shrink-0', iconClass ?? 'text-muted-foreground/70')} />
+      <Glyph className={cn('size-3 shrink-0', iconClass ?? 'text-muted-foreground')} />
       {badge}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {detail ? <span className="text-muted-foreground shrink-0 truncate">{detail}</span> : null}
       {trailing}
-    </button>
-  );
-
-  if (!hint) return button;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right">{hint}</TooltipContent>
-    </Tooltip>
+    </ListRow>
   );
 }
 
@@ -444,10 +424,10 @@ export function Sidebar({
           }}
         >
           {pulls === null ? (
-            <p className="text-muted-foreground/60 flex h-6 items-center gap-1.5 pl-6 text-xs">
+            <InlineNote>
               <Icon.waiting className="size-3 animate-spin" />
               {t('host.loading')}
-            </p>
+            </InlineNote>
           ) : (
             <>
               <PullGroup
@@ -471,14 +451,10 @@ export function Sidebar({
                   <PullItem key={pull.number} pull={pull} onPickPull={onPickPull} />
                 ))}
               {pulls.truncated ? (
-                <p className="text-muted-foreground/60 flex h-6 items-center pl-6 text-xs">
-                  {t('pull.truncated', { count: pulls.pulls.length })}
-                </p>
+                <InlineNote>{t('pull.truncated', { count: pulls.pulls.length })}</InlineNote>
               ) : null}
               {pulls.pulls.length === 0 ? (
-                <p className="text-muted-foreground/60 flex h-6 items-center pl-6 text-xs">
-                  {t('pull.empty')}
-                </p>
+                <InlineNote>{t('pull.empty')}</InlineNote>
               ) : null}
             </>
           )}
@@ -501,15 +477,12 @@ function Section({ title, icon, count, open, onToggle, children }: SectionProps)
   const Glyph = Icon[icon];
   return (
     <section className={cn('flex flex-col', open ? 'min-h-24 flex-1 basis-0' : 'shrink-0')}>
-      <button
-        onClick={onToggle}
-        className="border-border/50 hover:bg-surface-hover flex h-7 w-full shrink-0 items-center gap-1.5 border-t px-2 text-xs tracking-wide uppercase transition-colors"
-      >
+      <SectionHeader onClick={onToggle}>
         <Icon.chevron className={cn('size-3 shrink-0 transition-transform', open && 'rotate-90')} />
-        <Glyph className="text-muted-foreground size-3.5 shrink-0" />
-        <span className="text-muted-foreground min-w-0 flex-1 truncate text-left">{title}</span>
-        <span className="text-muted-foreground/70 shrink-0 tabular-nums">{count ?? ''}</span>
-      </button>
+        <Glyph className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">{title}</span>
+        <span className="shrink-0 tabular-nums">{count ?? ''}</span>
+      </SectionHeader>
       {open ? <div className="min-h-0 flex-1 overflow-y-auto">{children}</div> : null}
     </section>
   );
@@ -525,7 +498,7 @@ function PullGroup({ title, pulls, onPickPull }: PullGroupProps) {
   if (!pulls.length) return null;
   return (
     <div>
-      <p className="text-muted-foreground/70 flex h-6 items-center justify-between pr-2 pl-6 text-2xs tracking-wide uppercase">
+      <p className="text-muted-foreground text-2xs flex h-6 items-center justify-between pr-2 pl-6 tracking-wide uppercase">
         {title}
         <span className="tabular-nums">{pulls.length}</span>
       </p>
@@ -541,7 +514,7 @@ function PullItem({ pull, onPickPull }: { pull: PullView; onPickPull: (pull: Pul
     <Row
       depth={1}
       icon="pullRequest"
-      badge={<span className="text-muted-foreground/70 shrink-0 font-mono">#{pull.number}</span>}
+      badge={<span className="text-muted-foreground shrink-0 font-mono">#{pull.number}</span>}
       label={pull.title}
       hint={pull.title}
       onClick={() => onPickPull(pull)}

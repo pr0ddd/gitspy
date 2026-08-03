@@ -296,7 +296,7 @@ export function GraphView({
     if (!ctx) return null;
 
     ctx.font = f.metrics.font;
-    const placed = placeChips(
+    const { placed, more } = placeChips(
       chipsFor(
         labels,
         f.repo.remotes.map((r) => r.name),
@@ -307,8 +307,11 @@ export function GraphView({
       f.pullHeads,
     );
     const one = chipAt(placed, x);
-    if (!one) return null;
-    return { row, at: placed.indexOf(one), chip: one.chip };
+    if (one) return { row, at: placed.indexOf(one), chip: one.chip };
+    if (more && x >= more.x && x < more.x + more.w) {
+      return { row, at: 'more' as const, chip: null };
+    }
+    return null;
   }, []);
 
   const onMenuAction = useCallback(
@@ -352,6 +355,7 @@ export function GraphView({
 
       const chipTarget = chipHitAt(x, y);
       if (chipTarget) {
+        if (!chipTarget.chip) return;
         const sections = buildChipMenu(chipTarget.chip, menuContext());
         if (sections.length) void showNativeMenu(sections, (key, params) => t(key as 'menu.copyBranch', params), onMenuAction);
         return;
@@ -490,7 +494,7 @@ export function GraphView({
     const onDouble = (e: MouseEvent) => {
       const { x, y } = local(e);
       const hit = chipHitAt(x, y);
-      if (hit && hit.chip.refs.length > 0) {
+      if (hit && hit.chip && hit.chip.refs.length > 0) {
         onCheckoutRef(hit.chip.refs[0]);
         return;
       }

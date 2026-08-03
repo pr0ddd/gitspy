@@ -38,8 +38,14 @@ import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from './types
 import type { RowCache } from './rows';
 import { laneColour, laneColourAlpha, theme } from './theme';
 import type { Minimap } from './view';
-import { chipsFor, remoteAvatarKey } from './chips';
-import { chipAt, placeChips, type ChipMetrics, type PlacedChip } from './chipLayout';
+import { chipsFor, remoteAvatarKey, type Chip } from './chips';
+import {
+  chipAt,
+  moreLabel,
+  placeChips,
+  type ChipMetrics,
+  type PlacedChip,
+} from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
 
 export { chipAt, placeChips };
@@ -71,7 +77,7 @@ export type Columns = {
   readonly inProgress: string;
 };
 
-export type HoverChip = { readonly row: number; readonly at: number };
+export type HoverChip = { readonly row: number; readonly at: number | 'more' };
 
 export const chipMetricsFor = (m: Metrics): ChipMetrics => ({
   pad: CHIP_PAD,
@@ -377,7 +383,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const colour = laneColour(row.colour);
       const nodeX = g.nodeX(row.lane);
 
-      const placed = placeChips(
+      const { placed, more } = placeChips(
         chipsFor(labels, remoteNames),
         measure,
         cols.branchTag.width - 14,
@@ -387,7 +393,18 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       for (const one of placed) {
         drawChip(ctx, one, y, chipH, chipM, t, frame.avatars, remoteAvatarUrls, false);
       }
-      const chipEnd = placed.length ? placed[placed.length - 1].x + placed[placed.length - 1].w : 12;
+      if (more) {
+        ctx.fillStyle = t.ref[more.chips[0].kind];
+        roundRect(ctx, more.x, y - chipH / 2, more.w, chipH, 3);
+        ctx.fill();
+        ctx.fillStyle = t.foreground;
+        ctx.fillText(moreLabel(more.count), more.x + chipM.pad, y);
+      }
+      const chipEnd = more
+        ? more.x + more.w
+        : placed.length
+          ? placed[placed.length - 1].x + placed[placed.length - 1].w
+          : 12;
 
       ctx.strokeStyle = colour;
       ctx.globalAlpha = LEADER_ALPHA;
@@ -485,23 +502,58 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   ctx.font = m.font;
   ctx.textBaseline = 'middle';
   const chipM = chipMetricsFor(m);
-  const placed = placeChips(
-    chipsFor(labels, repo.remotes.map((r) => r.name)),
-    (text) => ctx.measureText(text).width,
+  const measure = (text: string) => ctx.measureText(text).width;
+  const chips = chipsFor(labels, repo.remotes.map((r) => r.name));
+  const { placed } = placeChips(
+    chips,
+    measure,
     frame.cols.branchTag.width - 14,
     chipM,
     frame.pullHeads,
   );
-  const one = placed[hoverChip.at];
-  if (!one) return;
 
   const y = Math.round(shift + (hoverChip.row - first) * m.rowH + m.rowH / 2);
   const remoteAvatarUrls = new Map(repo.remotes.map((r) => [r.name, r.avatarUrl]));
+  const chipH = m.rowH - 6;
+
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = 8;
-  drawChip(ctx, one, y, m.rowH - 6, chipM, theme(), frame.avatars, remoteAvatarUrls, true);
+
+  if (hoverChip.at === 'more') {
+    chips.forEach((chip, i) => {
+      drawChip(
+        ctx,
+        fullPlacement(chip, measure, chipM, frame.pullHeads),
+        y + i * (chipH + 4),
+        chipH,
+        chipM,
+        theme(),
+        frame.avatars,
+        remoteAvatarUrls,
+        true,
+      );
+    });
+  } else {
+    const one = placed[hoverChip.at];
+    if (one) drawChip(ctx, one, y, chipH, chipM, theme(), frame.avatars, remoteAvatarUrls, true);
+  }
   ctx.restore();
+}
+
+function fullPlacement(
+  chip: Chip,
+  measure: (text: string) => number,
+  chipM: ChipMetrics,
+  pullHeads: ReadonlySet<string>,
+): PlacedChip {
+  const hasPull =
+    (chip.kind === 'localBranch' || chip.kind === 'remoteBranch') && pullHeads.has(chip.name);
+  const trailW =
+    chip.marks.length * (chipM.markSize + chipM.gap) + (hasPull ? chipM.pullSize + chipM.gap : 0);
+  const fullText = chip.isHead ? `✓ ${chip.name}` : chip.name;
+  const fullW = measure(fullText) + chipM.pad * 2 + trailW;
+  return { chip, x: 12, w: fullW, fullW, text: fullText, fullText, hasPull };
 }
 
 function drawChip(
