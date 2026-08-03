@@ -30,14 +30,22 @@ describe('чипы веток', () => {
     expect(shape([ref('wip', 'localBranch')])).toEqual(['wip [local]']);
   });
 
-  it('удалённая ветка без локальной копии показывает только значок сервера', () => {
-    expect(shape([ref('origin/dev', 'remoteBranch')])).toEqual(['origin/dev [remote]']);
+  it('удалённая ветка теряет префикс — про сервер говорит аватарка, а не текст', () => {
+    expect(shape([ref('origin/dev', 'remoteBranch')])).toEqual(['dev [remote]']);
+  });
+
+  it('вложенное имя после префикса сохраняется целиком', () => {
+    expect(shape([ref('origin/dev/x', 'remoteBranch')])).toEqual(['dev/x [remote]']);
+  });
+
+  it('ветка неизвестного remote показывается как есть, а не режется наугад', () => {
+    expect(shape([ref('upstream/dev', 'remoteBranch')])).toEqual(['upstream/dev [remote]']);
   });
 
   it('разошедшиеся ветки не сливаются, даже стоя рядом в списке', () => {
     const local = ref('main', 'localBranch', { upstream: 'origin/main', ahead: 2 });
     const other = ref('origin/other', 'remoteBranch');
-    expect(shape([local, other])).toEqual(['main [local]', 'origin/other [remote]']);
+    expect(shape([local, other])).toEqual(['main [local]', 'other [remote]']);
   });
 
   it('upstream, которого на этом коммите нет, локальную ветку не подделывает', () => {
