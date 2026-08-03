@@ -36,6 +36,7 @@ import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
 import { AskDialog, type Ask } from './shell/AskDialog';
 import { PullPanel } from './shell/PullPanel';
+import { remoteAvatarKey } from './chips';
 
 export default function App() {
   const { t } = useTranslation();
@@ -82,6 +83,17 @@ export default function App() {
   useEffect(() => {
     if (main.kind !== 'graph') setRailed(true);
   }, [main]);
+
+  const remotes = current?.repo?.remotes;
+  useEffect(() => {
+    if (!remotes) return;
+    const urls = Object.fromEntries(
+      remotes
+        .filter((r) => r.avatarUrl)
+        .map((r) => [remoteAvatarKey(r.name), r.avatarUrl as string]),
+    );
+    avatarsRef.current.refillRemote(urls);
+  }, [remotes]);
 
   useEffect(() => {
     if (!active) return;

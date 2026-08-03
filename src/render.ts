@@ -38,7 +38,7 @@ import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from './types
 import type { RowCache } from './rows';
 import { laneColour, laneColourAlpha, theme } from './theme';
 import type { Minimap } from './view';
-import { chipsFor } from './chips';
+import { chipsFor, remoteAvatarKey } from './chips';
 
 const CORNER = 7;
 
@@ -48,8 +48,7 @@ const LEADER_W = 1;
 const LEADER_ALPHA = 0.18;
 const MARK_W = 11;
 const MARK_GAP = 4;
-const MARK_ALPHA = 0.85;
-const CHIP_H = 16;
+const CHIP_H = 19;
 const CHIP_R = 2;
 const CAP_W = 2;
 
@@ -123,7 +122,17 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, max: number): stri
 }
 
 export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
-  const { repo, rows, refsByCommit, metrics: m, scrollY, scrollX, hover, selected } = frame;
+  const {
+    repo,
+    rows,
+    refsByCommit,
+    avatars,
+    metrics: m,
+    scrollY,
+    scrollX,
+    hover,
+    selected,
+  } = frame;
   const { width, height } = frame;
 
   const t = theme();
@@ -347,6 +356,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     ctx.textBaseline = 'middle';
     ctx.font = FONT_CHIP;
+    const remoteNames = repo.remotes.map((r) => r.name);
     for (let i = first; i < last; i++) {
       const labels = refsByCommit.get(i);
       if (!labels) continue;
@@ -359,7 +369,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       let left = 12;
 
       let chipEnd = left;
-      for (const chip of chipsFor(labels, repo.remotes)) {
+      for (const chip of chipsFor(labels, remoteNames)) {
         const marks = chip.marks.length * (MARK_W + MARK_GAP);
         const room = cols.branchTag.width - 14 - left;
         if (room < 10) break;
@@ -377,11 +387,11 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         if (fitted) {
           ctx.save();
           ctx.strokeStyle = t.foreground;
-          ctx.globalAlpha = MARK_ALPHA;
+          ctx.fillStyle = t.foreground;
           let markX = left + w - 7 - marks + MARK_GAP;
           for (const mark of chip.marks) {
             if (mark === 'local') drawLocalMark(ctx, markX, y);
-            else if (chip.remote) drawRemoteMark(ctx, markX, y, chip.remote);
+            else if (chip.remote) drawRemoteMark(ctx, markX, y, chip.remote, avatars);
             markX += MARK_W + MARK_GAP;
           }
           ctx.restore();
@@ -572,24 +582,39 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
 }
 
 function drawLocalMark(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  roundRect(ctx, x + 1.5, y - 4.5, 8, 6, 1);
+  roundRect(ctx, x + 1.5, y - 4.5, 8, 6.5, 1);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(x - 0.5, y + 2.5);
-  ctx.lineTo(x + 10.5, y + 2.5);
+  ctx.moveTo(x - 0.5, y + 4.5);
+  ctx.lineTo(x + 10.5, y + 4.5);
   ctx.stroke();
 }
 
-function drawRemoteMark(ctx: CanvasRenderingContext2D, x: number, y: number, remote: string): void {
-  const size = MARK_W - 1;
+function drawRemoteMark(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  remote: string,
+  avatars: AvatarCache | null,
+): void {
+  const size = MARK_W;
+  const key = remoteAvatarKey(remote);
+  const look = avatars?.lookOf(key) ?? { kind: 'identicon' as const };
+
   ctx.save();
   ctx.beginPath();
-  roundRect(ctx, x + 0.5, y - size / 2, size, size, 2);
+  roundRect(ctx, x, y - size / 2, size, size, 2);
   ctx.clip();
-  ctx.drawImage(identicon(remote, size), x + 0.5, y - size / 2, size, size);
+  ctx.drawImage(
+    look.kind === 'image' ? look.image : identicon(key, size),
+    x,
+    y - size / 2,
+    size,
+    size,
+  );
   ctx.restore();
 }
 

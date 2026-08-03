@@ -2,6 +2,8 @@ import type { RefKind, RefView } from './types';
 
 export type ChipMark = 'local' | 'remote';
 
+export const remoteAvatarKey = (remote: string): string => `remote:${remote}`;
+
 export type Chip = {
   readonly name: string;
   readonly kind: RefKind;
