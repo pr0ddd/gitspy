@@ -9,6 +9,7 @@ import { Icon } from '../icons';
 import * as ipc from '../ipc';
 import { GIT } from '../vocabulary';
 import type { AccountView, RepoListingView } from '../types';
+import { Hint } from '@/components/ui/tooltip';
 
 const HOST = 'github';
 
@@ -71,16 +72,17 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
             <span className="text-muted-foreground/60 text-xs">
               {t('host.repoCount', { count: repos.length })}
             </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              title={t('host.refresh')}
-              onClick={refresh}
-              disabled={busy}
-              className="text-muted-foreground ml-auto size-6"
-            >
-              <Icon.fetch className={cn('size-3.5', busy && 'animate-spin')} />
-            </Button>
+            <Hint text={t('host.refresh')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={refresh}
+                disabled={busy}
+                className="text-muted-foreground ml-auto size-6"
+              >
+                <Icon.fetch className={cn('size-3.5', busy && 'animate-spin')} />
+              </Button>
+            </Hint>
           </>
         )}
       </div>
@@ -126,9 +128,7 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
                   className="group hover:bg-surface-hover flex h-8 items-center gap-1.5 rounded-md px-2"
                 >
                   <span className="min-w-0 truncate text-xs">
-                    <span className="text-muted-foreground/60">
-                      {repo.fullName.split('/')[0]}/
-                    </span>
+                    <span className="text-muted-foreground/60">{repo.fullName.split('/')[0]}/</span>
                     <span className="font-medium">{repo.fullName.split('/')[1]}</span>
                   </span>
 
@@ -137,10 +137,11 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
                   )}
 
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="secondary"
+                    reveal
                     onClick={() => onClone(repo.cloneUrl)}
-                    className="ml-auto h-5 shrink-0 px-2 text-xs opacity-0 transition-opacity group-hover:opacity-100"
+                    className="ml-auto"
                   >
                     {GIT.clone}
                   </Button>

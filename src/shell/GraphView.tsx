@@ -9,7 +9,7 @@ import {
   type Frame,
   type Metrics,
 } from '../render';
-import { minimapFraction, rowTop } from '../scene';
+import { minimapFraction, rowTop, scrollToReveal } from '../scene';
 import { pointerTarget, type PointerScene } from '../graphInput';
 import {
   layoutColumns,
@@ -180,6 +180,15 @@ export function GraphView({
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
   }, [metrics, patch, clampScroll]);
 
+  const chosen = session?.selected ?? 0;
+  useEffect(() => {
+    const f = frameRef.current;
+    if (!f.repo) return;
+    patch({
+      scrollY: scrollToReveal(f.metrics, chosen, f.scrollY, f.height, f.repo.count),
+    });
+  }, [chosen, patch]);
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -254,7 +263,9 @@ export function GraphView({
     const jumpFromMinimap = (y: number) => {
       const f = frameRef.current;
       const total = (f.repo?.count ?? 0) * f.metrics.rowH;
-      patch({ scrollY: clampScroll(minimapFraction(y, f.height) * total - f.height / 2) });
+      patch({
+        scrollY: clampScroll(minimapFraction(y, f.height) * total - f.height / 2),
+      });
     };
 
     const dragHScroll = (x: number) => {
@@ -262,7 +273,9 @@ export function GraphView({
       const left = f.cols.graph.left;
       const track = f.cols.graph.width;
       const max = maxScrollX(f.metrics, f.repo?.maxLane ?? 0, f.cols.graph.width);
-      patch({ scrollX: clampScrollX(((x - left) / Math.max(1, track)) * max * 1.15) });
+      patch({
+        scrollX: clampScrollX(((x - left) / Math.max(1, track)) * max * 1.15),
+      });
     };
 
     const dragDivider = (x: number) => {

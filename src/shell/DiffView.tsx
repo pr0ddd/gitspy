@@ -9,6 +9,7 @@ import { shortenDirectory, splitPath } from '../paths';
 import { cn } from '@/lib/utils';
 import { DIFF_MODES, DIFF_MODE_LABEL, editorOptionsFor, type DiffMode } from '../diff';
 import type { ChangedFileView } from '../types';
+import { Hint } from '@/components/ui/tooltip';
 
 const STATUS_STYLE: Record<string, string> = {
   A: 'text-added',
@@ -141,9 +142,7 @@ export function DiffView({ repo, target, onClose }: Props) {
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="bg-card border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
-        <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[status])}>
-          {status}
-        </span>
+        <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[status])}>{status}</span>
         <span className="flex min-w-0 items-baseline font-mono text-xs">
           <span className="text-muted-foreground shrink-0">
             {shortenDirectory(splitPath(path).directory, 46)}
@@ -152,52 +151,47 @@ export function DiffView({ repo, target, onClose }: Props) {
         </span>
 
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 gap-1.5 px-2 text-xs"
-            title={t('diff.editHint')}
-            onClick={() => ipc.openInEditor(worktreePath(repo, path)).catch(notifyError)}
-          >
-            <Icon.edit className="size-3.5" />
-            {t('diff.edit')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            title={t('diff.previous')}
-            onClick={() => step('previous')}
-          >
-            <Icon.up className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            title={t('diff.next')}
-            onClick={() => step('next')}
-          >
-            <Icon.down className="size-3.5" />
-          </Button>
-          <Button
-            variant={whitespace ? 'secondary' : 'ghost'}
-            size="icon"
-            className="size-6"
-            title={t('diff.whitespace')}
-            onClick={() => setWhitespace((now) => !now)}
-          >
-            <Icon.whitespace className="size-3.5" />
-          </Button>
-          <Button
-            variant={wrap ? 'secondary' : 'ghost'}
-            size="icon"
-            className="size-6"
-            title={t('diff.wrap')}
-            onClick={() => setWrap((now) => !now)}
-          >
-            <Icon.wrap className="size-3.5" />
-          </Button>
+          <Hint text={t('diff.editHint')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1.5 px-2 text-xs"
+              onClick={() => ipc.openInEditor(worktreePath(repo, path)).catch(notifyError)}
+            >
+              <Icon.edit className="size-3.5" />
+              {t('diff.edit')}
+            </Button>
+          </Hint>
+          <Hint text={t('diff.previous')}>
+            <Button variant="ghost" size="icon" className="size-6" onClick={() => step('previous')}>
+              <Icon.up className="size-3.5" />
+            </Button>
+          </Hint>
+          <Hint text={t('diff.next')}>
+            <Button variant="ghost" size="icon" className="size-6" onClick={() => step('next')}>
+              <Icon.down className="size-3.5" />
+            </Button>
+          </Hint>
+          <Hint text={t('diff.whitespace')}>
+            <Button
+              variant={whitespace ? 'secondary' : 'ghost'}
+              size="icon"
+              className="size-6"
+              onClick={() => setWhitespace((now) => !now)}
+            >
+              <Icon.whitespace className="size-3.5" />
+            </Button>
+          </Hint>
+          <Hint text={t('diff.wrap')}>
+            <Button
+              variant={wrap ? 'secondary' : 'ghost'}
+              size="icon"
+              className="size-6"
+              onClick={() => setWrap((now) => !now)}
+            >
+              <Icon.wrap className="size-3.5" />
+            </Button>
+          </Hint>
         </div>
 
         <span className="text-muted-foreground/60 shrink-0 font-mono text-2xs">UTF-8</span>
@@ -227,15 +221,11 @@ export function DiffView({ repo, target, onClose }: Props) {
           ))}
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-6 shrink-0"
-          onClick={onClose}
-          title={t('diff.close')}
-        >
-          <Icon.close className="size-3.5" />
-        </Button>
+        <Hint text={t('diff.close')}>
+          <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={onClose}>
+            <Icon.close className="size-3.5" />
+          </Button>
+        </Hint>
       </header>
 
       {binary ? (

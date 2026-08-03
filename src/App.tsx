@@ -316,7 +316,7 @@ export default function App() {
   }, []);
 
   return (
-    <TooltipProvider delayDuration={400}>
+    <TooltipProvider delayDuration={150} skipDelayDuration={300}>
       <div className="flex h-full flex-col">
         <RepoTabs
           sessions={sessions}

@@ -1,11 +1,7 @@
 {
-  "branch.ahead": "{{count, number}} ahead of upstream",
-  "branch.behind": "{{count, number}} behind upstream",
   "branch.checkout": "Switch to it",
   "branch.create": "Create",
-  "branch.current": "current branch",
   "branch.gone": "upstream is gone",
-  "branch.menu": "actions for {{name}}",
   "branch.name": "Branch name",
   "branch.title": "New branch",
   "clone.browse": "Choose",

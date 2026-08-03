@@ -12,7 +12,6 @@ import {
 
 const keys = ['branchTag', 'graph', 'message', 'author', 'date', 'sha'] as const;
 
-
 const sumOf = (cols: Cols): number => keys.reduce((total, key) => total + cols[key].width, 0);
 
 describe('раскладка колонок', () => {

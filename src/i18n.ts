@@ -23,8 +23,7 @@ declare module 'i18next' {
   }
 }
 
-const isLocale = (value: string): value is Locale =>
-  (LOCALES as readonly string[]).includes(value);
+const isLocale = (value: string): value is Locale => (LOCALES as readonly string[]).includes(value);
 
 const preferredLocale = (): Locale => {
   const tags = navigator.languages?.length ? navigator.languages : [navigator.language];

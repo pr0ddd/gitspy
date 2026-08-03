@@ -16,7 +16,9 @@ const tree = (patch: Partial<WorkingTreeView>): WorkingTreeView => ({
 
 describe('выбор push по состоянию ветки', () => {
   it('с upstream идёт обычный push', () => {
-    expect(pushFor(tree({ upstream: 'origin/master' }))).toEqual({ kind: 'push' });
+    expect(pushFor(tree({ upstream: 'origin/master' }))).toEqual({
+      kind: 'push',
+    });
   });
 
   it('без upstream push назначает его явно, а не молча', () => {

@@ -8,6 +8,7 @@ import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import { HostRepos } from './HostRepos';
 import type { AccountView, RecentRepo } from '../types';
+import { Hint } from '@/components/ui/tooltip';
 
 type Props = {
   recent: RecentRepo[];
@@ -36,7 +37,9 @@ export function StartPage({
   onConnect,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' });
+  const relative = new Intl.RelativeTimeFormat(i18n.language, {
+    numeric: 'auto',
+  });
 
   const ago = (seconds: number) => {
     if (!Number.isFinite(seconds)) return '';
@@ -88,48 +91,50 @@ export function StartPage({
                     key={entry.path}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18, delay: Math.min(i, 8) * 0.02 }}
+                    transition={{
+                      duration: 0.18,
+                      delay: Math.min(i, 8) * 0.02,
+                    }}
+                    className="group"
                   >
-                    <button
-                      onClick={() => entry.exists && onOpenPath(entry.path)}
-                      title={entry.exists ? entry.path : t('start.missing')}
+                    <div
                       className={cn(
-                        'group bg-card border-border hover:border-primary/40 hover:bg-surface-hover flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors',
+                        'bg-card border-border hover:border-primary/40 hover:bg-surface-hover flex items-center gap-3 rounded-md border pr-2 transition-colors',
                         !entry.exists && 'opacity-40',
                       )}
                     >
-                      <span className="bg-surface-raised flex size-7 shrink-0 items-center justify-center rounded-md">
-                        <Icon.branch className="text-muted-foreground size-3.5" />
-                      </span>
+                      <Hint text={entry.exists ? entry.path : t('start.missing')}>
+                        <button
+                          onClick={() => entry.exists && onOpenPath(entry.path)}
+                          className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
+                        >
+                          <span className="bg-surface-raised flex size-7 shrink-0 items-center justify-center rounded-md">
+                            <Icon.branch className="text-muted-foreground size-3.5" />
+                          </span>
 
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{entry.name}</span>
-                        <span className="text-muted-foreground/70 block truncate font-mono text-xs">
-                          {shorten(entry.path)}
-                        </span>
-                      </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{entry.name}</span>
+                            <span className="text-muted-foreground/70 block truncate font-mono text-xs">
+                              {shorten(entry.path)}
+                            </span>
+                          </span>
 
-                      <span className="text-muted-foreground/60 shrink-0 text-xs">
-                        {ago(entry.openedAt)}
-                      </span>
+                          <span className="text-muted-foreground/60 shrink-0 text-xs">
+                            {ago(entry.openedAt)}
+                          </span>
+                        </button>
+                      </Hint>
 
                       <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-foreground size-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                        variant="muted"
+                        size="icon-xs"
+                        reveal
+                        aria-label={t('start.forget')}
+                        onClick={() => onForget(entry.path)}
                       >
-                        <span
-                          title={t('start.forget')}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onForget(entry.path);
-                          }}
-                        >
-                          <Icon.close className="size-3" />
-                        </span>
+                        <Icon.close />
                       </Button>
-                    </button>
+                    </div>
                   </motion.li>
                 ))}
               </ul>

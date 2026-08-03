@@ -29,6 +29,7 @@ import {
   Terminal,
   Upload,
   X,
+  ChevronRight,
   Folder,
   SquareCheckBig,
   Unlink,
@@ -68,6 +69,7 @@ export const Icon = {
   edit: Pencil,
   expand: PanelLeftOpen,
   folder: Folder,
+  chevron: ChevronRight,
   current: SquareCheckBig,
   detached: Unlink,
 } as const;
