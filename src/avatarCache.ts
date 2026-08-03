@@ -12,8 +12,16 @@ export class AvatarCache {
   }
 
   refill(paths: Record<string, string>): void {
-    for (const [email, path] of Object.entries(paths)) {
-      const key = email.toLowerCase();
+    this.load(paths, convertFileSrc);
+  }
+
+  refillRemote(urls: Record<string, string>): void {
+    this.load(urls, (url) => url);
+  }
+
+  private load(sources: Record<string, string>, resolve: (value: string) => string): void {
+    for (const [name, source] of Object.entries(sources)) {
+      const key = name.toLowerCase();
       if (this.images.has(key)) continue;
 
       const image = new Image();
@@ -21,7 +29,7 @@ export class AvatarCache {
         this.ready.add(key);
         this.bumped();
       };
-      image.src = convertFileSrc(path);
+      image.src = resolve(source);
       this.images.set(key, image);
     }
   }

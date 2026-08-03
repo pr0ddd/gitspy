@@ -87,7 +87,7 @@ pub struct RepoView {
     pub layout_ms: f64,
     pub minimap: Vec<u32>,
     pub minimap_colours: Vec<u8>,
-    pub remotes: Vec<String>,
+    pub remotes: Vec<RemoteView>,
     pub refs: Vec<RefView>,
 }
 
@@ -99,6 +99,24 @@ pub enum RefKindView {
     RemoteBranch,
     Tag,
     Stash,
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteView {
+    pub name: String,
+    pub avatar_url: Option<String>,
+}
+
+pub fn build_remote_views(urls: Vec<(String, String)>) -> Vec<RemoteView> {
+    urls.into_iter()
+        .map(|(name, url)| RemoteView {
+            name,
+            avatar_url: gitspy_hosts::remote::github_repo(&url)
+                .map(|(owner, _)| format!("https://github.com/{owner}.png?size=64")),
+        })
+        .collect()
 }
 
 #[derive(Serialize, Clone, TS)]
@@ -509,7 +527,7 @@ pub fn build_repo_view(
     path: &str,
     history: &History,
     refs: &[RefLine],
-    remotes: Vec<String>,
+    remotes: Vec<RemoteView>,
     skeleton: &Skeleton,
     minimap: Vec<u32>,
     read_ms: f64,

@@ -20,7 +20,7 @@ use tauri::{Emitter, Manager, State};
 struct Opened {
     history: History,
     refs: Vec<gitspy_exec::refs::RefLine>,
-    remotes: Vec<String>,
+    remotes: Vec<crate::views::RemoteView>,
     skeleton: Skeleton,
     minimap: Vec<u32>,
     read_ms: f64,
@@ -88,7 +88,7 @@ fn open_on_a_blocking_thread(path: PathBuf, git: Git) -> Result<Opened, ErrorVie
     Ok(Opened {
         history,
         refs,
-        remotes: git.remotes(&path),
+        remotes: crate::views::build_remote_views(git.remote_urls(&path)),
         skeleton,
         minimap,
         read_ms,
