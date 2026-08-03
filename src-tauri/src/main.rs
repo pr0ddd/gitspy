@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
+mod autofetch;
 mod avatars;
 mod clone;
 mod events;
@@ -53,6 +54,10 @@ fn main() {
             terminal::open_terminal,
             terminal::open_in_editor
         ])
+        .setup(|app| {
+            autofetch::start(app.handle().clone(), autofetch::DEFAULT_MINUTES);
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("приложение запускается")
 }
