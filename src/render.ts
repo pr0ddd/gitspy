@@ -46,9 +46,11 @@ const GRAPH_W = 2;
 
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.18;
-const MARK_W = 9;
-const MARK_GAP = 3;
-const MARK_ALPHA = 0.75;
+const MARK_W = 11;
+const MARK_GAP = 4;
+const MARK_ALPHA = 0.85;
+const CHIP_H = 16;
+const CHIP_R = 2;
 const CAP_W = 2;
 
 const SHADOW_BAND = 14;
@@ -357,7 +359,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       let left = 12;
 
       let chipEnd = left;
-      for (const chip of chipsFor(labels)) {
+      for (const chip of chipsFor(labels, repo.remotes)) {
         const marks = chip.marks.length * (MARK_W + MARK_GAP);
         const room = cols.branchTag.width - 14 - left;
         if (room < 10) break;
@@ -367,7 +369,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
           room < 26 + marks ? '' : fitText(ctx, text, Math.min(150, room - 14 - marks));
         const w = fitted ? ctx.measureText(fitted).width + 14 + marks : Math.min(room, 18);
         ctx.fillStyle = theme().ref[chip.kind];
-        roundRect(ctx, left, y - 9, w, 18, 3);
+        roundRect(ctx, left, y - CHIP_H / 2, w, CHIP_H, CHIP_R);
         ctx.fill();
         ctx.fillStyle = t.foreground;
         if (fitted) ctx.fillText(fitted, left + 7, y);
@@ -376,11 +378,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
           ctx.save();
           ctx.strokeStyle = t.foreground;
           ctx.globalAlpha = MARK_ALPHA;
-          ctx.lineWidth = 1;
           let markX = left + w - 7 - marks + MARK_GAP;
           for (const mark of chip.marks) {
             if (mark === 'local') drawLocalMark(ctx, markX, y);
-            else drawRemoteMark(ctx, markX, y);
+            else if (chip.remote) drawRemoteMark(ctx, markX, y, chip.remote);
             markX += MARK_W + MARK_GAP;
           }
           ctx.restore();
@@ -571,22 +572,25 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
 }
 
 function drawLocalMark(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.rect(x + 0.5, y - 4.5, 8, 5);
-  ctx.moveTo(x + 2.5, y + 3.5);
-  ctx.lineTo(x + 6.5, y + 3.5);
-  ctx.moveTo(x + 4.5, y + 0.5);
-  ctx.lineTo(x + 4.5, y + 3.5);
+  roundRect(ctx, x + 1.5, y - 4.5, 8, 6, 1);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x - 0.5, y + 2.5);
+  ctx.lineTo(x + 10.5, y + 2.5);
   ctx.stroke();
 }
 
-function drawRemoteMark(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+function drawRemoteMark(ctx: CanvasRenderingContext2D, x: number, y: number, remote: string): void {
+  const size = MARK_W - 1;
+  ctx.save();
   ctx.beginPath();
-  ctx.arc(x + 3, y - 0.5, 2.6, Math.PI * 0.6, Math.PI * 1.6);
-  ctx.arc(x + 6, y - 1.4, 2.6, Math.PI * 1.3, Math.PI * 0.2);
-  ctx.lineTo(x + 2.6, y + 2.1);
-  ctx.closePath();
-  ctx.stroke();
+  roundRect(ctx, x + 0.5, y - size / 2, size, size, 2);
+  ctx.clip();
+  ctx.drawImage(identicon(remote, size), x + 0.5, y - size / 2, size, size);
+  ctx.restore();
 }
 
 function roundRect(

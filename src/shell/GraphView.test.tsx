@@ -28,6 +28,7 @@ const repo = (count: number): RepoView => ({
   layoutMs: 1,
   minimap: [],
   minimapColours: [],
+  remotes: [],
   refs: [],
 });
 

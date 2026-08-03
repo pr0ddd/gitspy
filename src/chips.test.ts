@@ -14,8 +14,10 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
   ...patch,
 });
 
-const shape = (labels: RefView[]) =>
-  chipsFor(labels).map((c) => `${c.isHead ? '✓ ' : ''}${c.name} [${c.marks.join(' ')}]`);
+const REMOTES = ['origin'];
+
+const shape = (labels: RefView[], remotes = REMOTES) =>
+  chipsFor(labels, remotes).map((c) => `${c.isHead ? '✓ ' : ''}${c.name} [${c.marks.join(' ')}]`);
 
 describe('чипы веток', () => {
   it('ветка и её upstream на одном коммите — один чип с двумя значками', () => {
@@ -60,9 +62,32 @@ describe('чипы веток', () => {
   it('слитый чип помнит обе ссылки, чтобы по нему можно было действовать', () => {
     const local = ref('main', 'localBranch', { upstream: 'origin/main' });
     const remote = ref('origin/main', 'remoteBranch');
-    const [chip] = chipsFor([local, remote]);
+    const [chip] = chipsFor([local, remote], REMOTES);
     expect(chip.refs.map((r) => r.name)).toEqual(['main', 'origin/main']);
     expect(chip.kind).toBe('localBranch');
+  });
+
+  it('значок сервера знает, какой это remote, чтобы аватарка была одна на всех', () => {
+    const local = ref('main', 'localBranch', { upstream: 'origin/main' });
+    const remote = ref('origin/main', 'remoteBranch');
+    const [chip] = chipsFor([local, remote], REMOTES);
+    expect(chip.remote).toBe('origin');
+  });
+
+  it('удалённая ветка без локальной тоже называет свой remote', () => {
+    const [chip] = chipsFor([ref('origin/dev/x', 'remoteBranch')], REMOTES);
+    expect(chip.remote).toBe('origin');
+  });
+
+  it('remote определяется по списку, а не по первому слэшу', () => {
+    const remotes = ['origin', 'origin/mirror'];
+    const [chip] = chipsFor([ref('origin/mirror/main', 'remoteBranch')], remotes);
+    expect(chip.remote).toBe('origin/mirror');
+  });
+
+  it('у локальной без upstream аватарки сервера нет вовсе', () => {
+    const [chip] = chipsFor([ref('wip', 'localBranch')], REMOTES);
+    expect(chip.remote).toBeNull();
   });
 
   it('порядок ссылок в списке не меняет результат', () => {
