@@ -34,7 +34,10 @@ pub struct Watchers {
 
 fn noise(path: &Path) -> bool {
     let text = path.to_string_lossy();
-    text.ends_with(".lock") || text.contains("/objects/tmp_")
+    text.ends_with(".lock")
+        || text.contains("/objects/tmp_")
+        || text.ends_with("/FETCH_HEAD")
+        || text.contains("/.git/logs/")
 }
 
 pub fn what_changed(repo: &Path, path: &Path) -> Option<Change> {
@@ -150,6 +153,33 @@ mod tests {
             what_changed(repo, Path::new("/r/src/App.tsx")),
             Some(Change::WorkingTree),
             "правка файла не должна стоить перечитывания истории"
+        );
+    }
+
+    #[test]
+    fn a_fetch_that_brought_nothing_is_not_a_change() {
+        let repo = Path::new("/r");
+        assert_eq!(
+            what_changed(repo, Path::new("/r/.git/FETCH_HEAD")),
+            None,
+            "git пишет FETCH_HEAD на каждый фетч, даже пустой, а фетч теперь идёт по таймеру"
+        );
+        assert_eq!(
+            what_changed(repo, Path::new("/r/.git/logs/HEAD")),
+            None,
+            "рефлог движется вслед за ссылками, а не вместо них"
+        );
+    }
+
+    #[test]
+    fn a_fetch_that_moved_a_remote_branch_is_a_change() {
+        assert_eq!(
+            what_changed(
+                Path::new("/r"),
+                Path::new("/r/.git/refs/remotes/origin/main")
+            ),
+            Some(Change::Git),
+            "иначе чужой коммит никогда не доедет до графа"
         );
     }
 
