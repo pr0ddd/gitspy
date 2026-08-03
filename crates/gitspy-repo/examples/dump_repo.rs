@@ -1,19 +1,49 @@
 use gitspy_core::{chunk, dump};
+use gitspy_exec::Git;
+use gitspy_repo::RefSeed;
 use std::time::Instant;
+
+fn seeds_of(path: &std::path::Path) -> (Vec<RefSeed>, Option<String>, usize, f64) {
+    let git = Git::discover().expect("git найден в системе");
+    let cold = git.refs(path).expect("ссылки читаются");
+    drop(cold);
+
+    let started = Instant::now();
+    let found = git.refs(path).expect("ссылки читаются");
+    let head = found
+        .iter()
+        .find(|r| r.is_head)
+        .map(|r| r.oid.clone())
+        .or_else(|| git.head_oid(path));
+    let refs_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    let count = found.len();
+    let seeds = found
+        .into_iter()
+        .map(|r| RefSeed {
+            is_stash: r.kind == gitspy_exec::refs::RefKind::Stash,
+            oid: r.oid,
+        })
+        .collect();
+    (seeds, head, count, refs_ms)
+}
 
 fn main() {
     let mut args = std::env::args().skip(1);
     let path = args.next().unwrap_or_else(|| ".".to_string());
     let show: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(20);
 
+    let (seeds, head, ref_count, refs_ms) = seeds_of(std::path::Path::new(&path));
+
     let t0 = Instant::now();
-    let history = match gitspy_repo::read(std::path::Path::new(&path), None) {
-        Ok(h) => h,
-        Err(e) => {
-            eprintln!("ошибка: {e}");
-            std::process::exit(1);
-        }
-    };
+    let history =
+        match gitspy_repo::read(std::path::Path::new(&path), None, &seeds, head.as_deref()) {
+            Ok(h) => h,
+            Err(e) => {
+                eprintln!("ошибка: {e}");
+                std::process::exit(1);
+            }
+        };
     let read_ms = t0.elapsed().as_secs_f64() * 1000.0;
 
     let t1 = Instant::now();
@@ -31,13 +61,14 @@ fn main() {
     }
     println!("коммитов с внешними родителями: {with_outside}, рёбер: {outside_total}");
     println!(
-        "коммитов: {}  refs: {}  max_lane: {}  truncated: {}",
+        "коммитов: {}  refs: {} (в графе {})  max_lane: {}  truncated: {}",
         history.nodes.len(),
-        history.refs.len(),
+        ref_count,
+        history.rows.len(),
         layout.max_lane,
         history.truncated
     );
-    println!("чтение: {read_ms:.1} мс   раскладка: {layout_ms:.1} мс");
+    println!("ссылки: {refs_ms:.1} мс   чтение: {read_ms:.1} мс   раскладка: {layout_ms:.1} мс");
     println!();
 
     let names: Vec<String> = history

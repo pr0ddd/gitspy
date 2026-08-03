@@ -10,20 +10,10 @@ pub struct CommitMeta {
     pub body: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RefKind {
-    LocalBranch,
-    RemoteBranch,
-    Tag,
-    Stash,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RefLabel {
-    pub name: String,
-    pub kind: RefKind,
-    pub commit: CommitIdx,
-    pub is_head: bool,
+pub struct RefSeed {
+    pub oid: String,
+    pub is_stash: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +65,7 @@ impl Node {
 pub struct History {
     pub topology: Topology,
     pub nodes: Vec<Node>,
-    pub refs: Vec<RefLabel>,
+    pub rows: std::collections::HashMap<String, CommitIdx>,
     pub head: Option<CommitIdx>,
     pub truncated: bool,
 }

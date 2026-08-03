@@ -1,6 +1,12 @@
 use crate::model::Error;
-use crate::read::checked_out_branch;
 use std::path::Path;
+
+fn checked_out_branch(repo: &gix::Repository) -> Option<String> {
+    repo.head_ref()
+        .ok()
+        .flatten()
+        .map(|r| r.name().as_bstr().to_string())
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorktreeInfo {

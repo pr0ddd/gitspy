@@ -1572,6 +1572,7 @@ name = "gitspy-repo"
 version = "0.1.0"
 dependencies = [
  "gitspy-core",
+ "gitspy-exec",
  "gix",
  "tempfile",
 ]

@@ -19,10 +19,27 @@ use tauri::{Emitter, Manager, State};
 
 struct Opened {
     history: History,
+    refs: Vec<gitspy_exec::refs::RefLine>,
     skeleton: Skeleton,
     minimap: Vec<u32>,
     read_ms: f64,
     layout_ms: f64,
+}
+
+fn head_oid_of(git: &Git, path: &Path, refs: &[gitspy_exec::refs::RefLine]) -> Option<String> {
+    refs.iter()
+        .find(|r| r.is_head)
+        .map(|r| r.oid.clone())
+        .or_else(|| git.head_oid(path))
+}
+
+fn seeds_of(refs: &[gitspy_exec::refs::RefLine]) -> Vec<gitspy_repo::RefSeed> {
+    refs.iter()
+        .map(|r| gitspy_repo::RefSeed {
+            oid: r.oid.clone(),
+            is_stash: r.kind == gitspy_exec::refs::RefKind::Stash,
+        })
+        .collect()
 }
 
 fn working_tree_tip(git: &Git, path: &Path) -> Option<gitspy_repo::WorkingTreeTip> {
@@ -47,11 +64,19 @@ fn working_tree_tip(git: &Git, path: &Path) -> Option<gitspy_repo::WorkingTreeTi
     })
 }
 
-fn open_on_a_blocking_thread(path: PathBuf, git: Option<Git>) -> Result<Opened, ErrorView> {
-    let tip = git.as_ref().and_then(|g| working_tree_tip(g, &path));
+fn open_on_a_blocking_thread(path: PathBuf, git: Git) -> Result<Opened, ErrorView> {
+    let tip = working_tree_tip(&git, &path);
 
     let started_reading = Instant::now();
-    let history = gitspy_repo::read_with_working_tree(&path, None, tip)?;
+    let refs = git.refs(&path).map_err(exec_error)?;
+    let head_oid = head_oid_of(&git, &path, &refs);
+    let history = gitspy_repo::read_with_working_tree(
+        &path,
+        None,
+        tip,
+        &seeds_of(&refs),
+        head_oid.as_deref(),
+    )?;
     let read_ms = started_reading.elapsed().as_secs_f64() * 1000.0;
 
     let started_layout = Instant::now();
@@ -61,6 +86,7 @@ fn open_on_a_blocking_thread(path: PathBuf, git: Option<Git>) -> Result<Opened, 
 
     Ok(Opened {
         history,
+        refs,
         skeleton,
         minimap,
         read_ms,
@@ -82,12 +108,13 @@ pub async fn open_repo(
         }
     }
 
-    let git = state.git().ok();
+    let git = state.git()?;
     let opened = on_reader(move || open_on_a_blocking_thread(repo_path, git)).await?;
 
     let view = build_repo_view(
         &path,
         &opened.history,
+        &opened.refs,
         &opened.skeleton,
         opened.minimap,
         opened.read_ms,

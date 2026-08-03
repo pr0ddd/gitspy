@@ -9,4 +9,5 @@ gitspy-core = { path = "../gitspy-core" }
 gix = "0.86.0"
 
 [dev-dependencies]
+gitspy-exec = { path = "../gitspy-exec" }
 tempfile = "3.27.0"
