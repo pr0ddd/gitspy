@@ -498,7 +498,7 @@ function PullGroup({ title, pulls, onPickPull }: PullGroupProps) {
   if (!pulls.length) return null;
   return (
     <div>
-      <p className="text-muted-foreground text-2xs flex h-6 items-center justify-between pr-2 pl-6 tracking-wide uppercase">
+      <p className="text-muted-foreground text-2xs flex h-7 items-center justify-between pr-2 pl-6 tracking-wide uppercase">
         {title}
         <span className="tabular-nums">{pulls.length}</span>
       </p>
@@ -514,7 +514,7 @@ function PullItem({ pull, onPickPull }: { pull: PullView; onPickPull: (pull: Pul
     <Row
       depth={1}
       icon="pullRequest"
-      badge={<span className="text-muted-foreground shrink-0 font-mono">#{pull.number}</span>}
+      badge={<span className="text-muted-foreground shrink-0 tabular-nums">#{pull.number}</span>}
       label={pull.title}
       hint={pull.title}
       onClick={() => onPickPull(pull)}

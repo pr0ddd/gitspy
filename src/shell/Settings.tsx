@@ -73,7 +73,7 @@ export function Settings({ open, account, onOpenChange, onDisconnected }: Props)
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{account.name ?? account.login}</div>
-                <div className="text-muted-foreground truncate font-mono text-xs">
+                <div className="text-muted-foreground truncate text-xs">
                   {account.login}
                 </div>
               </div>
@@ -113,7 +113,7 @@ function DeviceCode({ device }: { device: DeviceView }) {
         <Icon.waiting className="size-3 animate-spin" />
         {t('settings.waiting')}
       </div>
-      <div className="text-muted-foreground font-mono text-xs break-all">
+      <div className="text-muted-foreground text-xs break-all">
         {device.verificationUri}
       </div>
     </div>

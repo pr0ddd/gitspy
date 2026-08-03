@@ -105,7 +105,7 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
             variant="outline"
             size="sm"
             onClick={() => onCopy(row.hash)}
-            className="ml-auto h-6 gap-1.5 font-mono text-xs"
+            className="ml-auto h-6 gap-1.5 text-xs"
           >
             <Icon.copy className="size-3" />
             {row.hash.slice(0, 8)}
@@ -178,7 +178,6 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
               {files.map((file) => (
                 <li key={file.path}>
                   <ListRow
-                    mono
                     hint={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
                     onClick={() => onOpenFile(row.hash, file)}
                   >

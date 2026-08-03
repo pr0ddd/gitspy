@@ -16,10 +16,12 @@ export type Metrics = {
   readonly fontMono: string;
 };
 
-const fonts = (px: number, monoPx: number) => ({
+const SANS = `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+
+const fonts = (px: number, detailPx: number) => ({
   fontPx: px,
-  font: `${px}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`,
-  fontMono: `${monoPx}px ui-monospace, SFMono-Regular, Menlo, monospace`,
+  font: `450 ${px}px ${SANS}`,
+  fontMono: `450 ${detailPx}px ${SANS}`,
 });
 
 export const METRICS_AVATARS: Metrics = {
