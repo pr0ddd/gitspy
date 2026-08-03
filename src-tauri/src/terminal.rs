@@ -45,3 +45,13 @@ pub fn open_in_editor(app: tauri::AppHandle, path: String) -> Result<(), ErrorVi
 pub fn open_terminal(repo: String) -> Result<(), ErrorView> {
     spawn(Path::new(&repo)).map_err(|e| ErrorView::new("terminal.failed").detail(e.to_string()))
 }
+
+#[tauri::command]
+pub fn open_url(app: tauri::AppHandle, url: String) -> Result<(), ErrorView> {
+    if !url.starts_with("https://") {
+        return Err(ErrorView::new("url.refused").param("url", &url));
+    }
+    tauri_plugin_opener::OpenerExt::opener(&app)
+        .open_url(&url, None::<&str>)
+        .map_err(|e| ErrorView::new("url.failed").detail(e.to_string()))
+}

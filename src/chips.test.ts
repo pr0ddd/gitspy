@@ -6,6 +6,7 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
   name,
   kind,
   commit: 0,
+  oid: "refoid",
   isHead: false,
   upstream: null,
   ahead: 0,

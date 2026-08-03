@@ -18,6 +18,7 @@ export type { Progress } from './generated/Progress';
 export type { RecentRepo } from './generated/RecentRepo';
 export type { RefKindView as RefKind } from './generated/RefKindView';
 export type { RefView } from './generated/RefView';
+export type { RemoteView } from './generated/RemoteView';
 export type { RepoView } from './generated/RepoView';
 export type { RowView } from './generated/RowView';
 export type { WindowView } from './generated/WindowView';

@@ -20,6 +20,11 @@ export class RowCache {
     this.inflight.clear();
   }
 
+  replaceAll(first: WindowView): void {
+    this.clear();
+    this.put(0, first);
+  }
+
   put(chunk: number, window: WindowView): void {
     this.chunks.set(chunk, window);
     this.inflight.delete(chunk);

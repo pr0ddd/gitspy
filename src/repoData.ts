@@ -28,9 +28,8 @@ export function useRepoData(): RepoData {
 
   const refill = useCallback(
     async (path: string) => {
-      const cache = cacheFor(path);
-      cache.clear();
-      cache.put(0, await ipc.graphWindow(path, 0, CHUNK));
+      const fresh = await ipc.graphWindow(path, 0, CHUNK);
+      cacheFor(path).replaceAll(fresh);
       bump();
     },
     [cacheFor, bump],

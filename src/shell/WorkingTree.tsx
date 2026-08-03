@@ -1,14 +1,25 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { shortenDirectory, splitPath } from '../paths';
 import type { PathOperation, StatusEntryView, WorkingTreeView } from '../types';
 import { Hint } from '@/components/ui/tooltip';
 
+export type PreviousCommit = { readonly subject: string; readonly body: string };
+
 type Props = {
   tree: WorkingTreeView;
   busy: boolean;
+  message: string;
+  description: string;
+  amend: boolean;
+  previous: PreviousCommit | null;
+  onMessage: (text: string) => void;
+  onDescription: (text: string) => void;
+  onAmend: (next: boolean) => void;
+  onCommit: () => void;
   onRun: (operation: PathOperation) => void;
   onOpen: (path: string, status: string, staged: boolean) => void;
 };
@@ -117,10 +128,36 @@ function Section({
   );
 }
 
-export function WorkingTree({ tree, busy, onRun, onOpen }: Props) {
+export function WorkingTree({
+  tree,
+  busy,
+  message,
+  description,
+  amend,
+  previous,
+  onMessage,
+  onDescription,
+  onAmend,
+  onCommit,
+  onRun,
+  onOpen,
+}: Props) {
   const { t } = useTranslation();
   const staged = tree.entries.filter((e) => e.staged);
   const unstaged = tree.entries.filter((e) => !e.staged);
+  const committable = message.trim().length > 0 && (staged.length > 0 || amend);
+
+  const toggleAmend = (next: boolean) => {
+    if (next && previous) {
+      if (!message.trim()) onMessage(previous.subject);
+      if (!description.trim()) onDescription(previous.body);
+    }
+    onAmend(next);
+  };
+
+  const commitOnHotkey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && committable) onCommit();
+  };
 
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', busy && 'pointer-events-none opacity-60')}>
@@ -147,6 +184,42 @@ export function WorkingTree({ tree, busy, onRun, onOpen }: Props) {
         onRow={(path) => onRun({ kind: 'unstage', paths: [path] })}
         onOpen={(entry) => onOpen(entry.path, entry.letter, true)}
       />
+
+      <Separator />
+
+      <div className="flex shrink-0 flex-col gap-2 p-3">
+        <input
+          value={message}
+          onChange={(e) => onMessage(e.target.value)}
+          onKeyDown={commitOnHotkey}
+          placeholder={t('workingTree.messagePlaceholder')}
+          className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-sm border px-2 py-1.5 text-sm outline-none"
+        />
+        <textarea
+          value={description}
+          onChange={(e) => onDescription(e.target.value)}
+          onKeyDown={commitOnHotkey}
+          placeholder={t('workingTree.descriptionPlaceholder')}
+          rows={3}
+          className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full resize-none rounded-sm border px-2 py-1.5 text-sm outline-none"
+        />
+        <label
+          className={cn(
+            'text-muted-foreground flex items-center gap-2 text-xs',
+            !previous && 'opacity-50',
+          )}
+        >
+          <Checkbox
+            checked={amend}
+            disabled={!previous}
+            onCheckedChange={(next) => toggleAmend(next === true)}
+          />
+          {t('workingTree.amend')}
+        </label>
+        <Button disabled={!committable} onClick={onCommit}>
+          {t('workingTree.commit')}
+        </Button>
+      </div>
     </div>
   );
 }

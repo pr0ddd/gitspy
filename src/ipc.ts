@@ -87,8 +87,8 @@ export const stage = (repo: string, operation: PathOperation) =>
 export const workingTreeDiff = (repo: string, path: string, staged: boolean) =>
   invoke<DiffSides>('working_tree_diff', { repo, path, staged });
 
-export const commit = (repo: string, message: string) =>
-  invoke<WorkingTreeView>('commit', { repo, message });
+export const commit = (repo: string, message: string, amend: boolean) =>
+  invoke<WorkingTreeView>('commit', { repo, message, amend });
 
 export const startConnect = (host: string) => invoke<DeviceView>('start_connect', { host });
 
@@ -121,6 +121,8 @@ export const cloneRepo = (
 export const initRepo = (path: string) => invoke<string>('init_repo', { path });
 
 export const openTerminal = (repo: string) => invoke<void>('open_terminal', { repo });
+
+export const openUrl = (url: string) => invoke<void>('open_url', { url });
 
 export const openInEditor = (path: string) => invoke<void>('open_in_editor', { path });
 

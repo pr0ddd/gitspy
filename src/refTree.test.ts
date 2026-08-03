@@ -6,6 +6,7 @@ const ref = (name: string): RefView => ({
   name,
   kind: 'localBranch',
   commit: 0,
+  oid: 'refoid',
   isHead: false,
   upstream: null,
   ahead: 0,

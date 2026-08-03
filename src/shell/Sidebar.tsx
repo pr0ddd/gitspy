@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Hint, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -7,14 +7,24 @@ import type { Session } from '../session';
 import { GIT } from '../vocabulary';
 import { Icon, type IconName } from '../icons';
 import { buildRefTree, filterRefTree, type TreeNode } from '../refTree';
-import type { PullListView, PullView, RefKind, RefView } from '../types';
+import { chipsFor } from '../chips';
+import { buildChipMenu, type MenuAction } from '../menuItems';
+import { showNativeMenu } from '../nativeMenu';
+import type { Ask } from './AskDialog';
+import type { Operation, PullListView, PullView, RefKind, RefView } from '../types';
 
 type Props = {
   session: Session | null;
   collapsed: boolean;
   pulls: PullListView | null;
+  currentBranch: string | null;
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
+  onRun: (operation: Operation) => void;
+  onCopy: (text: string) => void;
+  onAsk: (ask: Ask) => void;
+  onWorktree: (at: string) => void;
+  onOpenUrl: (url: string) => void;
   onToggle: () => void;
   onPullsExpanded: () => void;
   onPickPull: (pull: PullView) => void;
@@ -87,6 +97,7 @@ type RowProps = {
   current?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  onContextMenu?: () => void;
 };
 
 function Row({
@@ -102,12 +113,21 @@ function Row({
   current,
   onClick,
   onDoubleClick,
+  onContextMenu,
 }: RowProps) {
   const Glyph = Icon[icon];
   const button = (
     <button
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={
+        onContextMenu
+          ? (e) => {
+              e.preventDefault();
+              onContextMenu();
+            }
+          : undefined
+      }
       className={cn(
         'hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
         indentAt(depth),
@@ -142,9 +162,10 @@ type BranchesProps = {
   onFlip: (path: string) => void;
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
+  onMenu: (ref: RefView) => void;
 };
 
-function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout }: BranchesProps) {
+function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout, onMenu }: BranchesProps) {
   return (
     <>
       {nodes.map((node) =>
@@ -172,6 +193,7 @@ function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout }: Branches
                 onFlip={onFlip}
                 onPick={onPick}
                 onCheckout={onCheckout}
+                onMenu={onMenu}
               />
             )}
           </div>
@@ -187,6 +209,7 @@ function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout }: Branches
             current={node.ref.isHead}
             onClick={() => onPick(node.ref.commit)}
             onDoubleClick={() => onCheckout(node.ref)}
+            onContextMenu={() => onMenu(node.ref)}
           />
         ),
       )}
@@ -198,8 +221,14 @@ export function Sidebar({
   session,
   collapsed,
   pulls,
+  currentBranch,
   onPick,
   onCheckout,
+  onRun,
+  onCopy,
+  onAsk,
+  onWorktree,
+  onOpenUrl,
   onToggle,
   onPullsExpanded,
   onPickPull,
@@ -221,6 +250,34 @@ export function Sidebar({
     });
 
   const refs = session?.repo?.refs ?? [];
+  const remotes = session?.repo?.remotes ?? [];
+  const remoteNames = remotes.map((r) => r.name);
+
+  const openRefMenu = useCallback(
+    (ref: RefView) => {
+      const chip = chipsFor([ref], remoteNames)[0];
+      if (!chip) return;
+      const sections = buildChipMenu(chip, {
+        currentBranch,
+        remotes: remotes.map((r) => ({ name: r.name, webUrl: r.webUrl })),
+        head: null,
+      });
+      if (!sections.length) return;
+      void showNativeMenu(
+        sections,
+        (key, params) => t(key as 'menu.copyBranch', params),
+        (action: MenuAction) => {
+          if (action.kind === 'checkoutRef') onCheckout(action.ref);
+          else if (action.kind === 'run') onRun(action.operation);
+          else if (action.kind === 'copy') onCopy(action.text);
+          else if (action.kind === 'worktree') onWorktree(action.at);
+          else if (action.kind === 'openUrl') onOpenUrl(action.url);
+          else onAsk(action.ask);
+        },
+      );
+    },
+    [remotes, remoteNames, currentBranch, onCheckout, onRun, onCopy, onAsk, onWorktree, onOpenUrl, t],
+  );
 
   const groups: Group[] = useMemo(
     () => [
@@ -346,6 +403,7 @@ export function Sidebar({
                   onFlip={flipFolder}
                   onPick={onPick}
                   onCheckout={onCheckout}
+                  onMenu={openRefMenu}
                 />
               </Section>
             );

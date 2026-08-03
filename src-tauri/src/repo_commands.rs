@@ -56,11 +56,13 @@ fn working_tree_tip(git: &Git, path: &Path) -> Option<gitspy_repo::WorkingTreeTi
         .cloned()
         .collect();
 
+    let counts = tree.change_counts();
     Some(gitspy_repo::WorkingTreeTip {
         parents,
-        staged: tree.staged() as u32,
-        unstaged: tree.unstaged() as u32,
-        conflicts: tree.conflicts() as u32,
+        added: counts.added,
+        modified: counts.modified,
+        deleted: counts.deleted,
+        conflicts: counts.conflicts,
         in_progress: tree.in_progress.map(|p| p.code().to_string()),
     })
 }
@@ -209,7 +211,7 @@ pub async fn run_operation(
         .then(|| hosts::token(&app, gitspy_hosts::github::ID))
         .flatten();
 
-    on_reader(move || {
+    let outcome = on_reader(move || {
         let _held = lane.lock().expect("полоса очереди не отравлена");
         let credential = token.as_deref().map(|token| gitspy_exec::Credential {
             url: hosts::GITHUB_URL,
@@ -228,7 +230,10 @@ pub async fn run_operation(
         )
         .map_err(exec_error)
     })
-    .await
+    .await?;
+
+    state.mark_stale(&repo);
+    Ok(outcome)
 }
 
 #[tauri::command]
@@ -333,24 +338,25 @@ pub async fn stage(
 pub async fn commit(
     repo: String,
     message: String,
+    amend: bool,
     state: State<'_, AppState>,
 ) -> Result<WorkingTreeView, ErrorView> {
     let git = state.git()?;
     let lane = state.queue.lane(&repo);
     let path = PathBuf::from(&repo);
 
-    on_reader(move || {
+    let tree = on_reader(move || {
         let _held = lane.lock().expect("полоса очереди не отравлена");
-        git.run(
-            &path,
-            &["commit", "-m", &message],
-            &Cancel::new(),
-            &mut |_| {},
-        )
-        .map_err(exec_error)?;
+        let args = operations::commit_args(&message, amend);
+        let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+        git.run(&path, &borrowed, &Cancel::new(), &mut |_| {})
+            .map_err(exec_error)?;
         read_working_tree(&git, &path)
     })
-    .await
+    .await?;
+
+    state.mark_stale(&repo);
+    Ok(tree)
 }
 
 #[tauri::command]
@@ -399,7 +405,10 @@ pub async fn checkout_pull(
         }
         Ok(())
     })
-    .await
+    .await?;
+
+    state.mark_stale(&repo);
+    Ok(())
 }
 
 #[tauri::command]
@@ -434,7 +443,10 @@ pub async fn checkout_ref(
             .map_err(exec_error)
             .map(|_| ())
     })
-    .await
+    .await?;
+
+    state.mark_stale(&repo);
+    Ok(())
 }
 
 #[tauri::command]

@@ -2,13 +2,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sidebar } from './Sidebar';
+import { showNativeMenu } from '../nativeMenu';
 import { newSession, type Session } from '../session';
 import type { RefView, RepoView } from '../types';
+
+vi.mock('../nativeMenu', () => ({ showNativeMenu: vi.fn() }));
 
 const branch = (patch: Partial<RefView> = {}): RefView => ({
   name: 'main',
   kind: 'localBranch',
   commit: 7,
+  oid: 'refoid',
   isHead: false,
   upstream: null,
   ahead: 0,
@@ -44,8 +48,14 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
         session={sessionWith(refs)}
         collapsed={false}
         pulls={null}
+        currentBranch="main"
         onPick={handlers.onPick ?? (() => {})}
         onCheckout={handlers.onCheckout ?? (() => {})}
+        onRun={() => {}}
+        onCopy={() => {}}
+        onAsk={() => {}}
+        onWorktree={() => {}}
+        onOpenUrl={() => {}}
         onToggle={() => {}}
         onPullsExpanded={() => {}}
         onPickPull={() => {}}
@@ -74,6 +84,20 @@ describe('щелчки по ветке', () => {
     fireEvent.doubleClick(row('main'));
 
     expect(onCheckout).toHaveBeenCalledTimes(1);
+  });
+
+  it('правый щелчок по ветке открывает то же меню, что и на графе', () => {
+    vi.mocked(showNativeMenu).mockClear();
+    draw([branch({ name: 'feature' })]);
+
+    fireEvent.contextMenu(screen.getByText('feature'));
+
+    expect(showNativeMenu).toHaveBeenCalledTimes(1);
+    const [sections] = vi.mocked(showNativeMenu).mock.calls[0];
+    expect(
+      sections.flat().map((i) => i.id),
+      'меню строится тем же строителем, что и на графе',
+    ).toContain('checkout');
   });
 
   it('щелчок по стрелке не промахивается мимо ветки', () => {

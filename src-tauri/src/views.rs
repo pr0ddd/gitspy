@@ -107,14 +107,22 @@ pub enum RefKindView {
 pub struct RemoteView {
     pub name: String,
     pub avatar_url: Option<String>,
+    pub web_url: Option<String>,
 }
 
 pub fn build_remote_views(urls: Vec<(String, String)>) -> Vec<RemoteView> {
     urls.into_iter()
-        .map(|(name, url)| RemoteView {
-            name,
-            avatar_url: gitspy_hosts::remote::github_repo(&url)
-                .map(|(owner, _)| format!("https://github.com/{owner}.png?size=64")),
+        .map(|(name, url)| {
+            let github = gitspy_hosts::remote::github_repo(&url);
+            RemoteView {
+                name,
+                avatar_url: github
+                    .as_ref()
+                    .map(|(owner, _)| format!("https://github.com/{owner}.png?size=64")),
+                web_url: github
+                    .as_ref()
+                    .map(|(owner, repo)| format!("https://github.com/{owner}/{repo}")),
+            }
         })
         .collect()
 }
@@ -126,6 +134,7 @@ pub struct RefView {
     pub name: String,
     pub kind: RefKindView,
     pub commit: u32,
+    pub oid: String,
     pub is_head: bool,
     pub upstream: Option<String>,
     pub ahead: u32,
@@ -222,8 +231,9 @@ pub enum RowView {
         lane: u16,
         colour: u8,
         node: u8,
-        staged: u32,
-        unstaged: u32,
+        added: u32,
+        modified: u32,
+        deleted: u32,
         conflicts: u32,
         in_progress: Option<String>,
     },
@@ -512,6 +522,7 @@ pub fn build_ref_views(refs: &[RefLine], rows: &HashMap<String, u32>) -> Vec<Ref
                 name: r.name.clone(),
                 kind: ref_kind_view(r.kind),
                 commit,
+                oid: r.oid.clone(),
                 is_head: r.is_head,
                 upstream: r.upstream.clone(),
                 ahead: r.ahead,
@@ -579,8 +590,9 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
             let index = (start + offset) as u32;
             match &nodes[offset] {
                 Node::WorkingTree {
-                    staged,
-                    unstaged,
+                    added,
+                    modified,
+                    deleted,
                     conflicts,
                     in_progress,
                 } => RowView::WorkingTree {
@@ -588,8 +600,9 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                     lane: row.lane,
                     colour: row.colour,
                     node: node_kind_code(row.kind),
-                    staged: *staged,
-                    unstaged: *unstaged,
+                    added: *added,
+                    modified: *modified,
+                    deleted: *deleted,
                     conflicts: *conflicts,
                     in_progress: in_progress.clone(),
                 },

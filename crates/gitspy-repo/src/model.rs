@@ -19,8 +19,9 @@ pub struct RefSeed {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkingTreeTip {
     pub parents: Vec<String>,
-    pub staged: u32,
-    pub unstaged: u32,
+    pub added: u32,
+    pub modified: u32,
+    pub deleted: u32,
     pub conflicts: u32,
     pub in_progress: Option<String>,
 }
@@ -28,8 +29,9 @@ pub struct WorkingTreeTip {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
     WorkingTree {
-        staged: u32,
-        unstaged: u32,
+        added: u32,
+        modified: u32,
+        deleted: u32,
         conflicts: u32,
         in_progress: Option<String>,
     },
@@ -80,15 +82,17 @@ impl History {
         if let (
             Some(tip),
             Some(Node::WorkingTree {
-                staged,
-                unstaged,
+                added,
+                modified,
+                deleted,
                 conflicts,
                 in_progress,
             }),
         ) = (fresh, self.nodes.first_mut())
         {
-            *staged = tip.staged;
-            *unstaged = tip.unstaged;
+            *added = tip.added;
+            *modified = tip.modified;
+            *deleted = tip.deleted;
             *conflicts = tip.conflicts;
             *in_progress = tip.in_progress;
         }

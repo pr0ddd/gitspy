@@ -11,17 +11,23 @@ export type Metrics = {
   readonly laneW: number;
   readonly nodeR: number;
   readonly avatars: boolean;
+  readonly fontPx: number;
   readonly font: string;
   readonly fontMono: string;
 };
+
+const fonts = (px: number, monoPx: number) => ({
+  fontPx: px,
+  font: `${px}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`,
+  fontMono: `${monoPx}px ui-monospace, SFMono-Regular, Menlo, monospace`,
+});
 
 export const METRICS_AVATARS: Metrics = {
   rowH: 30,
   laneW: 24,
   nodeR: 10,
   avatars: true,
-  font: '13px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
-  fontMono: '12px ui-monospace, SFMono-Regular, Menlo, monospace',
+  ...fonts(13, 12),
 };
 
 export const METRICS_COMPACT: Metrics = {
@@ -29,8 +35,7 @@ export const METRICS_COMPACT: Metrics = {
   laneW: 14,
   nodeR: 4.5,
   avatars: false,
-  font: '12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
-  fontMono: '11px ui-monospace, SFMono-Regular, Menlo, monospace',
+  ...fonts(12, 11),
 };
 
 export const listWidth = (width: number): number => width - MINIMAP_W;

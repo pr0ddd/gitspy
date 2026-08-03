@@ -1524,6 +1524,7 @@ dependencies = [
 name = "gitspy-app"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "gitspy-core",
  "gitspy-exec",
  "gitspy-hosts",

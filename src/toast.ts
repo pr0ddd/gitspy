@@ -13,11 +13,16 @@ export const notifyError = (error: unknown) => {
   return toast.error(shown.message, { description: shown.detail ?? undefined });
 };
 
+export const operationLabel = (operation: Operation) => {
+  const kind = operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
+  return t('operation.started', { what: t(`operation.${kind}` as 'operation.fetchDryRun') });
+};
+
 export const notifyOperation = (operation: Operation, stage: 'started' | 'finished') => {
   const kind = operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
   const what = t(`operation.${kind}` as 'operation.fetchDryRun');
   return stage === 'started'
-    ? toast.loading(t('operation.started', { what }), { id: kind })
+    ? toast.loading(operationLabel(operation), { id: kind })
     : toast.success(t('operation.finished', { what }), { id: kind });
 };
 
