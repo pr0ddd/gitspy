@@ -1,8 +1,9 @@
 use gitspy_core::chunk::Skeleton;
 use gitspy_core::layout::{Layout, NodeKind, Segment};
-use gitspy_repo::{History, Node, RefKind};
+use gitspy_exec::refs::{RefKind, RefLine};
+use gitspy_repo::{History, Node};
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use ts_rs::TS;
 
 pub const MINIMAP_BUCKETS: usize = 2048;
@@ -427,9 +428,23 @@ fn ref_kind_view(kind: RefKind) -> RefKindView {
     }
 }
 
+pub fn build_ref_views(refs: &[RefLine], rows: &HashMap<String, u32>) -> Vec<RefView> {
+    refs.iter()
+        .filter_map(|r| {
+            rows.get(&r.oid).map(|&commit| RefView {
+                name: r.name.clone(),
+                kind: ref_kind_view(r.kind),
+                commit,
+                is_head: r.is_head,
+            })
+        })
+        .collect()
+}
+
 pub fn build_repo_view(
     path: &str,
     history: &History,
+    refs: &[RefLine],
     skeleton: &Skeleton,
     minimap: Vec<u32>,
     read_ms: f64,
@@ -445,16 +460,7 @@ pub fn build_repo_view(
         layout_ms,
         minimap,
         minimap_colours: gitspy_core::chunk::minimap_colours(),
-        refs: history
-            .refs
-            .iter()
-            .map(|r| RefView {
-                name: r.name.clone(),
-                kind: ref_kind_view(r.kind),
-                commit: r.commit,
-                is_head: r.is_head,
-            })
-            .collect(),
+        refs: build_ref_views(refs, &history.rows),
     }
 }
 

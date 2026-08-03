@@ -1,4 +1,4 @@
-use crate::model::{CommitMeta, Error, History, Node, RefKind, RefLabel, WorkingTreeTip};
+use crate::model::{CommitMeta, Error, History, Node, RefSeed, WorkingTreeTip};
 use gitspy_core::topology::{CommitIdx, Topology};
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -7,21 +7,28 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct Geometry {
     pub topology: Topology,
-    pub refs: Vec<RefLabel>,
+    pub rows: HashMap<String, CommitIdx>,
     pub head: Option<CommitIdx>,
     pub truncated: bool,
 }
 
-pub fn read(path: &Path, max_commits: Option<usize>) -> Result<History, Error> {
-    read_with_working_tree(path, max_commits, None)
+pub fn read(
+    path: &Path,
+    max_commits: Option<usize>,
+    seeds: &[RefSeed],
+    head_oid: Option<&str>,
+) -> Result<History, Error> {
+    read_with_working_tree(path, max_commits, None, seeds, head_oid)
 }
 
 pub fn read_with_working_tree(
     path: &Path,
     max_commits: Option<usize>,
     tip: Option<WorkingTreeTip>,
+    seeds: &[RefSeed],
+    head_oid: Option<&str>,
 ) -> Result<History, Error> {
-    let Some(prepared) = prepare(path)? else {
+    let Some(prepared) = prepare(path, seeds, head_oid)? else {
         return Ok(empty_history());
     };
     let mut walked = walk(&prepared, max_commits, Metadata::Collect)?;
@@ -41,18 +48,23 @@ pub fn read_with_working_tree(
     Ok(History {
         topology: assembled.topology,
         nodes,
-        refs: assembled.refs,
+        rows: assembled.rows,
         head: assembled.head,
         truncated: walked.truncated,
     })
 }
 
-pub fn read_geometry(path: &Path, max_commits: Option<usize>) -> Result<Geometry, Error> {
-    let Some(prepared) = prepare(path)? else {
+pub fn read_geometry(
+    path: &Path,
+    max_commits: Option<usize>,
+    seeds: &[RefSeed],
+    head_oid: Option<&str>,
+) -> Result<Geometry, Error> {
+    let Some(prepared) = prepare(path, seeds, head_oid)? else {
         let empty = empty_history();
         return Ok(Geometry {
             topology: empty.topology,
-            refs: empty.refs,
+            rows: empty.rows,
             head: empty.head,
             truncated: empty.truncated,
         });
@@ -62,7 +74,7 @@ pub fn read_geometry(path: &Path, max_commits: Option<usize>) -> Result<Geometry
 
     Ok(Geometry {
         topology: assembled.topology,
-        refs: assembled.refs,
+        rows: assembled.rows,
         head: assembled.head,
         truncated: walked.truncated,
     })
@@ -70,36 +82,49 @@ pub fn read_geometry(path: &Path, max_commits: Option<usize>) -> Result<Geometry
 
 struct Prepared {
     repo: gix::Repository,
-    ref_records: Vec<RefRecord>,
-    head_ref_name: Option<String>,
+    seeds: Vec<gix::ObjectId>,
     head_oid: Option<gix::ObjectId>,
     hidden: HashSet<gix::ObjectId>,
     tips: Vec<gix::ObjectId>,
 }
 
-fn prepare(path: &Path) -> Result<Option<Prepared>, Error> {
+fn object_id(hex: &str) -> Option<gix::ObjectId> {
+    gix::ObjectId::from_hex(hex.as_bytes()).ok()
+}
+
+fn present_commit(repo: &gix::Repository, oid: gix::ObjectId) -> bool {
+    repo.find_header(oid)
+        .map(|header| header.kind() == gix::object::Kind::Commit)
+        .unwrap_or(false)
+}
+
+fn prepare(
+    path: &Path,
+    seeds: &[RefSeed],
+    head_oid: Option<&str>,
+) -> Result<Option<Prepared>, Error> {
     let repo = gix::open(path).map_err(|e| Error::OpenRepo {
         path: path.display().to_string(),
         detail: e.to_string(),
     })?;
 
-    let head_ref_name = checked_out_branch(&repo);
-    let mut ref_records = branches_and_tags(&repo)?;
+    let parsed: Vec<(gix::ObjectId, bool)> = seeds
+        .iter()
+        .filter_map(|seed| object_id(&seed.oid).map(|oid| (oid, seed.is_stash)))
+        .filter(|(oid, _)| present_commit(&repo, *oid))
+        .collect();
 
-    let stash_entries = stash_entries(&repo);
-    let hidden = stash_snapshots(&repo, &stash_entries);
-    for (position, &oid) in stash_entries.iter().enumerate() {
-        let name = format!("stash@{{{position}}}");
-        ref_records.push(RefRecord {
-            short_name: name.clone(),
-            full_name: format!("refs/{name}"),
-            kind: RefKind::Stash,
-            oid,
-        });
-    }
+    let stashes: Vec<gix::ObjectId> = parsed
+        .iter()
+        .filter(|(_, is_stash)| *is_stash)
+        .map(|(oid, _)| *oid)
+        .collect();
+    let hidden = stash_snapshots(&repo, &stashes);
 
-    let head_oid = repo.head_id().ok().map(|id| id.detach());
-    let mut tips: Vec<gix::ObjectId> = ref_records.iter().map(|r| r.oid).collect();
+    let head_oid = head_oid.and_then(object_id);
+    let seeds: Vec<gix::ObjectId> = parsed.into_iter().map(|(oid, _)| oid).collect();
+
+    let mut tips = seeds.clone();
     tips.extend(head_oid);
     if tips.is_empty() {
         return Ok(None);
@@ -109,8 +134,7 @@ fn prepare(path: &Path) -> Result<Option<Prepared>, Error> {
 
     Ok(Some(Prepared {
         repo,
-        ref_records,
-        head_ref_name,
+        seeds,
         head_oid,
         hidden,
         tips,
@@ -119,7 +143,7 @@ fn prepare(path: &Path) -> Result<Option<Prepared>, Error> {
 
 struct Assembled {
     topology: Topology,
-    refs: Vec<RefLabel>,
+    rows: HashMap<String, CommitIdx>,
     head: Option<CommitIdx>,
 }
 
@@ -178,17 +202,10 @@ fn assemble(
         detail: format!("{e:?}"),
     })?;
 
-    let refs = prepared
-        .ref_records
+    let rows = prepared
+        .seeds
         .iter()
-        .filter_map(|record| {
-            index.get(&record.oid).map(|&commit| RefLabel {
-                name: record.short_name.clone(),
-                kind: record.kind,
-                commit: commit + shift,
-                is_head: prepared.head_ref_name.as_deref() == Some(record.full_name.as_str()),
-            })
-        })
+        .filter_map(|oid| index.get(oid).map(|&row| (oid.to_string(), row + shift)))
         .collect();
 
     let head = prepared
@@ -198,102 +215,19 @@ fn assemble(
 
     Ok(Assembled {
         topology,
-        refs,
+        rows,
         head,
     })
-}
-
-struct RefRecord {
-    short_name: String,
-    full_name: String,
-    kind: RefKind,
-    oid: gix::ObjectId,
 }
 
 fn empty_history() -> History {
     History {
         topology: Topology::new(vec![], vec![]).expect("пустая топология корректна"),
         nodes: Vec::new(),
-        refs: Vec::new(),
+        rows: HashMap::new(),
         head: None,
         truncated: false,
     }
-}
-
-pub(crate) fn checked_out_branch(repo: &gix::Repository) -> Option<String> {
-    repo.head_ref()
-        .ok()
-        .flatten()
-        .map(|r| r.name().as_bstr().to_string())
-}
-
-fn branches_and_tags(repo: &gix::Repository) -> Result<Vec<RefRecord>, Error> {
-    let platform = repo.references().map_err(|e| Error::WalkHistory {
-        detail: e.to_string(),
-    })?;
-    let iter = platform.all().map_err(|e| Error::WalkHistory {
-        detail: e.to_string(),
-    })?;
-
-    let mut records = Vec::new();
-    for reference in iter.flatten() {
-        let full_name = reference.name().as_bstr().to_string();
-        let Some((short_name, kind)) = classify(&full_name) else {
-            continue;
-        };
-
-        let mut reference = reference;
-        let Ok(id) = reference.peel_to_id() else {
-            continue;
-        };
-        let oid = id.detach();
-        if !points_at_commit(repo, oid) {
-            continue;
-        }
-
-        records.push(RefRecord {
-            short_name,
-            full_name,
-            kind,
-            oid,
-        });
-    }
-    Ok(records)
-}
-
-fn classify(full_name: &str) -> Option<(String, RefKind)> {
-    if let Some(rest) = full_name.strip_prefix("refs/heads/") {
-        return Some((rest.to_string(), RefKind::LocalBranch));
-    }
-    if let Some(rest) = full_name.strip_prefix("refs/remotes/") {
-        if rest.ends_with("/HEAD") {
-            return None;
-        }
-        return Some((rest.to_string(), RefKind::RemoteBranch));
-    }
-    full_name
-        .strip_prefix("refs/tags/")
-        .map(|rest| (rest.to_string(), RefKind::Tag))
-}
-
-fn points_at_commit(repo: &gix::Repository, oid: gix::ObjectId) -> bool {
-    repo.find_header(oid)
-        .map(|header| header.kind() == gix::object::Kind::Commit)
-        .unwrap_or(false)
-}
-
-fn stash_entries(repo: &gix::Repository) -> Vec<gix::ObjectId> {
-    let Ok(Some(reference)) = repo.try_find_reference("refs/stash") else {
-        return Vec::new();
-    };
-    let mut platform = reference.log_iter();
-    let Ok(Some(lines)) = platform.all() else {
-        return Vec::new();
-    };
-
-    let mut newest_last: Vec<gix::ObjectId> = lines.flatten().map(|line| line.new_oid()).collect();
-    newest_last.reverse();
-    newest_last
 }
 
 fn stash_snapshots(repo: &gix::Repository, entries: &[gix::ObjectId]) -> HashSet<gix::ObjectId> {

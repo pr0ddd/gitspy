@@ -4,7 +4,7 @@ mod model;
 mod read;
 mod worktrees;
 
-pub use model::{CommitMeta, Error, History, Node, RefKind, RefLabel, WorkingTreeTip};
+pub use model::{CommitMeta, Error, History, Node, RefSeed, WorkingTreeTip};
 pub use read::{read, read_geometry, read_with_working_tree, Geometry};
 pub use worktrees::{worktrees, WorktreeInfo};
 
@@ -39,7 +39,7 @@ mod node_tests {
             topology: Topology::new(vec![Vec::new(); nodes.len()], vec![0; nodes.len()])
                 .expect("длины совпадают"),
             nodes,
-            refs: Vec::new(),
+            rows: std::collections::HashMap::new(),
             head: None,
             truncated: false,
         }

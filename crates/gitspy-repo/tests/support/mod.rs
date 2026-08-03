@@ -7,6 +7,62 @@ use tempfile::TempDir;
 const NAME: &str = "Test Author";
 const EMAIL: &str = "test@example.com";
 
+fn ask_git(path: &Path, args: &[&str]) -> String {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(args)
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_SYSTEM", "/dev/null")
+        .output()
+        .expect("git запускается");
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+pub fn seeds_at(path: &Path) -> Vec<gitspy_repo::RefSeed> {
+    let mut seeds: Vec<gitspy_repo::RefSeed> = ask_git(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(refname) %(objecttype) %(objectname) %(*objecttype) %(*objectname)",
+        ],
+    )
+    .lines()
+    .filter_map(|line| {
+        let f: Vec<&str> = line.split_whitespace().collect();
+        if f.first() == Some(&"refs/stash") {
+            return None;
+        }
+        let (kind, oid) = match f.len() {
+            5 => (f[3], f[4]),
+            3 => (f[1], f[2]),
+            _ => return None,
+        };
+        (kind == "commit").then(|| gitspy_repo::RefSeed {
+            oid: oid.to_string(),
+            is_stash: false,
+        })
+    })
+    .collect();
+
+    seeds.extend(
+        ask_git(path, &["stash", "list", "--format=%H"])
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(|oid| gitspy_repo::RefSeed {
+                oid: oid.to_string(),
+                is_stash: true,
+            }),
+    );
+
+    seeds
+}
+
+pub fn head_at(path: &Path) -> Option<String> {
+    let oid = ask_git(path, &["rev-parse", "-q", "--verify", "HEAD"]);
+    (!oid.is_empty()).then_some(oid)
+}
+
 const EPOCH: i64 = 1577836800;
 
 pub struct Fixture {
