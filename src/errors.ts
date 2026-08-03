@@ -19,6 +19,15 @@ const isErrorView = (value: unknown): value is ErrorView =>
 export const isNotOpen = (error: unknown): boolean =>
   isErrorView(error) && error.code === 'repo.notOpen';
 
+function withoutHintNoise(detail: string): string {
+  const essence = detail
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('hint:'))
+    .join('\n')
+    .trim();
+  return essence.length > 0 ? essence : detail;
+}
+
 export function describeError(error: unknown, t: TFunction<'errors'>): ShownError {
   if (!isErrorView(error)) {
     return { message: t('unknown'), detail: String(error) };
@@ -28,6 +37,6 @@ export function describeError(error: unknown, t: TFunction<'errors'>): ShownErro
       ...error.params,
       defaultValue: t('unknown'),
     }),
-    detail: error.detail ?? null,
+    detail: error.detail ? withoutHintNoise(error.detail) : null,
   };
 }

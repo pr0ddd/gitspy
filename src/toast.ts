@@ -18,12 +18,23 @@ export const operationLabel = (operation: Operation) => {
   return t('operation.started', { what: t(`operation.${kind}` as 'operation.fetchDryRun') });
 };
 
+const toastKind = (operation: Operation) =>
+  operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
+
 export const notifyOperation = (operation: Operation, stage: 'started' | 'finished') => {
-  const kind = operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
+  const kind = toastKind(operation);
   const what = t(`operation.${kind}` as 'operation.fetchDryRun');
   return stage === 'started'
     ? toast.loading(operationLabel(operation), { id: kind })
     : toast.success(t('operation.finished', { what }), { id: kind });
+};
+
+export const notifyOperationFailed = (operation: Operation, error: unknown) => {
+  const kind = toastKind(operation);
+  const what = t(`operation.${kind}` as 'operation.fetchDryRun');
+  const shown = describeError(error, i18next.getFixedT(null, 'errors'));
+  const description = [shown.message, shown.detail].filter(Boolean).join('\n');
+  return toast.error(t('operation.failed', { what }), { id: kind, description });
 };
 
 export const dismissAll = () => toast.dismiss();

@@ -9,6 +9,7 @@
   "exec.conflict": "The merge left conflicts, resolve them and commit",
   "exec.failed": "git failed",
   "exec.gitNotFound": "git not found on this machine",
+  "exec.pullDiverged": "Pull stopped: the branches diverged. Choose merge or rebase, then pull again.",
   "exec.rejected": "The remote refused the push: your branch is behind, fetch first",
   "exec.spawn": "Could not start git",
   "host.badToken": "GitHub rejected the connection, connect the account again",
