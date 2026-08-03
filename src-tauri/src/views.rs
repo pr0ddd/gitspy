@@ -87,6 +87,7 @@ pub struct RepoView {
     pub layout_ms: f64,
     pub minimap: Vec<u32>,
     pub minimap_colours: Vec<u8>,
+    pub remotes: Vec<String>,
     pub refs: Vec<RefView>,
 }
 
@@ -503,10 +504,12 @@ pub fn build_ref_views(refs: &[RefLine], rows: &HashMap<String, u32>) -> Vec<Ref
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_repo_view(
     path: &str,
     history: &History,
     refs: &[RefLine],
+    remotes: Vec<String>,
     skeleton: &Skeleton,
     minimap: Vec<u32>,
     read_ms: f64,
@@ -522,6 +525,7 @@ pub fn build_repo_view(
         layout_ms,
         minimap,
         minimap_colours: gitspy_core::chunk::minimap_colours(),
+        remotes,
         refs: build_ref_views(refs, &history.rows),
     }
 }

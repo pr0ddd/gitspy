@@ -27,6 +27,7 @@ const repo = (refs: RefView[]): RepoView => ({
   layoutMs: 0,
   minimap: [],
   minimapColours: [],
+  remotes: [],
   refs,
 });
 
