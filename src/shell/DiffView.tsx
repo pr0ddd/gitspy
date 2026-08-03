@@ -58,8 +58,9 @@ export function DiffView({ repo, target, onClose }: Props) {
       theme: THEME,
       readOnly: true,
       automaticLayout: true,
-      fontSize: 12,
-      lineHeight: 18,
+      fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, monospace",
+      fontSize: 13,
+      lineHeight: 20,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       renderOverviewRuler: false,
@@ -91,8 +92,9 @@ export function DiffView({ repo, target, onClose }: Props) {
       theme: THEME,
       readOnly: true,
       automaticLayout: true,
-      fontSize: 12,
-      lineHeight: 18,
+      fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, monospace",
+      fontSize: 13,
+      lineHeight: 20,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       wordWrap: wrap ? 'on' : 'off',
@@ -143,8 +145,8 @@ export function DiffView({ repo, target, onClose }: Props) {
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
-        <span className={cn('shrink-0 font-mono text-xs', STATUS_STYLE[status])}>{status}</span>
-        <span className="flex min-w-0 items-baseline font-mono text-xs">
+        <span className={cn('shrink-0 text-xs', STATUS_STYLE[status])}>{status}</span>
+        <span className="flex min-w-0 items-baseline text-xs">
           <span className="text-muted-foreground shrink-0">
             {shortenDirectory(splitPath(path).directory, 46)}
           </span>
@@ -194,7 +196,7 @@ export function DiffView({ repo, target, onClose }: Props) {
           </Hint>
         </div>
 
-        <span className="text-muted-foreground text-2xs shrink-0 font-mono">UTF-8</span>
+        <span className="text-muted-foreground text-2xs shrink-0">UTF-8</span>
 
         <div className="border-input flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
           <Button

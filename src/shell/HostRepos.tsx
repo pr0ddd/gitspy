@@ -106,7 +106,7 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
               <span className="block truncate text-xs font-medium">
                 {account.name ?? account.login}
               </span>
-              <span className="text-muted-foreground block truncate font-mono text-xs">
+              <span className="text-muted-foreground block truncate text-xs">
                 {account.login}
               </span>
             </span>

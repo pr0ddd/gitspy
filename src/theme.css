@@ -4,19 +4,19 @@
   --radius: 0.3125rem;
 
   --background: oklch(0.16 0.008 265);
-  --foreground: oklch(0.92 0.006 265);
+  --foreground: oklch(0.88 0.006 265);
 
   --card: oklch(0.19 0.008 265);
-  --card-foreground: oklch(0.92 0.006 265);
+  --card-foreground: oklch(0.88 0.006 265);
 
   --popover: oklch(0.22 0.009 265);
-  --popover-foreground: oklch(0.92 0.006 265);
+  --popover-foreground: oklch(0.88 0.006 265);
 
   --primary: oklch(0.62 0.19 288);
   --primary-foreground: oklch(0.98 0.005 288);
 
   --secondary: oklch(0.25 0.009 265);
-  --secondary-foreground: oklch(0.92 0.006 265);
+  --secondary-foreground: oklch(0.88 0.006 265);
 
   --muted: oklch(0.24 0.008 265);
   --muted-foreground: oklch(0.64 0.014 265);
@@ -107,17 +107,17 @@
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 4px);
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --text-2xs: 0.625rem;
-  --text-2xs--line-height: 0.875rem;
-  --text-xs: 0.6875rem;
-  --text-xs--line-height: 1rem;
-  --text-sm: 0.75rem;
-  --text-sm--line-height: 1.0625rem;
-  --text-base: 0.8125rem;
-  --text-base--line-height: 1.1875rem;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
   --text-lg: 0.9375rem;
   --text-lg--line-height: 1.375rem;
   --text-xl: 1.25rem;
@@ -139,7 +139,7 @@
   }
 
   body {
-    @apply bg-surface text-foreground text-sm antialiased;
+    @apply bg-surface text-foreground text-sm;
     font-family: var(--font-sans);
   }
 }

@@ -47,7 +47,7 @@ function FileRow({
 }) {
   return (
     <li>
-      <ListRow as="div" mono hint={entry.path} onClick={onOpen}>
+      <ListRow as="div" hint={entry.path} onClick={onOpen}>
         <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[entry.letter])}>
           {entry.letter}
         </span>
@@ -148,7 +148,7 @@ export function WorkingTree({
   };
 
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col', busy && 'pointer-events-none opacity-60')}>
+    <div className="flex min-h-0 flex-1 flex-col">
       <Section
         title={t('workingTree.unstaged')}
         count={unstaged.length}
