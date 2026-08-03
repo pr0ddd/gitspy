@@ -1,12 +1,10 @@
+import type { Cols } from './columns';
+
 export const MINIMAP_W = 56;
 export const HEADER_H = 26;
-export const BRANCH_W = 210;
 export const HSCROLL_H = 9;
 
 const PAD_X = 14;
-const RIGHT_COLS_W = 620;
-const GRAPH_MIN_W = 140;
-const GRAPH_MAX_W = 760;
 
 export type Metrics = {
   readonly rowH: number;
@@ -39,26 +37,17 @@ export const listWidth = (width: number): number => width - MINIMAP_W;
 
 export const contentHeight = (height: number): number => Math.max(0, height - HEADER_H);
 
-export function graphViewWidth(width: number): number {
-  const rest = listWidth(width) - BRANCH_W - RIGHT_COLS_W;
-  return Math.max(GRAPH_MIN_W, Math.min(GRAPH_MAX_W, rest));
-}
-
-export const graphLeft = (): number => BRANCH_W;
-
-export const graphRight = (width: number): number => BRANCH_W + graphViewWidth(width);
-
 export const graphContentWidth = (m: Metrics, maxLane: number): number =>
   PAD_X * 2 + maxLane * m.laneW + m.nodeR * 2;
 
 export const pinWidth = (m: Metrics): number => m.nodeR * 2 + 10;
 
-export const graphScrollable = (m: Metrics, maxLane: number, width: number): boolean =>
-  graphContentWidth(m, maxLane) > graphViewWidth(width);
+export const graphScrollable = (m: Metrics, maxLane: number, graphW: number): boolean =>
+  graphContentWidth(m, maxLane) > graphW;
 
-export const maxScrollX = (m: Metrics, maxLane: number, width: number): number => {
-  if (!graphScrollable(m, maxLane, width)) return 0;
-  return graphContentWidth(m, maxLane) - (graphViewWidth(width) - 2 * pinWidth(m));
+export const maxScrollX = (m: Metrics, maxLane: number, graphW: number): number => {
+  if (!graphScrollable(m, maxLane, graphW)) return 0;
+  return graphContentWidth(m, maxLane) - (graphW - 2 * pinWidth(m));
 };
 
 export const maxScroll = (m: Metrics, count: number, viewportH: number): number =>
@@ -92,6 +81,7 @@ export function visibleRange(
 export type GraphGeometry = {
   readonly gLeft: number;
   readonly gRight: number;
+  readonly pinX: number;
   readonly leftShadow: boolean;
   readonly rightShadow: boolean;
   readonly laneAt: (lane: number) => number;
@@ -105,24 +95,27 @@ export function graphGeometry(
   m: Metrics,
   maxLane: number,
   scrollX: number,
-  width: number,
+  cols: Cols,
 ): GraphGeometry {
-  const gLeft = graphLeft();
-  const gRight = graphRight(width);
+  const gLeft = cols.graph.left;
+  const gRight = cols.graph.left + cols.graph.width;
+
   const pinW = pinWidth(m);
-  const scrollable = graphScrollable(m, maxLane, width);
+  const scrollable = graphScrollable(m, maxLane, cols.graph.width);
 
   const contentLeft = gLeft + (scrollable ? pinW : 0);
   const contentRight = gRight - (scrollable ? pinW : 0);
 
-  const lo = gLeft + pinW / 2;
-  const hi = gRight - pinW / 2;
-  const maxX = maxScrollX(m, maxLane, width);
-  const laneAt = (lane: number): number => contentLeft + PAD_X + lane * m.laneW - scrollX;
+  const rest = gLeft + PAD_X - 0.5;
+  const hi = Math.max(rest, gRight - m.nodeR - 4.5);
+  const lo = Math.min(rest, hi);
+  const maxX = maxScrollX(m, maxLane, cols.graph.width);
+  const laneAt = (lane: number): number => gLeft + PAD_X + lane * m.laneW - scrollX;
 
   return {
     gLeft,
     gRight,
+    pinX: scrollable ? hi : Number.POSITIVE_INFINITY,
     leftShadow: scrollX > 0.5,
     rightShadow: scrollX < maxX - 0.5,
     contentLeft,
@@ -150,19 +143,14 @@ export const anchorAt = (m: Metrics, scrollY: number): Anchor => ({
 export const scrollForAnchor = (m: Metrics, anchor: Anchor): number =>
   anchor.index * m.rowH + anchor.offset;
 
-export type HitTarget = 'hash' | 'row' | 'minimap' | 'hscroll' | 'none';
+export const MINIMAP_TOP = HEADER_H;
 
-export function hitTest(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): HitTarget {
-  if (x >= listWidth(width)) return 'minimap';
-  if (y >= height - HSCROLL_H && x >= graphLeft() && x <= graphRight(width)) return 'hscroll';
-  if (y < HEADER_H) return 'none';
-  if (x >= hashColumnLeft(width)) return 'hash';
-  return 'row';
-}
+export const minimapBand = (height: number): number => Math.max(1, height - MINIMAP_TOP);
 
-export const hashColumnLeft = (width: number): number => listWidth(width) - 80;
+export const minimapFraction = (y: number, height: number): number => {
+  const at = (y - MINIMAP_TOP) / minimapBand(height);
+  return Math.min(1, Math.max(0, at));
+};
+
+export const rowTop = (m: Metrics, index: number, scrollY: number): number =>
+  HEADER_H + index * m.rowH - scrollY;

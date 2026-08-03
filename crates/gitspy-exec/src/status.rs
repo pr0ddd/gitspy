@@ -12,13 +12,37 @@ pub struct StatusEntry {
     pub old_path: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InProgress {
+    Merge,
+    Rebase,
+    CherryPick,
+    Revert,
+    Bisect,
+}
+
+impl InProgress {
+    pub fn code(&self) -> &'static str {
+        match self {
+            InProgress::Merge => "merge",
+            InProgress::Rebase => "rebase",
+            InProgress::CherryPick => "cherryPick",
+            InProgress::Revert => "revert",
+            InProgress::Bisect => "bisect",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkingTree {
     pub branch: Option<String>,
+    pub upstream: Option<String>,
     pub head: Option<String>,
     pub ahead: u32,
     pub behind: u32,
     pub entries: Vec<StatusEntry>,
+    pub extra_parents: Vec<String>,
+    pub in_progress: Option<InProgress>,
 }
 
 impl WorkingTree {
@@ -36,8 +60,16 @@ impl WorkingTree {
             .count()
     }
 
+    pub fn conflicts(&self) -> usize {
+        self.entries.iter().filter(|e| e.letter == 'U').count()
+    }
+
     pub fn is_dirty(&self) -> bool {
         !self.entries.is_empty()
+    }
+
+    pub fn needs_a_row(&self) -> bool {
+        self.is_dirty() || self.in_progress.is_some()
     }
 }
 
@@ -91,6 +123,7 @@ pub fn parse(raw: &str) -> WorkingTree {
                 let value = parts.collect::<Vec<_>>().join(" ");
                 match key {
                     "branch.head" if value != "(detached)" => tree.branch = Some(value),
+                    "branch.upstream" => tree.upstream = Some(value),
                     "branch.oid" if value != "(initial)" => tree.head = Some(value),
                     "branch.ab" => {
                         let (ahead, behind) = ahead_behind(&value);

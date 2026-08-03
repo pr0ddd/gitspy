@@ -1,53 +1,116 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { METRICS_AVATARS } from './render';
 import { notifyCopied, notifyError, notifyOperation } from './toast';
 import * as ipc from './ipc';
-import { groupRefsByCommit, newSession, type Session } from './session';
-import { CHUNK, RowCache } from './rows';
-import type { ChangedFileView, Operation, PathOperation, RecentRepo, WorkingTreeView } from './types';
+import { EMPTY, sessionsReducer } from './session';
+import { useRepoData } from './repoData';
+import { AvatarCache } from './avatarCache';
+import { useCommitSearch } from './search';
+import { panelFor } from './panel';
+import type {
+  AccountView,
+  Operation,
+  PathOperation,
+  PullListView,
+  PullView,
+  RecentRepo,
+  WorkingTreeView,
+} from './types';
+
+type Main =
+  { kind: 'graph' } | { kind: 'diff'; target: DiffTarget } | { kind: 'pull'; pull: PullView };
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
 import { Sidebar } from './shell/Sidebar';
 import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
-import { DiffView } from './shell/DiffView';
+import { DiffView, type DiffTarget } from './shell/DiffView';
 import { WorkingTree } from './shell/WorkingTree';
-
-
+import { Settings } from './shell/Settings';
+import { CloneDialog } from './shell/CloneDialog';
+import { AskDialog, type Ask } from './shell/AskDialog';
+import { PullPanel } from './shell/PullPanel';
 
 export default function App() {
   const { t } = useTranslation();
 
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [active, setActive] = useState<string | null>(null);
+  const [world, dispatch] = useReducer(sessionsReducer, EMPTY);
+  const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
-  const [redraw, setRedraw] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [openFile, setOpenFile] = useState<{ commit: string; file: ChangedFileView } | null>(null);
+  const [main, setMain] = useState<Main>({ kind: 'graph' });
+  const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
-  const [showTree, setShowTree] = useState(false);
-  const caches = useRef(new Map<string, RowCache>());
-
-  const cacheFor = useCallback((path: string) => {
-    let cache = caches.current.get(path);
-    if (!cache) {
-      cache = new RowCache();
-      caches.current.set(path, cache);
-    }
-    return cache;
-  }, []);
+  const [message, setMessage] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cloning, setCloning] = useState<string | null>(null);
+  const [account, setAccount] = useState<AccountView | null>(null);
+  const [railed, setRailed] = useState(false);
+  const [asking, setAsking] = useState<Ask | null>(null);
+  const data = useRepoData();
+  const avatarsRef = useRef(new AvatarCache(() => setAvatarTick((n) => n + 1)));
+  const [avatarTick, setAvatarTick] = useState(0);
+  const { cacheFor, version: redraw } = data;
 
   const current = sessions.find((s) => s.path === active) ?? null;
+  const panel = panelFor(
+    current ? cacheFor(current.path).row(current.selected) : undefined,
+    current?.repo?.count ?? 0,
+  );
 
   useEffect(() => {
     ipc.recentRepos().then(setRecent).catch(notifyError);
   }, []);
+
+  useEffect(() => {
+    ipc.hostAccount('github').then(setAccount).catch(notifyError);
+
+    const connected = ipc.onHostConnected(setAccount);
+    const failed = ipc.onHostFailed(notifyError);
+    return () => {
+      void connected.then((stop) => stop());
+      void failed.then((stop) => stop());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (main.kind !== 'graph') setRailed(true);
+  }, [main]);
+
+  useEffect(() => {
+    if (!active) return;
+    ipc
+      .avatarPaths(active)
+      .then((paths) => avatarsRef.current.refill(paths))
+      .catch(() => undefined);
+
+    const stop = ipc.onAvatarsChanged((path) => {
+      if (path !== active) return;
+      ipc
+        .avatarPaths(path)
+        .then((paths) => avatarsRef.current.refill(paths))
+        .catch(() => undefined);
+    });
+    return () => {
+      void stop.then((off) => off());
+    };
+  }, [active, redraw]);
+
+  useEffect(() => {
+    setMain({ kind: 'graph' });
+    setPulls(null);
+    if (active) {
+      ipc
+        .pullRequests(active, false, false)
+        .then((known) => known && setPulls(known))
+        .catch(() => undefined);
+    }
+  }, [active]);
 
   useEffect(() => {
     if (!active) {
@@ -57,76 +120,66 @@ export default function App() {
     ipc.workingTree(active).then(setTree).catch(notifyError);
   }, [active, redraw]);
 
-  useEffect(() => {
-    const stop = ipc.onRepoChanged((path) => {
-      const cache = caches.current.get(path);
-      if (cache) cache.clear();
-      void reload(path);
-    });
-    return () => {
-      void stop.then((off) => off());
-    };
-  }, []);
-
-  const update = useCallback((path: string, patch: Partial<Session>) => {
-    setSessions((all) => all.map((s) => (s.path === path ? { ...s, ...patch } : s)));
-  }, []);
-
   const load = useCallback(
     async (path: string) => {
       try {
         const repo = await ipc.openRepo(path);
-        const cache = cacheFor(path);
-        cache.clear();
-        cache.put(0, await ipc.graphWindow(path, 0, CHUNK));
-        update(path, {
-          repo,
-          refsByCommit: groupRefsByCommit(repo.refs),
-          loading: false,
-        });
+        await data.refill(path);
+        dispatch({ kind: 'loaded', path, repo });
+        void ipc.resolveAvatars(path).catch(() => undefined);
 
         void ipc.recentRepos().then(setRecent);
-        void ipc.worktrees(path).then((found) => update(path, { worktrees: found }));
+        void ipc
+          .worktrees(path)
+          .then((worktrees) => dispatch({ kind: 'worktrees', path, worktrees }));
       } catch (e) {
         notifyError(e);
-        setSessions((all) => all.filter((s) => s.path !== path));
-        setActive(null);
+        dispatch({ kind: 'failed', path });
       }
     },
-    [update, cacheFor],
-  );
-
-  const fetchChunks = useCallback(
-    (path: string, chunks: number[]) => {
-      const cache = cacheFor(path);
-      for (const chunk of chunks) {
-        ipc
-          .graphWindow(path, chunk * CHUNK, CHUNK)
-          .then((window) => {
-            cache.put(chunk, window);
-            setRedraw((n) => n + 1);
-          })
-          .catch(notifyError);
-      }
-    },
-    [cacheFor],
+    [data],
   );
 
   const reload = useCallback(
     async (path: string) => {
       try {
         const repo = await ipc.openRepo(path);
-        const cache = cacheFor(path);
-        cache.clear();
-        cache.put(0, await ipc.graphWindow(path, 0, CHUNK));
-        update(path, { repo, refsByCommit: groupRefsByCommit(repo.refs) });
-        setRedraw((n) => n + 1);
+        await data.refill(path);
+        dispatch({ kind: 'loaded', path, repo });
       } catch (e) {
         notifyError(e);
       }
     },
-    [update, cacheFor],
+    [data],
   );
+
+  useEffect(() => {
+    const stop = ipc.onRepoChanged((path) => {
+      void reload(path);
+    });
+    return () => {
+      void stop.then((off) => off());
+    };
+  }, [reload]);
+
+  useEffect(() => {
+    const stop = ipc.onWorktreeChanged(async (path) => {
+      try {
+        const tip = await ipc.refreshTip(path);
+        if (tip.structureChanged) {
+          await reload(path);
+        } else {
+          await data.refillFirstWindow(path);
+        }
+        if (path === active) ipc.workingTree(path).then(setTree).catch(notifyError);
+      } catch {
+        return;
+      }
+    });
+    return () => {
+      void stop.then((off) => off());
+    };
+  }, [active, reload, data]);
 
   const runOperation = useCallback(
     (operation: Operation) => {
@@ -138,6 +191,7 @@ export default function App() {
         .runOperation(active, operation, () => {})
         .then(() => {
           notifyOperation(operation, 'finished');
+          void ipc.resolveAvatars(active).catch(() => undefined);
           return reload(active);
         })
         .catch(notifyError)
@@ -148,8 +202,7 @@ export default function App() {
 
   const openPath = useCallback(
     (path: string) => {
-      setSessions((all) => (all.some((s) => s.path === path) ? all : [...all, newSession(path)]));
-      setActive(path);
+      dispatch({ kind: 'open', path });
       void load(path);
     },
     [load],
@@ -164,31 +217,56 @@ export default function App() {
     if (typeof picked === 'string') openPath(picked);
   }, [t, openPath]);
 
-  const closeRepo = useCallback((path: string) => {
-    void ipc.closeRepo(path);
-    setSessions((all) => {
-      const rest = all.filter((s) => s.path !== path);
-      setActive((now) => (now === path ? (rest[rest.length - 1]?.path ?? null) : now));
-      return rest;
+  const createRepo = useCallback(async () => {
+    const picked = await openDialog({
+      directory: true,
+      multiple: false,
+      title: t('start.createTitle'),
     });
-  }, []);
+    if (typeof picked !== 'string') return;
+    ipc.initRepo(picked).then(openPath).catch(notifyError);
+  }, [t, openPath]);
+
+  const closeRepo = useCallback(
+    (path: string) => {
+      void ipc.closeRepo(path);
+      data.drop(path);
+      dispatch({ kind: 'close', path });
+    },
+    [data],
+  );
 
   const forget = useCallback((path: string) => {
     ipc.forgetRepo(path).then(setRecent).catch(notifyError);
   }, []);
 
   const select = useCallback(
-    (index: number | null) => {
-      if (active) update(active, { selected: index });
+    (index: number) => {
+      if (!active) return;
+      dispatch({ kind: 'select', path: active, index });
     },
-    [active, update],
+    [active],
+  );
+
+  const search = useCommitSearch(active, redraw, select);
+
+  const loadPulls = useCallback(
+    (refresh: boolean) => {
+      if (!active) return;
+      ipc
+        .pullRequests(active, refresh, true)
+        .then((known) => known && setPulls(known))
+        .catch(notifyError);
+      void ipc.resolveAvatars(active).catch(() => undefined);
+    },
+    [active],
   );
 
   const onNeed = useCallback(
     (chunks: number[]) => {
-      if (active) fetchChunks(active, chunks);
+      if (active) data.fetchChunks(active, chunks);
     },
-    [active, fetchChunks],
+    [active, data],
   );
 
   const runPathOperation = useCallback(
@@ -204,6 +282,20 @@ export default function App() {
     [active],
   );
 
+  const commit = useCallback(() => {
+    if (!active || !message.trim()) return;
+    setBusy(true);
+    ipc
+      .commit(active, message)
+      .then((updated) => {
+        setTree(updated);
+        setMessage('');
+        return reload(active);
+      })
+      .catch(notifyError)
+      .finally(() => setBusy(false));
+  }, [active, message, reload]);
+
   const copy = useCallback((text: string) => {
     void navigator.clipboard.writeText(text);
     notifyCopied(text);
@@ -212,110 +304,159 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={400}>
       <div className="flex h-full flex-col">
-      <RepoTabs
-        sessions={sessions}
-        active={active}
-        onActivate={setActive}
-        onClose={closeRepo}
-        onStart={() => setActive(null)}
-      />
-
-      {current === null ? (
-        <StartPage
-          recent={recent}
-          onOpen={pickRepo}
-          onOpenPath={openPath}
-          onForget={forget}
+        <RepoTabs
+          sessions={sessions}
+          active={active}
+          onActivate={(path) => dispatch({ kind: 'activate', path })}
+          onClose={closeRepo}
+          onStart={() => dispatch({ kind: 'activate', path: null })}
+          onSettings={() => setSettingsOpen(true)}
         />
-      ) : (
-        <>
-          <Toolbar session={current} onRun={runOperation} busy={busy} />
-          <div className="flex min-h-0 flex-1">
-            <Sidebar
-              session={current}
-              collapsed={openFile !== null}
-              onPick={select}
-              onExpand={() => setOpenFile(null)}
-            />
-            <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-              {openFile && current.repo ? (
-                <DiffView
-                  repo={current.path}
-                  commit={openFile.commit}
-                  file={openFile.file}
-                  onClose={() => setOpenFile(null)}
-                />
-              ) : (
-                <>
-              <GraphView
-                key={current.path}
-                session={current}
-                rows={cacheFor(current.path)}
-                redraw={redraw}
-                metrics={METRICS_AVATARS}
-                onSelect={select}
-                onNeed={onNeed}
-                onCopyHash={copy}
-              />
-              {current.repo ? (
-                <footer className="bg-card border-border text-muted-foreground shrink-0 border-t px-3 py-1 text-xs">
-                  {[
-                    t('graph.commits', { count: current.repo.count }),
-                    t('graph.lanes', { count: current.repo.maxLane + 1 }),
-                    t('stats.read', { ms: current.repo.readMs.toFixed(0) }),
-                    t('stats.layout', { ms: current.repo.layoutMs.toFixed(1) }),
-                    current.repo.truncated ? t('graph.truncated') : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </footer>
-              ) : null}
-                </>
-              )}
-            </main>
-            <aside className="bg-card border-border flex w-80 shrink-0 flex-col border-l">
-              <header className="border-border flex h-8 shrink-0 items-center gap-1 border-b px-2">
-                <Button
-                  variant={showTree ? 'ghost' : 'secondary'}
-                  size="sm"
-                  className="h-6 flex-1 text-xs"
-                  onClick={() => setShowTree(false)}
-                >
-                  {t('details.commitTab')}
-                </Button>
-                <Button
-                  variant={showTree ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-6 flex-1 gap-1.5 text-xs"
-                  onClick={() => setShowTree(true)}
-                >
-                  {t('workingTree.title')}
-                  {tree && tree.staged + tree.unstaged > 0 ? (
-                    <span className="text-modified tabular-nums">
-                      {tree.staged + tree.unstaged}
-                    </span>
-                  ) : null}
-                </Button>
-              </header>
 
-              {showTree ? (
-                tree && tree.entries.length > 0 ? (
-                  <WorkingTree tree={tree} busy={busy} onRun={runPathOperation} />
+        {current === null ? (
+          <StartPage
+            recent={recent}
+            onOpen={pickRepo}
+            account={account}
+            onOpenPath={openPath}
+            onForget={forget}
+            onClone={setCloning}
+            onCreate={createRepo}
+            onConnect={() => setSettingsOpen(true)}
+          />
+        ) : (
+          <>
+            <Toolbar
+              session={current}
+              sessions={sessions}
+              tree={tree}
+              onRun={runOperation}
+              onActivate={(path) => dispatch({ kind: 'activate', path })}
+              onAsk={setAsking}
+              onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
+              search={search.query}
+              found={search.found}
+              at={search.at}
+              onSearch={search.setQuery}
+              onStep={search.step}
+              busy={busy}
+            />
+            <div className="flex min-h-0 flex-1">
+              <Sidebar
+                session={current}
+                collapsed={railed}
+                pulls={pulls}
+                onPick={select}
+                onToggle={() => setRailed((now) => !now)}
+                onPullsExpanded={() => loadPulls(pulls !== null)}
+                onPickPull={(pull) => setMain({ kind: 'pull', pull })}
+              />
+              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+                {main.kind === 'diff' && current.repo ? (
+                  <DiffView
+                    repo={current.path}
+                    target={main.target}
+                    onClose={() => setMain({ kind: 'graph' })}
+                  />
+                ) : main.kind === 'pull' && current.repo ? (
+                  <PullPanel
+                    repo={current.path}
+                    pull={main.pull}
+                    busy={busy}
+                    onCheckedOut={() => {
+                      setMain({ kind: 'graph' });
+                      void reload(current.path);
+                    }}
+                    onClose={() => setMain({ kind: 'graph' })}
+                  />
                 ) : (
-                  <p className="text-muted-foreground p-4 text-center">{t('workingTree.clean')}</p>
-                )
-              ) : (
-                <Details
-                  session={current}
-                  rows={cacheFor(current.path)}
-                  onCopy={copy}
-                  onOpenFile={(commit, file) => setOpenFile({ commit, file })}
-                />
-              )}
-            </aside>
-          </div>
-        </>
-      )}
+                  <>
+                    <GraphView
+                      key={current.path}
+                      session={current}
+                      avatars={avatarsRef.current}
+                      rows={cacheFor(current.path)}
+                      redraw={redraw + avatarTick}
+                      metrics={METRICS_AVATARS}
+                      onSelect={select}
+                      onNeed={onNeed}
+                      message={message}
+                      onMessage={setMessage}
+                      onCommit={commit}
+                    />
+                    {current.repo ? (
+                      <footer className="bg-card border-border text-muted-foreground shrink-0 border-t px-3 py-1 text-xs">
+                        {[
+                          t('graph.commits', { count: current.repo.count }),
+                          t('graph.lanes', { count: current.repo.maxLane + 1 }),
+                          t('stats.read', { ms: current.repo.readMs.toFixed(0) }),
+                          t('stats.layout', { ms: current.repo.layoutMs.toFixed(1) }),
+                          current.repo.truncated ? t('graph.truncated') : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </footer>
+                    ) : null}
+                  </>
+                )}
+              </main>
+              <aside className="bg-card border-border flex w-80 shrink-0 flex-col border-l">
+                {panel === 'workingTree' ? (
+                  tree && tree.entries.length > 0 ? (
+                    <WorkingTree
+                      tree={tree}
+                      busy={busy}
+                      onRun={runPathOperation}
+                      onOpen={(path, status, staged) =>
+                        setMain({
+                          kind: 'diff',
+                          target: { kind: 'workingTree', path, status, staged },
+                        })
+                      }
+                    />
+                  ) : (
+                    <p className="text-muted-foreground p-4 text-center">
+                      {t('workingTree.clean')}
+                    </p>
+                  )
+                ) : panel === 'noCommits' ? (
+                  <p className="text-muted-foreground p-4 text-center">{t('repo.emptyHint')}</p>
+                ) : (
+                  <Details
+                    session={current}
+                    rows={cacheFor(current.path)}
+                    pending={tree ? tree.staged + tree.unstaged : 0}
+                    onCopy={copy}
+                    onOpenWorkingTree={() => select(0)}
+                    onOpenFile={(commit, file) =>
+                      setMain({ kind: 'diff', target: { kind: 'commit', commit, file } })
+                    }
+                  />
+                )}
+              </aside>
+            </div>
+          </>
+        )}
+
+        <Settings
+          open={settingsOpen}
+          account={account}
+          onOpenChange={setSettingsOpen}
+          onDisconnected={() => setAccount(null)}
+        />
+
+        <AskDialog
+          ask={asking}
+          onOpenChange={(next) => !next && setAsking(null)}
+          onRun={runOperation}
+        />
+
+        <CloneDialog
+          open={cloning !== null}
+          url={cloning ?? ''}
+          onOpenChange={(next) => !next && setCloning(null)}
+          onCloned={openPath}
+        />
 
         <Toaster position="bottom-right" offset={16} />
       </div>

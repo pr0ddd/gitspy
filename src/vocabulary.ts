@@ -19,6 +19,7 @@ export const GIT = {
   branchTag: 'Branch / Tag',
   commitMessage: 'Commit Message',
   sha: 'SHA',
+  workingTree: '// WIP',
 } as const;
 
 import type { IconName } from './icons';
@@ -29,12 +30,14 @@ export const TOOLBAR_ACTIONS: ReadonlyArray<{
   label: string;
   icon: IconName;
   operation?: Operation;
+  asks?: 'branch' | 'stash';
+  terminal?: true;
 }> = [
-  { label: GIT.fetch, icon: 'fetch', operation: 'fetchDryRun' },
-  { label: GIT.pull, icon: 'pull' },
-  { label: GIT.push, icon: 'push' },
-  { label: GIT.branch, icon: 'branch' },
-  { label: GIT.stash, icon: 'stash' },
-  { label: GIT.pop, icon: 'stash' },
-  { label: GIT.terminal, icon: 'terminal' },
+  { label: GIT.fetch, icon: 'fetch', operation: { kind: 'fetch' } },
+  { label: GIT.pull, icon: 'pull', operation: { kind: 'pull' } },
+  { label: GIT.push, icon: 'push', operation: { kind: 'push' } },
+  { label: GIT.branch, icon: 'branch', asks: 'branch' },
+  { label: GIT.stash, icon: 'stash', asks: 'stash' },
+  { label: GIT.pop, icon: 'stash', operation: { kind: 'stashPop' } },
+  { label: GIT.terminal, icon: 'terminal', terminal: true },
 ];

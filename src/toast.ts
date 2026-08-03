@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import i18next from './i18n';
 import { describeError } from './errors';
+import type { Operation } from './types';
 
 const t = i18next.t.bind(i18next);
 
@@ -12,11 +13,12 @@ export const notifyError = (error: unknown) => {
   return toast.error(shown.message, { description: shown.detail ?? undefined });
 };
 
-export const notifyOperation = (operation: string, stage: 'started' | 'finished') => {
-  const what = t(`operation.${operation}` as 'operation.fetchDryRun');
+export const notifyOperation = (operation: Operation, stage: 'started' | 'finished') => {
+  const kind = operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
+  const what = t(`operation.${kind}` as 'operation.fetchDryRun');
   return stage === 'started'
-    ? toast.loading(t('operation.started', { what }), { id: operation })
-    : toast.success(t('operation.finished', { what }), { id: operation });
+    ? toast.loading(t('operation.started', { what }), { id: kind })
+    : toast.success(t('operation.finished', { what }), { id: kind });
 };
 
 export const dismissAll = () => toast.dismiss();

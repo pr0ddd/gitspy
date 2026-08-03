@@ -41,7 +41,7 @@ fn main() {
         println!(
             "полное чтение с метаданными {:.0} мс, коммитов {}",
             started.elapsed().as_secs_f64() * 1000.0,
-            history.commits.len()
+            history.nodes.len()
         );
     }
 }

@@ -11,9 +11,10 @@ type Props = {
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onStart: () => void;
+  onSettings: () => void;
 };
 
-export function RepoTabs({ sessions, active, onActivate, onClose, onStart }: Props) {
+export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSettings }: Props) {
   const { t } = useTranslation();
 
   return (
@@ -57,6 +58,16 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart }: Pro
         className={cn('my-1 ml-1 size-6', active === null && 'bg-surface-hover text-foreground')}
       >
         <Icon.add className="size-3.5" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        title={t('settings.open')}
+        onClick={onSettings}
+        className="text-muted-foreground my-1 mr-1 ml-auto size-6"
+      >
+        <Icon.settings className="size-3.5" />
       </Button>
     </nav>
   );

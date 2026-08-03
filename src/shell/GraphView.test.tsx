@@ -71,12 +71,15 @@ describe('прокрутка графа', () => {
       <Profiler id="graph" onRender={() => (commits += 1)}>
         <GraphView
           session={sessionWith(CHUNK)}
+          avatars={null}
           rows={rows}
           redraw={0}
           metrics={METRICS_AVATARS}
           onSelect={() => {}}
           onNeed={() => {}}
-          onCopyHash={() => {}}
+        message=""
+        onMessage={() => {}}
+        onCommit={() => {}}
         />
       </Profiler>,
     );
@@ -102,12 +105,15 @@ describe('прокрутка графа', () => {
     render(
       <GraphView
         session={sessionWith(CHUNK * 8)}
+        avatars={null}
         rows={rows}
         redraw={0}
         metrics={METRICS_AVATARS}
         onSelect={() => {}}
         onNeed={(chunks) => asked.push(chunks)}
-        onCopyHash={() => {}}
+        message=""
+        onMessage={() => {}}
+        onCommit={() => {}}
       />,
     );
 

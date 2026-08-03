@@ -1,6 +1,6 @@
 use gitspy_core::chunk::Skeleton;
 use gitspy_core::layout::{Layout, NodeKind, Segment};
-use gitspy_repo::{CommitMeta, History, RefKind};
+use gitspy_repo::{History, Node, RefKind};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -20,7 +20,7 @@ mod segment_kind {
     pub const MERGE: u8 = 2;
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, Clone, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 pub struct ErrorView {
     pub code: String,
@@ -73,7 +73,7 @@ pub fn state_lock_failed() -> ErrorView {
     ErrorView::new("app.stateLock")
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, Clone, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RepoView {
@@ -89,7 +89,7 @@ pub struct RepoView {
     pub refs: Vec<RefView>,
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, Clone, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub enum RefKindView {
@@ -99,7 +99,7 @@ pub enum RefKindView {
     Stash,
 }
 
-#[derive(Serialize, TS)]
+#[derive(Serialize, Clone, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RefView {
@@ -123,7 +123,6 @@ pub struct WorktreeView {
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
-#[allow(dead_code)]
 pub enum RowView {
     #[serde(rename_all = "camelCase")]
     Commit {
@@ -147,6 +146,8 @@ pub enum RowView {
         node: u8,
         staged: u32,
         unstaged: u32,
+        conflicts: u32,
+        in_progress: Option<String>,
     },
 }
 
@@ -193,6 +194,8 @@ pub struct StatusEntryView {
 #[serde(rename_all = "camelCase")]
 pub struct WorkingTreeView {
     pub branch: Option<String>,
+    pub upstream: Option<String>,
+    pub remotes: Vec<String>,
     pub ahead: u32,
     pub behind: u32,
     pub staged: usize,
@@ -200,9 +203,14 @@ pub struct WorkingTreeView {
     pub entries: Vec<StatusEntryView>,
 }
 
-pub fn build_working_tree(tree: gitspy_exec::status::WorkingTree) -> WorkingTreeView {
+pub fn build_working_tree(
+    tree: gitspy_exec::status::WorkingTree,
+    remotes: Vec<String>,
+) -> WorkingTreeView {
     WorkingTreeView {
         branch: tree.branch.clone(),
+        upstream: tree.upstream.clone(),
+        remotes,
         ahead: tree.ahead,
         behind: tree.behind,
         staged: tree.staged(),
@@ -218,6 +226,166 @@ pub fn build_working_tree(tree: gitspy_exec::status::WorkingTree) -> WorkingTree
             })
             .collect(),
     }
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct PullView {
+    pub number: u32,
+    pub title: String,
+    pub draft: bool,
+    pub author: String,
+    pub author_avatar_url: String,
+    pub head_branch: String,
+    pub base_branch: String,
+    pub from_fork: bool,
+    pub updated_at: String,
+    pub mine: bool,
+    pub assigned_to_me: bool,
+    pub awaiting_my_review: bool,
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct PullListView {
+    pub pulls: Vec<PullView>,
+    pub truncated: bool,
+    #[ts(type = "number")]
+    pub fetched_at: i64,
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct PullCommentView {
+    pub author: String,
+    pub author_avatar_url: String,
+    pub body: String,
+    pub created_at: String,
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct PullCardView {
+    pub pull: PullView,
+    pub body: String,
+    pub labels: Vec<String>,
+    pub changed_files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub comments: Vec<PullCommentView>,
+}
+
+pub fn build_pull_view(pull: &gitspy_hosts::pulls::PullSummary, my_login: &str) -> PullView {
+    use gitspy_hosts::pulls::{groups_of, Group};
+    let groups = groups_of(pull, my_login);
+
+    PullView {
+        number: pull.number as u32,
+        title: pull.title.clone(),
+        draft: pull.draft,
+        author: pull.author.clone(),
+        author_avatar_url: pull.author_avatar_url.clone(),
+        head_branch: pull.head_branch.clone(),
+        base_branch: pull.base_branch.clone(),
+        from_fork: pull.from_fork,
+        updated_at: pull.updated_at.clone(),
+        mine: groups.contains(&Group::Mine),
+        assigned_to_me: groups.contains(&Group::Assigned),
+        awaiting_my_review: groups.contains(&Group::AwaitingMyReview),
+    }
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct AccountView {
+    pub host: String,
+    pub login: String,
+    pub name: Option<String>,
+    pub avatar_url: String,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceView {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub interval: u32,
+    pub expires_in: u32,
+}
+
+pub fn build_device(device: gitspy_hosts::github::Device) -> DeviceView {
+    DeviceView {
+        device_code: device.device_code,
+        user_code: device.user_code,
+        verification_uri: device.verification_uri,
+        interval: device.interval as u32,
+        expires_in: device.expires_in as u32,
+    }
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct RepoListingView {
+    pub full_name: String,
+    pub description: Option<String>,
+    pub private: bool,
+    pub clone_url: String,
+    pub ssh_url: String,
+    pub pushed_at: Option<String>,
+    pub owner_avatar_url: String,
+}
+
+pub fn build_repo_listing(repo: &gitspy_hosts::github::Repo) -> RepoListingView {
+    RepoListingView {
+        full_name: repo.full_name.clone(),
+        description: repo.description.clone(),
+        private: repo.private,
+        clone_url: repo.clone_url.clone(),
+        ssh_url: repo.ssh_url.clone(),
+        pushed_at: repo.pushed_at.clone(),
+        owner_avatar_url: repo.owner_avatar_url.clone(),
+    }
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct CloneStepView {
+    pub stage: String,
+    pub percent: u8,
+    pub overall: u8,
+}
+
+pub fn build_clone_step(step: gitspy_exec::progress::Step) -> CloneStepView {
+    CloneStepView {
+        stage: step.stage.code().to_string(),
+        percent: step.percent,
+        overall: step.overall(),
+    }
+}
+
+pub fn build_account(account: gitspy_hosts::Account) -> AccountView {
+    AccountView {
+        host: account.host,
+        login: account.login,
+        name: account.name,
+        avatar_url: account.avatar_url,
+    }
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct TipView {
+    pub structure_changed: bool,
 }
 
 #[derive(Serialize, TS)]
@@ -290,7 +458,7 @@ pub fn build_repo_view(
     }
 }
 
-pub fn build_window_view(start: usize, layout: &Layout, commits: &[CommitMeta]) -> WindowView {
+pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> WindowView {
     let mut seg_offsets = Vec::with_capacity(layout.len() + 1);
     let mut seg_kind = Vec::new();
     let mut seg_from = Vec::new();
@@ -319,18 +487,34 @@ pub fn build_window_view(start: usize, layout: &Layout, commits: &[CommitMeta]) 
         .enumerate()
         .map(|(offset, row)| {
             let index = (start + offset) as u32;
-            let meta = &commits[offset];
-            RowView::Commit {
-                index,
-                lane: row.lane,
-                colour: row.colour,
-                node: node_kind_code(row.kind),
-                hash: meta.hash.clone(),
-                author: meta.author.clone(),
-                email: meta.email.clone(),
-                time: meta.time,
-                subject: meta.subject.clone(),
-                body: meta.body.clone(),
+            match &nodes[offset] {
+                Node::WorkingTree {
+                    staged,
+                    unstaged,
+                    conflicts,
+                    in_progress,
+                } => RowView::WorkingTree {
+                    index,
+                    lane: row.lane,
+                    colour: row.colour,
+                    node: node_kind_code(row.kind),
+                    staged: *staged,
+                    unstaged: *unstaged,
+                    conflicts: *conflicts,
+                    in_progress: in_progress.clone(),
+                },
+                Node::Commit(meta) => RowView::Commit {
+                    index,
+                    lane: row.lane,
+                    colour: row.colour,
+                    node: node_kind_code(row.kind),
+                    hash: meta.hash.clone(),
+                    author: meta.author.clone(),
+                    email: meta.email.clone(),
+                    time: meta.time,
+                    subject: meta.subject.clone(),
+                    body: meta.body.clone(),
+                },
             }
         })
         .collect();

@@ -171,3 +171,105 @@ fn divergence_from_the_upstream_is_reported() {
     assert_eq!(tree.ahead, 1, "один коммит впереди удалённой ветки");
     assert_eq!(tree.behind, 0);
 }
+
+#[test]
+fn an_unstaged_change_compares_the_index_with_the_disk() {
+    let dir = repo();
+    write(dir.path(), "base.txt", "новое содержимое\n");
+
+    let (before, after) = git()
+        .working_tree_sides(dir.path(), "base.txt", false)
+        .expect("стороны читаются");
+    assert_eq!(before.trim(), "основа", "слева то, что в индексе");
+    assert_eq!(after.trim(), "новое содержимое", "справа то, что на диске");
+}
+
+#[test]
+fn a_staged_change_compares_head_with_the_index() {
+    let dir = repo();
+    write(dir.path(), "base.txt", "проиндексировано\n");
+    run(dir.path(), &["add", "base.txt"]);
+    write(dir.path(), "base.txt", "и правлено дальше\n");
+
+    let (before, after) = git()
+        .working_tree_sides(dir.path(), "base.txt", true)
+        .expect("стороны читаются");
+    assert_eq!(before.trim(), "основа", "слева HEAD");
+    assert_eq!(after.trim(), "проиндексировано", "справа индекс, а не диск");
+}
+
+#[test]
+fn a_new_untracked_file_has_an_empty_left_side() {
+    let dir = repo();
+    write(dir.path(), "новый.txt", "содержимое\n");
+
+    let (before, after) = git()
+        .working_tree_sides(dir.path(), "новый.txt", false)
+        .expect("стороны читаются");
+    assert_eq!(before, "", "у нового файла нет старой стороны");
+    assert_eq!(after.trim(), "содержимое");
+}
+
+#[test]
+fn a_branch_without_an_upstream_says_so_rather_than_guessing_origin() {
+    let dir = repo();
+    let tree = git().status(dir.path()).expect("статус читается");
+    assert_eq!(
+        tree.upstream, None,
+        "без этого push ушёл бы в несуществующий upstream и упал"
+    );
+}
+
+#[test]
+fn an_upstream_is_read_with_its_remote() {
+    let dir = repo();
+    let bare = TempDir::new().expect("временный каталог");
+    run(bare.path(), &["init", "--bare"]);
+    run(
+        dir.path(),
+        &[
+            "remote",
+            "add",
+            "origin",
+            &bare.path().display().to_string(),
+        ],
+    );
+    run(dir.path(), &["push", "-u", "origin", "main"]);
+
+    let tree = git().status(dir.path()).expect("статус читается");
+    assert_eq!(tree.upstream.as_deref(), Some("origin/main"));
+}
+
+#[test]
+fn a_repository_without_remotes_offers_none_instead_of_assuming_origin() {
+    let dir = repo();
+    assert!(git().remotes(dir.path()).is_empty());
+}
+
+#[test]
+fn every_added_remote_is_offered_by_name() {
+    let dir = repo();
+    let bare = TempDir::new().expect("временный каталог");
+    run(bare.path(), &["init", "--bare"]);
+    let url = bare.path().display().to_string();
+    run(dir.path(), &["remote", "add", "origin", &url]);
+    run(dir.path(), &["remote", "add", "backup", &url]);
+
+    assert_eq!(git().remotes(dir.path()), vec!["backup", "origin"]);
+}
+
+#[test]
+fn remote_addresses_come_with_their_names_and_without_duplicates() {
+    let dir = repo();
+    let bare = TempDir::new().expect("временный каталог");
+    run(bare.path(), &["init", "--bare"]);
+    let url = bare.path().display().to_string();
+    run(dir.path(), &["remote", "add", "origin", &url]);
+
+    let found = git().remote_urls(dir.path());
+    assert_eq!(
+        found,
+        vec![("origin".to_string(), url)],
+        "fetch и push дают origin дважды, а нам нужен один раз"
+    );
+}

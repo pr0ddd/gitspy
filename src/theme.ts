@@ -12,6 +12,9 @@ export type Theme = {
   rowLine: string;
   rowHover: string;
   rowSelected: string;
+  staged: string;
+  unstaged: string;
+  conflict: string;
 };
 
 const GRAPH_LANES = 12;
@@ -52,6 +55,9 @@ const build = (): Theme => ({
   rowLine: mix('--border', 55),
   rowHover: mix('--surface-hover', 70),
   rowSelected: token('--surface-hover'),
+  staged: token('--status-added'),
+  unstaged: token('--status-modified'),
+  conflict: token('--status-conflict'),
 });
 
 export const theme = (): Theme => (cached ??= build());
