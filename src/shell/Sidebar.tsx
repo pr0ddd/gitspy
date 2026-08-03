@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Session } from '../session';
 import { GIT } from '../vocabulary';
 import { Icon, type IconName } from '../icons';
+import { buildRefTree, filterRefTree, openPathsFor, type TreeNode } from '../refTree';
 import type { PullListView, PullView, RefKind, RefView } from '../types';
 
 type Props = {
@@ -13,6 +15,7 @@ type Props = {
   collapsed: boolean;
   pulls: PullListView | null;
   onPick: (commit: number) => void;
+  onCheckout: (ref: RefView) => void;
   onToggle: () => void;
   onPullsExpanded: () => void;
   onPickPull: (pull: PullView) => void;
@@ -30,7 +33,7 @@ type Group = {
   title: string;
   icon: IconName;
   entries: Entry[];
-  planned?: boolean;
+  tree?: TreeNode[];
 };
 
 const fromRefs = (refs: RefView[], kind: RefKind): Entry[] =>
@@ -38,11 +41,142 @@ const fromRefs = (refs: RefView[], kind: RefKind): Entry[] =>
     .filter((r) => r.kind === kind)
     .map((r) => ({ label: r.name, commit: r.commit, isHead: r.isHead }));
 
+const treeOf = (refs: RefView[], kind: RefKind): TreeNode[] =>
+  buildRefTree(refs.filter((r) => r.kind === kind));
+
+const CAP = 99;
+
+function Tracking({ view }: { view: RefView }) {
+  const { t } = useTranslation();
+
+  if (view.gone) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Icon.detached className="text-destructive size-3 shrink-0" />
+        </TooltipTrigger>
+        <TooltipContent>{t('branch.gone')}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (!view.ahead && !view.behind) return null;
+  const shown = (count: number) => (count > CAP ? `${CAP}+` : `${count}`);
+
+  return (
+    <span className="text-2xs flex shrink-0 items-center gap-1 tabular-nums">
+      {view.ahead ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-ahead flex items-center">
+              {shown(view.ahead)}
+              <Icon.up className="size-3" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('branch.ahead', { count: view.ahead })}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {view.behind ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-behind flex items-center">
+              {shown(view.behind)}
+              <Icon.down className="size-3" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('branch.behind', { count: view.behind })}</TooltipContent>
+        </Tooltip>
+      ) : null}
+    </span>
+  );
+}
+
+type BranchesProps = {
+  nodes: TreeNode[];
+  depth: number;
+  open: Set<string>;
+  onFlip: (path: string) => void;
+  onPick: (commit: number) => void;
+  onCheckout: (ref: RefView) => void;
+};
+
+function Branches({ nodes, depth, open, onFlip, onPick, onCheckout }: BranchesProps) {
+  const pad = (extra: number) => ({ paddingLeft: `${depth * 12 + extra}px` });
+
+  return (
+    <>
+      {nodes.map((node) =>
+        node.kind === 'folder' ? (
+          <div key={node.path}>
+            <button
+              onClick={() => onFlip(node.path)}
+              onDoubleClick={() => onFlip(node.path)}
+              style={pad(12)}
+              className="hover:bg-surface-hover flex h-6 w-full items-center gap-1.5 pr-2 text-left transition-colors"
+            >
+              <ChevronRight
+                className={cn(
+                  'size-3 shrink-0 transition-transform',
+                  open.has(node.path) && 'rotate-90',
+                )}
+              />
+              <Icon.folder className="text-muted-foreground/70 size-3 shrink-0" />
+              <span className="truncate text-xs">{node.name}</span>
+            </button>
+            {open.has(node.path) ? (
+              <Branches
+                nodes={node.children}
+                depth={depth + 1}
+                open={open}
+                onFlip={onFlip}
+                onPick={onPick}
+                onCheckout={onCheckout}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <Tooltip key={node.path}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onPick(node.ref.commit)}
+                onDoubleClick={() => onCheckout(node.ref)}
+                style={pad(24)}
+                className={cn(
+                  'hover:bg-surface-hover group flex h-6 w-full items-center gap-1.5 pr-2 text-left transition-colors',
+                  node.ref.isHead && 'bg-ahead/15 font-medium',
+                )}
+              >
+                {node.ref.isHead ? (
+                  <Icon.current className="text-ahead size-3 shrink-0" />
+                ) : (
+                  <Icon.branch className="text-muted-foreground/70 size-3 shrink-0" />
+                )}
+                <span className="min-w-0 flex-1 truncate text-xs">{node.name}</span>
+                <Tracking view={node.ref} />
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-muted-foreground hover:text-foreground hidden shrink-0 group-hover:block"
+                >
+                  <Icon.more className="size-3" />
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{node.path}</TooltipContent>
+          </Tooltip>
+        ),
+      )}
+    </>
+  );
+}
+
 export function Sidebar({
   session,
   collapsed,
   pulls,
   onPick,
+  onCheckout,
   onToggle,
   onPullsExpanded,
   onPickPull,
@@ -50,8 +184,15 @@ export function Sidebar({
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [folders, setFolders] = useState<Set<string>>(new Set());
   const flip = (key: string) =>
     setOpen((now) => ({ ...now, [key]: !(now[key] ?? key !== 'pullRequests') }));
+  const flipFolder = (path: string) =>
+    setFolders((now) => {
+      const next = new Set(now);
+      if (!next.delete(path)) next.add(path);
+      return next;
+    });
 
   const refs = session?.repo?.refs ?? [];
 
@@ -62,12 +203,14 @@ export function Sidebar({
         title: GIT.local,
         icon: 'branch',
         entries: fromRefs(refs, 'localBranch'),
+        tree: treeOf(refs, 'localBranch'),
       },
       {
         key: 'remote',
         title: GIT.remote,
         icon: 'remote',
         entries: fromRefs(refs, 'remoteBranch'),
+        tree: treeOf(refs, 'remoteBranch'),
       },
       {
         key: 'worktrees',
@@ -155,6 +298,30 @@ export function Sidebar({
           const shown = needle
             ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
             : group.entries;
+
+          if (group.tree) {
+            const matching = filterRefTree(group.tree, needle);
+
+            return (
+              <Section
+                key={group.key}
+                title={group.title}
+                icon={group.icon}
+                count={group.entries.length}
+                open={open[group.key] ?? true}
+                onToggle={() => flip(group.key)}
+              >
+                <Branches
+                  nodes={matching}
+                  depth={0}
+                  open={needle ? new Set([...folders, ...openPathsFor(group.tree, needle)]) : folders}
+                  onFlip={flipFolder}
+                  onPick={onPick}
+                  onCheckout={onCheckout}
+                />
+              </Section>
+            );
+          }
 
           return (
             <Section

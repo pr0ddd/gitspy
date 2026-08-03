@@ -51,6 +51,19 @@ export const buildRefTree = (refs: RefView[]): TreeNode[] => {
   return harvest(root, '');
 };
 
+export const filterRefTree = (tree: TreeNode[], needle: string): TreeNode[] => {
+  const query = needle.trim().toLowerCase();
+  if (!query) return tree;
+
+  return tree.flatMap<TreeNode>((node) => {
+    if (node.kind === 'ref') {
+      return node.path.toLowerCase().includes(query) ? [node] : [];
+    }
+    const children = filterRefTree(node.children, query);
+    return children.length ? [{ ...node, children }] : [];
+  });
+};
+
 export const openPathsFor = (tree: TreeNode[], needle: string): Set<string> => {
   const query = needle.trim().toLowerCase();
   const open = new Set<string>();

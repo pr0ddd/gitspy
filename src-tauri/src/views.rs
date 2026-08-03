@@ -2,7 +2,7 @@ use gitspy_core::chunk::Skeleton;
 use gitspy_core::layout::{Layout, NodeKind, Segment};
 use gitspy_exec::refs::{RefKind, RefLine};
 use gitspy_repo::{History, Node};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use ts_rs::TS;
 
@@ -90,7 +90,7 @@ pub struct RepoView {
     pub refs: Vec<RefView>,
 }
 
-#[derive(Serialize, Clone, TS)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub enum RefKindView {
