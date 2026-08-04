@@ -96,7 +96,8 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
   };
 
   return (
-    <div className="bg-primary/15 animate-in fade-in slide-in-from-top-1 min-h-bar flex shrink-0 items-center justify-center gap-3 border-b px-4 py-2 duration-150">
+    <div className="bg-card animate-in fade-in slide-in-from-top-2 shadow-sheet absolute inset-x-0 top-0 z-30 duration-150">
+      <div className="bg-primary/15 min-h-bar flex items-center justify-center gap-3 border-b px-4 py-2">
       <span className="shrink-0 text-sm">{t(wording.title as 'branch.title')}</span>
 
       {multiline ? (
@@ -142,6 +143,7 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
       <Button size="xs" variant="secondary" onClick={cancel}>
         {t('ask.cancel')}
       </Button>
+      </div>
     </div>
   );
 }

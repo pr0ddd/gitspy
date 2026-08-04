@@ -512,7 +512,7 @@ export default function App() {
               )}
               <div
                 className={cn(
-                  'bg-card shadow-sheet flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border',
+                  'bg-card shadow-sheet relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border',
                   railed && 'ml-2',
                 )}
               >
