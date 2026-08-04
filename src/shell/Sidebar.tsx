@@ -441,9 +441,9 @@ function Section({ title, count, open, onToggle, children }: SectionProps) {
       {open ? (
         <ScrollArea
           type="always"
-          className="animate-in fade-in slide-in-from-top-1 min-h-0 flex-1 duration-150"
+          className="animate-in fade-in slide-in-from-top-1 min-h-0 flex-1 duration-150 [&_[data-slot=scroll-area-scrollbar]]:bg-background"
         >
-          <div className="pr-2.5">{children}</div>
+          <div className="pr-3">{children}</div>
         </ScrollArea>
       ) : null}
     </section>
