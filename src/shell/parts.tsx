@@ -45,10 +45,10 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'hover:bg-surface-hover flex h-7 w-full items-center gap-1.5 pr-2 text-left text-xs transition-colors',
+        'hover:bg-fill-1 flex h-7 w-full items-center gap-1.5 rounded-md pr-2 text-left text-xs transition-colors',
         indentAt(depth),
         as === 'div' && 'group cursor-pointer',
-        current && 'bg-ahead/15 font-medium',
+        current && 'bg-fill-2 font-medium',
         className,
       )}
     >
@@ -65,21 +65,19 @@ export function ListRow({
 }
 
 type SectionHeaderProps = {
-  border?: 'top' | 'bottom';
   onClick?: () => void;
   className?: string;
   children: React.ReactNode;
 };
 
-export function SectionHeader({ border = 'top', onClick, className, children }: SectionHeaderProps) {
+export function SectionHeader({ onClick, className, children }: SectionHeaderProps) {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
       onClick={onClick}
       className={cn(
-        'border-border/50 text-muted-foreground flex h-8 w-full shrink-0 items-center gap-1.5 px-2 text-xs tracking-wide uppercase transition-colors',
-        border === 'top' ? 'border-t' : 'border-b',
-        onClick && 'hover:bg-surface-hover',
+        'text-muted-foreground flex h-7 w-full shrink-0 items-center gap-1.5 rounded-md px-2 text-xs transition-colors',
+        onClick && 'hover:bg-fill-1',
         className,
       )}
     >
@@ -97,10 +95,7 @@ export function ViewBar({
 }) {
   return (
     <header
-      className={cn(
-        'bg-card border-border flex h-9 shrink-0 items-center gap-2 border-b px-3',
-        className,
-      )}
+      className={cn('flex h-bar shrink-0 items-center gap-2 px-5', className)}
     >
       {children}
     </header>
@@ -116,10 +111,7 @@ export function PanelBar({
 }) {
   return (
     <div
-      className={cn(
-        'border-border flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs',
-        className,
-      )}
+      className={cn('flex h-8 shrink-0 items-center gap-2 border-t px-3 text-xs', className)}
     >
       {children}
     </div>

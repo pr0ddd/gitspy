@@ -123,7 +123,7 @@ function SidePane({
   let no = 0;
   return (
     <div className="flex min-h-0 min-w-0 flex-col">
-      <SectionHeader border="bottom">
+      <SectionHeader>
         <Checkbox
           checked={every}
           onCheckedChange={(next) => onAll(next === true)}
@@ -292,7 +292,7 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
       </div>
 
       <div className="border-border flex min-h-0 flex-1 flex-col border-t">
-        <SectionHeader border="bottom">
+        <SectionHeader>
           <span className="min-w-0 flex-1 truncate text-left">{t('conflict.output')}</span>
           <span className="normal-case tabular-nums">
             {conflicts.length
