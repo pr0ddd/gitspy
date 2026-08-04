@@ -178,6 +178,7 @@
   "sidebar.collapse": "Collapse the sidebar",
   "sidebar.expand": "Expand the sidebar",
   "sidebar.filter": "Filter",
+  "sidebar.gone": "gone",
   "sidebar.plannedHint": "Comes with the integrations phase",
   "start.create": "Create",
   "start.createTitle": "Choose a folder for the new repository",

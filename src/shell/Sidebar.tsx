@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
-import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Session } from '../session';
 import { GIT } from '../vocabulary';
@@ -16,7 +15,6 @@ import type { Operation, PullListView, PullView, RefKind, RefView } from '../typ
 
 type Props = {
   session: Session | null;
-  collapsed: boolean;
   pulls: PullListView | null;
   currentBranch: string | null;
   checkingOut: string | null;
@@ -27,7 +25,6 @@ type Props = {
   onAsk: (ask: Ask) => void;
   onWorktree: (at: string) => void;
   onOpenUrl: (url: string) => void;
-  onToggle: () => void;
   onPullsExpanded: () => void;
   onPickPull: (pull: PullView) => void;
 };
@@ -42,7 +39,7 @@ type Entry = {
 type Group = {
   key: string;
   title: string;
-  icon: IconName;
+  dot: string;
   entries: Entry[];
   tree?: TreeNode[];
 };
@@ -57,8 +54,9 @@ const treeOf = (refs: RefView[], kind: RefKind): TreeNode[] =>
 
 const CAP = 99;
 function Tracking({ view }: { view: RefView }) {
+  const { t } = useTranslation();
   if (view.gone) {
-    return <Icon.detached className="text-destructive size-3 shrink-0" />;
+    return <span className="text-deleted text-2xs shrink-0">{t('sidebar.gone')}</span>;
   }
   if (!view.ahead && !view.behind) return null;
 
@@ -85,8 +83,9 @@ function Tracking({ view }: { view: RefView }) {
 type RowProps = {
   depth?: number;
   leading?: React.ReactNode;
-  icon: IconName;
-  iconClass?: string;
+  icon?: IconName;
+  dot?: string;
+  spinning?: boolean;
   badge?: React.ReactNode;
   label: string;
   detail?: string;
@@ -102,7 +101,8 @@ function Row({
   depth = 0,
   leading,
   icon,
-  iconClass,
+  dot,
+  spinning,
   badge,
   label,
   detail,
@@ -113,7 +113,7 @@ function Row({
   onDoubleClick,
   onContextMenu,
 }: RowProps) {
-  const Glyph = Icon[icon];
+  const Glyph = icon ? Icon[icon] : null;
   return (
     <ListRow
       depth={depth + 1}
@@ -125,10 +125,18 @@ function Row({
       onContextMenu={onContextMenu}
     >
       {leading}
-      <Glyph className={cn('size-3 shrink-0', iconClass ?? 'text-muted-foreground')} />
+      {spinning ? (
+        <Icon.waiting className="text-muted-foreground size-3 shrink-0 animate-spin" />
+      ) : Glyph ? (
+        <Glyph className="text-muted-foreground size-3 shrink-0" />
+      ) : dot ? (
+        <span className="flex w-3 shrink-0 justify-center">
+          <span className={cn('size-1.5', dot)} />
+        </span>
+      ) : null}
       {badge}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {detail ? <span className="text-muted-foreground shrink-0 truncate">{detail}</span> : null}
+      {detail ? <span className="text-faint shrink-0 truncate">{detail}</span> : null}
       {trailing}
     </ListRow>
   );
@@ -155,13 +163,12 @@ function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckou
           <div key={node.path}>
             <Row
               depth={depth}
-              icon="folder"
               label={node.name}
               onClick={() => onFlip(node.path)}
               leading={
                 <Icon.chevron
                   className={cn(
-                    'size-3 shrink-0 transition-transform',
+                    'text-faint size-3 shrink-0 transition-transform',
                     !closed.has(node.path) && 'rotate-90',
                   )}
                 />
@@ -184,14 +191,15 @@ function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckou
           <Row
             key={node.path}
             depth={depth + 1}
-            icon={checkingOut === node.ref.name ? 'waiting' : node.ref.isHead ? 'current' : 'branch'}
-            iconClass={
-              checkingOut === node.ref.name
-                ? 'animate-spin'
-                : node.ref.isHead
-                  ? 'text-ahead'
-                  : undefined
-            }
+            spinning={checkingOut === node.ref.name}
+            dot={cn(
+              'rounded-full',
+              node.ref.isHead
+                ? 'bg-primary'
+                : node.ref.kind === 'remoteBranch'
+                  ? 'bg-ref-remote'
+                  : 'bg-ref-local',
+            )}
             label={node.name}
             hint={node.path === node.name ? undefined : node.path}
             trailing={<Tracking view={node.ref} />}
@@ -208,7 +216,6 @@ function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckou
 
 export function Sidebar({
   session,
-  collapsed,
   pulls,
   currentBranch,
   checkingOut,
@@ -219,7 +226,6 @@ export function Sidebar({
   onAsk,
   onWorktree,
   onOpenUrl,
-  onToggle,
   onPullsExpanded,
   onPickPull,
 }: Props) {
@@ -230,7 +236,7 @@ export function Sidebar({
   const flip = (key: string) =>
     setOpen((now) => ({
       ...now,
-      [key]: !(now[key] ?? key !== 'pullRequests'),
+      [key]: !(now[key] ?? key === 'local'),
     }));
   const flipFolder = (path: string) =>
     setClosed((now) => {
@@ -274,21 +280,21 @@ export function Sidebar({
       {
         key: 'local',
         title: GIT.local,
-        icon: 'branch',
+        dot: 'bg-ref-local rounded-full',
         entries: fromRefs(refs, 'localBranch'),
         tree: treeOf(refs, 'localBranch'),
       },
       {
         key: 'remote',
         title: GIT.remote,
-        icon: 'remote',
+        dot: 'bg-ref-remote rounded-full',
         entries: fromRefs(refs, 'remoteBranch'),
         tree: treeOf(refs, 'remoteBranch'),
       },
       {
         key: 'worktrees',
         title: GIT.worktrees,
-        icon: 'worktree',
+        dot: 'bg-ref-worktree rounded-xs',
         entries: (session?.worktrees ?? []).map((w) => ({
           label: w.name,
           detail: w.branch ?? undefined,
@@ -299,13 +305,13 @@ export function Sidebar({
       {
         key: 'stashes',
         title: GIT.stashes,
-        icon: 'stash',
+        dot: 'bg-ref-stash rounded-full',
         entries: fromRefs(refs, 'stash'),
       },
       {
         key: 'tags',
         title: GIT.tags,
-        icon: 'tag',
+        dot: 'bg-ref-tag rounded-xs',
         entries: fromRefs(refs, 'tag'),
       },
     ],
@@ -314,50 +320,8 @@ export function Sidebar({
 
   const needle = filter.trim().toLowerCase();
 
-  if (collapsed) {
-    return (
-      <aside className="flex w-11 shrink-0 flex-col items-center gap-1 py-2">
-        <Hint text={t('sidebar.expand')}>
-          <button
-            onClick={onToggle}
-            className="hover:bg-fill-1 text-muted-foreground hover:text-foreground mb-1 flex size-9 items-center justify-center rounded-md transition-colors"
-          >
-            <Icon.expand className="size-4" />
-          </button>
-        </Hint>
-
-        {groups.map((group) => {
-          const Glyph = Icon[group.icon];
-          return (
-            <Hint key={group.key} text={`${group.title} · ${group.entries.length}`}>
-              <button
-                onClick={onToggle}
-                className="hover:bg-fill-1 text-muted-foreground hover:text-foreground flex h-9 w-9 flex-col items-center justify-center gap-0.5 rounded-md transition-colors"
-              >
-                <Glyph className="size-3.5" />
-                <span className="text-2xs tabular-nums">{group.entries.length}</span>
-              </button>
-            </Hint>
-          );
-        })}
-      </aside>
-    );
-  }
-
   return (
     <aside className="flex w-61 shrink-0 flex-col">
-      <div className="flex items-center gap-1 p-2 pb-0">
-        <Hint text={t('sidebar.collapse')}>
-          <button
-            onClick={onToggle}
-            className="hover:bg-fill-1 text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
-          >
-            <Icon.collapse className="size-4" />
-          </button>
-        </Hint>
-        <span className="text-muted-foreground truncate text-xs">{session?.name ?? ''}</span>
-      </div>
-
       <div className="relative p-2">
         <Icon.search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-3 -translate-y-1/2" />
         <Input
@@ -368,7 +332,7 @@ export function Sidebar({
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-1.5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
         {groups.map((group) => {
           const shown = needle
             ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
@@ -381,9 +345,8 @@ export function Sidebar({
               <Section
                 title={group.title}
                 key={group.key}
-                icon={group.icon}
                 count={group.entries.length}
-                open={open[group.key] ?? true}
+                open={open[group.key] ?? group.key === 'local'}
                 onToggle={() => flip(group.key)}
               >
                 <Branches
@@ -404,16 +367,15 @@ export function Sidebar({
             <Section
               title={group.title}
               key={group.key}
-              icon={group.icon}
               count={group.entries.length}
-              open={open[group.key] ?? true}
+              open={open[group.key] ?? group.key === 'local'}
               onToggle={() => flip(group.key)}
             >
               {shown.map((entry) => (
                 <Row
                   key={`${group.key}:${entry.label}`}
                   depth={1}
-                  icon={group.icon}
+                  dot={group.dot}
                   label={entry.label}
                   detail={entry.detail}
                   current={entry.isHead}
@@ -426,7 +388,6 @@ export function Sidebar({
 
         <Section
           title={GIT.pullRequests}
-          icon="pullRequest"
           count={pulls?.pulls.length ?? null}
           open={open.pullRequests ?? false}
           onToggle={() => {
@@ -441,23 +402,8 @@ export function Sidebar({
             </InlineNote>
           ) : (
             <>
-              <PullGroup
-                title={t('pull.mine')}
-                pulls={pulls.pulls.filter((p) => p.mine)}
-                onPickPull={onPickPull}
-              />
-              <PullGroup
-                title={t('pull.assignedToMe')}
-                pulls={pulls.pulls.filter((p) => p.assignedToMe)}
-                onPickPull={onPickPull}
-              />
-              <PullGroup
-                title={t('pull.awaitingMyReview')}
-                pulls={pulls.pulls.filter((p) => p.awaitingMyReview)}
-                onPickPull={onPickPull}
-              />
-              {pulls.pulls
-                .filter((p) => !p.mine && !p.assignedToMe && !p.awaitingMyReview)
+              {[...pulls.pulls]
+                .sort((a, b) => pullRank(a) - pullRank(b))
                 .map((pull) => (
                   <PullItem key={pull.number} pull={pull} onPickPull={onPickPull} />
                 ))}
@@ -477,20 +423,24 @@ export function Sidebar({
 
 type SectionProps = {
   title: string;
-  icon: IconName;
   count: number | null;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
 };
 
-function Section({ title, icon, count, open, onToggle, children }: SectionProps) {
-  const Glyph = Icon[icon];
+function Section({ title, count, open, onToggle, children }: SectionProps) {
   return (
-    <section className={cn('flex flex-col', open ? 'min-h-24 flex-1 basis-0' : 'shrink-0')}>
+    <section
+      className={cn(
+        'mt-3 flex flex-col first:mt-0',
+        open ? 'min-h-32 flex-1 basis-0' : 'shrink-0',
+      )}
+    >
       <SectionHeader onClick={onToggle}>
-        <Icon.chevron className={cn('size-3 shrink-0 transition-transform', open && 'rotate-90')} />
-        <Glyph className="size-3.5 shrink-0" />
+        <Icon.chevron
+          className={cn('text-faint size-3 shrink-0 transition-transform', open && 'rotate-90')}
+        />
         <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         <span className="text-faint shrink-0 tabular-nums">{count ?? ''}</span>
       </SectionHeader>
@@ -499,26 +449,8 @@ function Section({ title, icon, count, open, onToggle, children }: SectionProps)
   );
 }
 
-type PullGroupProps = {
-  title: string;
-  pulls: PullView[];
-  onPickPull: (pull: PullView) => void;
-};
-
-function PullGroup({ title, pulls, onPickPull }: PullGroupProps) {
-  if (!pulls.length) return null;
-  return (
-    <div>
-      <p className="text-faint text-2xs flex h-7 items-center justify-between pr-2 pl-6">
-        {title}
-        <span className="tabular-nums">{pulls.length}</span>
-      </p>
-      {pulls.map((pull) => (
-        <PullItem key={pull.number} pull={pull} onPickPull={onPickPull} />
-      ))}
-    </div>
-  );
-}
+const pullRank = (pull: PullView): number =>
+  pull.mine ? 0 : pull.assignedToMe || pull.awaitingMyReview ? 1 : 2;
 
 function PullItem({ pull, onPickPull }: { pull: PullView; onPickPull: (pull: PullView) => void }) {
   return (

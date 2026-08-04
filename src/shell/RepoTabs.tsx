@@ -8,13 +8,24 @@ import { Hint } from '@/components/ui/tooltip';
 type Props = {
   sessions: Session[];
   active: string | null;
+  sidebarHidden: boolean;
+  onToggleSidebar: () => void;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onStart: () => void;
   onSettings: () => void;
 };
 
-export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSettings }: Props) {
+export function RepoTabs({
+  sessions,
+  active,
+  sidebarHidden,
+  onToggleSidebar,
+  onActivate,
+  onClose,
+  onStart,
+  onSettings,
+}: Props) {
   const { t } = useTranslation();
 
   return (
@@ -22,6 +33,20 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSet
       data-tauri-drag-region
       className="flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto pr-2 pl-20"
     >
+      <Hint text={t(sidebarHidden ? 'sidebar.expand' : 'sidebar.collapse')}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={onToggleSidebar}
+          className="text-muted-foreground mr-1 size-6.5 shrink-0"
+        >
+          {sidebarHidden ? (
+            <Icon.expand className="size-3.5" />
+          ) : (
+            <Icon.collapse className="size-3.5" />
+          )}
+        </Button>
+      </Hint>
       {sessions.map((session) => {
         const current = session.path === active;
         return (

@@ -46,7 +46,6 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
     <TooltipProvider>
       <Sidebar
         session={sessionWith(refs)}
-        collapsed={false}
         pulls={null}
         checkingOut={null}
         currentBranch="main"
@@ -57,7 +56,6 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
         onAsk={() => {}}
         onWorktree={() => {}}
         onOpenUrl={() => {}}
-        onToggle={() => {}}
         onPullsExpanded={() => {}}
         onPickPull={() => {}}
       />
