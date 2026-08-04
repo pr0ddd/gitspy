@@ -308,13 +308,35 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         continue;
       }
 
-      ctx.beginPath();
-      ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
-      ctx.fillStyle = laneSoft(row.colour);
-      ctx.fill();
-      ctx.strokeStyle = colour;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      if (m.avatars) {
+        const key = avatarKey(row, i);
+        const size = m.nodeR * 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
+        ctx.clip();
+        const look = frame.avatars?.lookOf(row.kind === 'commit' ? row.email : '') ?? {
+          kind: 'identicon' as const,
+        };
+        ctx.drawImage(
+          look.kind === 'image' ? look.image : identicon(key, size),
+          x - m.nodeR,
+          y - m.nodeR,
+          size,
+          size,
+        );
+        ctx.restore();
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR, 0, Math.PI * 2);
+        ctx.fillStyle = colour;
+        ctx.fill();
+      }
 
       if (i === selected) {
         ctx.save();
@@ -354,10 +376,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         drawChip(ctx, one, y, chipH, chipM, t, frame.avatars, remoteAvatarUrls, false);
       }
       if (more) {
-        ctx.fillStyle = t.fill2;
+        ctx.fillStyle = t.refSoft[more.chips[0].kind];
         roundRect(ctx, more.x, y - chipH / 2, more.w, chipH, 6);
         ctx.fill();
-        ctx.fillStyle = t.muted;
+        ctx.fillStyle = t.foreground;
         ctx.fillText(moreLabel(more.count), more.x + chipM.pad, y);
       }
       const chipEnd = more
@@ -463,26 +485,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       const subject = row.subject;
 
-      const av = 9;
-      const look = frame.avatars?.lookOf(row.email) ?? { kind: 'identicon' as const };
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(msgX + av, yc, av, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(
-        look.kind === 'image' ? look.image : identicon(avatarKey(row, i), av * 2),
-        msgX,
-        yc - av,
-        av * 2,
-        av * 2,
-      );
-      ctx.restore();
-
-      const textX = msgX + av * 2 + 6;
-      const subjMax = colAuthor - textX - 12;
+      const subjMax = colAuthor - msgX - 12;
       ctx.fillStyle = t.foreground;
       const fitted = fitText(ctx, subject, subjMax);
-      ctx.fillText(fitted, textX, yc);
+      ctx.fillText(fitted, msgX, yc);
 
       const body = row.body;
       if (body && fitted === subject) {
@@ -490,7 +496,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         const rest = subjMax - used - 10;
         if (rest > 20) {
           ctx.fillStyle = t.faint;
-          ctx.fillText(fitText(ctx, body.split('\n')[0], rest), textX + used + 10, yc);
+          ctx.fillText(fitText(ctx, body.split('\n')[0], rest), msgX + used + 10, yc);
         }
       }
 
@@ -593,15 +599,15 @@ function drawChip(
   const text = expanded ? placed.fullText : placed.text;
   const w = expanded ? placed.fullW : placed.w;
 
-  ctx.fillStyle = chip.isHead ? t.primarySoft : t.fill2;
+  ctx.fillStyle = chip.isHead ? t.primarySoft : t.refSoft[chip.kind];
   roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
   ctx.fill();
   if (!text) return;
 
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
-  ctx.fillStyle = chip.isHead ? t.foreground : t.muted;
-  ctx.strokeStyle = chip.isHead ? t.foreground : t.muted;
+  ctx.fillStyle = t.foreground;
+  ctx.strokeStyle = t.foreground;
   ctx.fillText(text, placed.x + chipM.pad, y);
 
   let markX = placed.x + chipM.pad + ctx.measureText(text).width + chipM.gap;
