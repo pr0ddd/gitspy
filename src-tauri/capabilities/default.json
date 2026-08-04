@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Права основного окна",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default"]
+  "permissions": ["core:default", "core:window:allow-start-dragging", "dialog:default"]
 }
