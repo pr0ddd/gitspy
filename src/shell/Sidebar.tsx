@@ -1,6 +1,7 @@
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Session } from '../session';
 import { GIT } from '../vocabulary';
@@ -438,9 +439,12 @@ function Section({ title, count, open, onToggle, children }: SectionProps) {
         <span className="text-faint shrink-0 tabular-nums">{count ?? ''}</span>
       </SectionHeader>
       {open ? (
-        <div className="animate-in fade-in slide-in-from-top-1 min-h-0 flex-1 overflow-y-auto duration-150">
+        <ScrollArea
+          type="always"
+          className="animate-in fade-in slide-in-from-top-1 min-h-0 flex-1 duration-150"
+        >
           {children}
-        </div>
+        </ScrollArea>
       ) : null}
     </section>
   );
