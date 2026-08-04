@@ -48,10 +48,12 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'hover:bg-fill-1 flex h-7 w-full items-center gap-1.5 rounded-md pr-2 text-left text-xs transition-colors',
+        'flex h-7 w-full items-center gap-1.5 rounded-md pr-2 text-left text-xs transition-colors',
         indentAt(depth),
         as === 'div' && 'group cursor-pointer',
-        current && 'bg-fill-2 font-medium',
+        current
+          ? 'bg-primary/25 hover:bg-primary/30 font-medium'
+          : 'hover:bg-fill-1',
         className,
       )}
     >
