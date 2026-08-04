@@ -36,7 +36,7 @@ export {
 };
 import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from './types';
 import type { RowCache } from './rows';
-import { laneColour, laneSoft, theme } from './theme';
+import { laneColour, laneColourAlpha, laneSoft, theme } from './theme';
 import type { Minimap } from './view';
 import { chipsFor, remoteAvatarKey, type Chip } from './chips';
 import {
@@ -196,6 +196,15 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.beginPath();
     ctx.rect(g.gLeft, HEADER_H, g.gRight - g.gLeft, height - HEADER_H);
     ctx.clip();
+
+    for (let i = first; i < last; i++) {
+      const y = shift + (i - first) * m.rowH;
+      const row = rows.row(i);
+      if (!row) continue;
+      const x = g.nodeX(row.lane) - m.nodeR;
+      ctx.fillStyle = laneColourAlpha(row.colour, 11);
+      ctx.fillRect(x, y + 1, Math.max(0, g.gRight - x), m.rowH - 2);
+    }
 
     ctx.save();
     ctx.beginPath();
