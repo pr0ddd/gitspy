@@ -557,42 +557,27 @@ export default function App() {
                     onClose={() => setMain({ kind: 'graph' })}
                   />
                 ) : (
-                  <>
-                    <GraphView
-                      key={current.path}
-                      session={current}
-                      avatars={avatarsRef.current}
-                      rows={cacheFor(current.path)}
-                      redraw={redraw + avatarTick}
-                      metrics={METRICS_AVATARS}
-                      pullHeads={pullHeads}
-                      currentBranch={tree?.branch ?? null}
-                      onSelect={select}
-                      onCheckoutRef={checkoutRef}
-                      onRun={runOperation}
-                      onCopy={copy}
-                      onAsk={setAsking}
-                      onWorktree={addWorktree}
-                      onOpenUrl={openUrl}
-                      onNeed={onNeed}
-                      message={message}
-                      onMessage={setMessage}
-                      onCommit={commit}
-                    />
-                    {current.repo ? (
-                      <footer className="text-faint shrink-0 border-t px-4 py-1.5 text-xs tabular-nums">
-                        {[
-                          t('graph.commits', { count: current.repo.count }),
-                          t('graph.lanes', { count: current.repo.maxLane + 1 }),
-                          t('stats.read', { ms: current.repo.readMs.toFixed(0) }),
-                          t('stats.layout', { ms: current.repo.layoutMs.toFixed(1) }),
-                          current.repo.truncated ? t('graph.truncated') : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </footer>
-                    ) : null}
-                  </>
+                  <GraphView
+                    key={current.path}
+                    session={current}
+                    avatars={avatarsRef.current}
+                    rows={cacheFor(current.path)}
+                    redraw={redraw + avatarTick}
+                    metrics={METRICS_AVATARS}
+                    pullHeads={pullHeads}
+                    currentBranch={tree?.branch ?? null}
+                    onSelect={select}
+                    onCheckoutRef={checkoutRef}
+                    onRun={runOperation}
+                    onCopy={copy}
+                    onAsk={setAsking}
+                    onWorktree={addWorktree}
+                    onOpenUrl={openUrl}
+                    onNeed={onNeed}
+                    message={message}
+                    onMessage={setMessage}
+                    onCommit={commit}
+                  />
                 )}
               </main>
               <aside className="flex w-80 shrink-0 flex-col border-l">
