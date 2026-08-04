@@ -316,11 +316,11 @@ export function Sidebar({
 
   if (collapsed) {
     return (
-      <aside className="bg-card border-border flex w-11 shrink-0 flex-col items-center gap-1 border-r py-2">
+      <aside className="flex w-11 shrink-0 flex-col items-center gap-1 py-2">
         <Hint text={t('sidebar.expand')}>
           <button
             onClick={onToggle}
-            className="hover:bg-surface-hover text-muted-foreground hover:text-foreground mb-1 flex size-9 items-center justify-center rounded-md transition-colors"
+            className="hover:bg-fill-1 text-muted-foreground hover:text-foreground mb-1 flex size-9 items-center justify-center rounded-md transition-colors"
           >
             <Icon.expand className="size-4" />
           </button>
@@ -332,7 +332,7 @@ export function Sidebar({
             <Hint key={group.key} text={`${group.title} · ${group.entries.length}`}>
               <button
                 onClick={onToggle}
-                className="hover:bg-surface-hover text-muted-foreground hover:text-foreground flex h-9 w-9 flex-col items-center justify-center gap-0.5 rounded-md transition-colors"
+                className="hover:bg-fill-1 text-muted-foreground hover:text-foreground flex h-9 w-9 flex-col items-center justify-center gap-0.5 rounded-md transition-colors"
               >
                 <Glyph className="size-3.5" />
                 <span className="text-2xs tabular-nums">{group.entries.length}</span>
@@ -345,12 +345,12 @@ export function Sidebar({
   }
 
   return (
-    <aside className="bg-card border-border flex w-64 shrink-0 flex-col border-r">
+    <aside className="flex w-64 shrink-0 flex-col">
       <div className="flex items-center gap-1 p-2 pb-0">
         <Hint text={t('sidebar.collapse')}>
           <button
             onClick={onToggle}
-            className="hover:bg-surface-hover text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
+            className="hover:bg-fill-1 text-muted-foreground hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
           >
             <Icon.collapse className="size-4" />
           </button>
@@ -368,7 +368,7 @@ export function Sidebar({
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-1.5">
         {groups.map((group) => {
           const shown = needle
             ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
@@ -492,7 +492,7 @@ function Section({ title, icon, count, open, onToggle, children }: SectionProps)
         <Icon.chevron className={cn('size-3 shrink-0 transition-transform', open && 'rotate-90')} />
         <Glyph className="size-3.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate text-left">{title}</span>
-        <span className="shrink-0 tabular-nums">{count ?? ''}</span>
+        <span className="text-faint shrink-0 tabular-nums">{count ?? ''}</span>
       </SectionHeader>
       {open ? <div className="min-h-0 flex-1 overflow-y-auto">{children}</div> : null}
     </section>
@@ -509,7 +509,7 @@ function PullGroup({ title, pulls, onPickPull }: PullGroupProps) {
   if (!pulls.length) return null;
   return (
     <div>
-      <p className="text-muted-foreground text-2xs flex h-7 items-center justify-between pr-2 pl-6 tracking-wide uppercase">
+      <p className="text-faint text-2xs flex h-7 items-center justify-between pr-2 pl-6">
         {title}
         <span className="tabular-nums">{pulls.length}</span>
       </p>
