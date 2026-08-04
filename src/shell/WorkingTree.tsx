@@ -130,18 +130,22 @@ function MergeHeading({ from, into }: { from: string | null; into: string | null
     <div className="text-muted-foreground flex h-8 shrink-0 items-center justify-center gap-1.5 text-xs">
       {t('workingTree.merging')}
       {from ? (
-        <Badge
-          className={cn(
-            'rounded-sm px-1.5 py-0 text-2xs text-white',
-            from.includes('/') ? 'bg-ref-remote' : 'bg-ref-local',
-          )}
-        >
+        <Badge className="bg-fill-2 text-muted-foreground text-2xs gap-1.5 rounded-md px-2 py-0.5">
+          <span
+            className={cn(
+              'size-1.5 rounded-full',
+              from.includes('/') ? 'bg-ref-remote' : 'bg-ref-local',
+            )}
+          />
           {from}
         </Badge>
       ) : null}
       {t('workingTree.into')}
       {into ? (
-        <Badge className="bg-ref-local rounded-sm px-1.5 py-0 text-2xs text-white">{into}</Badge>
+        <Badge className="bg-fill-2 text-muted-foreground text-2xs gap-1.5 rounded-md px-2 py-0.5">
+          <span className="bg-ref-local size-1.5 rounded-full" />
+          {into}
+        </Badge>
       ) : null}
     </div>
   );
@@ -168,7 +172,7 @@ function MessageFields({
         onChange={(e) => onMessage(e.target.value)}
         onKeyDown={onHotkey}
         placeholder={t('workingTree.messagePlaceholder')}
-        className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-sm border px-2 py-1.5 text-sm outline-none"
+        className="bg-fill-1 text-foreground placeholder:text-faint focus:bg-fill-2 w-full rounded-md px-2.5 py-1.5 text-sm outline-none"
       />
       <textarea
         value={description}
@@ -176,7 +180,7 @@ function MessageFields({
         onKeyDown={onHotkey}
         placeholder={t('workingTree.descriptionPlaceholder')}
         rows={3}
-        className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full resize-none rounded-sm border px-2 py-1.5 text-sm outline-none"
+        className="bg-fill-1 text-foreground placeholder:text-faint focus:bg-fill-2 w-full resize-none rounded-md px-2.5 py-1.5 text-sm outline-none"
       />
     </>
   );

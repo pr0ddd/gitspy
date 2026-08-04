@@ -37,11 +37,11 @@ const STATUS_STYLE: Record<string, string> = {
   U: 'text-conflict',
 };
 
-const REF_STYLE: Record<RefKind, string> = {
-  localBranch: 'bg-ref-local text-white',
-  remoteBranch: 'bg-ref-remote text-white',
-  tag: 'bg-ref-tag text-white',
-  stash: 'bg-ref-stash text-white',
+const REF_DOT: Record<RefKind, string> = {
+  localBranch: 'bg-ref-local',
+  remoteBranch: 'bg-ref-remote',
+  tag: 'bg-ref-tag',
+  stash: 'bg-ref-stash',
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -109,13 +109,13 @@ export function Details({
 
       <PanelBar>
         <Icon.commit className="text-muted-foreground size-3.5" />
-        <span className="text-muted-foreground tracking-wide uppercase">{GIT.commit}</span>
+        <span className="text-muted-foreground">{GIT.commit}</span>
         <Hint text={t('details.copyHash')}>
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
+            size="2xs"
             onClick={() => onCopy(row.hash)}
-            className="ml-auto h-6 gap-1.5 text-xs"
+            className="ml-auto font-mono"
           >
             <Icon.copy className="size-3" />
             {row.hash.slice(0, 8)}
@@ -128,20 +128,20 @@ export function Details({
           <p className="text-sm leading-snug">{row.subject}</p>
 
           {row.body ? (
-            <pre className="bg-surface text-muted-foreground rounded-md p-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
+            <pre className="bg-fill-1 text-muted-foreground rounded-md p-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
               {row.body}
             </pre>
           ) : null}
 
           <dl className="space-y-1">
             <div className="flex gap-3">
-              <dt className="text-muted-foreground w-14 shrink-0">{t('details.author')}</dt>
+              <dt className="text-faint w-14 shrink-0">{t('details.author')}</dt>
               <dd className="min-w-0 truncate">
-                {row.author} <span className="text-muted-foreground">{row.email}</span>
+                {row.author} <span className="text-faint">{row.email}</span>
               </dd>
             </div>
             <div className="flex gap-3">
-              <dt className="text-muted-foreground w-14 shrink-0">{t('details.date')}</dt>
+              <dt className="text-faint w-14 shrink-0">{t('details.date')}</dt>
               <dd>
                 {new Intl.DateTimeFormat(i18n.language, {
                   dateStyle: 'medium',
@@ -156,8 +156,12 @@ export function Details({
               {labels.map((ref) => (
                 <Badge
                   key={`${ref.kind}:${ref.name}`}
-                  className={cn('rounded-sm px-1.5 py-0 text-2xs', REF_STYLE[ref.kind])}
+                  className={cn(
+                    'text-2xs gap-1.5 rounded-md px-2 py-0.5',
+                    ref.isHead ? 'bg-primary/25 text-foreground' : 'bg-fill-2 text-muted-foreground',
+                  )}
                 >
+                  <span className={cn('size-1.5 rounded-full', REF_DOT[ref.kind])} />
                   {ref.name}
                 </Badge>
               ))}

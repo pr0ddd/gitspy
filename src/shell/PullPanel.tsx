@@ -7,6 +7,7 @@ import rehypeSanitize from 'rehype-sanitize';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Icon } from '../icons';
@@ -26,7 +27,7 @@ type Props = {
 
 function Body({ text }: { text: string }) {
   return (
-    <div className="[&_a]:text-primary space-y-3 text-sm leading-relaxed [&_code]:rounded-sm [&_code]:bg-surface-raised [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_details]:rounded-md [&_details]:border [&_details]:border-border [&_details]:p-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:font-medium [&_hr]:border-border [&_img]:max-w-full [&_li]:ml-4 [&_ol]:list-decimal [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-surface-raised [&_pre]:p-2 [&_summary]:cursor-pointer [&_summary]:text-muted-foreground [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5 [&_td]:whitespace-nowrap [&_th]:border [&_th]:border-border [&_th]:bg-surface-raised [&_th]:px-2 [&_th]:py-0.5 [&_th]:font-medium [&_th]:whitespace-nowrap [&_ul]:list-disc">
+    <div className="[&_a]:text-primary space-y-3 text-sm leading-relaxed [&_code]:rounded-sm [&_code]:bg-fill-1 [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_details]:rounded-md [&_details]:border [&_details]:border-border [&_details]:p-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:font-medium [&_hr]:border-border [&_img]:max-w-full [&_li]:ml-4 [&_ol]:list-decimal [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-fill-1 [&_pre]:p-2 [&_summary]:cursor-pointer [&_summary]:text-muted-foreground [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5 [&_td]:whitespace-nowrap [&_th]:border [&_th]:border-border [&_th]:bg-fill-1 [&_th]:px-2 [&_th]:py-0.5 [&_th]:font-medium [&_th]:whitespace-nowrap [&_ul]:list-disc">
       <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]}>
         {text}
       </Markdown>
@@ -72,12 +73,13 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
   };
 
   return (
-    <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
         <Icon.pullRequest className="text-muted-foreground size-3.5 shrink-0" />
         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">#{pull.number}</span>
         <span className="truncate text-sm font-medium">{pull.title}</span>
-        <Badge className="bg-added shrink-0 rounded-sm px-1.5 py-0 text-2xs text-white">
+        <Badge className="bg-fill-2 text-muted-foreground text-2xs shrink-0 gap-1.5 rounded-md px-2 py-0.5">
+          <span className={cn('size-1.5 rounded-full', pull.draft ? 'bg-behind' : 'bg-added')} />
           {pull.draft ? t('pull.draft') : t('pull.open')}
         </Badge>
 
@@ -135,13 +137,13 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
               )}
 
               <Separator />
-              <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs tracking-wide uppercase">
+              <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs">
                 <Icon.issue className="size-3.5" />
                 {t('pull.comments', { count: card.comments.length })}
               </h3>
 
               {card.comments.map((comment, i) => (
-                <article key={i} className="bg-card border-border rounded-md border p-3">
+                <article key={i} className="bg-fill-1 rounded-lg p-3">
                   <header className="text-muted-foreground mb-2 flex items-center gap-2 text-xs">
                     <img src={comment.authorAvatarUrl} alt="" className="size-4 rounded-full" />
                     <span className="text-foreground font-medium">{comment.author}</span>

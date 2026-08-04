@@ -63,7 +63,7 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
   }, [repos, query]);
 
   return (
-    <aside className="bg-card border-border flex min-h-0 shrink-0 flex-col border-l lg:w-96">
+    <aside className="flex min-h-0 shrink-0 flex-col border-l lg:w-96">
       <div className="border-border flex h-10 shrink-0 items-center gap-2 border-b px-3">
         <Icon.host className="text-muted-foreground size-3.5" />
         <h2 className="text-sm font-medium">GitHub</h2>
@@ -90,7 +90,7 @@ export function HostRepos({ account, onClone, onConnect }: Props) {
 
       {!account ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <span className="bg-surface-raised flex size-10 items-center justify-center rounded-full">
+          <span className="bg-fill-2 flex size-10 items-center justify-center rounded-full">
             <Icon.host className="text-muted-foreground size-5" />
           </span>
           <p className="text-muted-foreground text-xs leading-relaxed">{t('host.connectHint')}</p>
