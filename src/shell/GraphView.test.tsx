@@ -127,7 +127,6 @@ describe('прокрутка графа', () => {
           redraw={0}
           metrics={METRICS_AVATARS}
           pullHeads={new Set<string>()}
-          veil={null}
           currentBranch={null}
           onSelect={() => {}}
           onCheckoutRef={() => {}}
@@ -174,7 +173,6 @@ describe('прокрутка графа', () => {
         redraw={0}
         metrics={METRICS_AVATARS}
         pullHeads={new Set<string>()}
-        veil={null}
         currentBranch={null}
         onSelect={() => {}}
         onCheckoutRef={() => {}}
@@ -207,7 +205,6 @@ describe('прокрутка графа', () => {
         redraw={0}
         metrics={METRICS_AVATARS}
         pullHeads={new Set<string>()}
-        veil={null}
         currentBranch="main"
         onSelect={() => {}}
         onCheckoutRef={() => {}}
@@ -246,41 +243,6 @@ describe('прокрутка графа', () => {
     ]);
   });
 
-  it('вуаль с подписью закрывает граф на время операции и уходит вместе с ней', () => {
-    const rows = new RowCache();
-    rows.put(0, window());
-
-    const view = (veil: string | null) => (
-      <GraphView
-        session={sessionWith(CHUNK)}
-        avatars={null}
-        rows={rows}
-        redraw={0}
-        metrics={METRICS_AVATARS}
-        pullHeads={new Set<string>()}
-        veil={veil}
-        currentBranch={null}
-        onSelect={() => {}}
-        onCheckoutRef={() => {}}
-        onRun={() => {}}
-        onCopy={() => {}}
-        onAsk={() => {}}
-        onWorktree={() => {}}
-        onOpenUrl={() => {}}
-        onNeed={() => {}}
-        message=""
-        onMessage={() => {}}
-        onCommit={() => {}}
-      />
-    );
-
-    const { container, rerender, queryByText } = render(view('Переключаемся на wip…'));
-    expect(queryByText('Переключаемся на wip…'), 'подпись видна').not.toBeNull();
-    expect(container.querySelector('canvas'), 'граф под вуалью остаётся').not.toBeNull();
-
-    rerender(view(null));
-    expect(queryByText('Переключаемся на wip…'), 'вуаль ушла').toBeNull();
-  });
 
   it('рендер App с новыми колбэками не сбрасывает прокрутку наверх', async () => {
     const rows = new RowCache();
@@ -294,7 +256,6 @@ describe('прокрутка графа', () => {
         redraw={redraw}
         metrics={METRICS_AVATARS}
         pullHeads={new Set<string>()}
-        veil={null}
         currentBranch={null}
         onSelect={() => {}}
         onCheckoutRef={() => {}}

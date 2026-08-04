@@ -13,28 +13,18 @@ export const notifyError = (error: unknown) => {
   return toast.error(shown.message, { description: shown.detail ?? undefined });
 };
 
-export const operationLabel = (operation: Operation) => {
-  const kind = operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
-  return t('operation.started', { what: t(`operation.${kind}` as 'operation.fetchDryRun') });
-};
+const outcomeKind = (operation: Operation) =>
+  operation.kind === 'fetchInto' && operation.remote === '.' ? 'fastForward' : operation.kind;
 
-const toastKind = (operation: Operation) =>
-  operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
-
-export const notifyOperation = (operation: Operation, stage: 'started' | 'finished') => {
-  const kind = toastKind(operation);
-  const what = t(`operation.${kind}` as 'operation.fetchDryRun');
-  return stage === 'started'
-    ? toast.loading(operationLabel(operation), { id: kind })
-    : toast.success(t('operation.finished', { what }), { id: kind });
-};
+export const notifyOperation = (operation: Operation) =>
+  toast.success(t(`toast.done.${outcomeKind(operation)}` as 'toast.done.pull'));
 
 export const notifyOperationFailed = (operation: Operation, error: unknown) => {
-  const kind = toastKind(operation);
-  const what = t(`operation.${kind}` as 'operation.fetchDryRun');
   const shown = describeError(error, i18next.getFixedT(null, 'errors'));
   const description = [shown.message, shown.detail].filter(Boolean).join('\n');
-  return toast.error(t('operation.failed', { what }), { id: kind, description });
+  return toast.error(t(`toast.fail.${outcomeKind(operation)}` as 'toast.fail.pull'), {
+    description,
+  });
 };
 
 export const dismissAll = () => toast.dismiss();

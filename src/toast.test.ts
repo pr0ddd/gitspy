@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
+import i18next from './i18n';
 import { notifyOperation, notifyOperationFailed } from './toast';
 import type { Operation } from './types';
 
@@ -15,42 +16,72 @@ vi.mock('sonner', () => {
   };
 });
 
-const pull: Operation = { kind: 'pull' };
+const EVERY_KIND: Record<Operation['kind'], null> = {
+  writeCommitGraph: null,
+  fetchDryRun: null,
+  fetch: null,
+  pull: null,
+  push: null,
+  pushSetUpstream: null,
+  checkout: null,
+  checkoutTracking: null,
+  branch: null,
+  branchAt: null,
+  branchDelete: null,
+  branchRename: null,
+  amendMessage: null,
+  merge: null,
+  mergeAbort: null,
+  mergeContinue: null,
+  rebase: null,
+  cherryPick: null,
+  revert: null,
+  drop: null,
+  reset: null,
+  tagAt: null,
+  annotatedTagAt: null,
+  worktreeAdd: null,
+  fetchInto: null,
+  pushBranch: null,
+  pushDelete: null,
+  stash: null,
+  stashPop: null,
+};
 
-describe('жизнь тоста операции', () => {
+describe('тосты — только исход действия, словами человека', () => {
   beforeEach(() => {
     vi.mocked(toast.loading).mockClear();
+    vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
   });
 
-  it('провал гасит спиннер операции, а не оставляет его крутиться рядом с ошибкой', () => {
-    notifyOperation(pull, 'started');
-    notifyOperationFailed(pull, { code: 'exec.pullDiverged', params: {} });
-    const loadingId = vi.mocked(toast.loading).mock.calls[0]?.[1]?.id;
-    const [, errorOptions] = vi.mocked(toast.error).mock.calls[0] ?? [];
-    expect(loadingId, 'loading-тост обязан иметь id, иначе его не заменить').toBeTruthy();
-    expect(
-      errorOptions?.id,
-      'тост ошибки обязан заменить loading-тост по тому же id',
-    ).toBe(loadingId);
+  it('запуск не рождает ни одного тоста — индикатор живёт у кнопки', () => {
+    notifyOperation({ kind: 'pull' });
+    expect(vi.mocked(toast.loading).mock.calls.length, 'спиннер-тостов больше нет').toBe(0);
+    expect(vi.mocked(toast.success).mock.calls.length).toBe(1);
   });
 
-  it('провал push с установкой upstream гасит тот же спиннер, что и обычный push', () => {
-    const push: Operation = { kind: 'pushSetUpstream', remote: 'origin', branch: 'master' };
-    notifyOperation(push, 'started');
-    notifyOperationFailed(push, { code: 'exec.rejected', params: {} });
-    expect(vi.mocked(toast.error).mock.calls[0]?.[1]?.id).toBe(
-      vi.mocked(toast.loading).mock.calls[0]?.[1]?.id,
-    );
+  it('исход назван фразой, а не склейкой «branch finished»', () => {
+    notifyOperation({ kind: 'branch', name: 'wip', checkout: false });
+    expect(String(vi.mocked(toast.success).mock.calls[0]?.[0])).toBe('Branch created');
   });
 
-  it('текст ошибки — человеческая фраза по коду, а не только «git failed»', () => {
-    notifyOperationFailed(pull, { code: 'exec.pullDiverged', params: {} });
+  it('у каждой операции закрытого списка есть фразы исхода и провала', () => {
+    for (const kind of Object.keys(EVERY_KIND)) {
+      expect(i18next.exists(`toast.done.${kind}`), `нет toast.done.${kind}`).toBe(true);
+      expect(i18next.exists(`toast.fail.${kind}`), `нет toast.fail.${kind}`).toBe(true);
+    }
+  });
+
+  it('локальный fast-forward не называется fetch', () => {
+    notifyOperation({ kind: 'fetchInto', remote: '.', from: 'origin/main', into: 'main' });
+    expect(String(vi.mocked(toast.success).mock.calls[0]?.[0])).toMatch(/fast-forward/i);
+  });
+
+  it('провал — error с человеческим заголовком и объяснением', () => {
+    notifyOperationFailed({ kind: 'pull' }, { code: 'exec.pullDiverged', params: {} });
     const [title, options] = vi.mocked(toast.error).mock.calls[0] ?? [];
-    expect(String(title), 'заголовок называет операцию').toMatch(/pull failed/i);
-    expect(
-      String(options?.description ?? ''),
-      'описание объясняет расхождение веток словами, а не кодом',
-    ).toMatch(/diverged/i);
+    expect(String(title)).toBe('Pull failed');
+    expect(String(options?.description ?? '')).toMatch(/diverged/i);
   });
 });
