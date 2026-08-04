@@ -323,7 +323,7 @@ export function Sidebar({
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {groups.map((group) => {
           const shown = needle
             ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
@@ -422,17 +422,15 @@ type SectionProps = {
 
 function Section({ title, count, open, onToggle, children }: SectionProps) {
   return (
-    <section
-      className={cn('mt-3 flex flex-col first:mt-0', open ? 'min-h-24 shrink' : 'shrink-0')}
-    >
-      <SectionHeader onClick={onToggle}>
+    <section className="mt-3 first:mt-0">
+      <SectionHeader onClick={onToggle} className="bg-background sticky top-0 z-10">
         <Icon.chevron
           className={cn('text-faint size-3 shrink-0 transition-transform', open && 'rotate-90')}
         />
         <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         <span className="text-faint shrink-0 tabular-nums">{count ?? ''}</span>
       </SectionHeader>
-      {open ? <div className="min-h-0 flex-1 overflow-y-auto">{children}</div> : null}
+      {open ? <div>{children}</div> : null}
     </section>
   );
 }
