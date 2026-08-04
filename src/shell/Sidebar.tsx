@@ -443,7 +443,7 @@ function Section({ title, count, open, onToggle, children }: SectionProps) {
           type="always"
           className="animate-in fade-in slide-in-from-top-1 min-h-0 flex-1 duration-150"
         >
-          {children}
+          <div className="pr-2.5">{children}</div>
         </ScrollArea>
       ) : null}
     </section>
