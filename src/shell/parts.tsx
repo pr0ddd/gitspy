@@ -142,26 +142,14 @@ export function PanelBanner({
     <button
       onClick={onClick}
       className={cn(
-        'border-border flex h-8 shrink-0 items-center gap-2 border-b px-3 text-left transition-colors',
+        'flex h-bar shrink-0 items-center gap-3 px-4 text-left transition-colors',
         tone === 'conflict'
-          ? 'bg-conflict/15 hover:bg-conflict/25'
-          : 'bg-primary/15 hover:bg-primary/25',
+          ? 'bg-conflict text-destructive-foreground hover:bg-conflict/90'
+          : 'bg-primary text-primary-foreground hover:bg-primary-hover',
       )}
     >
-      <span
-        className={cn(
-          'flex-1 truncate text-xs',
-          tone === 'conflict' ? 'text-conflict' : 'text-primary',
-        )}
-      >
-        {label}
-      </span>
-      <span
-        className={cn(
-          'shrink-0 text-xs font-medium',
-          tone === 'conflict' ? 'text-conflict' : 'text-primary',
-        )}
-      >
+      <span className="flex-1 truncate text-xs">{label}</span>
+      <span className="shrink-0 rounded-md border border-current px-2.5 py-1 text-xs font-medium">
         {action}
       </span>
     </button>
