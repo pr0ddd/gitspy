@@ -78,8 +78,12 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
         <Icon.pullRequest className="text-muted-foreground size-3.5 shrink-0" />
         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">#{pull.number}</span>
         <span className="truncate text-sm font-medium">{pull.title}</span>
-        <Badge className="bg-fill-2 text-muted-foreground text-2xs shrink-0 gap-1.5 rounded-md px-2 py-0.5">
-          <span className={cn('size-1.5 rounded-full', pull.draft ? 'bg-behind' : 'bg-added')} />
+        <Badge
+          className={cn(
+            'bg-fill-2 text-2xs shrink-0 rounded-md px-2 py-0.5',
+            pull.draft ? 'text-behind' : 'text-added',
+          )}
+        >
           {pull.draft ? t('pull.draft') : t('pull.open')}
         </Badge>
 

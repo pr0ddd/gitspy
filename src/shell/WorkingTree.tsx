@@ -131,19 +131,14 @@ function MergeHeading({ from, into }: { from: string | null; into: string | null
       {t('workingTree.merging')}
       {from ? (
         <Badge className="bg-fill-2 text-muted-foreground text-2xs gap-1.5 rounded-md px-2 py-0.5">
-          <span
-            className={cn(
-              'size-1.5 rounded-full',
-              from.includes('/') ? 'bg-ref-remote' : 'bg-ref-local',
-            )}
-          />
+          {from.includes('/') ? <Icon.remote className="size-3" /> : <Icon.branch className="size-3" />}
           {from}
         </Badge>
       ) : null}
       {t('workingTree.into')}
       {into ? (
         <Badge className="bg-fill-2 text-muted-foreground text-2xs gap-1.5 rounded-md px-2 py-0.5">
-          <span className="bg-ref-local size-1.5 rounded-full" />
+          <Icon.branch className="size-3" />
           {into}
         </Badge>
       ) : null}
