@@ -18,7 +18,10 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSet
   const { t } = useTranslation();
 
   return (
-    <nav className="flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto px-2">
+    <nav
+      data-tauri-drag-region
+      className="flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto pr-2 pl-20"
+    >
       {sessions.map((session) => {
         const current = session.path === active;
         return (
