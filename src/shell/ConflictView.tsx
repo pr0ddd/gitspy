@@ -129,15 +129,16 @@ function SidePane({
           onCheckedChange={(next) => onAll(next === true)}
           className="size-3.5"
         />
-        <Badge
-          className={cn(
-            'rounded-sm px-1.5 py-0 text-2xs text-white',
-            side === 'a' ? 'bg-ref-local' : 'bg-ref-remote',
-          )}
-        >
+        <Badge className="bg-fill-2 text-muted-foreground text-2xs gap-1.5 rounded-md px-2 py-0.5">
+          <span
+            className={cn(
+              'size-1.5 rounded-full',
+              side === 'a' ? 'bg-added' : 'bg-modified',
+            )}
+          />
           {side === 'a' ? t('conflict.sideA') : t('conflict.sideB')}
         </Badge>
-        <span className="min-w-0 flex-1 truncate text-left normal-case">{branch ?? ''}</span>
+        <span className="min-w-0 flex-1 truncate text-left">{branch ?? ''}</span>
       </SectionHeader>
       <div ref={refFor} className="min-h-0 flex-1 overflow-auto py-1">
         {blocks.map((block, at) => {
@@ -241,7 +242,7 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
 
   let outNo = 0;
   return (
-    <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
         <Icon.conflict className="text-conflict size-3.5 shrink-0" />
         <span className="flex min-w-0 items-baseline text-xs">

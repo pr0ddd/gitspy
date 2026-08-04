@@ -21,7 +21,7 @@ export class Boundary extends Component<Props, State> {
     return (
       <div className="bg-surface text-foreground flex h-full flex-col items-center justify-center gap-4 p-8">
         <h1 className="text-lg font-semibold tracking-tight">Отрисовка сорвалась</h1>
-        <pre className="bg-card border-border text-destructive max-w-2xl overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap">
+        <pre className="bg-fill-1 text-destructive max-w-2xl overflow-auto rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
           {error.message}
         </pre>
         <button

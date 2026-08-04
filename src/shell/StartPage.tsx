@@ -51,7 +51,7 @@ export function StartPage({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="bg-card border-border flex shrink-0 items-center justify-between border-b px-4 py-2.5">
+      <header className="flex shrink-0 items-center justify-between px-5 py-3">
         <div>
           <h1 className="text-sm font-medium">{t('start.title')}</h1>
           <p className="text-muted-foreground text-xs">
@@ -78,7 +78,7 @@ export function StartPage({
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-3">
-            <h2 className="text-muted-foreground mb-2 px-1 text-xs tracking-wide uppercase">
+            <h2 className="text-muted-foreground mb-2 px-1 text-xs">
               {t('start.recent')}
             </h2>
 
@@ -99,7 +99,7 @@ export function StartPage({
                   >
                     <div
                       className={cn(
-                        'bg-card border-border hover:border-primary/40 hover:bg-surface-hover flex items-center gap-3 rounded-md border pr-2 transition-colors',
+                        'hover:bg-fill-1 flex items-center gap-3 rounded-lg pr-2 transition-colors',
                         !entry.exists && 'opacity-40',
                       )}
                     >
@@ -108,7 +108,7 @@ export function StartPage({
                           onClick={() => entry.exists && onOpenPath(entry.path)}
                           className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
                         >
-                          <span className="bg-surface-raised flex size-7 shrink-0 items-center justify-center rounded-md">
+                          <span className="bg-fill-2 flex size-7 shrink-0 items-center justify-center rounded-md">
                             <Icon.branch className="text-muted-foreground size-3.5" />
                           </span>
 

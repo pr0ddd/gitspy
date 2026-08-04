@@ -107,7 +107,7 @@ export function AskDialog({ ask, onOpenChange, onRun }: Props) {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && run()}
             rows={4}
-            className="border-input bg-surface-raised text-foreground focus:border-ring w-full resize-none rounded-sm border px-2 py-1.5 text-sm outline-none"
+            className="bg-fill-1 text-foreground focus:bg-fill-2 w-full resize-none rounded-md px-2.5 py-1.5 text-sm outline-none"
           />
         ) : (
           <Input
