@@ -9,6 +9,7 @@ export type Theme = {
   border: string;
   surface: string;
   surfaceRaised: string;
+  panel: string;
   rowLine: string;
   rowHover: string;
   rowSelected: string;
@@ -53,6 +54,7 @@ const build = (): Theme => ({
   border: token('--border'),
   surface: token('--surface'),
   surfaceRaised: token('--surface-raised'),
+  panel: token('--card'),
   rowLine: mix('--border', 55),
   rowHover: mix('--surface-hover', 70),
   rowSelected: token('--surface-hover'),

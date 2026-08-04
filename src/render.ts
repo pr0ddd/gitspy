@@ -159,7 +159,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = t.surface;
+  ctx.fillStyle = t.panel;
   ctx.fillRect(0, 0, width, height);
 
   const listW = listWidth(width);
@@ -292,7 +292,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 5;
-        ctx.fillStyle = t.surface;
+        ctx.fillStyle = t.panel;
         ctx.beginPath();
         ctx.arc(x, y, m.nodeR + 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -301,7 +301,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       if (row.kind === 'workingTree') {
         ctx.save();
-        ctx.fillStyle = t.surface;
+        ctx.fillStyle = t.panel;
         ctx.beginPath();
         ctx.arc(x, y, m.nodeR - 1, 0, Math.PI * 2);
         ctx.fill();
@@ -735,7 +735,7 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
   const top = MINIMAP_TOP;
   const band = minimapBand(height);
 
-  ctx.fillStyle = theme().surface;
+  ctx.fillStyle = theme().panel;
   ctx.fillRect(x0, top, width - x0, band);
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.fillRect(x0, top, 1, band);
