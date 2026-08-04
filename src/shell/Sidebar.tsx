@@ -332,7 +332,7 @@ export function Sidebar({
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2">
         {groups.map((group) => {
           const shown = needle
             ? group.entries.filter((e) => e.label.toLowerCase().includes(needle))
@@ -432,10 +432,7 @@ type SectionProps = {
 function Section({ title, count, open, onToggle, children }: SectionProps) {
   return (
     <section
-      className={cn(
-        'mt-3 flex flex-col first:mt-0',
-        open ? 'min-h-32 flex-1 basis-0' : 'shrink-0',
-      )}
+      className={cn('mt-3 flex flex-col first:mt-0', open ? 'min-h-24 shrink' : 'shrink-0')}
     >
       <SectionHeader onClick={onToggle}>
         <Icon.chevron
