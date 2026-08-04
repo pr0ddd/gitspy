@@ -54,8 +54,8 @@ function Selector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="hover:bg-surface-hover flex min-w-0 flex-col rounded-md px-2 py-0.5 text-left transition-colors">
-          <span className="text-muted-foreground text-2xs lowercase">{label}</span>
+        <button className="hover:bg-fill-1 flex min-w-0 flex-col rounded-md px-2 py-0.5 text-left transition-colors">
+          <span className="text-faint text-2xs">{label}</span>
           <span className="flex items-center gap-1">
             <span className="max-w-40 truncate text-sm font-medium">{value}</span>
             <Icon.more className="text-muted-foreground size-3 shrink-0" />
@@ -102,10 +102,10 @@ export function Toolbar({
   };
 
   return (
-    <div className="bg-card border-border flex shrink-0 items-center gap-2 border-b px-2 py-1">
+    <div className="flex shrink-0 items-center gap-2 px-2 py-1">
       <div className="flex min-w-0 shrink-0 items-center gap-1">
         <Selector label={t('toolbar.repositoryLabel')} value={session?.name ?? '—'}>
-          <DropdownMenuLabel className="text-2xs uppercase">
+          <DropdownMenuLabel className="text-2xs">
             {t('toolbar.openRepositories')}
           </DropdownMenuLabel>
           {sessions.map((open) => (
@@ -117,7 +117,7 @@ export function Toolbar({
         </Selector>
 
         <Selector label={t('toolbar.branchLabel')} value={head?.name ?? '—'}>
-          <DropdownMenuLabel className="text-2xs uppercase">{GIT.local}</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-2xs">{GIT.local}</DropdownMenuLabel>
           {branches.map((ref) => (
             <DropdownMenuItem
               key={`${ref.kind}:${ref.name}`}
@@ -168,10 +168,9 @@ export function Toolbar({
               <Button
                 key={label}
                 variant="ghost"
-                size="sm"
+                size="xs"
                 disabled={busy}
                 onClick={() => (terminal ? onTerminal() : onAsk(asks!))}
-                className="h-7 gap-1.5 px-2.5"
               >
                 <Glyph className="size-3.5" />
                 {label}
@@ -181,14 +180,14 @@ export function Toolbar({
           const hint =
             runnable?.kind === 'pushSetUpstream' ? t('toolbar.noUpstream') : why(operation);
           const spinning = runnable !== null && running === runnable.kind;
+          const primary = operation?.kind === 'push' && runnable !== null && !busy;
 
           const button = (
             <Button
-              variant="ghost"
-              size="sm"
+              variant={primary ? 'default' : 'ghost'}
+              size="xs"
               disabled={!runnable || busy}
               onClick={() => runnable && onRun(runnable)}
-              className="h-7 gap-1.5 px-2.5"
             >
               {spinning ? (
                 <Icon.waiting className="size-3.5 animate-spin" />
@@ -196,6 +195,9 @@ export function Toolbar({
                 <Glyph className="size-3.5" />
               )}
               {label}
+              {primary && tree && tree.ahead > 0 ? (
+                <span className="tabular-nums opacity-85">{tree.ahead}</span>
+              ) : null}
             </Button>
           );
 

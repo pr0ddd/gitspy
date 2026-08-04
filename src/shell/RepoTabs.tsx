@@ -18,7 +18,7 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSet
   const { t } = useTranslation();
 
   return (
-    <nav className="bg-surface border-border flex shrink-0 items-stretch gap-px overflow-x-auto border-b">
+    <nav className="flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto px-2">
       {sessions.map((session) => {
         const current = session.path === active;
         return (
@@ -26,10 +26,10 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSet
             <div
               onClick={() => onActivate(session.path)}
               className={cn(
-                'group flex max-w-56 cursor-pointer items-center gap-2 border-t-2 py-1.5 pr-2 pl-3 whitespace-nowrap transition-colors',
+                'group flex h-7 max-w-56 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-2.5 whitespace-nowrap transition-colors',
                 current
-                  ? 'border-t-primary bg-card text-foreground'
-                  : 'text-muted-foreground hover:bg-surface-hover border-t-transparent',
+                  ? 'bg-fill-2 text-foreground'
+                  : 'text-muted-foreground hover:bg-fill-1',
               )}
             >
               <Icon.branch className="size-3 shrink-0 opacity-70" />
@@ -55,7 +55,7 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSet
           variant="ghost"
           size="icon"
           onClick={onStart}
-          className={cn('my-1 ml-1 size-6', active === null && 'bg-surface-hover text-foreground')}
+          className={cn('ml-1 size-6.5', active === null && 'bg-fill-2 text-foreground')}
         >
           <Icon.add className="size-3.5" />
         </Button>
@@ -66,7 +66,7 @@ export function RepoTabs({ sessions, active, onActivate, onClose, onStart, onSet
           variant="ghost"
           size="icon"
           onClick={onSettings}
-          className="text-muted-foreground my-1 mr-1 ml-auto size-6"
+          className="text-muted-foreground mr-1 ml-auto size-6.5"
         >
           <Icon.settings className="size-3.5" />
         </Button>
