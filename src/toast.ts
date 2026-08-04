@@ -13,18 +13,18 @@ export const notifyError = (error: unknown) => {
   return toast.error(shown.message, { description: shown.detail ?? undefined });
 };
 
-const whatOf = (operation: Operation) => {
-  const kind = operation.kind === 'pushSetUpstream' ? 'push' : operation.kind;
-  return t(`operation.${kind}` as 'operation.fetchDryRun');
-};
+const outcomeKind = (operation: Operation) =>
+  operation.kind === 'fetchInto' && operation.remote === '.' ? 'fastForward' : operation.kind;
 
 export const notifyOperation = (operation: Operation) =>
-  toast.success(t('operation.finished', { what: whatOf(operation) }));
+  toast.success(t(`toast.done.${outcomeKind(operation)}` as 'toast.done.pull'));
 
 export const notifyOperationFailed = (operation: Operation, error: unknown) => {
   const shown = describeError(error, i18next.getFixedT(null, 'errors'));
   const description = [shown.message, shown.detail].filter(Boolean).join('\n');
-  return toast.error(t('operation.failed', { what: whatOf(operation) }), { description });
+  return toast.error(t(`toast.fail.${outcomeKind(operation)}` as 'toast.fail.pull'), {
+    description,
+  });
 };
 
 export const dismissAll = () => toast.dismiss();
