@@ -3,6 +3,7 @@ import type { RefKind } from './types';
 export type Theme = {
   graph: string[];
   ref: Record<RefKind, string>;
+  refSoft: Record<RefKind, string>;
   foreground: string;
   muted: string;
   faint: string;
@@ -52,6 +53,12 @@ const build = (): Theme => ({
     remoteBranch: token('--ref-remote'),
     tag: token('--ref-tag'),
     stash: token('--ref-stash'),
+  },
+  refSoft: {
+    localBranch: mix('--ref-local', 30),
+    remoteBranch: mix('--ref-remote', 30),
+    tag: mix('--ref-tag', 30),
+    stash: mix('--ref-stash', 30),
   },
   foreground: token('--foreground'),
   muted: token('--muted-foreground'),
