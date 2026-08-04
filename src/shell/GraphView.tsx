@@ -552,7 +552,7 @@ export function GraphView({
             }}
             onWheel={(e) => e.stopPropagation()}
             placeholder={t('workingTree.messagePlaceholder')}
-            className="border-input bg-surface-raised text-foreground focus:border-ring h-full w-full rounded-sm border px-2 text-sm outline-none"
+            className="bg-fill-1 text-foreground focus:bg-fill-2 h-full w-full rounded-md px-2.5 text-sm outline-none"
           />
         </div>
         {session?.loading ? (
