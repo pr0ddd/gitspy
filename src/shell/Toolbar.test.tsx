@@ -10,6 +10,9 @@ const tree = (patch: Partial<WorkingTreeView>): WorkingTreeView => ({
   behind: 0,
   staged: 0,
   unstaged: 0,
+  conflicts: 0,
+  inProgress: null,
+  merging: null,
   entries: [],
   ...patch,
 });

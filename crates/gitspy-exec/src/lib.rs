@@ -28,6 +28,19 @@ pub fn helper_for(url: &str) -> String {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConflictSides {
+    pub base: String,
+    pub ours: String,
+    pub theirs: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeHeading {
+    pub from: Option<String>,
+    pub subject: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     GitNotFound,
     Spawn { detail: String },
@@ -285,6 +298,151 @@ impl Git {
         let before = self.file_at(repo, "", path)?;
         let after = std::fs::read_to_string(repo.join(path)).unwrap_or_default();
         Ok((before, after))
+    }
+
+    pub fn merge_heading(&self, repo: &Path) -> Option<MergeHeading> {
+        let text = std::fs::read_to_string(self.git_dir(repo).join("MERGE_MSG")).ok()?;
+        let subject = text.lines().next()?.to_string();
+        let from = subject
+            .split('\'')
+            .nth(1)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string);
+        Some(MergeHeading { from, subject })
+    }
+
+    pub fn conflict_sides(&self, repo: &Path, path: &str) -> Result<ConflictSides, Error> {
+        Ok(ConflictSides {
+            base: self.stage_content(repo, 1, path)?,
+            ours: self.stage_content(repo, 2, path)?,
+            theirs: self.stage_content(repo, 3, path)?,
+        })
+    }
+
+    fn stage_content(&self, repo: &Path, stage: u8, path: &str) -> Result<String, Error> {
+        match self.read_raw(repo, &["show", &format!(":{stage}:{path}")]) {
+            Ok(text) => Ok(text),
+            Err(Error::Failed { .. }) => Ok(String::new()),
+            Err(other) => Err(other),
+        }
+    }
+
+    pub fn conflict_merged(&self, repo: &Path, path: &str) -> Result<String, Error> {
+        let spawn_error = |e: std::io::Error| Error::Spawn {
+            detail: e.to_string(),
+        };
+        let sides = self.conflict_sides(repo, path)?;
+        let dir = tempfile::tempdir().map_err(spawn_error)?;
+        let stage = |name: &str, text: &str| -> Result<std::path::PathBuf, Error> {
+            let file = dir.path().join(name);
+            std::fs::write(&file, text).map_err(spawn_error)?;
+            Ok(file)
+        };
+
+        let out = self
+            .prepared(None)
+            .arg("-C")
+            .arg(repo)
+            .args(["merge-file", "-p", "--diff3"])
+            .arg(stage("ours", &sides.ours)?)
+            .arg(stage("base", &sides.base)?)
+            .arg(stage("theirs", &sides.theirs)?)
+            .stdin(Stdio::null())
+            .output()
+            .map_err(spawn_error)?;
+
+        match out.status.code() {
+            Some(conflicts) if conflicts >= 0 => {
+                Ok(String::from_utf8_lossy(&out.stdout).to_string())
+            }
+            code => Err(Error::Failed {
+                code,
+                stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+            }),
+        }
+    }
+
+    pub fn diff_unified(&self, repo: &Path, path: &str, staged: bool) -> Result<String, Error> {
+        let mut args = vec!["diff", "--no-color", "--no-ext-diff"];
+        if staged {
+            args.push("--cached");
+        }
+        args.extend(["--", path]);
+        self.read_raw(repo, &args)
+    }
+
+    pub fn apply_patch(
+        &self,
+        repo: &Path,
+        patch: &str,
+        cached: bool,
+        reverse: bool,
+    ) -> Result<(), Error> {
+        let spawn_error = |e: std::io::Error| Error::Spawn {
+            detail: e.to_string(),
+        };
+        let mut args = vec!["apply", "--whitespace=nowarn"];
+        if cached {
+            args.push("--cached");
+        }
+        if reverse {
+            args.push("-R");
+        }
+
+        let mut child = self
+            .prepared(None)
+            .arg("-C")
+            .arg(repo)
+            .args(&args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(spawn_error)?;
+
+        use std::io::Write;
+        child
+            .stdin
+            .take()
+            .expect("stdin запрошен")
+            .write_all(patch.as_bytes())
+            .map_err(spawn_error)?;
+
+        let out = child.wait_with_output().map_err(spawn_error)?;
+        if !out.status.success() {
+            return Err(Error::Failed {
+                code: out.status.code(),
+                stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    fn read_raw(&self, repo: &Path, args: &[&str]) -> Result<String, Error> {
+        let out = self
+            .prepared(None)
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .stdin(Stdio::null())
+            .output()
+            .map_err(|e| Error::Spawn {
+                detail: e.to_string(),
+            })?;
+        if !out.status.success() {
+            return Err(Error::Failed {
+                code: out.status.code(),
+                stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+            });
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    }
+
+    pub fn resolve_file(&self, repo: &Path, path: &str, content: &str) -> Result<(), Error> {
+        std::fs::write(repo.join(path), content).map_err(|e| Error::Spawn {
+            detail: e.to_string(),
+        })?;
+        self.read(repo, &["add", "--", path]).map(|_| ())
     }
 
     pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {

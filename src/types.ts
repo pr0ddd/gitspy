@@ -13,6 +13,7 @@ export type { Operation } from './generated/Operation';
 export type { PathOperation } from './generated/PathOperation';
 export type { StatusEntryView } from './generated/StatusEntryView';
 export type { WorkingTreeView } from './generated/WorkingTreeView';
+export type { ConflictFileView } from './generated/ConflictFileView';
 export type { OperationOutcome } from './generated/OperationOutcome';
 export type { Progress } from './generated/Progress';
 export type { RecentRepo } from './generated/RecentRepo';

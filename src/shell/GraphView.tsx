@@ -35,6 +35,7 @@ import type { RowCache } from '../rows';
 import type { Ask } from './AskDialog';
 import type { Operation, RefView } from '../types';
 import { GIT } from '../vocabulary';
+import { wipInputShown } from '../wip';
 
 type Props = {
   session: Session | null;
@@ -102,6 +103,8 @@ export function GraphView({
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const wip = rows.row(0);
+  const conflicted = wip?.kind === 'workingTree' && wip.conflicts > 0 ? wip.conflicts : 0;
   const columns = {
     branchTag: GIT.branchTag,
     graph: GIT.graph,
@@ -111,6 +114,9 @@ export function GraphView({
     sha: GIT.sha,
     workingTree: GIT.workingTree,
     inProgress: t('graph.inProgress'),
+    mergeConflicts: conflicted
+      ? t('graph.mergeConflicts', { count: conflicted, branch: currentBranch ?? '' })
+      : '',
   };
   const frameRef = useRef<Frame>(emptyFrame(metrics, rows, columns));
   const rafRef = useRef<number | null>(null);
@@ -143,8 +149,7 @@ export function GraphView({
 
     const f = frameRef.current;
     const first = f.repo ? Math.max(0, Math.floor(f.scrollY / f.metrics.rowH)) : 0;
-    const row = f.rows.row(0);
-    const shown = row?.kind === 'workingTree' && first === 0;
+    const shown = wipInputShown(f.rows.row(0), first);
 
     box.style.display = shown ? 'block' : 'none';
     if (!shown) return;
@@ -357,7 +362,12 @@ export function GraphView({
       if (chipTarget) {
         if (!chipTarget.chip) return;
         const sections = buildChipMenu(chipTarget.chip, menuContext());
-        if (sections.length) void showNativeMenu(sections, (key, params) => t(key as 'menu.copyBranch', params), onMenuAction);
+        if (sections.length)
+          void showNativeMenu(
+            sections,
+            (key, params) => t(key as 'menu.copyBranch', params),
+            onMenuAction,
+          );
         return;
       }
 
@@ -530,48 +540,48 @@ export function GraphView({
     >
       <canvas ref={canvasRef} className="absolute inset-0 block size-full" />
 
-      <div
-        ref={inputRef}
-        className="absolute top-0 left-0 hidden"
-        style={{ willChange: 'transform' }}
-      >
-        <input
-          value={message}
-          onChange={(e) => onMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit();
-            e.stopPropagation();
-          }}
-          onWheel={(e) => e.stopPropagation()}
-          placeholder={t('workingTree.messagePlaceholder')}
-          className="border-input bg-surface-raised text-foreground focus:border-ring h-full w-full rounded-sm border px-2 text-sm outline-none"
-        />
-      </div>
-      {session?.loading ? (
         <div
-          className="text-muted-foreground pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
-          style={{ right: MINIMAP_W }}
+          ref={inputRef}
+          className="absolute top-0 left-0 hidden"
+          style={{ willChange: 'transform' }}
         >
-          <Icon.waiting className="size-5 animate-spin" />
-          <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
+          <input
+            value={message}
+            onChange={(e) => onMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit();
+              e.stopPropagation();
+            }}
+            onWheel={(e) => e.stopPropagation()}
+            placeholder={t('workingTree.messagePlaceholder')}
+            className="border-input bg-surface-raised text-foreground focus:border-ring h-full w-full rounded-sm border px-2 text-sm outline-none"
+          />
         </div>
-      ) : null}
+        {session?.loading ? (
+          <div
+            className="text-muted-foreground pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
+            style={{ right: MINIMAP_W }}
+          >
+            <Icon.waiting className="size-5 animate-spin" />
+            <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
+          </div>
+        ) : null}
 
-      {veil !== null ? (
-        <div className="bg-background/60 text-foreground animate-in fade-in fill-mode-backwards absolute inset-0 flex flex-col items-center justify-center gap-2 backdrop-blur-xs delay-150 duration-200">
-          <Icon.waiting className="size-5 animate-spin" />
-          <span className="text-sm">{veil}</span>
-        </div>
-      ) : null}
+        {veil !== null ? (
+          <div className="bg-background/60 text-foreground animate-in fade-in fill-mode-backwards absolute inset-0 flex flex-col items-center justify-center gap-2 backdrop-blur-xs delay-150 duration-200">
+            <Icon.waiting className="size-5 animate-spin" />
+            <span className="text-sm">{veil}</span>
+          </div>
+        ) : null}
 
-      {!session || (!session.repo && !session.loading) ? (
-        <div
-          className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
-          style={{ right: MINIMAP_W }}
-        >
-          {t('repo.emptyHint')}
-        </div>
-      ) : null}
+        {!session || (!session.repo && !session.loading) ? (
+          <div
+            className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
+            style={{ right: MINIMAP_W }}
+          >
+            {t('repo.emptyHint')}
+          </div>
+        ) : null}
     </div>
   );
 }

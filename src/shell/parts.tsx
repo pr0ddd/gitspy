@@ -132,6 +132,47 @@ export function InlineNote({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function PanelBanner({
+  tone = 'primary',
+  label,
+  action,
+  onClick,
+}: {
+  tone?: 'primary' | 'conflict';
+  label: string;
+  action: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'border-border flex h-8 shrink-0 items-center gap-2 border-b px-3 text-left transition-colors',
+        tone === 'conflict'
+          ? 'bg-conflict/15 hover:bg-conflict/25'
+          : 'bg-primary/15 hover:bg-primary/25',
+      )}
+    >
+      <span
+        className={cn(
+          'flex-1 truncate text-xs',
+          tone === 'conflict' ? 'text-conflict' : 'text-primary',
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          'shrink-0 text-xs font-medium',
+          tone === 'conflict' ? 'text-conflict' : 'text-primary',
+        )}
+      >
+        {action}
+      </span>
+    </button>
+  );
+}
+
 export function PanelNote({ children }: { children: React.ReactNode }) {
   return <p className="text-muted-foreground p-4 text-center text-xs">{children}</p>;
 }

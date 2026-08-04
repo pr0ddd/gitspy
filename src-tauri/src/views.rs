@@ -280,6 +280,14 @@ pub struct StatusEntryView {
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
+pub struct MergingView {
+    pub from: Option<String>,
+    pub subject: String,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct WorkingTreeView {
     pub branch: Option<String>,
     pub upstream: Option<String>,
@@ -288,12 +296,16 @@ pub struct WorkingTreeView {
     pub behind: u32,
     pub staged: usize,
     pub unstaged: usize,
+    pub conflicts: u32,
+    pub in_progress: Option<String>,
+    pub merging: Option<MergingView>,
     pub entries: Vec<StatusEntryView>,
 }
 
 pub fn build_working_tree(
     tree: gitspy_exec::status::WorkingTree,
     remotes: Vec<String>,
+    heading: Option<gitspy_exec::MergeHeading>,
 ) -> WorkingTreeView {
     WorkingTreeView {
         branch: tree.branch.clone(),
@@ -303,6 +315,12 @@ pub fn build_working_tree(
         behind: tree.behind,
         staged: tree.staged(),
         unstaged: tree.unstaged(),
+        conflicts: tree.change_counts().conflicts,
+        in_progress: tree.in_progress.map(|p| p.code().to_string()),
+        merging: heading.map(|h| MergingView {
+            from: h.from,
+            subject: h.subject,
+        }),
         entries: tree
             .entries
             .into_iter()
@@ -487,6 +505,16 @@ pub struct DiffSides {
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
+pub struct ConflictFileView {
+    pub base: String,
+    pub ours: String,
+    pub theirs: String,
+    pub merged: String,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct WindowView {
     pub start: u32,
     pub rows: Vec<RowView>,
@@ -630,5 +658,57 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
         seg_from,
         seg_to,
         seg_colour,
+    }
+}
+
+#[cfg(test)]
+mod working_tree_view_tests {
+    use super::*;
+    use gitspy_exec::status::{InProgress, Side, StatusEntry, WorkingTree};
+
+    #[test]
+    fn the_panel_learns_about_a_merge_and_its_conflicts_from_the_view() {
+        let tree = WorkingTree {
+            branch: Some("main".to_string()),
+            in_progress: Some(InProgress::Merge),
+            entries: vec![StatusEntry {
+                side: Side::Unstaged,
+                letter: 'U',
+                path: "story.txt".to_string(),
+                old_path: None,
+            }],
+            ..WorkingTree::default()
+        };
+
+        let view = build_working_tree(tree, vec![], None);
+        assert_eq!(
+            view.in_progress.as_deref(),
+            Some("merge"),
+            "без этого панели не из чего показать плашку слияния"
+        );
+        assert_eq!(
+            view.conflicts, 1,
+            "готовность продолжить слияние определяется числом конфликтов"
+        );
+    }
+
+    #[test]
+    fn a_calm_tree_reports_no_merge_and_no_conflicts() {
+        let view = build_working_tree(WorkingTree::default(), vec![], None);
+        assert_eq!(view.in_progress, None);
+        assert_eq!(view.conflicts, 0);
+        assert!(view.merging.is_none());
+    }
+
+    #[test]
+    fn the_merge_heading_reaches_the_panel_as_branch_and_subject() {
+        let heading = gitspy_exec::MergeHeading {
+            from: Some("feature".to_string()),
+            subject: "Merge branch 'feature'".to_string(),
+        };
+        let view = build_working_tree(WorkingTree::default(), vec![], Some(heading));
+        let merging = view.merging.expect("панель слияния без заголовка слепа");
+        assert_eq!(merging.from.as_deref(), Some("feature"));
+        assert_eq!(merging.subject, "Merge branch 'feature'");
     }
 }

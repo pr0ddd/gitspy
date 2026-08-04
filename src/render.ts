@@ -47,6 +47,7 @@ import {
   type PlacedChip,
 } from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
+import { wipContent } from './wip';
 
 export { chipAt, placeChips };
 
@@ -75,6 +76,7 @@ export type Columns = {
   readonly sha: string;
   readonly workingTree: string;
   readonly inProgress: string;
+  readonly mergeConflicts: string;
 };
 
 export type HoverChip = { readonly row: number; readonly at: number | 'more' };
@@ -299,11 +301,13 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       if (row.kind === 'workingTree') {
         ctx.save();
+        ctx.fillStyle = t.surface;
+        ctx.beginPath();
+        ctx.arc(x, y, m.nodeR - 1, 0, Math.PI * 2);
+        ctx.fill();
         ctx.setLineDash([3, 2]);
         ctx.strokeStyle = colour;
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR - 1, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
         ctx.lineWidth = GRAPH_W;
@@ -456,6 +460,24 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.font = FONT_CHIP;
 
         const badge = Math.max(9, m.fontPx - 3);
+        if (wipContent(row) === 'conflictBanner') {
+          const bandX = msgX - 10;
+          const bandW = listW - bandX - 4;
+          ctx.save();
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = t.conflict;
+          ctx.fillRect(bandX, yc - half + 1, bandW, m.rowH - 2);
+          ctx.restore();
+          ctx.strokeStyle = t.foreground;
+          strokeGlyphInSlot(ctx, GLYPH.conflict, msgX + 4, yc, badge);
+          ctx.fillStyle = t.foreground;
+          ctx.fillText(
+            fitText(ctx, frame.columns.mergeConflicts, bandW - badge - 26),
+            msgX + badge + 12,
+            yc,
+          );
+          continue;
+        }
         let at = colAuthor;
         for (const [count, tint, glyph] of [
           [row.modified, t.modified, GLYPH.modified],
