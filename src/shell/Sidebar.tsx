@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -118,8 +118,7 @@ function Row({
     <ListRow
       depth={depth + 1}
       current={current}
-      hint={hint}
-      hintSide="right"
+      title={hint}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
@@ -151,7 +150,16 @@ type BranchesProps = {
   onMenu: (ref: RefView) => void;
 };
 
-function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckout, onMenu }: BranchesProps) {
+const Branches = memo(function Branches({
+  nodes,
+  depth,
+  closed,
+  checkingOut,
+  onFlip,
+  onPick,
+  onCheckout,
+  onMenu,
+}: BranchesProps) {
   return (
     <>
       {nodes.map((node) =>
@@ -203,7 +211,7 @@ function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckou
       )}
     </>
   );
-}
+});
 
 export function Sidebar({
   session,
@@ -227,14 +235,17 @@ export function Sidebar({
   const flip = (key: string) =>
     setOpen((now) => ({
       ...now,
-      [key]: !(now[key] ?? key === 'local'),
+      [key]: !(now[key] ?? (key === 'local' || key === 'remote')),
     }));
-  const flipFolder = (path: string) =>
-    setClosed((now) => {
-      const next = new Set(now);
-      if (!next.delete(path)) next.add(path);
-      return next;
-    });
+  const flipFolder = useCallback(
+    (path: string) =>
+      setClosed((now) => {
+        const next = new Set(now);
+        if (!next.delete(path)) next.add(path);
+        return next;
+      }),
+    [],
+  );
 
   const refs = session?.repo?.refs ?? [];
   const remotes = session?.repo?.remotes ?? [];
@@ -331,7 +342,7 @@ export function Sidebar({
                 title={group.title}
                 key={group.key}
                 count={group.entries.length}
-                open={open[group.key] ?? group.key === 'local'}
+                open={open[group.key] ?? (group.key === 'local' || group.key === 'remote')}
                 onToggle={() => flip(group.key)}
               >
                 <Branches
@@ -353,7 +364,7 @@ export function Sidebar({
               title={group.title}
               key={group.key}
               count={group.entries.length}
-              open={open[group.key] ?? group.key === 'local'}
+              open={open[group.key] ?? (group.key === 'local' || group.key === 'remote')}
               onToggle={() => flip(group.key)}
             >
               {shown.map((entry) => (
@@ -426,7 +437,11 @@ function Section({ title, count, open, onToggle, children }: SectionProps) {
         <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         <span className="text-faint shrink-0 tabular-nums">{count ?? ''}</span>
       </SectionHeader>
-      {open ? <div className="min-h-0 flex-1 overflow-y-auto">{children}</div> : null}
+      {open ? (
+        <div className="animate-in fade-in slide-in-from-top-1 min-h-0 flex-1 overflow-y-auto duration-150">
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }

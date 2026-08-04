@@ -12,6 +12,7 @@ type ListRowProps = {
   current?: boolean;
   hint?: string;
   hintSide?: React.ComponentProps<typeof Hint>['side'];
+  title?: string;
   className?: string;
   onClick?: () => void;
   onDoubleClick?: () => void;
@@ -25,6 +26,7 @@ export function ListRow({
   current,
   hint,
   hintSide,
+  title,
   className,
   onClick,
   onDoubleClick,
@@ -34,6 +36,7 @@ export function ListRow({
   const Tag = as;
   const row = (
     <Tag
+      title={title}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={
