@@ -1,7 +1,9 @@
 #![forbid(unsafe_code)]
 
+pub mod blame;
 pub mod changes;
 pub mod env;
+pub mod filehistory;
 pub mod progress;
 pub mod refs;
 pub mod refusal;
@@ -289,6 +291,9 @@ impl Git {
         path: &str,
         staged: bool,
     ) -> Result<(String, String), Error> {
+        if let Some(pointers) = self.gitlink_sides(repo, path, staged)? {
+            return Ok(pointers);
+        }
         if staged {
             let before = self.file_at(repo, "HEAD", path)?;
             let after = self.file_at(repo, "", path)?;
@@ -360,6 +365,102 @@ impl Git {
                 stderr: String::from_utf8_lossy(&out.stderr).to_string(),
             }),
         }
+    }
+
+    pub fn file_history(
+        &self,
+        repo: &Path,
+        path: &str,
+    ) -> Result<Vec<filehistory::FileCommit>, Error> {
+        let format = format!("--format={}", filehistory::FORMAT);
+        let mut collected = Vec::new();
+        let mut from = String::from("HEAD");
+        let mut at_path = path.to_string();
+
+        loop {
+            let raw = self.read_raw(
+                repo,
+                &[
+                    "log",
+                    &from,
+                    "--full-history",
+                    "-z",
+                    "--name-status",
+                    &format,
+                    "--",
+                    &at_path,
+                ],
+            )?;
+            let mut batch = filehistory::parse(&raw, &at_path);
+            let renamed = batch.last().and_then(|born| {
+                (born.status == 'A')
+                    .then(|| self.rename_source(repo, &born.hash, &at_path))
+                    .flatten()
+                    .map(|older| (born.hash.clone(), older))
+            });
+            if let (Some(born), Some((_, older))) = (batch.last_mut(), &renamed) {
+                born.status = 'R';
+                born.old_path = Some(older.clone());
+            }
+            collected.extend(batch);
+
+            match renamed {
+                Some((hash, older)) if older != at_path => {
+                    from = format!("{hash}^");
+                    at_path = older;
+                }
+                _ => return Ok(collected),
+            }
+        }
+    }
+
+    fn rename_source(&self, repo: &Path, hash: &str, path: &str) -> Option<String> {
+        let raw = self
+            .read_raw(
+                repo,
+                &[
+                    "diff-tree",
+                    "-M",
+                    "-r",
+                    "-z",
+                    "--name-status",
+                    "--no-commit-id",
+                    &format!("{hash}^"),
+                    hash,
+                ],
+            )
+            .ok()?;
+        let mut tokens = raw.split('\0');
+        while let Some(status) = tokens.next() {
+            let status = status.trim_start_matches('\n');
+            if status.is_empty() {
+                continue;
+            }
+            if status.starts_with('R') || status.starts_with('C') {
+                let older = tokens.next()?;
+                let newer = tokens.next()?;
+                if newer == path {
+                    return Some(older.to_string());
+                }
+            } else {
+                tokens.next()?;
+            }
+        }
+        None
+    }
+
+    pub fn blame_file(
+        &self,
+        repo: &Path,
+        path: &str,
+        at: Option<&str>,
+    ) -> Result<Vec<blame::BlameSpan>, Error> {
+        let mut args = vec!["blame", "--line-porcelain"];
+        if let Some(hash) = at {
+            args.push(hash);
+        }
+        args.extend(["--", path]);
+        self.read_raw(repo, &args).map(|raw| blame::parse(&raw))
     }
 
     pub fn diff_unified(&self, repo: &Path, path: &str, staged: bool) -> Result<String, Error> {
@@ -438,11 +539,43 @@ impl Git {
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
     }
 
-    pub fn resolve_file(&self, repo: &Path, path: &str, content: &str) -> Result<(), Error> {
+    pub fn write_file(&self, repo: &Path, path: &str, content: &str) -> Result<(), Error> {
         std::fs::write(repo.join(path), content).map_err(|e| Error::Spawn {
             detail: e.to_string(),
-        })?;
+        })
+    }
+
+    pub fn resolve_file(&self, repo: &Path, path: &str, content: &str) -> Result<(), Error> {
+        self.write_file(repo, path, content)?;
         self.read(repo, &["add", "--", path]).map(|_| ())
+    }
+
+    fn gitlink_sides(
+        &self,
+        repo: &Path,
+        path: &str,
+        staged: bool,
+    ) -> Result<Option<(String, String)>, Error> {
+        let listed = self.read(repo, &["ls-files", "-s", "--", path])?;
+        if listed.split_whitespace().next() != Some("160000") {
+            return Ok(None);
+        }
+
+        let diff = self.diff_unified(repo, path, staged)?;
+        let pointers = |sign: char| {
+            diff.lines()
+                .filter_map(|line| line.strip_prefix(sign))
+                .filter(|rest| rest.starts_with("Subproject commit "))
+                .map(|rest| format!("{rest}\n"))
+                .collect::<String>()
+        };
+
+        let old = pointers('-');
+        let new = pointers('+');
+        if old.is_empty() && new.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some((old, new)))
     }
 
     pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {

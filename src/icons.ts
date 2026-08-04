@@ -3,6 +3,9 @@ import {
   Check,
   TriangleAlert,
   Minus,
+  Rows2,
+  Rows3,
+  Columns2,
   CircleDot,
   CloudDownload,
   Copy,
@@ -77,6 +80,9 @@ export const Icon = {
   resolve: Check,
   conflict: TriangleAlert,
   remove: Minus,
+  diffHunk: Rows3,
+  diffInline: Rows2,
+  diffSplit: Columns2,
   detached: Unlink,
 } as const;
 

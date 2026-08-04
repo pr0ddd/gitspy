@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseUnifiedDiff, patchFor } from './hunks';
+import { isGitlinkDiff, parseUnifiedDiff, patchFor } from './hunks';
 
 const DIFF = [
   'diff --git a/code.txt b/code.txt',
@@ -57,5 +57,25 @@ describe('разбор настоящего git diff на ханки', () => {
         '',
       ].join('\n'),
     );
+  });
+});
+
+describe('gitlink не притворяется текстовым диффом', () => {
+  it('дифф указателя на вложенный репозиторий узнаётся', () => {
+    const raw = [
+      'diff --git a/sandbox b/sandbox',
+      'index 8677392..1eb65eb 160000',
+      '--- a/sandbox',
+      '+++ b/sandbox',
+      '@@ -1 +1 @@',
+      '-Subproject commit 8677392aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      '+Subproject commit 1eb65ebbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      '',
+    ].join('\n');
+    expect(
+      isGitlinkDiff(raw),
+      'git apply не умеет класть gitlink-патчи — кнопкам ханков тут не место',
+    ).toBe(true);
+    expect(isGitlinkDiff('diff --git a/a.ts b/a.ts\n@@ -1 +1 @@\n-x\n+y\n')).toBe(false);
   });
 });
