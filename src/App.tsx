@@ -517,11 +517,8 @@ export default function App() {
                 )}
               >
               <Toolbar
-                session={current}
-                sessions={sessions}
                 tree={tree}
                 onRun={runOperation}
-                onActivate={(path) => dispatch({ kind: 'activate', path })}
                 onAsk={(kind) => setAsking({ kind })}
                 onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
                 search={search.query}
