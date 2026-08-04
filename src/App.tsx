@@ -511,7 +511,7 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <main className="bg-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-l-lg border-l">
                 {main.kind === 'diff' && current.repo ? (
                   <DiffView
                     repo={current.path}
@@ -576,7 +576,7 @@ export default function App() {
                       onCommit={commit}
                     />
                     {current.repo ? (
-                      <footer className="bg-card border-border text-muted-foreground shrink-0 border-t px-3 py-1 text-xs">
+                      <footer className="text-faint shrink-0 border-t px-4 py-1.5 text-xs tabular-nums">
                         {[
                           t('graph.commits', { count: current.repo.count }),
                           t('graph.lanes', { count: current.repo.maxLane + 1 }),
@@ -591,7 +591,7 @@ export default function App() {
                   </>
                 )}
               </main>
-              <aside className="bg-card border-border flex w-80 shrink-0 flex-col border-l">
+              <aside className="flex w-80 shrink-0 flex-col">
                 {panel === 'workingTree' ? (
                   tree && tree.entries.length > 0 ? (
                     <WorkingTree
