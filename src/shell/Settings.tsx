@@ -61,10 +61,10 @@ export function Settings({ open, account, onOpenChange, onDisconnected }: Props)
         <Separator />
 
         <section className="space-y-3">
-          <h3 className="text-muted-foreground text-xs tracking-wide uppercase">GitHub</h3>
+          <h3 className="text-muted-foreground text-xs">GitHub</h3>
 
           {account ? (
-            <div className="bg-surface-raised flex items-center gap-3 rounded-md p-3">
+            <div className="bg-fill-1 flex items-center gap-3 rounded-md p-3">
               <img
                 src={account.avatarUrl}
                 alt=""
@@ -104,7 +104,7 @@ function DeviceCode({ device }: { device: DeviceView }) {
   const { t } = useTranslation();
 
   return (
-    <div className="bg-surface-raised space-y-3 rounded-md p-4 text-center">
+    <div className="bg-fill-1 space-y-3 rounded-md p-4 text-center">
       <p className="text-muted-foreground text-xs">{t('settings.codeHint')}</p>
       <div className="font-mono text-2xl font-semibold tracking-widest select-all">
         {device.userCode}

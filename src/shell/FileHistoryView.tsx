@@ -26,7 +26,7 @@ function CommitAvatar({ avatars, email }: { avatars: AvatarCache | null; email: 
   if (look?.kind === 'image' && look.image instanceof HTMLImageElement) {
     return <img src={look.image.src} alt="" className="size-6 shrink-0 rounded-sm" />;
   }
-  return <span className="bg-surface-raised size-6 shrink-0 rounded-sm" />;
+  return <span className="bg-fill-2 size-6 shrink-0 rounded-md" />;
 }
 
 const LINE_H = 20;
@@ -35,7 +35,7 @@ const EDITOR_OPTIONS = {
   theme: THEME,
   readOnly: true,
   automaticLayout: true,
-  fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, monospace",
+  fontFamily: "'Geist Mono Variable', ui-monospace, Menlo, monospace",
   fontSize: 13,
   lineHeight: LINE_H,
   minimap: { enabled: true },
@@ -203,7 +203,7 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
   const born = history[history.length - 1];
 
   return (
-    <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
         <span className="text-muted-foreground shrink-0 text-xs">{t('history.title')}</span>
         <span className="flex min-w-0 items-baseline text-xs">
@@ -257,7 +257,7 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
                 <button
                   onClick={() => setChosen(commit.hash)}
                   className={cn(
-                    'hover:bg-surface-hover flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors',
+                    'hover:bg-fill-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
                     commit.hash === entry?.hash && 'bg-ahead/15',
                   )}
                 >

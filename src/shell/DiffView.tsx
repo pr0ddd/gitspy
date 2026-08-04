@@ -62,7 +62,7 @@ function HunkBar({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="bg-surface-raised border-border/50 flex h-full items-center gap-2 border-y px-2">
+    <div className="bg-fill-1 flex h-full items-center gap-2 rounded-md px-2">
       <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
         {heading}
       </span>
@@ -121,7 +121,7 @@ export function DiffView({ repo, target, onClose, onTree, onRun, onTarget, onHis
       theme: THEME,
       readOnly: true,
       automaticLayout: true,
-      fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, monospace",
+      fontFamily: "'Geist Mono Variable', ui-monospace, Menlo, monospace",
       fontSize: 13,
       lineHeight: 20,
       minimap: { enabled: true },
@@ -156,7 +156,7 @@ export function DiffView({ repo, target, onClose, onTree, onRun, onTarget, onHis
       theme: THEME,
       readOnly: !editing,
       automaticLayout: true,
-      fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, monospace",
+      fontFamily: "'Geist Mono Variable', ui-monospace, Menlo, monospace",
       fontSize: 13,
       lineHeight: 20,
       minimap: { enabled: true },
@@ -285,7 +285,7 @@ export function DiffView({ repo, target, onClose, onTree, onRun, onTarget, onHis
   };
 
   return (
-    <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
         <span className={cn('shrink-0 text-xs', STATUS_STYLE[status])}>{status}</span>
         <span className="flex min-w-0 items-baseline text-xs">
