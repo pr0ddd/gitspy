@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Icon } from '../icons';
 import { FilePath, ListRow, SectionHeader } from './parts';
-import type { PathOperation, StatusEntryView, WorkingTreeView } from '../types';
+import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '../types';
 
 export type PreviousCommit = { readonly subject: string; readonly body: string };
 
@@ -20,6 +22,7 @@ type Props = {
   onAmend: (next: boolean) => void;
   onCommit: () => void;
   onRun: (operation: PathOperation) => void;
+  onOperation: (operation: Operation) => void;
   onOpen: (path: string, status: string, staged: boolean) => void;
 };
 
@@ -48,9 +51,13 @@ function FileRow({
   return (
     <li>
       <ListRow as="div" hint={entry.path} onClick={onOpen}>
-        <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[entry.letter])}>
-          {entry.letter}
-        </span>
+        {entry.letter === 'U' ? (
+          <Icon.conflict className="text-conflict size-3 shrink-0" />
+        ) : (
+          <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[entry.letter])}>
+            {entry.letter}
+          </span>
+        )}
         <FilePath path={entry.path} />
         <Button
           variant="ghost"
@@ -116,21 +123,182 @@ function Section({
   );
 }
 
-export function WorkingTree({
+function MergeHeading({ from, into }: { from: string | null; into: string | null }) {
+  const { t } = useTranslation();
+  return (
+    <div className="text-muted-foreground flex h-8 shrink-0 items-center justify-center gap-1.5 text-xs">
+      {t('workingTree.merging')}
+      {from ? (
+        <Badge
+          className={cn(
+            'rounded-sm px-1.5 py-0 text-2xs text-white',
+            from.includes('/') ? 'bg-ref-remote' : 'bg-ref-local',
+          )}
+        >
+          {from}
+        </Badge>
+      ) : null}
+      {t('workingTree.into')}
+      {into ? (
+        <Badge className="bg-ref-local rounded-sm px-1.5 py-0 text-2xs text-white">{into}</Badge>
+      ) : null}
+    </div>
+  );
+}
+
+function MessageFields({
+  message,
+  description,
+  onMessage,
+  onDescription,
+  onHotkey,
+}: {
+  message: string;
+  description: string;
+  onMessage: (text: string) => void;
+  onDescription: (text: string) => void;
+  onHotkey: (e: React.KeyboardEvent) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <input
+        value={message}
+        onChange={(e) => onMessage(e.target.value)}
+        onKeyDown={onHotkey}
+        placeholder={t('workingTree.messagePlaceholder')}
+        className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-sm border px-2 py-1.5 text-sm outline-none"
+      />
+      <textarea
+        value={description}
+        onChange={(e) => onDescription(e.target.value)}
+        onKeyDown={onHotkey}
+        placeholder={t('workingTree.descriptionPlaceholder')}
+        rows={3}
+        className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full resize-none rounded-sm border px-2 py-1.5 text-sm outline-none"
+      />
+    </>
+  );
+}
+
+function MergingPanel({
   tree,
   busy,
   message,
   description,
-  amend,
-  previous,
   onMessage,
   onDescription,
-  onAmend,
   onCommit,
   onRun,
+  onOperation,
   onOpen,
-}: Props) {
+}: Omit<Props, 'amend' | 'previous' | 'onAmend'>) {
   const { t } = useTranslation();
+  const conflicted = tree.entries.filter((e) => !e.staged && e.letter === 'U');
+  const pending = tree.entries.filter((e) => !e.staged && e.letter !== 'U');
+  const resolved = tree.entries.filter((e) => e.staged);
+  const committable = message.trim().length > 0 && conflicted.length === 0;
+
+  const commitOnHotkey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && committable) onCommit();
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {conflicted.length > 0 ? (
+        <div className="text-conflict flex h-8 shrink-0 items-center justify-center gap-1.5 text-xs font-medium">
+          <Icon.conflict className="size-3.5" />
+          {t('workingTree.mergeDetected')}
+        </div>
+      ) : null}
+      <MergeHeading from={tree.merging?.from ?? null} into={tree.branch} />
+
+      <Section
+        title={t('workingTree.conflicted')}
+        count={conflicted.length}
+        action={t('workingTree.markAllResolved')}
+        entries={conflicted}
+        rowAction={t('conflict.markResolved')}
+        onAll={() => onRun({ kind: 'stage', paths: conflicted.map((e) => e.path) })}
+        onRow={(path) => onRun({ kind: 'stage', paths: [path] })}
+        onOpen={(entry) => onOpen(entry.path, entry.letter, false)}
+      />
+
+      {pending.length > 0 ? (
+        <>
+          <Separator />
+          <Section
+            title={t('workingTree.unstaged')}
+            count={pending.length}
+            action={t('workingTree.stageAll')}
+            entries={pending}
+            rowAction={t('workingTree.stage')}
+            onAll={() => onRun({ kind: 'stage', paths: pending.map((e) => e.path) })}
+            onRow={(path) => onRun({ kind: 'stage', paths: [path] })}
+            onOpen={(entry) => onOpen(entry.path, entry.letter, false)}
+          />
+        </>
+      ) : null}
+
+      <Separator />
+
+      <Section
+        title={t('workingTree.resolved')}
+        count={resolved.length}
+        action={t('conflict.unresolveAll')}
+        entries={resolved}
+        rowAction={t('conflict.unresolve')}
+        onAll={() => onRun({ kind: 'unresolve', paths: resolved.map((e) => e.path) })}
+        onRow={(path) => onRun({ kind: 'unresolve', paths: [path] })}
+        onOpen={(entry) => onOpen(entry.path, entry.letter, true)}
+      />
+
+      <Separator />
+
+      <div className="flex shrink-0 flex-col gap-2 p-3">
+        <MessageFields
+          message={message}
+          description={description}
+          onMessage={onMessage}
+          onDescription={onDescription}
+          onHotkey={commitOnHotkey}
+        />
+        <div className="flex gap-2">
+          <Button className="flex-1" disabled={!committable || busy} onClick={onCommit}>
+            {t('workingTree.commitAndMerge')}
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={busy}
+            onClick={() => onOperation({ kind: 'mergeAbort' })}
+          >
+            {t('workingTree.abortMerge')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function WorkingTree(props: Props) {
+  const {
+    tree,
+    busy,
+    message,
+    description,
+    amend,
+    previous,
+    onMessage,
+    onDescription,
+    onAmend,
+    onCommit,
+    onRun,
+    onOpen,
+  } = props;
+  const { t } = useTranslation();
+
+  if (tree.merging && tree.conflicts > 0) return <MergingPanel {...props} />;
+
   const staged = tree.entries.filter((e) => e.staged);
   const unstaged = tree.entries.filter((e) => !e.staged);
   const committable = message.trim().length > 0 && (staged.length > 0 || amend);
@@ -176,37 +344,50 @@ export function WorkingTree({
       <Separator />
 
       <div className="flex shrink-0 flex-col gap-2 p-3">
-        <input
-          value={message}
-          onChange={(e) => onMessage(e.target.value)}
-          onKeyDown={commitOnHotkey}
-          placeholder={t('workingTree.messagePlaceholder')}
-          className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full rounded-sm border px-2 py-1.5 text-sm outline-none"
+        <MessageFields
+          message={message}
+          description={description}
+          onMessage={onMessage}
+          onDescription={onDescription}
+          onHotkey={commitOnHotkey}
         />
-        <textarea
-          value={description}
-          onChange={(e) => onDescription(e.target.value)}
-          onKeyDown={commitOnHotkey}
-          placeholder={t('workingTree.descriptionPlaceholder')}
-          rows={3}
-          className="border-input bg-surface-raised text-foreground placeholder:text-muted-foreground focus:border-ring w-full resize-none rounded-sm border px-2 py-1.5 text-sm outline-none"
-        />
-        <label
-          className={cn(
-            'text-muted-foreground flex items-center gap-2 text-xs',
-            !previous && 'opacity-50',
-          )}
-        >
-          <Checkbox
-            checked={amend}
-            disabled={!previous}
-            onCheckedChange={(next) => toggleAmend(next === true)}
-          />
-          {t('workingTree.amend')}
-        </label>
-        <Button disabled={!committable || busy} onClick={onCommit}>
-          {t('workingTree.commit')}
-        </Button>
+        {tree.merging ? null : (
+          <label
+            className={cn(
+              'text-muted-foreground flex items-center gap-2 text-xs',
+              !previous && 'opacity-50',
+            )}
+          >
+            <Checkbox
+              checked={amend}
+              disabled={!previous}
+              onCheckedChange={(next) => toggleAmend(next === true)}
+            />
+            {t('workingTree.amend')}
+          </label>
+        )}
+        {tree.merging ? (
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              disabled={message.trim().length === 0 || busy}
+              onClick={onCommit}
+            >
+              {t('workingTree.commitAndMerge')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy}
+              onClick={() => props.onOperation({ kind: 'mergeAbort' })}
+            >
+              {t('workingTree.abortMerge')}
+            </Button>
+          </div>
+        ) : (
+          <Button disabled={!committable || busy} onClick={onCommit}>
+            {t('workingTree.commit')}
+          </Button>
+        )}
       </div>
     </div>
   );

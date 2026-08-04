@@ -10,6 +10,7 @@ import type {
   PullListView,
   RepoListingView,
   ChangedFileView,
+  ConflictFileView,
   DiffSides,
   ErrorView,
   Operation,
@@ -86,6 +87,18 @@ export const stage = (repo: string, operation: PathOperation) =>
 
 export const workingTreeDiff = (repo: string, path: string, staged: boolean) =>
   invoke<DiffSides>('working_tree_diff', { repo, path, staged });
+
+export const workingTreeHunks = (repo: string, path: string, staged: boolean) =>
+  invoke<string>('working_tree_hunks', { repo, path, staged });
+
+export const applyHunk = (repo: string, patch: string, cached: boolean, reverse: boolean) =>
+  invoke<WorkingTreeView>('apply_hunk', { repo, patch, cached, reverse });
+
+export const conflictFile = (repo: string, path: string) =>
+  invoke<ConflictFileView>('conflict_file', { repo, path });
+
+export const resolveConflict = (repo: string, path: string, content: string) =>
+  invoke<WorkingTreeView>('resolve_conflict', { repo, path, content });
 
 export const commit = (repo: string, message: string, amend: boolean) =>
   invoke<WorkingTreeView>('commit', { repo, message, amend });

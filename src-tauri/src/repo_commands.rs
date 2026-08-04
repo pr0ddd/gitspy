@@ -5,8 +5,8 @@ use crate::recent;
 use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
-    ChangedFileView, DiffSides, ErrorView, RepoView, TipView, WindowView, WorkingTreeView,
-    WorktreeView, MINIMAP_BUCKETS,
+    ChangedFileView, ConflictFileView, DiffSides, ErrorView, RepoView, TipView, WindowView,
+    WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
@@ -296,8 +296,9 @@ pub async fn diff_sides(
 
 fn read_working_tree(git: &Git, path: &Path) -> Result<WorkingTreeView, ErrorView> {
     let remotes = git.remotes(path);
+    let heading = git.merge_heading(path);
     git.status(path)
-        .map(|tree| build_working_tree(tree, remotes))
+        .map(|tree| build_working_tree(tree, remotes, heading))
         .map_err(exec_error)
 }
 
@@ -373,6 +374,88 @@ pub async fn working_tree_diff(
         git.working_tree_sides(&repo_path, &path, staged)
             .map(|(before, after)| DiffSides { before, after })
             .map_err(exec_error)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn working_tree_hunks(
+    repo: String,
+    path: String,
+    staged: bool,
+    state: State<'_, AppState>,
+) -> Result<String, ErrorView> {
+    let git = state.git()?;
+    let repo_path = PathBuf::from(&repo);
+    on_reader(move || {
+        git.diff_unified(&repo_path, &path, staged)
+            .map_err(exec_error)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn apply_hunk(
+    repo: String,
+    patch: String,
+    cached: bool,
+    reverse: bool,
+    state: State<'_, AppState>,
+) -> Result<WorkingTreeView, ErrorView> {
+    let git = state.git()?;
+    let lane = state.queue.lane(&repo);
+    let repo_path = PathBuf::from(&repo);
+
+    on_reader(move || {
+        let _held = lane.lock().expect("полоса очереди не отравлена");
+        git.apply_patch(&repo_path, &patch, cached, reverse)
+            .map_err(exec_error)?;
+        read_working_tree(&git, &repo_path)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn conflict_file(
+    repo: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<ConflictFileView, ErrorView> {
+    let git = state.git()?;
+    let repo_path = PathBuf::from(&repo);
+
+    on_reader(move || {
+        let sides = git.conflict_sides(&repo_path, &path).map_err(exec_error)?;
+        let merged = git
+            .conflict_merged(&repo_path, &path)
+            .or_else(|_| std::fs::read_to_string(repo_path.join(&path)).map_err(|_| ()))
+            .unwrap_or_default();
+        Ok(ConflictFileView {
+            base: sides.base,
+            ours: sides.ours,
+            theirs: sides.theirs,
+            merged,
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn resolve_conflict(
+    repo: String,
+    path: String,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<WorkingTreeView, ErrorView> {
+    let git = state.git()?;
+    let lane = state.queue.lane(&repo);
+    let repo_path = PathBuf::from(&repo);
+
+    on_reader(move || {
+        let _held = lane.lock().expect("полоса очереди не отравлена");
+        git.resolve_file(&repo_path, &path, &content)
+            .map_err(exec_error)?;
+        read_working_tree(&git, &repo_path)
     })
     .await
 }

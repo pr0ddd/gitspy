@@ -30,7 +30,10 @@ import type {
 } from './types';
 
 type Main =
-  { kind: 'graph' } | { kind: 'diff'; target: DiffTarget } | { kind: 'pull'; pull: PullView };
+  | { kind: 'graph' }
+  | { kind: 'diff'; target: DiffTarget }
+  | { kind: 'conflict'; path: string }
+  | { kind: 'pull'; pull: PullView };
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
 import { Sidebar } from './shell/Sidebar';
@@ -38,6 +41,7 @@ import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
 import { DiffView, type DiffTarget } from './shell/DiffView';
+import { ConflictView } from './shell/ConflictView';
 import { WorkingTree } from './shell/WorkingTree';
 import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
@@ -46,6 +50,7 @@ import { PullPanel } from './shell/PullPanel';
 import { PanelNote } from './shell/parts';
 import { remoteAvatarKey } from './chips';
 import { composeCommitMessage } from './commitMessage';
+import { viewForEntry } from './conflict';
 
 export default function App() {
   const { t } = useTranslation();
@@ -179,6 +184,11 @@ export default function App() {
     }
     ipc.workingTree(active).then(adoptTree).catch(notifyError);
   }, [active]);
+
+  const mergeSubject = tree?.merging?.subject ?? null;
+  useEffect(() => {
+    if (mergeSubject) setMessage((now) => (now.trim() ? now : mergeSubject));
+  }, [mergeSubject]);
 
   const warmAvatars = useCallback(async (path: string, remotes: RemoteView[]) => {
     const urls = Object.fromEntries(
@@ -504,6 +514,19 @@ export default function App() {
                     repo={current.path}
                     target={main.target}
                     onClose={() => setMain({ kind: 'graph' })}
+                    onTree={adoptTree}
+                  />
+                ) : main.kind === 'conflict' && current.repo ? (
+                  <ConflictView
+                    repo={current.path}
+                    path={main.path}
+                    from={tree?.merging?.from ?? null}
+                    into={tree?.branch ?? null}
+                    onClose={() => setMain({ kind: 'graph' })}
+                    onResolved={(next) => {
+                      adoptTree(next);
+                      setMain({ kind: 'graph' });
+                    }}
                   />
                 ) : main.kind === 'pull' && current.repo ? (
                   <PullPanel
@@ -571,11 +594,13 @@ export default function App() {
                       onAmend={setAmend}
                       onCommit={commit}
                       onRun={runPathOperation}
+                      onOperation={runOperation}
                       onOpen={(path, status, staged) =>
-                        setMain({
-                          kind: 'diff',
-                          target: { kind: 'workingTree', path, status, staged },
-                        })
+                        setMain(
+                          viewForEntry(status, staged) === 'conflict'
+                            ? { kind: 'conflict', path }
+                            : { kind: 'diff', target: { kind: 'workingTree', path, status, staged } },
+                        )
                       }
                     />
                   ) : (
@@ -588,6 +613,7 @@ export default function App() {
                     session={current}
                     rows={cacheFor(current.path)}
                     pending={tree ? tree.staged + tree.unstaged : 0}
+                    conflicts={tree?.conflicts ?? 0}
                     onCopy={copy}
                     onOpenWorkingTree={() => select(0)}
                     onOpenFile={(commit, file) =>

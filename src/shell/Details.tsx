@@ -10,7 +10,7 @@ import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import * as ipc from '../ipc';
 import { notifyError } from '../toast';
-import { FilePath, ListRow, PanelBar, PanelNote } from './parts';
+import { FilePath, ListRow, PanelBanner, PanelBar, PanelNote } from './parts';
 import type { ChangedFileView, RefKind } from '../types';
 import { Hint } from '@/components/ui/tooltip';
 
@@ -18,6 +18,7 @@ type Props = {
   session: Session | null;
   rows: RowCache;
   pending: number;
+  conflicts: number;
   onCopy: (text: string) => void;
   onOpenWorkingTree: () => void;
   onOpenFile: (commit: string, file: ChangedFileView) => void;
@@ -47,7 +48,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
 }
 
-export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onOpenFile }: Props) {
+export function Details({
+  session,
+  rows,
+  pending,
+  conflicts,
+  onCopy,
+  onOpenWorkingTree,
+  onOpenFile,
+}: Props) {
   const { t, i18n } = useTranslation();
   const index = session?.selected ?? 0;
   const row = session ? rows.row(index) : null;
@@ -83,18 +92,19 @@ export function Details({ session, rows, pending, onCopy, onOpenWorkingTree, onO
 
   return (
     <Shell>
-      {pending > 0 ? (
-        <button
+      {conflicts > 0 ? (
+        <PanelBanner
+          tone="conflict"
+          label={t('conflict.inWorkingDirectory', { count: conflicts })}
+          action={t('conflict.view')}
           onClick={onOpenWorkingTree}
-          className="bg-primary/15 hover:bg-primary/25 border-border flex h-8 shrink-0 items-center gap-2 border-b px-3 text-left transition-colors"
-        >
-          <span className="text-primary flex-1 truncate text-xs">
-            {t('details.pending', { count: pending })}
-          </span>
-          <span className="text-primary shrink-0 text-xs font-medium">
-            {t('details.viewChanges')}
-          </span>
-        </button>
+        />
+      ) : pending > 0 ? (
+        <PanelBanner
+          label={t('details.pending', { count: pending })}
+          action={t('details.viewChanges')}
+          onClick={onOpenWorkingTree}
+        />
       ) : null}
 
       <PanelBar>

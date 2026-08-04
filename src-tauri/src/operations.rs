@@ -56,6 +56,8 @@ pub enum Operation {
     Merge {
         branch: String,
     },
+    MergeAbort,
+    MergeContinue,
     Rebase {
         onto: String,
     },
@@ -110,6 +112,7 @@ pub enum Operation {
 pub enum PathOperation {
     Stage { paths: Vec<String> },
     Unstage { paths: Vec<String> },
+    Unresolve { paths: Vec<String> },
     Discard { paths: Vec<String> },
     StageAll,
     UnstageAll,
@@ -131,6 +134,11 @@ impl PathOperation {
                 args.extend(paths.clone());
                 args
             }
+            PathOperation::Unresolve { paths } => {
+                let mut args = owned(&["checkout", "-m", "--"]);
+                args.extend(paths.clone());
+                args
+            }
             PathOperation::Discard { paths } => {
                 let mut args = owned(&["checkout", "--"]);
                 args.extend(paths.clone());
@@ -147,7 +155,7 @@ impl Operation {
             Operation::WriteCommitGraph => owned(&["commit-graph", "write", "--reachable"]),
             Operation::FetchDryRun => owned(&["fetch", "--dry-run", "--all"]),
             Operation::Fetch => owned(&["fetch", "--all", "--progress"]),
-            Operation::Pull => owned(&["pull", "--progress"]),
+            Operation::Pull => owned(&["pull", "--no-edit", "--progress"]),
             Operation::Push => owned(&["push", "--progress"]),
             Operation::PushSetUpstream { remote, branch } => {
                 let mut args = owned(&["push", "--progress", "--set-upstream"]);
@@ -203,6 +211,8 @@ impl Operation {
                 args.push(branch.clone());
                 args
             }
+            Operation::MergeAbort => owned(&["merge", "--abort"]),
+            Operation::MergeContinue => owned(&["commit", "--no-edit"]),
             Operation::Rebase { onto } => {
                 let mut args = owned(&["rebase"]);
                 args.push(onto.clone());
@@ -300,6 +310,8 @@ impl Operation {
             Operation::BranchRename { .. } => "operation.branchRename",
             Operation::AmendMessage { .. } => "operation.amend",
             Operation::Merge { .. } => "operation.merge",
+            Operation::MergeAbort => "operation.mergeAbort",
+            Operation::MergeContinue => "operation.mergeContinue",
             Operation::Rebase { .. } => "operation.rebase",
             Operation::CherryPick { .. } => "operation.cherryPick",
             Operation::Revert { .. } => "operation.revert",
@@ -457,6 +469,41 @@ mod tests {
         assert_eq!(
             commit_args("fix: thing", false),
             ["commit", "-m", "fix: thing"]
+        );
+    }
+
+    #[test]
+    fn a_clean_pull_commits_its_merge_without_asking_the_neutered_editor() {
+        assert_eq!(
+            Operation::Pull.args(),
+            ["pull", "--no-edit", "--progress"],
+            "без --no-edit git зовёт редактор, которого нет, и бросает слияние незавершённым"
+        );
+    }
+
+    #[test]
+    fn finishing_a_merge_keeps_the_prepared_message_and_the_neutered_editor_closed() {
+        assert_eq!(Operation::MergeAbort.args(), ["merge", "--abort"]);
+        assert_eq!(
+            Operation::MergeContinue.args(),
+            ["commit", "--no-edit"],
+            "git сам приготовил MERGE_MSG, а редактор у нас обезврежен — берём сообщение как есть"
+        );
+        assert_eq!(Operation::MergeAbort.label(), "operation.mergeAbort");
+        assert_eq!(Operation::MergeContinue.label(), "operation.mergeContinue");
+        assert!(!Operation::MergeAbort.reaches_the_network());
+        assert!(!Operation::MergeContinue.reaches_the_network());
+    }
+
+    #[test]
+    fn unresolving_a_file_restores_the_conflict_instead_of_resetting_to_head() {
+        assert_eq!(
+            PathOperation::Unresolve {
+                paths: vec!["a.ts".into()]
+            }
+            .args(),
+            ["checkout", "-m", "--", "a.ts"],
+            "git reset тут стирает стадии слияния навсегда, а checkout -m их возвращает"
         );
     }
 

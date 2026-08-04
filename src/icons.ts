@@ -1,5 +1,8 @@
 import {
   Archive,
+  Check,
+  TriangleAlert,
+  Minus,
   CircleDot,
   CloudDownload,
   Copy,
@@ -71,6 +74,9 @@ export const Icon = {
   folder: Folder,
   chevron: ChevronRight,
   current: SquareCheckBig,
+  resolve: Check,
+  conflict: TriangleAlert,
+  remove: Minus,
   detached: Unlink,
 } as const;
 

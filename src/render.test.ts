@@ -132,7 +132,9 @@ const window_ = (): WindowView => ({
   segColour: [],
 });
 
-const withWorkingTreeRow = (window: WindowView): WindowView => ({
+type WipOver = { conflicts: number; inProgress: string | null };
+
+const withWorkingTreeRow = (window: WindowView, over?: WipOver): WindowView => ({
   ...window,
   rows: [
     {
@@ -146,6 +148,7 @@ const withWorkingTreeRow = (window: WindowView): WindowView => ({
       deleted: 3,
       conflicts: 0,
       inProgress: null,
+      ...over,
     },
     ...window.rows.slice(1),
   ],
@@ -162,10 +165,15 @@ const frameWith = (
   avatars: AvatarCache | null = null,
   pullHeads: ReadonlySet<string> = new Set(),
   hoverChip: { row: number; at: number | 'more' } | null = null,
-  workingTree = false,
+  workingTree: boolean | WipOver = false,
 ): Frame => {
   const rows = new RowCache();
-  rows.put(0, workingTree ? withWorkingTreeRow(window_()) : window_());
+  rows.put(
+    0,
+    workingTree
+      ? withWorkingTreeRow(window_(), workingTree === true ? undefined : workingTree)
+      : window_(),
+  );
   const byCommit = new Map<number, RefView[]>();
   if (refs.length) byCommit.set(0, refs);
 
@@ -182,7 +190,8 @@ const frameWith = (
       date: 'дата',
       sha: 'sha',
       workingTree: 'дерево',
-      inProgress: '',
+      inProgress: 'слияние идёт',
+      mergeConflicts: 'два конфликта на пути в main',
     },
     cols: layoutColumns(1200, {}),
     avatars,
@@ -203,7 +212,7 @@ const paint = (
   avatars: AvatarCache | null = null,
   pullHeads: ReadonlySet<string> = new Set(),
   hoverChip: { row: number; at: number | 'more' } | null = null,
-  workingTree = false,
+  workingTree: boolean | WipOver = false,
 ) => {
   calls.length = 0;
   texts.length = 0;
@@ -448,4 +457,35 @@ describe('метки на чипах', () => {
     expect(laptop!.x, 'метка правее имени').toBeGreaterThan(name!.x);
   });
 
+});
+
+describe('строка WIP во время конфликтного слияния', () => {
+  it('становится оранжевым баннером с предупреждением вместо счётчиков', () => {
+    const painted = paint([], null, new Set(), null, {
+      conflicts: 2,
+      inProgress: 'merge',
+    });
+
+    expect(
+      painted.texts,
+      'баннер называет конфликты словами из перевода',
+    ).toContain('два конфликта на пути в main');
+    expect(
+      painted.texts,
+      'счётчики файлов при конфликте прячутся — строка говорит об одном',
+    ).not.toContain('29');
+    const warning = painted.strokedGlyphs.find((g) => g.d === GLYPH.conflict.d);
+    expect(warning, 'слева от текста — треугольник предупреждения').toBeDefined();
+    expect(
+      painted.texts,
+      'никаких меток состояния на полосе — только предупреждение',
+    ).not.toContain('слияние идёт');
+  });
+
+  it('без конфликтов строка WIP остаётся счётчиками', () => {
+    const painted = paint([], null, new Set(), null, true);
+
+    expect(painted.texts).toContain('29');
+    expect(painted.texts).not.toContain('два конфликта на пути в main');
+  });
 });
