@@ -54,9 +54,21 @@ export default function App() {
   const [world, dispatch] = useReducer(sessionsReducer, EMPTY);
   const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
-  const [running, setRunning] = useState<string | null>(null);
+  const [running, setRunning] = useState<{ kind: string; target?: string } | null>(null);
   const busy = running !== null;
-  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const checkingOut = running?.kind === 'checkout' ? (running.target ?? null) : null;
+
+  const busyWhile = useCallback(
+    async (marker: { kind: string; target?: string }, work: () => Promise<unknown>) => {
+      setRunning(marker);
+      try {
+        await work();
+      } finally {
+        setRunning(null);
+      }
+    },
+    [],
+  );
   const [main, setMain] = useState<Main>({ kind: 'graph' });
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
@@ -289,40 +301,36 @@ export default function App() {
   const runOperation = useCallback(
     (operation: Operation) => {
       if (!active) return;
-      setRunning(operation.kind);
-
-      ipc
-        .runOperation(active, operation, () => {})
-        .then(
-          () => {
-            notifyOperation(operation);
-            void ipc.resolveAvatars(active).catch(() => undefined);
-            return reload(active).catch(notifyError);
-          },
-          (e) => notifyOperationFailed(operation, e),
-        )
-        .finally(() => setRunning(null));
+      void busyWhile({ kind: operation.kind }, async () => {
+        try {
+          await ipc.runOperation(active, operation, () => {});
+        } catch (e) {
+          notifyOperationFailed(operation, e);
+          return;
+        }
+        notifyOperation(operation);
+        void ipc.resolveAvatars(active).catch(() => undefined);
+        await reload(active).catch(notifyError);
+      });
     },
-    [active, reload],
+    [active, reload, busyWhile],
   );
+
 
 
   const checkoutRef = useCallback(
     (ref: RefView) => {
       if (!active) return;
-      setRunning('checkout');
-      setCheckingOut(ref.name);
-      ipc
-        .checkoutRef(active, ref.name, ref.kind)
-        .then(() => reload(active))
-        .catch(notifyError)
-        .finally(() => {
-          setRunning(null);
-          setCheckingOut(null);
-        });
+      void busyWhile({ kind: 'checkout', target: ref.name }, () =>
+        ipc
+          .checkoutRef(active, ref.name, ref.kind)
+          .then(() => reload(active))
+          .catch(notifyError),
+      );
     },
-    [active, reload],
+    [active, reload, busyWhile],
   );
+
 
   const openPath = useCallback(
     (path: string) => {
@@ -403,19 +411,19 @@ export default function App() {
 
   const commit = useCallback(() => {
     if (!active || !message.trim()) return;
-    setRunning('commit');
-    ipc
-      .commit(active, composeCommitMessage(message, description), amend)
-      .then((updated) => {
-        setTree(updated);
-        setMessage('');
-        setDescription('');
-        setAmend(false);
-        return reload(active);
-      })
-      .catch(notifyError)
-      .finally(() => setRunning(null));
-  }, [active, message, description, amend, reload]);
+    void busyWhile({ kind: 'commit' }, () =>
+      ipc
+        .commit(active, composeCommitMessage(message, description), amend)
+        .then((updated) => {
+          setTree(updated);
+          setMessage('');
+          setDescription('');
+          setAmend(false);
+          return reload(active);
+        })
+        .catch(notifyError),
+    );
+  }, [active, message, description, amend, reload, busyWhile]);
 
   const copy = useCallback((text: string) => {
     void navigator.clipboard.writeText(text);
@@ -483,7 +491,7 @@ export default function App() {
               onSearch={search.setQuery}
               onStep={search.step}
               busy={busy}
-              running={running}
+              running={running?.kind ?? null}
             />
             <div className="flex min-h-0 flex-1">
               <Sidebar
@@ -589,7 +597,7 @@ export default function App() {
                     <WorkingTree
                       tree={tree}
                       busy={busy}
-                      committing={running === 'commit'}
+                      committing={running?.kind === 'commit'}
                       message={message}
                       description={description}
                       amend={amend}
