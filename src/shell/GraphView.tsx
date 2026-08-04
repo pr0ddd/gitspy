@@ -32,7 +32,7 @@ import { showNativeMenu } from '../nativeMenu';
 import type { Session } from '../session';
 import type { AvatarCache } from '../avatarCache';
 import type { RowCache } from '../rows';
-import type { Ask } from './AskDialog';
+import type { Ask } from './AskBar';
 import type { Operation, RefView } from '../types';
 import { GIT } from '../vocabulary';
 import { wipInputShown } from '../wip';

@@ -42,7 +42,7 @@ import { FileHistoryView } from './shell/FileHistoryView';
 import { WorkingTree } from './shell/WorkingTree';
 import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
-import { AskDialog, type Ask } from './shell/AskDialog';
+import { AskBar, type Ask } from './shell/AskBar';
 import { PullPanel } from './shell/PullPanel';
 import { PanelNote } from './shell/parts';
 import { remoteAvatarKey } from './chips';
@@ -516,6 +516,11 @@ export default function App() {
                   railed && 'ml-2',
                 )}
               >
+              <AskBar
+                ask={asking}
+                onOpenChange={(next) => !next && setAsking(null)}
+                onRun={runOperation}
+              />
               <Toolbar
                 tree={tree}
                 onRun={runOperation}
@@ -650,12 +655,6 @@ export default function App() {
           account={account}
           onOpenChange={setSettingsOpen}
           onDisconnected={() => setAccount(null)}
-        />
-
-        <AskDialog
-          ask={asking}
-          onOpenChange={(next) => !next && setAsking(null)}
-          onRun={runOperation}
         />
 
         <CloneDialog
