@@ -1,7 +1,7 @@
 import type { Cols } from './columns';
 
 export const MINIMAP_W = 56;
-export const HEADER_H = 28;
+export const HEADER_H = 26;
 export const HSCROLL_H = 9;
 
 const PAD_X = 14;
@@ -16,7 +16,7 @@ export type Metrics = {
   readonly fontMono: string;
 };
 
-const SANS = `'Geist Variable', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+const SANS = `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
 
 const fonts = (px: number, detailPx: number) => ({
   fontPx: px,
@@ -25,11 +25,11 @@ const fonts = (px: number, detailPx: number) => ({
 });
 
 export const METRICS_AVATARS: Metrics = {
-  rowH: 36,
-  laneW: 28,
-  nodeR: 8,
+  rowH: 30,
+  laneW: 24,
+  nodeR: 10,
   avatars: true,
-  ...fonts(13, 11),
+  ...fonts(13, 12),
 };
 
 export const METRICS_COMPACT: Metrics = {

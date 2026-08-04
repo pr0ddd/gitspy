@@ -179,13 +179,13 @@ describe('узкая колонка графа', () => {
 describe('минимальная колонка графа', () => {
   it('свободный аватар стоит на месте, пока край до него не доехал', () => {
     const roomy = graphGeometry(M, 99, 0, colsWith(200));
-    const tight = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 34 }));
+    const tight = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
     expect(roomy.nodeX(0)).toBe(roomy.laneAt(0));
     expect(tight.nodeX(0)).toBe(tight.laneAt(0));
   });
 
   it('в минимуме колонна и свободный узел сливаются в один ряд', () => {
-    const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 34 }));
+    const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
     expect(Math.abs(g.nodeX(99) - g.nodeX(0))).toBeLessThanOrEqual(M.nodeR);
   });
 
@@ -203,13 +203,13 @@ describe('минимальная колонка графа', () => {
 
 describe('дно колонки графа', () => {
   it('в минимуме все узлы становятся в один ряд без остатка', () => {
-    const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 26 }));
+    const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 28 }));
     expect(g.nodeX(0)).toBe(g.nodeX(99));
   });
 });
 
 describe('проматывание к выделенной строке', () => {
-  const H = HEADER_H + M.rowH * 10;
+  const H = 26 + M.rowH * 10;
   const COUNT = 1000;
 
   it('видимую строку не трогает вовсе', () => {
