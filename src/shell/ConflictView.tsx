@@ -129,13 +129,7 @@ function SidePane({
           onCheckedChange={(next) => onAll(next === true)}
           className="size-3.5"
         />
-        <Badge className="bg-fill-2 text-muted-foreground text-2xs gap-1.5 rounded-md px-2 py-0.5">
-          <span
-            className={cn(
-              'size-1.5 rounded-full',
-              side === 'a' ? 'bg-added' : 'bg-modified',
-            )}
-          />
+        <Badge className="bg-fill-2 text-muted-foreground text-2xs rounded-md px-2 py-0.5">
           {side === 'a' ? t('conflict.sideA') : t('conflict.sideB')}
         </Badge>
         <span className="min-w-0 flex-1 truncate text-left">{branch ?? ''}</span>

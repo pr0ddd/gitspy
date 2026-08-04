@@ -37,11 +37,11 @@ const STATUS_STYLE: Record<string, string> = {
   U: 'text-conflict',
 };
 
-const REF_DOT: Record<RefKind, string> = {
-  localBranch: 'bg-ref-local',
-  remoteBranch: 'bg-ref-remote',
-  tag: 'bg-ref-tag',
-  stash: 'bg-ref-stash',
+const REF_ICON: Record<RefKind, keyof typeof Icon> = {
+  localBranch: 'branch',
+  remoteBranch: 'remote',
+  tag: 'tag',
+  stash: 'stash',
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -153,18 +153,23 @@ export function Details({
 
           {labels.length ? (
             <div className="flex flex-wrap gap-1">
-              {labels.map((ref) => (
-                <Badge
-                  key={`${ref.kind}:${ref.name}`}
-                  className={cn(
-                    'text-2xs gap-1.5 rounded-md px-2 py-0.5',
-                    ref.isHead ? 'bg-primary/25 text-foreground' : 'bg-fill-2 text-muted-foreground',
-                  )}
-                >
-                  <span className={cn('size-1.5 rounded-full', REF_DOT[ref.kind])} />
-                  {ref.name}
-                </Badge>
-              ))}
+              {labels.map((ref) => {
+                const Glyph = Icon[REF_ICON[ref.kind]];
+                return (
+                  <Badge
+                    key={`${ref.kind}:${ref.name}`}
+                    className={cn(
+                      'text-2xs gap-1.5 rounded-md px-2 py-0.5',
+                      ref.isHead
+                        ? 'bg-primary/25 text-foreground'
+                        : 'bg-fill-2 text-muted-foreground',
+                    )}
+                  >
+                    <Glyph className="size-3" />
+                    {ref.name}
+                  </Badge>
+                );
+              })}
             </div>
           ) : null}
         </div>

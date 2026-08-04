@@ -257,8 +257,8 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
                 <button
                   onClick={() => setChosen(commit.hash)}
                   className={cn(
-                    'hover:bg-fill-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
-                    commit.hash === entry?.hash && 'bg-ahead/15',
+                    'hover:bg-fill-1 flex h-11 w-full items-center gap-2 rounded-md px-2 text-left transition-colors',
+                    commit.hash === entry?.hash && 'bg-fill-2',
                   )}
                 >
                   <CommitAvatar avatars={avatars} email={commit.email} />

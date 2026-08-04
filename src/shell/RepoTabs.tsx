@@ -60,7 +60,6 @@ export function RepoTabs({
                   : 'text-muted-foreground hover:bg-fill-1',
               )}
             >
-              <Icon.branch className="size-3 shrink-0 opacity-70" />
               <span className="truncate">{session.name}</span>
               <Button
                 variant="muted"

@@ -39,7 +39,7 @@ type Entry = {
 type Group = {
   key: string;
   title: string;
-  dot: string;
+  icon: IconName;
   entries: Entry[];
   tree?: TreeNode[];
 };
@@ -84,7 +84,7 @@ type RowProps = {
   depth?: number;
   leading?: React.ReactNode;
   icon?: IconName;
-  dot?: string;
+  iconClass?: string;
   spinning?: boolean;
   badge?: React.ReactNode;
   label: string;
@@ -101,7 +101,7 @@ function Row({
   depth = 0,
   leading,
   icon,
-  dot,
+  iconClass,
   spinning,
   badge,
   label,
@@ -128,11 +128,7 @@ function Row({
       {spinning ? (
         <Icon.waiting className="text-muted-foreground size-3 shrink-0 animate-spin" />
       ) : Glyph ? (
-        <Glyph className="text-muted-foreground size-3 shrink-0" />
-      ) : dot ? (
-        <span className="flex w-3 shrink-0 justify-center">
-          <span className={cn('size-1.5', dot)} />
-        </span>
+        <Glyph className={cn('size-3 shrink-0', iconClass ?? 'text-muted-foreground')} />
       ) : null}
       {badge}
       <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -163,6 +159,7 @@ function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckou
           <div key={node.path}>
             <Row
               depth={depth}
+              icon="folder"
               label={node.name}
               onClick={() => onFlip(node.path)}
               leading={
@@ -192,14 +189,8 @@ function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckou
             key={node.path}
             depth={depth + 1}
             spinning={checkingOut === node.ref.name}
-            dot={cn(
-              'rounded-full',
-              node.ref.isHead
-                ? 'bg-primary'
-                : node.ref.kind === 'remoteBranch'
-                  ? 'bg-ref-remote'
-                  : 'bg-ref-local',
-            )}
+            icon={node.ref.isHead ? 'current' : 'branch'}
+            iconClass={node.ref.isHead ? 'text-primary' : undefined}
             label={node.name}
             hint={node.path === node.name ? undefined : node.path}
             trailing={<Tracking view={node.ref} />}
@@ -280,21 +271,21 @@ export function Sidebar({
       {
         key: 'local',
         title: GIT.local,
-        dot: 'bg-ref-local rounded-full',
+        icon: 'branch',
         entries: fromRefs(refs, 'localBranch'),
         tree: treeOf(refs, 'localBranch'),
       },
       {
         key: 'remote',
         title: GIT.remote,
-        dot: 'bg-ref-remote rounded-full',
+        icon: 'remote',
         entries: fromRefs(refs, 'remoteBranch'),
         tree: treeOf(refs, 'remoteBranch'),
       },
       {
         key: 'worktrees',
         title: GIT.worktrees,
-        dot: 'bg-ref-worktree rounded-xs',
+        icon: 'worktree',
         entries: (session?.worktrees ?? []).map((w) => ({
           label: w.name,
           detail: w.branch ?? undefined,
@@ -305,13 +296,13 @@ export function Sidebar({
       {
         key: 'stashes',
         title: GIT.stashes,
-        dot: 'bg-ref-stash rounded-full',
+        icon: 'stash',
         entries: fromRefs(refs, 'stash'),
       },
       {
         key: 'tags',
         title: GIT.tags,
-        dot: 'bg-ref-tag rounded-xs',
+        icon: 'tag',
         entries: fromRefs(refs, 'tag'),
       },
     ],
@@ -375,7 +366,7 @@ export function Sidebar({
                 <Row
                   key={`${group.key}:${entry.label}`}
                   depth={1}
-                  dot={group.dot}
+                  icon={group.icon}
                   label={entry.label}
                   detail={entry.detail}
                   current={entry.isHead}
@@ -454,7 +445,7 @@ function PullItem({ pull, onPickPull }: { pull: PullView; onPickPull: (pull: Pul
     <Row
       depth={1}
       icon="pullRequest"
-      badge={<span className="text-muted-foreground shrink-0 tabular-nums">#{pull.number}</span>}
+      badge={<span className="text-faint shrink-0 tabular-nums">#{pull.number}</span>}
       label={pull.title}
       hint={pull.title}
       onClick={() => onPickPull(pull)}
