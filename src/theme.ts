@@ -10,6 +10,11 @@ export type Theme = {
   surface: string;
   surfaceRaised: string;
   panel: string;
+  primary: string;
+  primarySoft: string;
+  fill1: string;
+  fill2: string;
+  fill3: string;
   rowLine: string;
   rowHover: string;
   rowSelected: string;
@@ -55,6 +60,11 @@ const build = (): Theme => ({
   surface: token('--surface'),
   surfaceRaised: token('--surface-raised'),
   panel: token('--card'),
+  primary: token('--primary'),
+  primarySoft: mix('--primary', 25),
+  fill1: token('--fill-1'),
+  fill2: token('--fill-2'),
+  fill3: token('--fill-3'),
   rowLine: mix('--border', 55),
   rowHover: mix('--surface-hover', 70),
   rowSelected: token('--surface-hover'),
@@ -77,3 +87,5 @@ export const laneColourAlpha = (index: number, percent: number): string =>
   resolve(
     `color-mix(in oklab, var(--graph-${(index % GRAPH_LANES) + 1}) ${percent}%, transparent)`,
   );
+
+export const laneSoft = (index: number): string => laneColourAlpha(index, 30);
