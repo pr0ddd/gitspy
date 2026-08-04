@@ -4,13 +4,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { METRICS_AVATARS } from './render';
-import {
-  notifyCopied,
-  notifyError,
-  notifyOperation,
-  notifyOperationFailed,
-  operationLabel,
-} from './toast';
+import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from './toast';
 import * as ipc from './ipc';
 import { EMPTY, sessionsReducer } from './session';
 import { useRepoData } from './repoData';
@@ -60,8 +54,21 @@ export default function App() {
   const [world, dispatch] = useReducer(sessionsReducer, EMPTY);
   const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [veil, setVeil] = useState<string | null>(null);
+  const [running, setRunning] = useState<{ kind: string; target?: string } | null>(null);
+  const busy = running !== null;
+  const checkingOut = running?.kind === 'checkout' ? (running.target ?? null) : null;
+
+  const busyWhile = useCallback(
+    async (marker: { kind: string; target?: string }, work: () => Promise<unknown>) => {
+      setRunning(marker);
+      try {
+        await work();
+      } finally {
+        setRunning(null);
+      }
+    },
+    [],
+  );
   const [main, setMain] = useState<Main>({ kind: 'graph' });
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
@@ -294,44 +301,36 @@ export default function App() {
   const runOperation = useCallback(
     (operation: Operation) => {
       if (!active) return;
-      setBusy(true);
-      setVeil(operationLabel(operation));
-      notifyOperation(operation, 'started');
-
-      ipc
-        .runOperation(active, operation, () => {})
-        .then(
-          () => {
-            notifyOperation(operation, 'finished');
-            void ipc.resolveAvatars(active).catch(() => undefined);
-            return reload(active).catch(notifyError);
-          },
-          (e) => notifyOperationFailed(operation, e),
-        )
-        .finally(() => {
-          setBusy(false);
-          setVeil(null);
-        });
+      void busyWhile({ kind: operation.kind }, async () => {
+        try {
+          await ipc.runOperation(active, operation, () => {});
+        } catch (e) {
+          notifyOperationFailed(operation, e);
+          return;
+        }
+        notifyOperation(operation);
+        void ipc.resolveAvatars(active).catch(() => undefined);
+        await reload(active).catch(notifyError);
+      });
     },
-    [active, reload, t],
+    [active, reload, busyWhile],
   );
+
+
 
   const checkoutRef = useCallback(
     (ref: RefView) => {
       if (!active) return;
-      setBusy(true);
-      setVeil(t('graph.switching', { name: ref.name }));
-      ipc
-        .checkoutRef(active, ref.name, ref.kind)
-        .then(() => reload(active))
-        .catch(notifyError)
-        .finally(() => {
-          setBusy(false);
-          setVeil(null);
-        });
+      void busyWhile({ kind: 'checkout', target: ref.name }, () =>
+        ipc
+          .checkoutRef(active, ref.name, ref.kind)
+          .then(() => reload(active))
+          .catch(notifyError),
+      );
     },
-    [active, reload, t],
+    [active, reload, busyWhile],
   );
+
 
   const openPath = useCallback(
     (path: string) => {
@@ -412,19 +411,19 @@ export default function App() {
 
   const commit = useCallback(() => {
     if (!active || !message.trim()) return;
-    setBusy(true);
-    ipc
-      .commit(active, composeCommitMessage(message, description), amend)
-      .then((updated) => {
-        setTree(updated);
-        setMessage('');
-        setDescription('');
-        setAmend(false);
-        return reload(active);
-      })
-      .catch(notifyError)
-      .finally(() => setBusy(false));
-  }, [active, message, description, amend, reload]);
+    void busyWhile({ kind: 'commit' }, () =>
+      ipc
+        .commit(active, composeCommitMessage(message, description), amend)
+        .then((updated) => {
+          setTree(updated);
+          setMessage('');
+          setDescription('');
+          setAmend(false);
+          return reload(active);
+        })
+        .catch(notifyError),
+    );
+  }, [active, message, description, amend, reload, busyWhile]);
 
   const copy = useCallback((text: string) => {
     void navigator.clipboard.writeText(text);
@@ -450,7 +449,7 @@ export default function App() {
         at,
       });
     },
-    [active, runOperation, t],
+    [active, runOperation],
   );
 
   return (
@@ -492,6 +491,7 @@ export default function App() {
               onSearch={search.setQuery}
               onStep={search.step}
               busy={busy}
+              running={running?.kind ?? null}
             />
             <div className="flex min-h-0 flex-1">
               <Sidebar
@@ -499,6 +499,7 @@ export default function App() {
                 collapsed={railed}
                 pulls={pulls}
                 currentBranch={tree?.branch ?? null}
+                checkingOut={checkingOut}
                 onPick={select}
                 onCheckout={checkoutRef}
                 onRun={runOperation}
@@ -561,7 +562,6 @@ export default function App() {
                       redraw={redraw + avatarTick}
                       metrics={METRICS_AVATARS}
                       pullHeads={pullHeads}
-                      veil={veil}
                       currentBranch={tree?.branch ?? null}
                       onSelect={select}
                       onCheckoutRef={checkoutRef}
@@ -597,6 +597,7 @@ export default function App() {
                     <WorkingTree
                       tree={tree}
                       busy={busy}
+                      committing={running?.kind === 'commit'}
                       message={message}
                       description={description}
                       amend={amend}
