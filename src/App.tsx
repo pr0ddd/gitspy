@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import { METRICS_AVATARS } from './render';
 import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from './toast';
 import * as ipc from './ipc';
@@ -104,6 +105,16 @@ export default function App() {
 
   useEffect(() => {
     ipc.recentRepos().then(setRecent).catch(notifyError);
+  }, []);
+
+  useEffect(() => {
+    const toggleSidebar = (e: KeyboardEvent) => {
+      if (e.key !== '\\' || !(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+      setRailed((now) => !now);
+    };
+    window.addEventListener('keydown', toggleSidebar);
+    return () => window.removeEventListener('keydown', toggleSidebar);
   }, []);
 
   useEffect(() => {
@@ -458,6 +469,8 @@ export default function App() {
         <RepoTabs
           sessions={sessions}
           active={active}
+          sidebarHidden={railed}
+          onToggleSidebar={() => setRailed((now) => !now)}
           onActivate={(path) => dispatch({ kind: 'activate', path })}
           onClose={closeRepo}
           onStart={() => dispatch({ kind: 'activate', path: null })}
@@ -480,9 +493,9 @@ export default function App() {
           </div>
         ) : (
           <>
+              {railed ? null : (
               <Sidebar
                 session={current}
-                collapsed={railed}
                 pulls={pulls}
                 currentBranch={tree?.branch ?? null}
                 checkingOut={checkingOut}
@@ -493,11 +506,16 @@ export default function App() {
                 onAsk={setAsking}
                 onWorktree={addWorktree}
                 onOpenUrl={openUrl}
-                onToggle={() => setRailed((now) => !now)}
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <div className="bg-card shadow-sheet flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+              )}
+              <div
+                className={cn(
+                  'bg-card shadow-sheet flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border',
+                  railed && 'ml-2',
+                )}
+              >
               <Toolbar
                 session={current}
                 sessions={sessions}
