@@ -44,7 +44,6 @@ type Props = {
   redraw: number;
   metrics: Metrics;
   pullHeads: ReadonlySet<string>;
-  veil: string | null;
   currentBranch: string | null;
   onSelect: (index: number) => void;
   onCheckoutRef: (ref: RefView) => void;
@@ -85,7 +84,6 @@ export function GraphView({
   redraw,
   metrics,
   pullHeads,
-  veil,
   currentBranch,
   onSelect,
   onCheckoutRef,
@@ -564,13 +562,6 @@ export function GraphView({
           >
             <Icon.waiting className="size-5 animate-spin" />
             <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
-          </div>
-        ) : null}
-
-        {veil !== null ? (
-          <div className="bg-background/60 text-foreground animate-in fade-in fill-mode-backwards absolute inset-0 flex flex-col items-center justify-center gap-2 backdrop-blur-xs delay-150 duration-200">
-            <Icon.waiting className="size-5 animate-spin" />
-            <span className="text-sm">{veil}</span>
           </div>
         ) : null}
 

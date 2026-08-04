@@ -17,40 +17,29 @@ vi.mock('sonner', () => {
 
 const pull: Operation = { kind: 'pull' };
 
-describe('жизнь тоста операции', () => {
+describe('тосты — только исход действия', () => {
   beforeEach(() => {
     vi.mocked(toast.loading).mockClear();
+    vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
   });
 
-  it('провал гасит спиннер операции, а не оставляет его крутиться рядом с ошибкой', () => {
-    notifyOperation(pull, 'started');
-    notifyOperationFailed(pull, { code: 'exec.pullDiverged', params: {} });
-    const loadingId = vi.mocked(toast.loading).mock.calls[0]?.[1]?.id;
-    const [, errorOptions] = vi.mocked(toast.error).mock.calls[0] ?? [];
-    expect(loadingId, 'loading-тост обязан иметь id, иначе его не заменить').toBeTruthy();
-    expect(
-      errorOptions?.id,
-      'тост ошибки обязан заменить loading-тост по тому же id',
-    ).toBe(loadingId);
+  it('запуск операции не рождает ни одного тоста — индикатор живёт у кнопки', () => {
+    notifyOperation(pull);
+    expect(vi.mocked(toast.loading).mock.calls.length, 'спиннер-тостов больше нет').toBe(0);
+    expect(vi.mocked(toast.success).mock.calls.length).toBe(1);
   });
 
-  it('провал push с установкой upstream гасит тот же спиннер, что и обычный push', () => {
-    const push: Operation = { kind: 'pushSetUpstream', remote: 'origin', branch: 'master' };
-    notifyOperation(push, 'started');
-    notifyOperationFailed(push, { code: 'exec.rejected', params: {} });
-    expect(vi.mocked(toast.error).mock.calls[0]?.[1]?.id).toBe(
-      vi.mocked(toast.loading).mock.calls[0]?.[1]?.id,
-    );
+  it('успех — один success с именем действия', () => {
+    notifyOperation(pull);
+    expect(String(vi.mocked(toast.success).mock.calls[0]?.[0])).toMatch(/pull/i);
   });
 
-  it('текст ошибки — человеческая фраза по коду, а не только «git failed»', () => {
+  it('провал — один error с человеческим объяснением', () => {
     notifyOperationFailed(pull, { code: 'exec.pullDiverged', params: {} });
     const [title, options] = vi.mocked(toast.error).mock.calls[0] ?? [];
-    expect(String(title), 'заголовок называет операцию').toMatch(/pull failed/i);
-    expect(
-      String(options?.description ?? ''),
-      'описание объясняет расхождение веток словами, а не кодом',
-    ).toMatch(/diverged/i);
+    expect(String(title)).toMatch(/pull failed/i);
+    expect(String(options?.description ?? '')).toMatch(/diverged/i);
+    expect(vi.mocked(toast.loading).mock.calls.length).toBe(0);
   });
 });

@@ -39,6 +39,7 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
       <WorkingTree
         tree={tree}
         busy={false}
+        committing={false}
         message={message}
         description={extra.description ?? ''}
         amend={extra.amend ?? false}
@@ -159,6 +160,7 @@ describe('панель во время слияния', () => {
         <WorkingTree
           tree={tree}
           busy={false}
+          committing={false}
           message={over.message ?? ''}
           description=""
           amend={false}

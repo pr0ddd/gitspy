@@ -30,6 +30,7 @@ type Props = {
   onSearch: (query: string) => void;
   onStep: (delta: number) => void;
   busy: boolean;
+  running: string | null;
 };
 
 export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
@@ -82,6 +83,7 @@ export function Toolbar({
   onSearch,
   onStep,
   busy,
+  running,
 }: Props) {
   const { t } = useTranslation();
   const head = session?.repo?.refs.find((r) => r.isHead);
@@ -178,6 +180,7 @@ export function Toolbar({
           }
           const hint =
             runnable?.kind === 'pushSetUpstream' ? t('toolbar.noUpstream') : why(operation);
+          const spinning = runnable !== null && running === runnable.kind;
 
           const button = (
             <Button
@@ -187,7 +190,11 @@ export function Toolbar({
               onClick={() => runnable && onRun(runnable)}
               className="h-7 gap-1.5 px-2.5"
             >
-              <Glyph className="size-3.5" />
+              {spinning ? (
+                <Icon.waiting className="size-3.5 animate-spin" />
+              ) : (
+                <Glyph className="size-3.5" />
+              )}
               {label}
             </Button>
           );
