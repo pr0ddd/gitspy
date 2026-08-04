@@ -7,13 +7,13 @@
   --fill-2: oklch(1 0 0 / 0.07);
   --fill-3: oklch(1 0 0 / 0.11);
 
-  --background: oklch(0.14 0.004 265);
+  --background: oklch(0.135 0.003 265);
   --foreground: oklch(0.965 0.002 265);
 
-  --card: oklch(0.175 0.004 265);
+  --card: oklch(0.185 0.005 265);
   --card-foreground: oklch(0.965 0.002 265);
 
-  --popover: oklch(0.205 0.005 265);
+  --popover: oklch(0.215 0.005 265);
   --popover-foreground: oklch(0.965 0.002 265);
 
   --primary: oklch(0.575 0.16 277);
@@ -37,8 +37,8 @@
   --input: var(--fill-2);
   --ring: oklch(0.64 0.16 277);
 
-  --surface: oklch(0.14 0.004 265);
-  --surface-raised: oklch(0.205 0.005 265);
+  --surface: oklch(0.135 0.003 265);
+  --surface-raised: oklch(0.215 0.005 265);
   --surface-hover: var(--fill-2);
 
   --status-added: oklch(0.74 0.16 150);
