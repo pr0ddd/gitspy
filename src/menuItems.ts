@@ -1,5 +1,5 @@
 import type { Chip } from './chips';
-import type { Ask } from './shell/AskDialog';
+import type { Ask } from './shell/AskBar';
 import type { Operation, RefView } from './types';
 
 export type MenuAction =

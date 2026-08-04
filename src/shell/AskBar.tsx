@@ -2,13 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { Operation } from '../types';
 
@@ -65,7 +58,7 @@ const operationOf = (
   }
 };
 
-export function AskDialog({ ask, onOpenChange, onRun }: Props) {
+export function AskBar({ ask, onOpenChange, onRun }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -79,68 +72,76 @@ export function AskDialog({ ask, onOpenChange, onRun }: Props) {
     setMessage('');
   }, [ask]);
 
-  const wording = WORDING[ask?.kind ?? 'branch'];
-  const needsMessage = ask?.kind === 'annotatedTagAt';
-  const multiline = ask?.kind === 'editMessage';
+  if (!ask) return null;
+
+  const wording = WORDING[ask.kind];
+  const needsMessage = ask.kind === 'annotatedTagAt';
+  const multiline = ask.kind === 'editMessage';
   const ready =
-    ask?.kind === 'stash'
+    ask.kind === 'stash'
       ? true
       : name.trim().length > 0 && (!needsMessage || message.trim().length > 0);
 
+  const cancel = () => onOpenChange(false);
+
   const run = () => {
-    if (!ask || !ready) return;
+    if (!ready) return;
     onRun(operationOf(ask, name.trim(), message.trim(), checkout));
     onOpenChange(false);
   };
 
+  const submitKeys = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') cancel();
+    if (e.key === 'Enter' && (!multiline || e.metaKey || e.ctrlKey)) run();
+  };
+
   return (
-    <Dialog open={ask !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{t(wording.title as 'branch.title')}</DialogTitle>
-        </DialogHeader>
+    <div className="bg-primary/15 animate-in fade-in slide-in-from-top-1 min-h-bar flex shrink-0 items-center justify-center gap-3 border-b px-4 py-2 duration-150">
+      <span className="shrink-0 text-sm">{t(wording.title as 'branch.title')}</span>
 
-        {multiline ? (
-          <textarea
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && run()}
-            rows={4}
-            className="bg-fill-1 text-foreground focus:bg-fill-2 w-full resize-none rounded-md px-2.5 py-1.5 text-sm outline-none"
-          />
-        ) : (
-          <Input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && run()}
-            placeholder={t(wording.field as 'branch.name')}
-          />
-        )}
+      {multiline ? (
+        <textarea
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={submitKeys}
+          rows={2}
+          className="bg-fill-1 text-foreground focus:bg-fill-2 w-96 resize-none rounded-md px-2.5 py-1.5 text-sm outline-none"
+        />
+      ) : (
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={submitKeys}
+          placeholder={t(wording.field as 'branch.name')}
+          className="h-7 w-64 text-xs"
+        />
+      )}
 
-        {needsMessage ? (
-          <Input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && run()}
-            placeholder={t('tag.message')}
-          />
-        ) : null}
+      {needsMessage ? (
+        <Input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={submitKeys}
+          placeholder={t('tag.message')}
+          className="h-7 w-64 text-xs"
+        />
+      ) : null}
 
-        {ask?.kind === 'branch' ? (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={checkout} onCheckedChange={(next) => setCheckout(next === true)} />
-            {t('branch.checkout')}
-          </label>
-        ) : null}
+      {ask.kind === 'branch' ? (
+        <label className="flex shrink-0 items-center gap-2 text-xs">
+          <Checkbox checked={checkout} onCheckedChange={(next) => setCheckout(next === true)} />
+          {t('branch.checkout')}
+        </label>
+      ) : null}
 
-        <DialogFooter>
-          <Button size="sm" disabled={!ready} onClick={run}>
-            {t(wording.confirm as 'branch.create')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <Button size="xs" disabled={!ready} onClick={run}>
+        {t(wording.confirm as 'branch.create')}
+      </Button>
+      <Button size="xs" variant="secondary" onClick={cancel}>
+        {t('ask.cancel')}
+      </Button>
+    </div>
   );
 }

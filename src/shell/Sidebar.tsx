@@ -10,7 +10,7 @@ import { chipsFor } from '../chips';
 import { buildChipMenu, type MenuAction } from '../menuItems';
 import { showNativeMenu } from '../nativeMenu';
 import { InlineNote, ListRow, SectionHeader } from './parts';
-import type { Ask } from './AskDialog';
+import type { Ask } from './AskBar';
 import type { Operation, PullListView, PullView, RefKind, RefView } from '../types';
 
 type Props = {
