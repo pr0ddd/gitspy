@@ -57,6 +57,7 @@ const GRAPH_W = 2;
 
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.18;
+const CAP_W = 2;
 
 const SHADOW_BAND = 14;
 
@@ -266,6 +267,14 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       sh.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = sh;
       ctx.fillRect(g.contentRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
+    }
+
+    for (let i = first; i < last; i++) {
+      const row = rows.row(i);
+      if (!row) continue;
+      const y = shift + (i - first) * m.rowH;
+      ctx.fillStyle = laneColour(row.colour);
+      ctx.fillRect(g.gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
     }
 
     for (let i = first; i < last; i++) {
