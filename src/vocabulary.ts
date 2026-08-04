@@ -2,7 +2,6 @@ export const GIT = {
   local: 'Local',
   remote: 'Remote',
   worktrees: 'Worktrees',
-  stashes: 'Stashes',
   tags: 'Tags',
   pullRequests: 'Pull Requests',
   issues: 'Issues',
