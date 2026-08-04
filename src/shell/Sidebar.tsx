@@ -345,7 +345,7 @@ export function Sidebar({
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col">
+    <aside className="flex w-61 shrink-0 flex-col">
       <div className="flex items-center gap-1 p-2 pb-0">
         <Hint text={t('sidebar.collapse')}>
           <button

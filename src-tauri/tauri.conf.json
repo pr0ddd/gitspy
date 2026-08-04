@@ -14,7 +14,9 @@
       {
         "title": "gitspy",
         "width": 1400,
-        "height": 900
+        "height": 900,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ],
     "security": {

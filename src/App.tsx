@@ -464,7 +464,9 @@ export default function App() {
           onSettings={() => setSettingsOpen(true)}
         />
 
+        <div className="flex min-h-0 flex-1 pr-2 pb-2">
         {current === null ? (
+          <div className="bg-card shadow-sheet ml-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
           <StartPage
             recent={recent}
             onOpen={pickRepo}
@@ -475,25 +477,9 @@ export default function App() {
             onCreate={createRepo}
             onConnect={() => setSettingsOpen(true)}
           />
+          </div>
         ) : (
           <>
-            <Toolbar
-              session={current}
-              sessions={sessions}
-              tree={tree}
-              onRun={runOperation}
-              onActivate={(path) => dispatch({ kind: 'activate', path })}
-              onAsk={(kind) => setAsking({ kind })}
-              onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
-              search={search.query}
-              found={search.found}
-              at={search.at}
-              onSearch={search.setQuery}
-              onStep={search.step}
-              busy={busy}
-              running={running?.kind ?? null}
-            />
-            <div className="flex min-h-0 flex-1">
               <Sidebar
                 session={current}
                 collapsed={railed}
@@ -511,7 +497,25 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <main className="bg-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-l-lg border-l">
+              <div className="bg-card shadow-sheet flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+              <Toolbar
+                session={current}
+                sessions={sessions}
+                tree={tree}
+                onRun={runOperation}
+                onActivate={(path) => dispatch({ kind: 'activate', path })}
+                onAsk={(kind) => setAsking({ kind })}
+                onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
+                search={search.query}
+                found={search.found}
+                at={search.at}
+                onSearch={search.setQuery}
+                onStep={search.step}
+                busy={busy}
+                running={running?.kind ?? null}
+              />
+              <div className="flex min-h-0 flex-1">
+              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                 {main.kind === 'diff' && current.repo ? (
                   <DiffView
                     repo={current.path}
@@ -591,7 +595,7 @@ export default function App() {
                   </>
                 )}
               </main>
-              <aside className="flex w-80 shrink-0 flex-col">
+              <aside className="flex w-80 shrink-0 flex-col border-l">
                 {panel === 'workingTree' ? (
                   tree && tree.entries.length > 0 ? (
                     <WorkingTree
@@ -635,9 +639,11 @@ export default function App() {
                   />
                 )}
               </aside>
-            </div>
+              </div>
+              </div>
           </>
         )}
+        </div>
 
         <Settings
           open={settingsOpen}

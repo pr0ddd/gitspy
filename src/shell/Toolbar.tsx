@@ -102,7 +102,7 @@ export function Toolbar({
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-2 px-2 py-1">
+    <div className="flex h-11 shrink-0 items-center gap-2 px-3">
       <div className="flex min-w-0 shrink-0 items-center gap-1">
         <Selector label={t('toolbar.repositoryLabel')} value={session?.name ?? '—'}>
           <DropdownMenuLabel className="text-2xs">
