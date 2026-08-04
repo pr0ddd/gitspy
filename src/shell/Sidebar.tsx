@@ -294,12 +294,6 @@ export function Sidebar({
         })),
       },
       {
-        key: 'stashes',
-        title: GIT.stashes,
-        icon: 'stash',
-        entries: fromRefs(refs, 'stash'),
-      },
-      {
         key: 'tags',
         title: GIT.tags,
         icon: 'tag',
