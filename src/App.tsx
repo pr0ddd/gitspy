@@ -33,6 +33,7 @@ type Main =
   | { kind: 'graph' }
   | { kind: 'diff'; target: DiffTarget }
   | { kind: 'conflict'; path: string }
+  | { kind: 'history'; path: string }
   | { kind: 'pull'; pull: PullView };
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
@@ -42,6 +43,7 @@ import { GraphView } from './shell/GraphView';
 import { StartPage } from './shell/StartPage';
 import { DiffView, type DiffTarget } from './shell/DiffView';
 import { ConflictView } from './shell/ConflictView';
+import { FileHistoryView } from './shell/FileHistoryView';
 import { WorkingTree } from './shell/WorkingTree';
 import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
@@ -515,6 +517,16 @@ export default function App() {
                     target={main.target}
                     onClose={() => setMain({ kind: 'graph' })}
                     onTree={adoptTree}
+                    onRun={runPathOperation}
+                    onTarget={(target) => setMain({ kind: 'diff', target })}
+                    onHistory={(path) => setMain({ kind: 'history', path })}
+                  />
+                ) : main.kind === 'history' && current.repo ? (
+                  <FileHistoryView
+                    repo={current.path}
+                    path={main.path}
+                    avatars={avatarsRef.current}
+                    onClose={() => setMain({ kind: 'graph' })}
                   />
                 ) : main.kind === 'conflict' && current.repo ? (
                   <ConflictView

@@ -273,3 +273,79 @@ fn remote_addresses_come_with_their_names_and_without_duplicates() {
         "fetch и push дают origin дважды, а нам нужен один раз"
     );
 }
+
+#[test]
+fn the_sides_of_a_gitlink_are_the_commit_pointers_git_itself_reports() {
+    let dir = repo();
+    let sub = dir.path().join("inner");
+    std::fs::create_dir_all(&sub).expect("каталог");
+    run(&sub, &["init", "-b", "main"]);
+    write(&sub, "a.txt", "раз\n");
+    run(&sub, &["add", "-A"]);
+    run(&sub, &["commit", "-m", "first"]);
+    run(dir.path(), &["add", "inner"]);
+    run(dir.path(), &["commit", "-m", "link"]);
+    let before = run(&sub, &["rev-parse", "HEAD"]);
+
+    write(&sub, "a.txt", "два\n");
+    run(&sub, &["commit", "-am", "second"]);
+    let after = run(&sub, &["rev-parse", "HEAD"]);
+
+    let (old, new) = git()
+        .working_tree_sides(dir.path(), "inner", false)
+        .expect("стороны gitlink читаются");
+    assert_eq!(
+        old.trim(),
+        format!("Subproject commit {before}"),
+        "пустые стороны рисуют пустой дифф, а git says какой коммит был"
+    );
+    assert_eq!(new.trim(), format!("Subproject commit {after}"));
+}
+
+#[test]
+fn a_dirty_subrepo_shows_the_dirty_pointer_exactly_as_git_diff_prints_it() {
+    let dir = repo();
+    let sub = dir.path().join("inner");
+    std::fs::create_dir_all(&sub).expect("каталог");
+    run(&sub, &["init", "-b", "main"]);
+    write(&sub, "a.txt", "раз\n");
+    run(&sub, &["add", "-A"]);
+    run(&sub, &["commit", "-m", "first"]);
+    run(dir.path(), &["add", "inner"]);
+    run(dir.path(), &["commit", "-m", "link"]);
+    let pinned = run(&sub, &["rev-parse", "HEAD"]);
+
+    write(&sub, "a.txt", "грязно\n");
+
+    let (old, new) = git()
+        .working_tree_sides(dir.path(), "inner", false)
+        .expect("стороны gitlink читаются");
+    assert_eq!(old.trim(), format!("Subproject commit {pinned}"));
+    assert_eq!(
+        new.trim(),
+        format!("Subproject commit {pinned}-dirty"),
+        "иначе стороны совпадают и дифф пуст, хотя git считает файл изменённым"
+    );
+}
+
+#[test]
+fn saving_a_file_from_the_editor_lands_on_disk_without_touching_the_index() {
+    let dir = repo();
+    write(dir.path(), "base.txt", "правка\n");
+
+    git()
+        .write_file(dir.path(), "base.txt", "сохранено из редактора\n")
+        .expect("файл записывается");
+
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("base.txt")).expect("файл читается"),
+        "сохранено из редактора\n"
+    );
+    let tree = git().status(dir.path()).expect("статус читается");
+    assert_eq!(
+        tree.staged(),
+        0,
+        "сохранение — не стейдж, индекс не трогаем"
+    );
+    assert_eq!(tree.unstaged(), 1);
+}

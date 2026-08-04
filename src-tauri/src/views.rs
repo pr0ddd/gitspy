@@ -280,6 +280,34 @@ pub struct StatusEntryView {
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
+pub struct FileCommitView {
+    pub hash: String,
+    pub author: String,
+    pub email: String,
+    #[ts(type = "number")]
+    pub time: i64,
+    pub subject: String,
+    pub status: String,
+    pub path: String,
+    pub old_path: Option<String>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct BlameSpanView {
+    pub hash: String,
+    pub author: String,
+    #[ts(type = "number")]
+    pub time: i64,
+    pub summary: String,
+    pub start_line: u32,
+    pub lines: u32,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct MergingView {
     pub from: Option<String>,
     pub subject: String,

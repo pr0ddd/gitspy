@@ -20,3 +20,6 @@ export function parseUnifiedDiff(text: string): UnifiedDiff | null {
 }
 
 export const patchFor = (diff: UnifiedDiff, hunk: Hunk): string => diff.header + hunk.raw;
+
+export const isGitlinkDiff = (raw: string): boolean =>
+  /(^|\n)[-+]Subproject commit /.test(raw);

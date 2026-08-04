@@ -9,8 +9,10 @@ import type {
   PullCardView,
   PullListView,
   RepoListingView,
+  BlameSpanView,
   ChangedFileView,
   ConflictFileView,
+  FileCommitView,
   DiffSides,
   ErrorView,
   Operation,
@@ -93,6 +95,15 @@ export const workingTreeHunks = (repo: string, path: string, staged: boolean) =>
 
 export const applyHunk = (repo: string, patch: string, cached: boolean, reverse: boolean) =>
   invoke<WorkingTreeView>('apply_hunk', { repo, patch, cached, reverse });
+
+export const fileHistory = (repo: string, path: string) =>
+  invoke<FileCommitView[]>('file_history', { repo, path });
+
+export const blameFile = (repo: string, path: string, at: string | null) =>
+  invoke<BlameSpanView[]>('blame_file', { repo, path, at });
+
+export const writeFile = (repo: string, path: string, content: string) =>
+  invoke<WorkingTreeView>('write_file', { repo, path, content });
 
 export const conflictFile = (repo: string, path: string) =>
   invoke<ConflictFileView>('conflict_file', { repo, path });

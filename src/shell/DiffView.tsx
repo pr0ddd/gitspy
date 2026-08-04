@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import * as ipc from '../ipc';
 import { languageOf, monaco, setUpMonaco, THEME } from '../monaco';
 import { notifyError } from '../toast';
 import { Icon } from '../icons';
-import { ViewBar } from './parts';
+import { PanelBar, ViewBar } from './parts';
 import { shortenDirectory, splitPath } from '../paths';
 import { cn } from '@/lib/utils';
-import { DIFF_MODES, DIFF_MODE_LABEL, editorOptionsFor, type DiffMode } from '../diff';
-import { parseUnifiedDiff, patchFor, type Hunk } from '../hunks';
-import type { ChangedFileView, WorkingTreeView } from '../types';
+import { DIFF_MODES, editorOptionsFor, type DiffMode } from '../diff';
+import { isGitlinkDiff, parseUnifiedDiff, patchFor, type Hunk } from '../hunks';
+import type { ChangedFileView, PathOperation, WorkingTreeView } from '../types';
 import { Hint } from '@/components/ui/tooltip';
 import { createRoot, type Root } from 'react-dom/client';
 
@@ -33,6 +34,21 @@ type Props = {
   target: DiffTarget;
   onClose: () => void;
   onTree: (tree: WorkingTreeView) => void;
+  onRun: (operation: PathOperation) => void;
+  onTarget: (target: DiffTarget) => void;
+  onHistory: (path: string) => void;
+};
+
+const MODE_HINT: Record<DiffMode, 'diff.hunkView' | 'diff.splitView' | 'diff.inlineView'> = {
+  hunk: 'diff.hunkView',
+  split: 'diff.splitView',
+  inline: 'diff.inlineView',
+};
+
+const MODE_ICON: Record<DiffMode, keyof typeof Icon> = {
+  hunk: 'diffHunk',
+  split: 'diffSplit',
+  inline: 'diffInline',
 };
 
 function HunkBar({
@@ -78,9 +94,7 @@ function HunkBar({
   );
 }
 
-const worktreePath = (repo: string, path: string) => `${repo}/${path}`;
-
-export function DiffView({ repo, target, onClose, onTree }: Props) {
+export function DiffView({ repo, target, onClose, onTree, onRun, onTarget, onHistory }: Props) {
   const path = target.kind === 'commit' ? target.file.path : target.path;
   const status = target.kind === 'commit' ? target.file.status : target.status;
   const binary = target.kind === 'commit' ? target.file.binary : false;
@@ -94,6 +108,7 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
   const [hunksRaw, setHunksRaw] = useState<string | null>(null);
   const [applied, setApplied] = useState(0);
   const [view, setView] = useState<'diff' | 'file'>('diff');
+  const [editing, setEditing] = useState(false);
   const plain = useRef<HTMLDivElement | null>(null);
   const file = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
@@ -110,6 +125,7 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
       fontSize: 13,
       lineHeight: 20,
       minimap: { enabled: true },
+      lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
       scrollBeyondLastLine: false,
       renderOverviewRuler: false,
     });
@@ -138,25 +154,29 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
 
     const created = monaco.editor.create(plain.current, {
       theme: THEME,
-      readOnly: true,
+      readOnly: !editing,
       automaticLayout: true,
       fontFamily: "'JetBrains Mono Variable', ui-monospace, Menlo, monospace",
       fontSize: 13,
       lineHeight: 20,
       minimap: { enabled: true },
+      lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
       scrollBeyondLastLine: false,
       wordWrap: wrap ? 'on' : 'off',
       value: sides.after,
       language: languageOf(path),
     });
     file.current = created;
+    if (editing) {
+      created.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveEdited);
+    }
 
     return () => {
       created.getModel()?.dispose();
       created.dispose();
       file.current = null;
     };
-  }, [view, sides, path, wrap]);
+  }, [view, sides, path, wrap, editing]);
 
   const step = (where: 'previous' | 'next') => {
     editor.current?.goToDiff(where);
@@ -203,8 +223,9 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
 
   useEffect(() => {
     const diffEditor = editor.current;
-    if (!diffEditor || view !== 'diff' || target.kind !== 'workingTree') return;
-    const parsed = hunksRaw ? parseUnifiedDiff(hunksRaw) : null;
+    if (!diffEditor || view !== 'diff' || mode !== 'hunk' || target.kind !== 'workingTree') return;
+    if (!hunksRaw || isGitlinkDiff(hunksRaw)) return;
+    const parsed = parseUnifiedDiff(hunksRaw);
     if (!parsed) return;
 
     const apply = (hunk: Hunk, cached: boolean, reverse: boolean) =>
@@ -247,6 +268,22 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
     };
   }, [hunksRaw, view, mode, repo, target, onTree]);
 
+  useEffect(() => {
+    setEditing(false);
+  }, [target]);
+
+  const saveEdited = () => {
+    const content = file.current?.getValue();
+    if (content === undefined || target.kind !== 'workingTree') return;
+    ipc
+      .writeFile(repo, target.path, content)
+      .then((tree) => {
+        onTree(tree);
+        setApplied((n) => n + 1);
+      })
+      .catch(notifyError);
+  };
+
   return (
     <div className="bg-surface flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
@@ -258,17 +295,91 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
           <span className="text-foreground truncate font-medium">{splitPath(path).name}</span>
         </span>
 
-        <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          <Hint text={t('diff.editHint')}>
+        <span className="text-muted-foreground text-2xs ml-auto shrink-0">UTF-8</span>
+
+        {target.kind === 'workingTree' ? (
+          <Button
+            size="xs"
+            className="shrink-0"
+            onClick={() => {
+              onRun({
+                kind: target.staged ? 'unstage' : 'stage',
+                paths: [target.path],
+              });
+              onTarget({ ...target, staged: !target.staged });
+            }}
+          >
+            {t(target.staged ? 'diff.unstageFile' : 'diff.stageFile')}
+          </Button>
+        ) : null}
+
+        <Hint text={t('diff.close')}>
+          <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={onClose}>
+            <Icon.close className="size-3.5" />
+          </Button>
+        </Hint>
+      </ViewBar>
+
+      <PanelBar>
+        <div className="flex flex-1 items-center gap-1">
+          {target.kind === 'workingTree' ? (
+            <>
+              <Hint text={t('diff.editHint')}>
+                <Button
+                  variant={editing ? 'secondary' : 'outline'}
+                  size="2xs"
+                  onClick={() => {
+                    if (editing) {
+                      setEditing(false);
+                    } else {
+                      setView('file');
+                      setEditing(true);
+                    }
+                  }}
+                >
+                  <Icon.edit className="size-3" />
+                  {t('diff.edit')}
+                </Button>
+              </Hint>
+              {editing ? (
+                <Button size="2xs" onClick={saveEdited}>
+                  {t('diff.save')}
+                </Button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {target.kind === 'workingTree' ? (
+            <Badge variant="secondary" className="rounded-sm px-1.5 py-0 text-2xs">
+              {t(target.staged ? 'diff.staged' : 'diff.unstaged')}
+            </Badge>
+          ) : null}
+          <div className="border-input flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
             <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => ipc.openInEditor(worktreePath(repo, path)).catch(notifyError)}
+              variant={view === 'file' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-full rounded-none px-2 text-xs"
+              onClick={() => setView('file')}
             >
-              <Icon.edit className="size-3.5" />
-              {t('diff.edit')}
+              {t('diff.fileView')}
             </Button>
-          </Hint>
+            <Button
+              variant={view === 'diff' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-full rounded-none px-2 text-xs"
+              onClick={() => setView('diff')}
+            >
+              {t('diff.diffView')}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-1 items-center justify-end gap-0.5">
+          <Button variant="ghost" size="xs" className="shrink-0" onClick={() => onHistory(path)}>
+            {t('diff.history')}
+          </Button>
           <Hint text={t('diff.previous')}>
             <Button variant="ghost" size="icon" className="size-6" onClick={() => step('previous')}>
               <Icon.up className="size-3.5" />
@@ -279,6 +390,24 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
               <Icon.down className="size-3.5" />
             </Button>
           </Hint>
+          {DIFF_MODES.map((shown) => {
+            const ModeIcon = Icon[MODE_ICON[shown]];
+            return (
+              <Hint key={shown} text={t(MODE_HINT[shown])}>
+                <Button
+                  variant={view === 'diff' && mode === shown ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className="size-6"
+                  onClick={() => {
+                    setView('diff');
+                    setMode(shown);
+                  }}
+                >
+                  <ModeIcon className="size-3.5" />
+                </Button>
+              </Hint>
+            );
+          })}
           <Hint text={t('diff.whitespace')}>
             <Button
               variant={whitespace ? 'secondary' : 'ghost'}
@@ -300,40 +429,7 @@ export function DiffView({ repo, target, onClose, onTree }: Props) {
             </Button>
           </Hint>
         </div>
-
-        <span className="text-muted-foreground text-2xs shrink-0">UTF-8</span>
-
-        <div className="border-input flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
-          <Button
-            variant={view === 'file' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-full rounded-none px-2 text-xs"
-            onClick={() => setView('file')}
-          >
-            {t('diff.fileView')}
-          </Button>
-          {DIFF_MODES.map((shown) => (
-            <Button
-              key={shown}
-              variant={view === 'diff' && mode === shown ? 'default' : 'ghost'}
-              size="sm"
-              className="h-full rounded-none px-2 text-xs"
-              onClick={() => {
-                setView('diff');
-                setMode(shown);
-              }}
-            >
-              {DIFF_MODE_LABEL[shown]}
-            </Button>
-          ))}
-        </div>
-
-        <Hint text={t('diff.close')}>
-          <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={onClose}>
-            <Icon.close className="size-3.5" />
-          </Button>
-        </Hint>
-      </ViewBar>
+      </PanelBar>
 
       {binary ? (
         <p className="text-muted-foreground p-6 text-center">{t('diff.binary')}</p>

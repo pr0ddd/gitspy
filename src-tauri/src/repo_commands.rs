@@ -5,8 +5,8 @@ use crate::recent;
 use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
-    ChangedFileView, ConflictFileView, DiffSides, ErrorView, RepoView, TipView, WindowView,
-    WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
+    BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
+    RepoView, TipView, WindowView, WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
@@ -409,6 +409,85 @@ pub async fn apply_hunk(
     on_reader(move || {
         let _held = lane.lock().expect("полоса очереди не отравлена");
         git.apply_patch(&repo_path, &patch, cached, reverse)
+            .map_err(exec_error)?;
+        read_working_tree(&git, &repo_path)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn file_history(
+    repo: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<FileCommitView>, ErrorView> {
+    let git = state.git()?;
+    let repo_path = PathBuf::from(&repo);
+    on_reader(move || {
+        git.file_history(&repo_path, &path)
+            .map_err(exec_error)
+            .map(|commits| {
+                commits
+                    .into_iter()
+                    .map(|c| FileCommitView {
+                        hash: c.hash,
+                        author: c.author,
+                        email: c.email,
+                        time: c.time,
+                        subject: c.subject,
+                        status: c.status.to_string(),
+                        path: c.path,
+                        old_path: c.old_path,
+                    })
+                    .collect()
+            })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn blame_file(
+    repo: String,
+    path: String,
+    at: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<BlameSpanView>, ErrorView> {
+    let git = state.git()?;
+    let repo_path = PathBuf::from(&repo);
+    on_reader(move || {
+        git.blame_file(&repo_path, &path, at.as_deref())
+            .map_err(exec_error)
+            .map(|spans| {
+                spans
+                    .into_iter()
+                    .map(|s| BlameSpanView {
+                        hash: s.hash,
+                        author: s.author,
+                        time: s.time,
+                        summary: s.summary,
+                        start_line: s.start_line,
+                        lines: s.lines,
+                    })
+                    .collect()
+            })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn write_file(
+    repo: String,
+    path: String,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<WorkingTreeView, ErrorView> {
+    let git = state.git()?;
+    let lane = state.queue.lane(&repo);
+    let repo_path = PathBuf::from(&repo);
+
+    on_reader(move || {
+        let _held = lane.lock().expect("полоса очереди не отравлена");
+        git.write_file(&repo_path, &path, &content)
             .map_err(exec_error)?;
         read_working_tree(&git, &repo_path)
     })
