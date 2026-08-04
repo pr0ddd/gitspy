@@ -98,7 +98,7 @@ function Section({
 }) {
   return (
     <>
-      <SectionHeader border="bottom">
+      <SectionHeader>
         <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         <span className="shrink-0 tabular-nums">{count}</span>
         {count > 0 ? (
