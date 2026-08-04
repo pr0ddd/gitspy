@@ -13,6 +13,7 @@ export type PreviousCommit = { readonly subject: string; readonly body: string }
 type Props = {
   tree: WorkingTreeView;
   busy: boolean;
+  committing: boolean;
   message: string;
   description: string;
   amend: boolean;
@@ -284,6 +285,7 @@ export function WorkingTree(props: Props) {
   const {
     tree,
     busy,
+    committing,
     message,
     description,
     amend,
@@ -373,6 +375,7 @@ export function WorkingTree(props: Props) {
               disabled={message.trim().length === 0 || busy}
               onClick={onCommit}
             >
+              {committing ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
               {t('workingTree.commitAndMerge')}
             </Button>
             <Button
@@ -385,6 +388,7 @@ export function WorkingTree(props: Props) {
           </div>
         ) : (
           <Button disabled={!committable || busy} onClick={onCommit}>
+            {committing ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
             {t('workingTree.commit')}
           </Button>
         )}

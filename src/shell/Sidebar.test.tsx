@@ -48,6 +48,7 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
         session={sessionWith(refs)}
         collapsed={false}
         pulls={null}
+        checkingOut={null}
         currentBranch="main"
         onPick={handlers.onPick ?? (() => {})}
         onCheckout={handlers.onCheckout ?? (() => {})}

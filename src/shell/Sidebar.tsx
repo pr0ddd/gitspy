@@ -19,6 +19,7 @@ type Props = {
   collapsed: boolean;
   pulls: PullListView | null;
   currentBranch: string | null;
+  checkingOut: string | null;
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
   onRun: (operation: Operation) => void;
@@ -136,6 +137,7 @@ function Row({
 const EVERYTHING_OPEN: ReadonlySet<string> = new Set();
 
 type BranchesProps = {
+  checkingOut: string | null;
   nodes: TreeNode[];
   depth: number;
   closed: ReadonlySet<string>;
@@ -145,7 +147,7 @@ type BranchesProps = {
   onMenu: (ref: RefView) => void;
 };
 
-function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout, onMenu }: BranchesProps) {
+function Branches({ nodes, depth, closed, checkingOut, onFlip, onPick, onCheckout, onMenu }: BranchesProps) {
   return (
     <>
       {nodes.map((node) =>
@@ -170,6 +172,7 @@ function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout, onMenu }: 
                 nodes={node.children}
                 depth={depth + 1}
                 closed={closed}
+                checkingOut={checkingOut}
                 onFlip={onFlip}
                 onPick={onPick}
                 onCheckout={onCheckout}
@@ -181,8 +184,14 @@ function Branches({ nodes, depth, closed, onFlip, onPick, onCheckout, onMenu }: 
           <Row
             key={node.path}
             depth={depth + 1}
-            icon={node.ref.isHead ? 'current' : 'branch'}
-            iconClass={node.ref.isHead ? 'text-ahead' : undefined}
+            icon={checkingOut === node.ref.name ? 'waiting' : node.ref.isHead ? 'current' : 'branch'}
+            iconClass={
+              checkingOut === node.ref.name
+                ? 'animate-spin'
+                : node.ref.isHead
+                  ? 'text-ahead'
+                  : undefined
+            }
             label={node.name}
             hint={node.path === node.name ? undefined : node.path}
             trailing={<Tracking view={node.ref} />}
@@ -202,6 +211,7 @@ export function Sidebar({
   collapsed,
   pulls,
   currentBranch,
+  checkingOut,
   onPick,
   onCheckout,
   onRun,
@@ -380,6 +390,7 @@ export function Sidebar({
                   nodes={matching}
                   depth={0}
                   closed={needle ? EVERYTHING_OPEN : closed}
+                  checkingOut={checkingOut}
                   onFlip={flipFolder}
                   onPick={onPick}
                   onCheckout={onCheckout}
