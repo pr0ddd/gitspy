@@ -19,6 +19,8 @@ mod segment_kind {
     pub const THROUGH: u8 = 0;
     pub const BRANCH: u8 = 1;
     pub const MERGE: u8 = 2;
+    pub const STEM_UP: u8 = 3;
+    pub const STEM_DOWN: u8 = 4;
 }
 
 #[derive(Serialize, Clone, TS)]
@@ -629,6 +631,10 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                 Segment::Through { lane, colour } => (segment_kind::THROUGH, *lane, *lane, *colour),
                 Segment::Branch { from, to, colour } => (segment_kind::BRANCH, *from, *to, *colour),
                 Segment::Merge { from, to, colour } => (segment_kind::MERGE, *from, *to, *colour),
+                Segment::StemUp { lane, colour } => (segment_kind::STEM_UP, *lane, *lane, *colour),
+                Segment::StemDown { lane, colour } => {
+                    (segment_kind::STEM_DOWN, *lane, *lane, *colour)
+                }
             };
             seg_kind.push(kind);
             seg_from.push(from);

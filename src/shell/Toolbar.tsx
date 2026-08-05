@@ -1,7 +1,17 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { usePref } from '../prefs';
 import type { Operation, WorkingTreeView } from '../types';
 import { TOOLBAR_ACTIONS } from '../vocabulary';
 import { Icon } from '../icons';
@@ -29,6 +39,18 @@ export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
   return { kind: 'pushSetUpstream', remote, branch: tree.branch };
 };
 
+type PullMode = 'fetch' | 'pull' | 'pullFfOnly' | 'pullRebase';
+
+const PULL_CHOICES: ReadonlyArray<{ mode: PullMode; label: string }> = [
+  { mode: 'fetch', label: 'pull.fetchAll' },
+  { mode: 'pull', label: 'pull.default' },
+  { mode: 'pullFfOnly', label: 'pull.ffOnly' },
+  { mode: 'pullRebase', label: 'pull.rebase' },
+];
+
+const pullOperation = (mode: PullMode): Operation =>
+  mode === 'fetch' ? { kind: 'fetch' } : { kind: mode };
+
 export function Toolbar({
   tree,
   onRun,
@@ -44,6 +66,7 @@ export function Toolbar({
 }: Props) {
   const { t } = useTranslation();
   const push = pushFor(tree);
+  const [pullMode, setPullMode] = usePref<PullMode>('toolbar.pull', 'pull');
 
   const chosen = (operation?: Operation) =>
     operation?.kind === 'push' ? push : (operation ?? null);
@@ -54,17 +77,76 @@ export function Toolbar({
   };
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2 px-3">
-      <div className="flex flex-1 items-center gap-1">
+    <div className="flex h-11 shrink-0 items-center gap-2 px-2">
+      <div className="w-64" aria-hidden />
+      <div className="flex flex-1 items-center justify-center gap-1">
         {TOOLBAR_ACTIONS.map(({ label, icon, operation, asks, terminal }) => {
           const Glyph = Icon[icon];
           const runnable = chosen(operation);
+
+          if (operation?.kind === 'pull') {
+            const wanted = pullOperation(pullMode);
+            const spinning = running === wanted.kind;
+            return (
+              <span
+                key={label}
+                className={cn(
+                  'group flex items-center rounded-md transition-colors has-[[data-state=open]]:bg-fill-1',
+                  !busy && 'hover:bg-fill-1',
+                )}
+              >
+                <Button
+                  variant="action"
+                  size="xs"
+                  className="rounded-r-none pr-1"
+                  disabled={busy}
+                  onClick={() => onRun(wanted)}
+                >
+                  {spinning ? (
+                    <Icon.waiting className="size-3.5 animate-spin" />
+                  ) : (
+                    <Glyph className="size-3.5" />
+                  )}
+                  {label}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="action"
+                      size="xs"
+                      reveal
+                      className="rounded-l-none px-1.5 data-[state=open]:opacity-100"
+                      disabled={busy}
+                      aria-label={t('pull.chooseDefault')}
+                    >
+                      <Icon.chevron className="size-3 rotate-90" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel className="text-muted-foreground max-w-56 text-xs font-normal">
+                      {t('pull.chooseDefault')}
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={pullMode}
+                      onValueChange={(next) => setPullMode(next as PullMode)}
+                    >
+                      {PULL_CHOICES.map(({ mode, label: choice }) => (
+                        <DropdownMenuRadioItem key={mode} value={mode}>
+                          {t(choice as 'pull.default')}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
+            );
+          }
 
           if (asks || terminal) {
             return (
               <Button
                 key={label}
-                variant="ghost"
+                variant="action"
                 size="xs"
                 disabled={busy}
                 onClick={() => (terminal ? onTerminal() : onAsk(asks!))}
@@ -81,7 +163,7 @@ export function Toolbar({
 
           const button = (
             <Button
-              variant={primary ? 'default' : 'ghost'}
+              variant={primary ? 'default' : 'action'}
               size="xs"
               disabled={!runnable || busy}
               onClick={() => runnable && onRun(runnable)}

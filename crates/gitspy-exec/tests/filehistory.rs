@@ -49,7 +49,7 @@ fn git() -> Git {
 fn the_file_history_follows_the_rename_back_to_the_birth_of_the_file() {
     let dir = renamed_repo();
     let history = git()
-        .file_history(dir.path(), "new.txt")
+        .file_history(dir.path(), "new.txt", None)
         .expect("история файла читается");
 
     assert_eq!(
@@ -75,6 +75,37 @@ fn the_file_history_follows_the_rename_back_to_the_birth_of_the_file() {
     );
     assert_eq!(history[0].path, "new.txt");
     assert_eq!(history[1].path, "new.txt");
+}
+
+#[test]
+fn history_opened_from_a_commit_of_an_unmerged_branch_sees_its_file() {
+    let dir = renamed_repo();
+    run_as(dir.path(), "Ann", &["checkout", "-b", "feature", "HEAD~2"]);
+    write(dir.path(), "only-here.txt", "alone\n");
+    run_as(dir.path(), "Ann", &["add", "-A"]);
+    run_as(dir.path(), "Ann", &["commit", "-m", "branch-only file"]);
+    let tip = run_as(dir.path(), "Ann", &["rev-parse", "HEAD"]);
+    run_as(dir.path(), "Ann", &["checkout", "main"]);
+
+    let from_head = git()
+        .file_history(dir.path(), "only-here.txt", None)
+        .expect("история от HEAD читается");
+    assert!(
+        from_head.is_empty(),
+        "от HEAD файла чужой ветки не видно — потому истории и нужен стартовый коммит"
+    );
+
+    let history = git()
+        .file_history(dir.path(), "only-here.txt", Some(&tip))
+        .expect("история от коммита ветки читается");
+    assert_eq!(
+        history
+            .iter()
+            .map(|c| c.subject.as_str())
+            .collect::<Vec<_>>(),
+        ["branch-only file"],
+        "история, открытая из коммита, обязана идти от этого коммита, а не от HEAD"
+    );
 }
 
 #[test]
@@ -123,7 +154,7 @@ fn a_merge_that_brought_changes_into_the_file_is_part_of_its_history() {
     run_as(dir.path(), "Ann", &["merge", "--no-edit", "side"]);
 
     let history = git()
-        .file_history(dir.path(), "new.txt")
+        .file_history(dir.path(), "new.txt", None)
         .expect("история файла читается");
     let subjects: Vec<&str> = history.iter().map(|c| c.subject.as_str()).collect();
     assert!(

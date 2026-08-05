@@ -52,7 +52,7 @@ function TooltipContent({
 
 function Hint({
   text,
-  side,
+  side = 'bottom',
   children,
 }: {
   text: React.ReactNode;

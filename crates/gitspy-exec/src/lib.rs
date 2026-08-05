@@ -371,10 +371,11 @@ impl Git {
         &self,
         repo: &Path,
         path: &str,
+        start: Option<&str>,
     ) -> Result<Vec<filehistory::FileCommit>, Error> {
         let format = format!("--format={}", filehistory::FORMAT);
         let mut collected = Vec::new();
-        let mut from = String::from("HEAD");
+        let mut from = start.unwrap_or("HEAD").to_string();
         let mut at_path = path.to_string();
 
         loop {
@@ -469,6 +470,22 @@ impl Git {
             args.push("--cached");
         }
         args.extend(["--", path]);
+        self.read_raw(repo, &args)
+    }
+
+    pub fn commit_diff_unified(&self, repo: &Path, hash: &str, path: &str) -> Result<String, Error> {
+        let range = format!("{hash}^!");
+        let args = vec![
+            "diff-tree",
+            "--no-color",
+            "--no-ext-diff",
+            "--root",
+            "-p",
+            "--unified=3",
+            &range,
+            "--",
+            path,
+        ];
         self.read_raw(repo, &args)
     }
 

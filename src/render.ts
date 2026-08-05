@@ -16,6 +16,8 @@ import {
   minimapBand,
   pinWidth,
   rowAtY,
+  rowBandHeight,
+  rowBandInset,
   visibleRange,
   type Metrics,
 } from './scene';
@@ -47,7 +49,7 @@ import {
   type PlacedChip,
 } from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
-import { wipContent } from './wip';
+import { wipBadgesX, wipContent } from './wip';
 
 export { chipAt, placeChips };
 
@@ -65,7 +67,8 @@ const CHIP_PAD = 9;
 const MARK_GAP = 4;
 
 const FONT_CHIP = '11px ui-sans-serif, system-ui, sans-serif';
-const FONT_HEAD = '10px ui-sans-serif, system-ui, sans-serif';
+const FONT_HEAD = '11px ui-sans-serif, system-ui, sans-serif';
+const HEAD_TRACKING = '0.4px';
 
 export type Columns = {
   readonly branchTag: string;
@@ -173,6 +176,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   if (repo && repo.count > 0) {
     const { first, last, shift } = visibleRange(m, scrollY, height, repo.count, dpr);
     const half = m.rowH / 2;
+    const inset = rowBandInset(m);
+    const band = rowBandHeight(m);
 
     ctx.save();
     ctx.beginPath();
@@ -185,9 +190,9 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fillStyle = i === selected ? t.rowSelected : t.rowHover;
         const capX = g.nodeX(rows.row(i)?.lane ?? 0);
         ctx.beginPath();
-        ctx.arc(capX, y + half, half, Math.PI / 2, -Math.PI / 2);
-        ctx.lineTo(listW, y);
-        ctx.lineTo(listW, y + m.rowH);
+        ctx.arc(capX, y + half, band / 2, Math.PI / 2, -Math.PI / 2);
+        ctx.lineTo(listW, y + inset);
+        ctx.lineTo(listW, y + m.rowH - inset);
         ctx.closePath();
         ctx.fill();
       }
@@ -202,9 +207,9 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const y = shift + (i - first) * m.rowH;
       const row = rows.row(i);
       if (!row) continue;
-      const x = g.nodeX(row.lane) - m.nodeR;
+      const x = g.nodeX(row.lane);
       ctx.fillStyle = laneColourAlpha(row.colour, 11);
-      ctx.fillRect(x, y + 1, Math.max(0, g.gRight - x), m.rowH - 2);
+      ctx.fillRect(x, y + inset, Math.max(0, g.gRight - x), band);
     }
 
     ctx.save();
@@ -235,6 +240,12 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         }
         if (kind === SEGMENT_KIND.through) {
           path.moveTo(a, y - half);
+          path.lineTo(a, y + half);
+        } else if (kind === SEGMENT_KIND.stemUp) {
+          path.moveTo(a, y - half);
+          path.lineTo(a, y);
+        } else if (kind === SEGMENT_KIND.stemDown) {
+          path.moveTo(a, y);
           path.lineTo(a, y + half);
         } else if (kind === SEGMENT_KIND.merge) {
           path.moveTo(a, y - half);
@@ -274,7 +285,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (!row) continue;
       const y = shift + (i - first) * m.rowH;
       ctx.fillStyle = laneColour(row.colour);
-      ctx.fillRect(g.gRight - CAP_W, y + 1, CAP_W, m.rowH - 2);
+      ctx.fillRect(g.gRight - CAP_W, y + inset, CAP_W, band);
     }
 
     for (let i = first; i < last; i++) {
@@ -314,13 +325,20 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (isStash(refsByCommit.get(i))) {
         const side = m.nodeR * 1.7;
         ctx.save();
-        ctx.setLineDash([3, 2]);
-        ctx.strokeStyle = colour;
-        ctx.fillStyle = laneSoft(row.colour);
-        ctx.lineWidth = 2;
+        ctx.fillStyle = t.panel;
         roundRect(ctx, x - side / 2, y - side / 2, side, side, 3);
         ctx.fill();
+        ctx.fillStyle = laneSoft(row.colour);
+        roundRect(ctx, x - side / 2, y - side / 2, side, side, 3);
+        ctx.fill();
+        ctx.setLineDash([2, 2]);
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 1;
+        roundRect(ctx, x - side / 2, y - side / 2, side, side, 3);
         ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1.5;
+        strokeGlyphInSlot(ctx, GLYPH.stash, x - side * 0.28, y, side * 0.56);
         ctx.restore();
         ctx.lineWidth = GRAPH_W;
         continue;
@@ -390,6 +408,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         chipM,
         frame.pullHeads,
       );
+      if (!placed.length && !more) return;
       for (const one of placed) {
         drawChip(ctx, one, y, chipH, chipM, t, frame.avatars, remoteAvatarUrls, false);
       }
@@ -418,6 +437,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     };
 
     for (let i = first; i < last; i++) {
+      if (cols.branchTag.width === 0) break;
       const labels = refsByCommit.get(i);
       if (!labels) continue;
       const row = rows.row(i);
@@ -478,7 +498,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
           );
           continue;
         }
-        let at = colAuthor;
+        let at = wipBadgesX(cols);
         for (const [count, tint, glyph] of [
           [row.modified, t.modified, GLYPH.modified],
           [row.added, t.added, GLYPH.added],
@@ -504,7 +524,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const subject = row.subject;
 
       const subjMax = colAuthor - msgX - 12;
-      ctx.fillStyle = t.foreground;
+      ctx.font = m.font;
+      ctx.fillStyle = t.subject;
       const fitted = fitText(ctx, subject, subjMax);
       ctx.fillText(fitted, msgX, yc);
 
@@ -519,6 +540,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
 
       ctx.fillStyle = t.muted;
+      ctx.font = m.fontDetail;
       ctx.fillText(fitText(ctx, row.author, colDate - colAuthor - 10), colAuthor, yc);
       ctx.fillText(dateFmt.format(new Date(row.time * 1000)), colDate, yc);
       ctx.font = m.fontMono;
@@ -542,6 +564,7 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   const { first, last, shift } = visibleRange(m, scrollY, height, repo.count, dpr);
   if (hoverChip.row < first || hoverChip.row >= last) return;
 
+  if (frame.cols.branchTag.width === 0) return;
   const labels = frame.refsByCommit.get(hoverChip.row);
   if (!labels) return;
 
@@ -599,7 +622,7 @@ function fullPlacement(
     chip.marks.length * (chipM.markSize + chipM.gap) + (hasPull ? chipM.pullSize + chipM.gap : 0);
   const fullText = chip.isHead ? `✓ ${chip.name}` : chip.name;
   const fullW = measure(fullText) + chipM.pad * 2 + trailW;
-  return { chip, x: 12, w: fullW, fullW, text: fullText, fullText, hasPull };
+  return { chip, x: 12, w: fullW, fullW, text: fullText, fullText, hasPull, compact: false };
 }
 
 function drawChip(
@@ -617,9 +640,44 @@ function drawChip(
   const text = expanded ? placed.fullText : placed.text;
   const w = expanded ? placed.fullW : placed.w;
 
+  if (expanded) {
+    ctx.fillStyle = t.panel;
+    roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+  }
+
   ctx.fillStyle = chip.isHead ? t.primarySoft : t.refSoft[chip.kind];
   roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
   ctx.fill();
+
+  if (placed.compact && !expanded) {
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = t.foreground;
+    ctx.strokeStyle = t.foreground;
+    const slotX = placed.x + (w - chipM.markSize) / 2;
+    if (chip.isHead) {
+      ctx.fillText('✓', placed.x + (w - ctx.measureText('✓').width) / 2, y);
+    } else if (chip.marks.includes('remote')) {
+      drawRemoteMark(
+        ctx,
+        avatars,
+        (chip.remote && remoteAvatarUrls.get(chip.remote)) || null,
+        slotX,
+        y,
+        chipM.markSize,
+      );
+    } else if (chip.marks.includes('local')) {
+      strokeGlyphInSlot(ctx, GLYPH.local, slotX, y, chipM.markSize);
+    } else {
+      const letter = chip.name.slice(0, 1).toUpperCase();
+      ctx.fillText(letter, placed.x + (w - ctx.measureText(letter).width) / 2, y);
+    }
+    return;
+  }
+
   if (!text) return;
 
   ctx.shadowColor = 'transparent';
@@ -686,19 +744,22 @@ function drawHeader(
   const t = theme();
   ctx.fillStyle = t.surfaceRaised;
   ctx.fillRect(0, 0, width, HEADER_H);
-  ctx.fillStyle = t.border;
+  ctx.fillStyle = t.headerLine;
   ctx.fillRect(0, HEADER_H - 1, width, 1);
 
   ctx.font = FONT_HEAD;
+  ctx.letterSpacing = HEAD_TRACKING;
   ctx.textBaseline = 'middle';
   ctx.fillStyle = t.faint;
   const y = Math.round(HEADER_H / 2);
-  ctx.fillText(fitText(ctx, columns.branchTag, cols.branchTag.width - 20), 12, y);
-  ctx.fillText(fitText(ctx, columns.graph, cols.graph.width - 12), gLeft + 6, y);
-  ctx.fillText(fitText(ctx, columns.message, cols.message.width - 20), msgX, y);
-  ctx.fillText(fitText(ctx, columns.author, cols.author.width - 12), colAuthor, y);
-  ctx.fillText(fitText(ctx, columns.date, cols.date.width - 12), colDate, y);
-  ctx.fillText(fitText(ctx, columns.sha, cols.sha.width - 12), colHash, y);
+  const heading = (text: string, width: number) => fitText(ctx, text.toUpperCase(), width);
+  ctx.fillText(heading(columns.branchTag, cols.branchTag.width - 20), 12, y);
+  ctx.fillText(heading(columns.graph, cols.graph.width - 12), gLeft + 6, y);
+  ctx.fillText(heading(columns.message, cols.message.width - 20), msgX, y);
+  ctx.fillText(heading(columns.author, cols.author.width - 12), colAuthor, y);
+  ctx.fillText(heading(columns.date, cols.date.width - 12), colDate, y);
+  ctx.fillText(heading(columns.sha, cols.sha.width - 12), colHash, y);
+  ctx.letterSpacing = '0px';
 
   ctx.fillStyle = t.border;
   for (const divider of dividers(cols)) {
@@ -761,11 +822,13 @@ function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
   const total = repo.count * metrics.rowH;
   const visible = contentHeight(height);
   if (total > visible) {
-    const at = top + (scrollY / total) * band;
-    const h = Math.max(6, (visible / total) * band);
-    ctx.fillStyle = theme().fill2;
+    const trueH = (visible / total) * band;
+    const h = Math.max(24, trueH);
+    const centred = top + (scrollY / total) * band - (h - trueH) / 2;
+    const at = Math.max(top, Math.min(centred, top + band - h));
+    ctx.fillStyle = theme().fill3;
     ctx.fillRect(x0, at, width - x0, h);
-    ctx.strokeStyle = theme().fill3;
+    ctx.strokeStyle = theme().faint;
     ctx.lineWidth = 1;
     ctx.strokeRect(x0 + 0.5, at + 0.5, width - x0 - 1, h - 1);
   }

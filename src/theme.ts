@@ -5,11 +5,13 @@ export type Theme = {
   ref: Record<RefKind, string>;
   refSoft: Record<RefKind, string>;
   foreground: string;
+  subject: string;
   muted: string;
   faint: string;
   border: string;
   surface: string;
   surfaceRaised: string;
+  headerLine: string;
   panel: string;
   primary: string;
   primarySoft: string;
@@ -61,11 +63,13 @@ const build = (): Theme => ({
     stash: mix('--ref-stash', 30),
   },
   foreground: token('--foreground'),
+  subject: token('--subject-foreground'),
   muted: token('--muted-foreground'),
   faint: mix('--muted-foreground', 65),
   border: token('--border'),
   surface: token('--surface'),
   surfaceRaised: token('--surface-raised'),
+  headerLine: token('--header-line'),
   panel: token('--card'),
   primary: token('--primary'),
   primarySoft: mix('--primary', 25),

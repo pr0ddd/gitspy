@@ -10,6 +10,8 @@ import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
 import * as ipc from '../ipc';
 import { notifyError } from '../toast';
+import { buildCommitFileMenu, type MenuAction } from '../menuItems';
+import { showNativeMenu } from '../nativeMenu';
 import { FilePath, ListRow, PanelBanner, PanelBar, PanelNote } from './parts';
 import type { ChangedFileView, RefKind } from '../types';
 import { Hint } from '@/components/ui/tooltip';
@@ -22,6 +24,7 @@ type Props = {
   onCopy: (text: string) => void;
   onOpenWorkingTree: () => void;
   onOpenFile: (commit: string, file: ChangedFileView) => void;
+  onHistory: (path: string, from: string) => void;
 };
 
 const countOf = (files: ChangedFileView[], statuses: string[]): number =>
@@ -56,8 +59,28 @@ export function Details({
   onCopy,
   onOpenWorkingTree,
   onOpenFile,
+  onHistory,
 }: Props) {
   const { t, i18n } = useTranslation();
+
+  const openFileMenu = (commit: string, file: ChangedFileView) => {
+    const repoPath = session?.path;
+    if (!repoPath) return;
+    showNativeMenu(
+      buildCommitFileMenu(commit, file.path),
+      (key, params) => t(key as 'menu.copyPath', params),
+      (action: MenuAction) => {
+        if (action.kind === 'copy') onCopy(action.text);
+        else if (action.kind === 'history') onHistory(action.path, commit);
+        else if (action.kind === 'openFile')
+          void ipc.openPath(repoPath, action.path).catch(notifyError);
+        else if (action.kind === 'reveal')
+          void ipc.revealPath(repoPath, action.path).catch(notifyError);
+        else if (action.kind === 'copyCommitPatch')
+          void ipc.commitFileHunks(repoPath, action.commit, action.path).then(onCopy).catch(notifyError);
+      },
+    ).catch(notifyError);
+  };
   const index = session?.selected ?? 0;
   const row = session ? rows.row(index) : null;
   const hash = row?.kind === 'commit' ? row.hash : null;
@@ -107,7 +130,7 @@ export function Details({
         />
       ) : null}
 
-      <PanelBar>
+      <PanelBar className="border-t-0">
         <Icon.commit className="text-muted-foreground size-3.5" />
         <span className="text-muted-foreground">{GIT.commit}</span>
         <Hint text={t('details.copyHash')}>
@@ -123,26 +146,26 @@ export function Details({
         </Hint>
       </PanelBar>
 
-      <div className="max-h-64 shrink-0 overflow-y-auto">
-        <div className="space-y-3 p-3">
-          <p className="text-sm leading-snug">{row.subject}</p>
+      <div className="shrink-0">
+        <div className="space-y-4 px-5 pt-2 pb-5">
+          <p className="text-base leading-snug">{row.subject}</p>
 
           {row.body ? (
-            <pre className="bg-fill-1 text-muted-foreground rounded-md p-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
+            <pre className="text-faint max-h-28 overflow-y-auto font-mono text-2xs leading-loose break-words whitespace-pre-wrap">
               {row.body}
             </pre>
           ) : null}
 
-          <dl className="space-y-1">
-            <div className="flex gap-3">
+          <dl className="space-y-1.5 text-xs">
+            <div className="flex gap-3.5">
               <dt className="text-faint w-14 shrink-0">{t('details.author')}</dt>
               <dd className="min-w-0 truncate">
                 {row.author} <span className="text-faint">{row.email}</span>
               </dd>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3.5">
               <dt className="text-faint w-14 shrink-0">{t('details.date')}</dt>
-              <dd>
+              <dd className="tabular-nums">
                 {new Intl.DateTimeFormat(i18n.language, {
                   dateStyle: 'medium',
                   timeStyle: 'short',
@@ -152,21 +175,22 @@ export function Details({
           </dl>
 
           {labels.length ? (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-2">
               {labels.map((ref) => {
                 const Glyph = Icon[REF_ICON[ref.kind]];
                 return (
                   <Badge
                     key={`${ref.kind}:${ref.name}`}
+                    title={ref.name}
                     className={cn(
-                      'text-2xs gap-1.5 rounded-md px-2 py-0.5',
+                      'text-2xs max-w-full gap-1.5 rounded-md px-2 py-1',
                       ref.isHead
                         ? 'bg-primary/25 text-foreground'
                         : 'bg-fill-2 text-muted-foreground',
                     )}
                   >
-                    <Glyph className="size-3" />
-                    {ref.name}
+                    <Glyph className="size-3 shrink-0" />
+                    <span className="min-w-0 truncate">{ref.name}</span>
                   </Badge>
                 );
               })}
@@ -176,18 +200,24 @@ export function Details({
       </div>
 
       <Separator />
-      <section className="flex min-h-0 flex-1 flex-col p-3">
-        <div className="mb-1.5 flex items-center gap-3 text-xs">
-          <span className="text-modified tabular-nums">
-            {t('details.modified', { count: countOf(files, ['M', 'T']) })}
-          </span>
-          <span className="text-added tabular-nums">
-            {t('details.added', { count: countOf(files, ['A', 'C']) })}
-          </span>
-          <span className="text-deleted tabular-nums">
-            {t('details.deleted', { count: countOf(files, ['D']) })}
-          </span>
-        </div>
+      <section className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-3">
+        {files.length ? (
+          <div className="flex items-center gap-4 px-2 pb-3 text-xs">
+            {(
+              [
+                ['details.modified', countOf(files, ['M', 'T']), 'text-modified'],
+                ['details.added', countOf(files, ['A', 'C']), 'text-added'],
+                ['details.deleted', countOf(files, ['D']), 'text-deleted'],
+              ] as const
+            ).map(([key, count, colour]) =>
+              count === 0 ? null : (
+                <span key={key} className={cn('tabular-nums', colour)}>
+                  {t(key, { count })}
+                </span>
+              ),
+            )}
+          </div>
+        ) : null}
 
         {files.length === 0 ? (
           <p className="text-muted-foreground text-xs">{t('details.noChanges')}</p>
@@ -197,15 +227,16 @@ export function Details({
               {files.map((file) => (
                 <li key={file.path}>
                   <ListRow
-                    hint={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+                    title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
                     onClick={() => onOpenFile(row.hash, file)}
+                    onContextMenu={() => openFileMenu(row.hash, file)}
                   >
                     <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
                       {file.status}
                     </span>
                     <FilePath path={file.path} />
                     {file.binary ? null : (
-                      <span className="ml-auto shrink-0 tabular-nums">
+                      <span className="text-2xs ml-auto shrink-0 tabular-nums">
                         <span className="text-added">+{file.added ?? 0}</span>{' '}
                         <span className="text-deleted">−{file.deleted ?? 0}</span>
                       </span>

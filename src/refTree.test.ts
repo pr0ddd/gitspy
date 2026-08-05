@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRefTree, filterRefTree, openPathsFor, type TreeNode } from './refTree';
+import { buildRefTree, filterRefTree, flattenRefTree, type TreeNode } from './refTree';
 import type { RefView } from './types';
 
 const ref = (name: string): RefView => ({
@@ -21,14 +21,19 @@ const shape = (nodes: TreeNode[], depth = 0): string[] =>
   ]);
 
 describe('buildRefTree', () => {
-  it('режет имя по слэшам и не схлопывает цепочку из одного ребёнка', () => {
+  it('цепочка папок без развилки слипается в одну строку, иначе панель уходит в лесенку', () => {
     const tree = buildRefTree([ref('fixtures/packaging/brunch/dev/minimatch-3.1.5')]);
+    expect(shape(tree)).toEqual(['fixtures/packaging/brunch/dev/', '  minimatch-3.1.5']);
+  });
+
+  it('развилка останавливает слипание: у папки снова есть выбор', () => {
+    const tree = buildRefTree([ref('deps/npm/webpack/dev/a'), ref('deps/npm/brunch/dev/b')]);
     expect(shape(tree)).toEqual([
-      'fixtures/',
-      '  packaging/',
-      '    brunch/',
-      '      dev/',
-      '        minimatch-3.1.5',
+      'deps/npm/',
+      '  brunch/dev/',
+      '    b',
+      '  webpack/dev/',
+      '    a',
     ]);
   });
 
@@ -57,9 +62,9 @@ describe('buildRefTree', () => {
     expect(shape(folderFirst)).toEqual(shape(leafFirst));
   });
 
-  it('удалённая ветка держит remote первым сегментом', () => {
+  it('удалённая ветка держит remote первым сегментом склеенной папки', () => {
     const tree = buildRefTree([ref('origin/dev/x')]);
-    expect(shape(tree)).toEqual(['origin/', '  dev/', '    x']);
+    expect(shape(tree)).toEqual(['origin/dev/', '  x']);
   });
 
   it('пустой список даёт пустое дерево, а не корень из ничего', () => {
@@ -94,24 +99,23 @@ describe('filterRefTree', () => {
   });
 });
 
-describe('openPathsFor', () => {
-  it('раскрывает ровно те ветви, где есть совпадение', () => {
-    const tree = buildRefTree([ref('ci/daemon-workflow'), ref('feat/login')]);
-    expect(openPathsFor(tree, 'daemon')).toEqual(new Set(['ci']));
+describe('flattenRefTree', () => {
+  const flat = (names: string[], closed: string[] = []) =>
+    flattenRefTree(buildRefTree(names.map(ref)), new Set(closed)).map(
+      (row) => `${'  '.repeat(row.depth)}${row.kind === 'folder' ? `${row.name}/` : row.name}`,
+    );
+
+  it('открытое дерево разворачивается в те же строки и в том же порядке', () => {
+    expect(flat(['ci/one', 'develop'])).toEqual(['ci/', '  one', 'develop']);
   });
 
-  it('сравнивает с полным именем, а не с подписью листа', () => {
-    const tree = buildRefTree([ref('ci/daemon-workflow')]);
-    expect(openPathsFor(tree, 'ci/daemon')).toEqual(new Set(['ci']));
+  it('закрытая папка остаётся строкой, но прячет содержимое, не трогая соседей', () => {
+    expect(flat(['ci/one', 'develop'], ['ci'])).toEqual(['ci/', 'develop']);
   });
 
-  it('раскрывает всю цепочку до совпадения, а не только верхнюю папку', () => {
-    const tree = buildRefTree([ref('a/b/c/target')]);
-    expect(openPathsFor(tree, 'target')).toEqual(new Set(['a', 'a/b', 'a/b/c']));
-  });
-
-  it('пустой запрос ничего не раскрывает', () => {
-    const tree = buildRefTree([ref('ci/daemon-workflow')]);
-    expect(openPathsFor(tree, '   ')).toEqual(new Set());
+  it('глубина растёт на уровень с каждой развилкой, а не с каждым сегментом имени', () => {
+    const rows = flattenRefTree(buildRefTree([ref('a/b/target'), ref('a/other')]), new Set());
+    expect(rows.map((row) => `${row.depth}:${row.name}`)).toEqual(['0:a', '1:b', '2:target', '1:other']);
   });
 });
+

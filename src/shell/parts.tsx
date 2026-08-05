@@ -2,13 +2,14 @@ import { cn } from '@/lib/utils';
 import { Hint } from '@/components/ui/tooltip';
 import { shortenDirectory, splitPath } from '../paths';
 
-const INDENT = ['pl-2', 'pl-3', 'pl-6', 'pl-9', 'pl-12', 'pl-16'] as const;
+const INDENT = ['pl-0', 'pl-4', 'pl-8', 'pl-12', 'pl-16', 'pl-20'] as const;
 
 const indentAt = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];
 
 type ListRowProps = {
   as?: 'button' | 'div';
   depth?: number;
+  gutter?: React.ReactNode;
   current?: boolean;
   hint?: string;
   hintSide?: React.ComponentProps<typeof Hint>['side'];
@@ -23,6 +24,7 @@ type ListRowProps = {
 export function ListRow({
   as = 'button',
   depth = 0,
+  gutter,
   current,
   hint,
   hintSide,
@@ -48,16 +50,18 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'flex h-7 w-full items-center gap-1.5 rounded-md pr-2 text-left text-xs transition-colors',
-        indentAt(depth),
+        'flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left text-xs transition-colors',
         as === 'div' && 'group cursor-pointer',
-        current
-          ? 'bg-primary/25 hover:bg-primary/30 font-medium'
-          : 'hover:bg-fill-1',
+        current ? 'bg-fill-2 font-medium' : 'hover:bg-fill-1',
         className,
       )}
     >
-      {children}
+      {gutter === undefined ? null : (
+        <span className="flex w-3.5 shrink-0 items-center justify-center">{gutter}</span>
+      )}
+      <span className={cn('flex min-w-0 flex-1 items-center gap-2.5', indentAt(depth))}>
+        {children}
+      </span>
     </Tag>
   );
 
@@ -81,7 +85,7 @@ export function SectionHeader({ onClick, className, children }: SectionHeaderPro
     <Tag
       onClick={onClick}
       className={cn(
-        'text-muted-foreground flex h-7 w-full shrink-0 items-center gap-1.5 rounded-md px-2 text-xs transition-colors',
+        'text-muted-foreground flex h-7.5 w-full shrink-0 items-center gap-2.5 rounded-md px-2 text-xs transition-colors',
         onClick && 'hover:bg-fill-1',
         className,
       )}
@@ -100,7 +104,10 @@ export function ViewBar({
 }) {
   return (
     <header
-      className={cn('flex h-bar shrink-0 items-center gap-2 px-5', className)}
+      className={cn(
+        'border-header-line bg-surface-raised flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs',
+        className,
+      )}
     >
       {children}
     </header>
@@ -116,7 +123,10 @@ export function PanelBar({
 }) {
   return (
     <div
-      className={cn('flex h-8 shrink-0 items-center gap-2 border-t px-3 text-xs', className)}
+      className={cn(
+        'first:border-b-header-line flex h-8 shrink-0 items-center gap-2 border-t px-3 text-xs first:border-t-0 first:border-b first:bg-surface-raised',
+        className,
+      )}
     >
       {children}
     </div>
@@ -144,14 +154,14 @@ export function PanelBanner({
     <button
       onClick={onClick}
       className={cn(
-        'flex h-bar shrink-0 items-center gap-3 px-4 text-left transition-colors',
+        'border-header-line flex h-8 shrink-0 items-center gap-2 border-y px-3 text-left transition-colors',
         tone === 'conflict'
           ? 'bg-conflict text-destructive-foreground hover:bg-conflict/90'
           : 'bg-primary text-primary-foreground hover:bg-primary-hover',
       )}
     >
       <span className="flex-1 truncate text-xs">{label}</span>
-      <span className="shrink-0 rounded-md border border-current px-2.5 py-1 text-xs font-medium">
+      <span className="text-2xs shrink-0 rounded-md border border-current px-2 py-0.5 font-medium">
         {action}
       </span>
     </button>

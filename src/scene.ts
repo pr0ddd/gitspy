@@ -1,7 +1,7 @@
 import type { Cols } from './columns';
 
-export const MINIMAP_W = 56;
-export const HEADER_H = 26;
+export const MINIMAP_W = 36;
+export const HEADER_H = 32;
 export const HSCROLL_H = 9;
 
 const PAD_X = 14;
@@ -13,6 +13,7 @@ export type Metrics = {
   readonly avatars: boolean;
   readonly fontPx: number;
   readonly font: string;
+  readonly fontDetail: string;
   readonly fontMono: string;
 };
 
@@ -21,7 +22,8 @@ const SANS = `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
 const fonts = (px: number, detailPx: number) => ({
   fontPx: px,
   font: `450 ${px}px ${SANS}`,
-  fontMono: `450 ${detailPx}px ${SANS}`,
+  fontDetail: `350 ${detailPx}px ${SANS}`,
+  fontMono: `350 ${detailPx}px ${SANS}`,
 });
 
 export const METRICS_AVATARS: Metrics = {
@@ -33,12 +35,18 @@ export const METRICS_AVATARS: Metrics = {
 };
 
 export const METRICS_COMPACT: Metrics = {
-  rowH: 22,
-  laneW: 14,
-  nodeR: 4.5,
+  rowH: 28,
+  laneW: 16,
+  nodeR: 5,
   avatars: false,
   ...fonts(12, 11),
 };
+
+export const ROW_GAP_SHARE = 0.21;
+
+export const rowBandInset = (m: Metrics): number => Math.round((m.rowH * ROW_GAP_SHARE) / 2);
+
+export const rowBandHeight = (m: Metrics): number => m.rowH - 2 * rowBandInset(m);
 
 export const listWidth = (width: number): number => width - MINIMAP_W;
 
@@ -75,6 +83,20 @@ export function scrollToReveal(
   if (top < scrollY) return Math.max(0, Math.min(top, limit));
   if (bottom > scrollY + band) return Math.max(0, Math.min(bottom - band, limit));
   return scrollY;
+}
+
+export function scrollToCenter(
+  m: Metrics,
+  index: number,
+  current: number,
+  viewportH: number,
+  count: number,
+): number {
+  const top = index * m.rowH;
+  const view = contentHeight(viewportH);
+  if (top >= current && top + m.rowH <= current + view) return current;
+  const centred = top - (view - m.rowH) / 2;
+  return Math.max(0, Math.min(centred, maxScroll(m, count, viewportH)));
 }
 
 export function rowAtY(m: Metrics, y: number, scrollY: number, count: number): number | null {

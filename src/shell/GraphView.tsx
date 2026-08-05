@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   chipAt,
@@ -13,21 +13,24 @@ import {
   type HoverChip,
   type Metrics,
 } from '../render';
-import { minimapFraction, rowAtY, rowTop, scrollToReveal } from '../scene';
+import { HEADER_H, minimapFraction, rowAtY, rowTop, scrollToCenter } from '../scene';
 import { chipsFor } from '../chips';
 import { pointerTarget, type PointerScene } from '../graphInput';
 import {
   layoutColumns,
+  loadHidden,
   loadWidths,
   reset,
   resized,
+  saveHidden,
   saveWidths,
+  DEFAULT_HIDDEN,
   type Divider,
   type StoredWidths,
 } from '../columns';
 import { Icon } from '../icons';
 import { buildMinimap } from '../view';
-import { buildChipMenu, buildCommitMenu, type MenuAction, type MenuContext } from '../menuItems';
+import { buildChipMenu, buildColumnsMenu, buildCommitMenu, type MenuAction, type MenuContext } from '../menuItems';
 import { showNativeMenu } from '../nativeMenu';
 import type { Session } from '../session';
 import type { AvatarCache } from '../avatarCache';
@@ -35,7 +38,7 @@ import type { RowCache } from '../rows';
 import type { Ask } from './AskBar';
 import type { Operation, RefView } from '../types';
 import { GIT } from '../vocabulary';
-import { wipInputShown } from '../wip';
+import { wipInputShown, wipInputWidth } from '../wip';
 
 type Props = {
   session: Session | null;
@@ -56,6 +59,8 @@ type Props = {
   message: string;
   onMessage: (text: string) => void;
   onCommit: () => void;
+  compact: boolean;
+  onCompact: (next: boolean) => void;
 };
 
 const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns']): Frame => ({
@@ -77,7 +82,7 @@ const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns'])
   height: 0,
 });
 
-export function GraphView({
+export const GraphView = memo(function GraphView({
   session,
   avatars,
   rows,
@@ -96,6 +101,8 @@ export function GraphView({
   message,
   onMessage,
   onCommit,
+  compact,
+  onCompact,
 }: Props) {
   const inputRef = useRef<HTMLDivElement | null>(null);
   const { t } = useTranslation();
@@ -119,11 +126,12 @@ export function GraphView({
   const frameRef = useRef<Frame>(emptyFrame(metrics, rows, columns));
   const rafRef = useRef<number | null>(null);
   const storedRef = useRef<StoredWidths>(loadWidths());
+  const hiddenRef = useRef(loadHidden());
   const dragRef = useRef<
     'minimap' | 'hscroll' | { divider: Divider; fromX: number; fromStored: StoredWidths } | null
   >(null);
 
-  const schedule = useCallback(() => {
+  const needRows = useCallback(() => {
     const f = frameRef.current;
     if (f.repo && f.repo.count > 0) {
       const first = Math.max(0, Math.floor(f.scrollY / f.metrics.rowH));
@@ -131,6 +139,10 @@ export function GraphView({
       const wanted = f.rows.missing(first, last, f.repo.count);
       if (wanted.length) onNeed(wanted);
     }
+  }, [onNeed]);
+
+  const schedule = useCallback(() => {
+    needRows();
 
     if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -139,7 +151,7 @@ export function GraphView({
       if (canvas) drawFrame(canvas, frameRef.current);
       placeMessageInput();
     });
-  }, [onNeed]);
+  }, [needRows]);
 
   const placeMessageInput = useCallback(() => {
     const box = inputRef.current;
@@ -154,7 +166,7 @@ export function GraphView({
 
     const top = rowTop(f.metrics, 0, f.scrollY);
     box.style.transform = `translate3d(${f.cols.message.left + 12}px, ${top + 3}px, 0)`;
-    box.style.width = `${Math.max(0, f.cols.message.width - 24)}px`;
+    box.style.width = `${wipInputWidth(f.cols)}px`;
     box.style.height = `${f.metrics.rowH - 6}px`;
   }, []);
 
@@ -183,7 +195,7 @@ export function GraphView({
     const f = frameRef.current;
     frameRef.current = {
       ...f,
-      cols: layoutColumns(listWidth(f.width), storedRef.current),
+      cols: layoutColumns(listWidth(f.width), storedRef.current, hiddenRef.current),
     };
     patch({ scrollX: clampScrollX(frameRef.current.scrollX) });
   }, [patch, clampScrollX]);
@@ -214,18 +226,6 @@ export function GraphView({
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
   }, [metrics, patch, clampScroll]);
 
-  const chosen = session?.selected ?? 0;
-  const revealedRef = useRef(chosen);
-  useEffect(() => {
-    if (revealedRef.current === chosen) return;
-    revealedRef.current = chosen;
-    const f = frameRef.current;
-    if (!f.repo) return;
-    patch({
-      scrollY: clampScroll(scrollToReveal(f.metrics, chosen, f.scrollY, f.height, f.repo.count)),
-    });
-  }, [chosen, patch, clampScroll]);
-
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -238,16 +238,36 @@ export function GraphView({
         ...f,
         width,
         height,
-        cols: layoutColumns(listWidth(width), storedRef.current),
+        cols: layoutColumns(listWidth(width), storedRef.current, hiddenRef.current),
         minimap: buildMinimap(f.repo, height),
       };
-      patch({ scrollY: clampScroll(frameRef.current.scrollY) });
+      frameRef.current = { ...frameRef.current, scrollY: clampScroll(frameRef.current.scrollY) };
+      needRows();
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      const canvas = canvasRef.current;
+      if (canvas) drawFrame(canvas, frameRef.current);
+      placeMessageInput();
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(host);
     return () => observer.disconnect();
-  }, [patch, clampScroll]);
+  }, [needRows, clampScroll, placeMessageInput]);
+
+  const chosen = session?.selected ?? 0;
+  const revealedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (revealedRef.current === chosen) return;
+    revealedRef.current = chosen;
+    const f = frameRef.current;
+    if (!f.repo) return;
+    patch({
+      scrollY: clampScroll(scrollToCenter(f.metrics, chosen, f.scrollY, f.height, f.repo.count)),
+    });
+  }, [chosen, patch, clampScroll]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -324,7 +344,7 @@ export function GraphView({
       else if (action.kind === 'copy') onCopy(action.text);
       else if (action.kind === 'worktree') onWorktree(action.at);
       else if (action.kind === 'openUrl') onOpenUrl(action.url);
-      else onAsk(action.ask);
+      else if (action.kind === 'ask') onAsk(action.ask);
     },
     [onCheckoutRef, onRun, onCopy, onAsk, onWorktree, onOpenUrl],
   );
@@ -369,6 +389,37 @@ export function GraphView({
         return;
       }
 
+      if (y < HEADER_H) {
+        void showNativeMenu(
+          buildColumnsMenu(hiddenRef.current, compact),
+          (key, params) => t(key as 'column.author', params),
+          (action: MenuAction) => {
+            if (action.kind === 'toggleColumn') {
+              const next = new Set(hiddenRef.current);
+              if (!next.delete(action.column)) next.add(action.column);
+              hiddenRef.current = next;
+              saveHidden(next);
+            } else if (action.kind === 'toggleCompact') {
+              onCompact(!compact);
+              return;
+            } else if (action.kind === 'resetLayout') {
+              storedRef.current = {};
+              saveWidths({});
+              hiddenRef.current = new Set(DEFAULT_HIDDEN);
+              saveHidden(hiddenRef.current);
+              onCompact(false);
+            }
+            const now = frameRef.current;
+            frameRef.current = {
+              ...now,
+              cols: layoutColumns(listWidth(now.width), storedRef.current, hiddenRef.current),
+            };
+            patch({});
+          },
+        );
+        return;
+      }
+
       const target = pointerTarget(x, y, {
         width: f.width,
         height: f.height,
@@ -392,7 +443,7 @@ export function GraphView({
 
     host.addEventListener('contextmenu', onContext);
     return () => host.removeEventListener('contextmenu', onContext);
-  }, [chipHitAt, menuContext, onSelect, patch, t, onMenuAction]);
+  }, [chipHitAt, menuContext, onSelect, patch, t, onMenuAction, compact, onCompact]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -427,7 +478,7 @@ export function GraphView({
       const f = frameRef.current;
       storedRef.current = resized(
         held.fromStored,
-        layoutColumns(listWidth(f.width), held.fromStored),
+        layoutColumns(listWidth(f.width), held.fromStored, hiddenRef.current),
         held.divider,
         x - held.fromX,
       );
@@ -575,4 +626,4 @@ export function GraphView({
         ) : null}
     </div>
   );
-}
+});

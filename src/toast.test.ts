@@ -21,6 +21,8 @@ const EVERY_KIND: Record<Operation['kind'], null> = {
   fetchDryRun: null,
   fetch: null,
   pull: null,
+  pullFfOnly: null,
+  pullRebase: null,
   push: null,
   pushSetUpstream: null,
   checkout: null,
@@ -46,6 +48,8 @@ const EVERY_KIND: Record<Operation['kind'], null> = {
   pushDelete: null,
   stash: null,
   stashPop: null,
+  stashFile: null,
+  discardAll: null,
 };
 
 describe('тосты — только исход действия, словами человека', () => {

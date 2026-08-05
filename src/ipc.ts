@@ -93,11 +93,25 @@ export const workingTreeDiff = (repo: string, path: string, staged: boolean) =>
 export const workingTreeHunks = (repo: string, path: string, staged: boolean) =>
   invoke<string>('working_tree_hunks', { repo, path, staged });
 
+export const commitFileHunks = (repo: string, hash: string, path: string) =>
+  invoke<string>('commit_file_hunks', { repo, hash, path });
+
+export const appendIgnore = (repo: string, pattern: string) =>
+  invoke<void>('append_ignore', { repo, pattern });
+
+export const openPath = (repo: string, path: string) => invoke<void>('open_path', { repo, path });
+
+export const revealPath = (repo: string, path: string) =>
+  invoke<void>('reveal_path', { repo, path });
+
+export const removePath = (repo: string, path: string) =>
+  invoke<void>('remove_path', { repo, path });
+
 export const applyHunk = (repo: string, patch: string, cached: boolean, reverse: boolean) =>
   invoke<WorkingTreeView>('apply_hunk', { repo, patch, cached, reverse });
 
-export const fileHistory = (repo: string, path: string) =>
-  invoke<FileCommitView[]>('file_history', { repo, path });
+export const fileHistory = (repo: string, path: string, from: string | null) =>
+  invoke<FileCommitView[]>('file_history', { repo, path, from });
 
 export const blameFile = (repo: string, path: string, at: string | null) =>
   invoke<BlameSpanView[]>('blame_file', { repo, path, at });

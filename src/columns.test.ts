@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_HIDDEN,
   dividerAt,
   dividers,
   FLOORS,
@@ -123,5 +124,34 @@ describe('перетаскивание границ', () => {
     const stored = reset({ author: 300, date: 100 }, 'author');
     expect(stored).toEqual({ date: 100 });
     expect(layoutColumns(1400, stored).author.width).toBe(layoutColumns(1400, {}).author.width);
+  });
+});
+
+describe('скрытые колонки', () => {
+  const hidden = new Set<'branchTag' | 'author' | 'date' | 'sha'>(['author', 'date', 'sha']);
+
+  it('скрытая колонка получает нулевую ширину, а сообщение забирает место', () => {
+    const shown = layoutColumns(1200, {}, new Set());
+    const trimmed = layoutColumns(1200, {}, hidden);
+
+    expect(trimmed.author.width).toBe(0);
+    expect(trimmed.date.width).toBe(0);
+    expect(trimmed.sha.width).toBe(0);
+    expect(trimmed.message.width, 'освободившееся место уходит сообщению').toBeGreaterThan(
+      shown.message.width,
+    );
+  });
+
+  it('разделители не предлагают тянуть скрытые колонки', () => {
+    const cols = layoutColumns(1200, {}, hidden);
+    const involved = dividers(cols).flatMap((d) => [d.take, d.give]);
+
+    expect(involved).not.toContain('author');
+    expect(involved).not.toContain('date');
+    expect(involved).not.toContain('sha');
+  });
+
+  it('по умолчанию спрятаны автор, дата и хеш', () => {
+    expect([...DEFAULT_HIDDEN].sort()).toEqual(['author', 'date', 'sha']);
   });
 });

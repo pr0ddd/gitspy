@@ -1,20 +1,33 @@
 import type { Chip } from './chips';
 import type { Ask } from './shell/AskBar';
-import type { Operation, RefView } from './types';
+import type { PathOperation, Operation, RefView } from './types';
+import type { HideableColumn } from './columns';
 
 export type MenuAction =
   | { kind: 'checkoutRef'; ref: RefView }
   | { kind: 'run'; operation: Operation }
+  | { kind: 'pathRun'; operation: PathOperation }
   | { kind: 'copy'; text: string }
   | { kind: 'ask'; ask: Ask }
   | { kind: 'worktree'; at: string }
-  | { kind: 'openUrl'; url: string };
+  | { kind: 'openUrl'; url: string }
+  | { kind: 'ignore'; pattern: string }
+  | { kind: 'history'; path: string }
+  | { kind: 'openFile'; path: string }
+  | { kind: 'reveal'; path: string }
+  | { kind: 'copyPatch'; path: string; staged: boolean }
+  | { kind: 'copyCommitPatch'; commit: string; path: string }
+  | { kind: 'deleteFile'; path: string }
+  | { kind: 'toggleColumn'; column: HideableColumn }
+  | { kind: 'toggleCompact' }
+  | { kind: 'resetLayout' };
 
 export type MenuItem = {
   readonly id: string;
   readonly label: string;
   readonly params?: Record<string, string>;
   readonly danger?: boolean;
+  readonly checked?: boolean;
   readonly action?: MenuAction;
   readonly children?: MenuItem[];
 };
@@ -362,4 +375,139 @@ export function buildCommitMenu(hash: string, ctx: MenuContext): MenuSection[] {
     resets,
     commitCopies(hash, webUrl),
   ].filter((s) => s.length > 0);
+}
+
+export type FileMenuEntry = {
+  readonly path: string;
+  readonly staged: boolean;
+};
+
+export function buildFileMenu(entry: FileMenuEntry): MenuSection[] {
+  const { path, staged } = entry;
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const dot = name.lastIndexOf('.');
+  const extension = dot > 0 ? name.slice(dot + 1) : null;
+  const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : null;
+
+  const ignoreChildren: MenuItem[] = [
+    {
+      id: 'ignoreExact',
+      label: 'menu.ignoreExact',
+      params: { name },
+      action: { kind: 'ignore', pattern: path },
+    },
+    ...(extension
+      ? [
+          {
+            id: 'ignoreExtension',
+            label: 'menu.ignoreExtension',
+            params: { extension },
+            action: { kind: 'ignore', pattern: `*.${extension}` } as MenuAction,
+          },
+        ]
+      : []),
+    ...(directory
+      ? [
+          {
+            id: 'ignoreFolder',
+            label: 'menu.ignoreFolder',
+            params: { directory: `${directory.slice(directory.lastIndexOf('/') + 1)}/` },
+            action: { kind: 'ignore', pattern: `${directory}/` } as MenuAction,
+          },
+        ]
+      : []),
+  ];
+
+  return [
+    [
+      staged
+        ? {
+            id: 'unstage',
+            label: 'workingTree.unstage',
+            action: { kind: 'pathRun', operation: { kind: 'unstage', paths: [path] } },
+          }
+        : {
+            id: 'stage',
+            label: 'workingTree.stage',
+            action: { kind: 'pathRun', operation: { kind: 'stage', paths: [path] } },
+          },
+      {
+        id: 'discard',
+        label: 'menu.discardChanges',
+        danger: true,
+        action: { kind: 'pathRun', operation: { kind: 'discard', paths: [path] } },
+      },
+      { id: 'ignore', label: 'menu.ignore', children: ignoreChildren },
+      {
+        id: 'stashFile',
+        label: 'menu.stashFile',
+        action: { kind: 'run', operation: { kind: 'stashFile', path } },
+      },
+    ],
+    [{ id: 'fileHistory', label: 'menu.fileHistory', action: { kind: 'history', path } }],
+    [
+      { id: 'openFile', label: 'menu.openFile', action: { kind: 'openFile', path } },
+      { id: 'reveal', label: 'menu.reveal', action: { kind: 'reveal', path } },
+    ],
+    [
+      { id: 'copyPath', label: 'menu.copyPath', action: { kind: 'copy', text: path } },
+      { id: 'copyPatch', label: 'menu.copyPatch', action: { kind: 'copyPatch', path, staged } },
+    ],
+    [
+      {
+        id: 'deleteFile',
+        label: 'menu.deleteFile',
+        danger: true,
+        action: { kind: 'deleteFile', path },
+      },
+    ],
+  ];
+}
+
+export function buildCommitFileMenu(commit: string, path: string): MenuSection[] {
+  return [
+    [{ id: 'fileHistory', label: 'menu.fileHistory', action: { kind: 'history', path } }],
+    [
+      { id: 'openFile', label: 'menu.openFile', action: { kind: 'openFile', path } },
+      { id: 'reveal', label: 'menu.reveal', action: { kind: 'reveal', path } },
+    ],
+    [
+      { id: 'copyPath', label: 'menu.copyPath', action: { kind: 'copy', text: path } },
+      {
+        id: 'copyPatch',
+        label: 'menu.copyPatch',
+        action: { kind: 'copyCommitPatch', commit, path },
+      },
+    ],
+  ];
+}
+
+const COLUMN_LABEL: Record<HideableColumn, string> = {
+  branchTag: 'column.branchTag',
+  author: 'column.author',
+  date: 'column.date',
+  sha: 'column.sha',
+};
+
+export function buildColumnsMenu(
+  hidden: ReadonlySet<HideableColumn>,
+  compact: boolean,
+): MenuSection[] {
+  return [
+    (Object.keys(COLUMN_LABEL) as HideableColumn[]).map((column) => ({
+      id: `column:${column}`,
+      label: COLUMN_LABEL[column],
+      checked: !hidden.has(column),
+      action: { kind: 'toggleColumn', column },
+    })),
+    [
+      {
+        id: 'compact',
+        label: 'menu.compactView',
+        checked: compact,
+        action: { kind: 'toggleCompact' },
+      },
+    ],
+    [{ id: 'resetLayout', label: 'menu.resetColumns', action: { kind: 'resetLayout' } }],
+  ];
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wipContent, wipInputShown } from './wip';
+import { wipBadgesX, wipContent, wipInputShown, wipInputWidth } from './wip';
 import type { RowView } from './types';
 
 type WipRow = Extract<RowView, { kind: 'workingTree' }>;
@@ -45,5 +45,28 @@ describe('единственное решение о содержимом стр
   it('инпут исчезает вместе со строкой при прокрутке и на чужих строках', () => {
     expect(wipInputShown(wip(), 3)).toBe(false);
     expect(wipInputShown(undefined, 0)).toBe(false);
+  });
+});
+
+import { layoutColumns } from './columns';
+
+describe('счётчики WIP при скрытых колонках', () => {
+  it('с видимым автором бейджи стоят в его колонке, инпут во всю ширину', () => {
+    const cols = layoutColumns(1200, {}, new Set());
+
+    expect(wipBadgesX(cols)).toBe(cols.author.left + 8);
+    expect(wipInputWidth(cols)).toBe(cols.message.width - 24);
+  });
+
+  it('со скрытым автором бейджи переезжают в колонку сообщения, инпут уступает им место', () => {
+    const cols = layoutColumns(1200, {}, new Set(['author', 'date', 'sha'] as const));
+
+    expect(wipBadgesX(cols), 'бейджи внутри колонки сообщения').toBeLessThan(
+      cols.message.left + cols.message.width,
+    );
+    expect(
+      wipInputWidth(cols),
+      'инпут короче колонки ровно на резерв бейджей',
+    ).toBe(cols.message.width - 24 - 150);
   });
 });

@@ -1,7 +1,7 @@
-import { Menu, MenuItem, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
 import type { MenuAction, MenuItem as Item, MenuSection } from './menuItems';
 
-type NativeEntry = MenuItem | PredefinedMenuItem | Submenu;
+type NativeEntry = MenuItem | CheckMenuItem | PredefinedMenuItem | Submenu;
 
 const nativeItem = async (
   item: Item,
@@ -14,6 +14,16 @@ const nativeItem = async (
       children.push(await nativeItem(child, label, onAction));
     }
     return Submenu.new({ text: label(item.label, item.params), items: children });
+  }
+  if (item.checked !== undefined) {
+    return CheckMenuItem.new({
+      id: item.id,
+      text: label(item.label, item.params),
+      checked: item.checked,
+      action: () => {
+        if (item.action) onAction(item.action);
+      },
+    });
   }
   return MenuItem.new({
     id: item.id,

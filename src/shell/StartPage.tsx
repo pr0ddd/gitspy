@@ -1,14 +1,15 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'motion/react';
 
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
-import { HostRepos } from './HostRepos';
-import type { AccountView, RecentRepo } from '../types';
+import * as ipc from '../ipc';
+import { relativeTime } from '../time';
 import { Hint } from '@/components/ui/tooltip';
+import type { AccountView, RecentRepo, RepoListingView } from '../types';
 
 type Props = {
   recent: RecentRepo[];
@@ -21,10 +22,50 @@ type Props = {
   onConnect: () => void;
 };
 
+type Source = 'local' | 'github';
+
 const shorten = (path: string) => {
   const match = path.match(/^\/(?:Users|home)\/[^/]+(\/.*)?$/);
   return match ? `~${match[1] ?? ''}` : path;
 };
+
+const initialsOf = (name: string) => name.slice(0, 2).toLowerCase();
+
+function SourceRow({
+  chosen,
+  label,
+  count,
+  connect,
+  badge,
+  onPick,
+}: {
+  chosen: boolean;
+  label: string;
+  count?: number;
+  connect?: boolean;
+  badge: React.ReactNode;
+  onPick: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onPick}
+      className={cn(
+        'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-xs transition-colors',
+        chosen ? 'bg-fill-2 text-foreground' : 'text-muted-foreground hover:bg-fill-1',
+      )}
+    >
+      <span className="bg-fill-2 flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-md">
+        {badge}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+      {count === undefined ? null : (
+        <span className="text-faint shrink-0 tabular-nums">{count}</span>
+      )}
+      {connect ? <span className="text-faint shrink-0">{t('start.connect')}</span> : null}
+    </button>
+  );
+}
 
 export function StartPage({
   recent,
@@ -37,94 +78,192 @@ export function StartPage({
   onConnect,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const relative = new Intl.RelativeTimeFormat(i18n.language, {
-    numeric: 'auto',
-  });
+  const [source, setSource] = useState<Source>('local');
+  const [filter, setFilter] = useState('');
+  const [repos, setRepos] = useState<RepoListingView[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  const ago = (seconds: number) => {
-    if (!Number.isFinite(seconds)) return '';
-    const delta = Math.round(seconds - Date.now() / 1000);
-    if (Math.abs(delta) < 3600) return relative.format(Math.round(delta / 60), 'minute');
-    if (Math.abs(delta) < 86400) return relative.format(Math.round(delta / 3600), 'hour');
-    return relative.format(Math.round(delta / 86400), 'day');
+  useEffect(() => {
+    if (!account) {
+      setRepos([]);
+      return;
+    }
+    let alive = true;
+    setBusy(true);
+    setFailed(false);
+    ipc
+      .hostRepos('github', false)
+      .then((found) => alive && setRepos(found))
+      .catch(() => alive && setFailed(true))
+      .finally(() => alive && setBusy(false));
+    return () => {
+      alive = false;
+    };
+  }, [account]);
+
+  const refresh = () => {
+    setBusy(true);
+    setFailed(false);
+    ipc
+      .hostRepos('github', true)
+      .then(setRepos)
+      .catch(() => setFailed(true))
+      .finally(() => setBusy(false));
   };
 
+  const now = Date.now() / 1000;
+  const needle = filter.trim().toLowerCase();
+
+  const shownRecent = useMemo(
+    () => (needle ? recent.filter((r) => r.name.toLowerCase().includes(needle)) : recent),
+    [recent, needle],
+  );
+  const shownRepos = useMemo(
+    () => (needle ? repos.filter((r) => r.fullName.toLowerCase().includes(needle)) : repos),
+    [repos, needle],
+  );
+
+  const local = source === 'local';
+  const hasRows = local ? shownRecent.length > 0 : account !== null && shownRepos.length > 0;
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex shrink-0 items-center justify-between px-5 py-3">
-        <div>
-          <h1 className="text-sm font-medium">{t('start.title')}</h1>
-          <p className="text-muted-foreground text-xs">
-            {t('start.repoCount', { count: recent.length })}
-          </p>
+    <>
+      <aside className="flex w-56 shrink-0 flex-col gap-4 px-2.5 pt-1.5">
+        <div className="flex flex-col gap-px">
+          <div className="text-faint flex h-6 items-center px-2.5 text-2xs tracking-wide uppercase">
+            {t('start.library')}
+          </div>
+          <SourceRow
+            chosen={local}
+            label={t('start.local')}
+            count={recent.length}
+            badge={<Icon.folder className="text-muted-foreground size-3" />}
+            onPick={() => setSource('local')}
+          />
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={onOpen} size="xs">
-            <Icon.open className="size-3.5" />
-            {t('start.open')}
-          </Button>
-          <Button variant="secondary" size="xs" onClick={() => onClone('')}>
-            <Icon.clone className="size-3.5" />
-            {GIT.clone}
-          </Button>
-          <Button variant="secondary" size="xs" onClick={onCreate}>
-            <Icon.add className="size-3.5" />
-            {t('start.create')}
-          </Button>
+        <div className="flex flex-col gap-px">
+          <div className="text-faint flex h-6 items-center px-2.5 text-2xs tracking-wide uppercase">
+            {t('start.accounts')}
+          </div>
+          <SourceRow
+            chosen={!local}
+            label={account ? account.login : 'GitHub'}
+            count={account ? repos.length : undefined}
+            connect={!account}
+            badge={
+              account ? (
+                <img src={account.avatarUrl} alt="" className="size-5" />
+              ) : (
+                <Icon.github className="text-muted-foreground size-3" />
+              )
+            }
+            onPick={() => setSource('github')}
+          />
         </div>
-      </header>
+      </aside>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="p-3">
-            <h2 className="text-muted-foreground mb-2 px-1 text-xs">
-              {t('start.recent')}
-            </h2>
-
-            {recent.length === 0 ? (
-              <p className="text-muted-foreground px-1 text-sm">{t('start.recentEmpty')}</p>
+      <div className="bg-card shadow-sheet flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+        <div className="flex h-16 shrink-0 items-center gap-3.5 px-6">
+          <span className="bg-fill-2 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
+            {local ? (
+              <Icon.folder className="text-muted-foreground size-4" />
+            ) : account ? (
+              <img src={account.avatarUrl} alt="" className="size-8" />
             ) : (
-              <ul className="space-y-1">
-                {recent.map((entry, i) => (
-                  <motion.li
-                    key={entry.path}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.18,
-                      delay: Math.min(i, 8) * 0.02,
-                    }}
-                    className="group"
-                  >
+              <Icon.github className="text-muted-foreground size-4" />
+            )}
+          </span>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate text-base font-medium">
+              {local ? t('start.local') : (account?.name ?? account?.login ?? 'GitHub')}
+            </span>
+            <span className="text-faint text-2xs truncate">
+              {local
+                ? t('start.repoCount', { count: recent.length })
+                : (account?.login ?? t('host.connectHint'))}
+            </span>
+          </div>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {hasRows || needle ? (
+              <div className="relative">
+                <Icon.search className="text-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
+                <Input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t('start.filterRepos')}
+                  className="h-8 w-56 pl-8 text-xs"
+                />
+              </div>
+            ) : null}
+            {local ? (
+              <>
+                <Button size="xs" onClick={onOpen}>
+                  <Icon.open className="size-3.5" />
+                  {t('start.open')}
+                </Button>
+                <Button variant="action" size="xs" onClick={() => onClone('')}>
+                  <Icon.clone className="size-3.5" />
+                  {GIT.clone}
+                </Button>
+                <Button variant="action" size="xs" onClick={onCreate}>
+                  <Icon.add className="size-3.5" />
+                  {t('start.create')}
+                </Button>
+              </>
+            ) : account ? (
+              <Hint text={t('host.refresh')}>
+                <Button variant="action" size="xs" onClick={refresh} disabled={busy}>
+                  <Icon.fetch className={cn('size-3.5', busy && 'animate-spin')} />
+                </Button>
+              </Hint>
+            ) : null}
+          </div>
+        </div>
+
+        {hasRows ? (
+          <div className="text-faint flex h-6 shrink-0 items-center px-6 text-2xs tracking-wide uppercase">
+            <span className="flex-1">{t('start.repository')}</span>
+            <span className="w-22 shrink-0 text-right">{t('start.updated')}</span>
+          </div>
+        ) : null}
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          {local ? (
+            shownRecent.length === 0 ? (
+              <p className="text-muted-foreground px-2 py-3 text-xs">
+                {needle ? t('host.searchEmpty') : t('start.recentEmpty')}
+              </p>
+            ) : (
+              <ul>
+                {shownRecent.map((entry) => (
+                  <li key={entry.path} className="group">
                     <div
                       className={cn(
-                        'hover:bg-fill-1 flex items-center gap-3 rounded-lg pr-2 transition-colors',
+                        'hover:bg-fill-1 flex h-16 items-center gap-3 rounded-lg px-2 transition-colors',
                         !entry.exists && 'opacity-40',
                       )}
                     >
-                      <Hint text={entry.exists ? entry.path : t('start.missing')}>
                         <button
+                          title={entry.exists ? entry.path : t('start.missing')}
                           onClick={() => entry.exists && onOpenPath(entry.path)}
-                          className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
+                          className="flex h-full min-w-0 flex-1 items-center gap-3 text-left"
                         >
-                          <span className="bg-fill-2 flex size-7 shrink-0 items-center justify-center rounded-md">
-                            <Icon.branch className="text-muted-foreground size-3.5" />
+                          <span className="bg-fill-2 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md text-2xs font-semibold">
+                            {initialsOf(entry.name)}
                           </span>
-
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{entry.name}</span>
-                            <span className="text-muted-foreground block truncate text-xs">
+                          <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="truncate text-sm font-medium">{entry.name}</span>
+                            <span className="text-faint truncate font-mono text-2xs">
                               {shorten(entry.path)}
                             </span>
                           </span>
-
-                          <span className="text-muted-foreground shrink-0 text-xs">
-                            {ago(entry.openedAt)}
+                          <span className="text-faint w-22 shrink-0 text-right text-2xs">
+                            {relativeTime(entry.openedAt, now, i18n.language)}
                           </span>
                         </button>
-                      </Hint>
-
                       <Button
                         variant="muted"
                         size="icon-xs"
@@ -135,15 +274,82 @@ export function StartPage({
                         <Icon.close />
                       </Button>
                     </div>
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
-            )}
-          </div>
-        </ScrollArea>
-
-        <HostRepos account={account} onClone={onClone} onConnect={onConnect} />
+            )
+          ) : !account ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <span className="bg-fill-2 flex size-10 items-center justify-center rounded-xl">
+                <Icon.github className="text-muted-foreground size-5" />
+              </span>
+              <p className="text-sm font-medium">{t('start.notConnected')}</p>
+              <p className="text-faint max-w-60 text-xs leading-relaxed">{t('host.connectHint')}</p>
+              <Button size="xs" onClick={onConnect}>
+                {t('settings.connect')}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <ul>
+                {shownRepos.map((repo) => (
+                  <li key={repo.fullName} className="group">
+                    <div className="hover:bg-fill-1 flex h-16 items-center gap-3 rounded-lg px-2 transition-colors">
+                      <img
+                        src={repo.ownerAvatarUrl}
+                        alt=""
+                        className="size-8 shrink-0 rounded-md"
+                      />
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm">
+                            <span className="text-muted-foreground">
+                              {repo.fullName.split('/')[0]}/
+                            </span>
+                            <span className="font-medium">{repo.fullName.split('/')[1]}</span>
+                          </span>
+                          {repo.private ? (
+                            <Icon.private className="text-faint size-3 shrink-0" />
+                          ) : null}
+                        </span>
+                        {repo.description ? (
+                          <span className="text-faint truncate text-2xs">{repo.description}</span>
+                        ) : null}
+                      </span>
+                      <Button
+                        size="2xs"
+                        variant="secondary"
+                        reveal
+                        onClick={() => onClone(repo.cloneUrl)}
+                        className="shrink-0"
+                      >
+                        {GIT.clone}
+                      </Button>
+                      <span className="text-faint w-22 shrink-0 text-right text-2xs">
+                        {repo.pushedAt
+                          ? relativeTime(Date.parse(repo.pushedAt) / 1000, now, i18n.language)
+                          : ''}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {busy && repos.length === 0 ? (
+                <p className="text-muted-foreground flex items-center gap-1.5 px-2 py-3 text-xs">
+                  <Icon.waiting className="size-3 animate-spin" />
+                  {t('host.loading')}
+                </p>
+              ) : null}
+              {!busy && failed ? (
+                <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.failed')}</p>
+              ) : null}
+              {!busy && !failed && repos.length > 0 && shownRepos.length === 0 ? (
+                <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.searchEmpty')}</p>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
