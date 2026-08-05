@@ -97,7 +97,7 @@ export default function App() {
         .then((version) => !stopped && version && setReadyUpdate(version))
         .catch(() => {});
     void poll();
-    const timer = setInterval(poll, 4 * 60 * 60 * 1000);
+    const timer = setInterval(poll, 60 * 60 * 1000);
     return () => {
       stopped = true;
       clearInterval(timer);
