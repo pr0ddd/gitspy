@@ -15,6 +15,8 @@ mod terminal;
 mod views;
 mod watcher;
 
+use tauri::Manager;
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -73,6 +75,20 @@ fn main() {
             autofetch::start(app.handle().clone(), autofetch::DEFAULT_MINUTES);
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
+        .build(tauri::generate_context!())
         .expect("приложение запускается")
+        .run(|app, event| {
+            if let tauri::RunEvent::Reopen { .. } = event {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        })
 }
