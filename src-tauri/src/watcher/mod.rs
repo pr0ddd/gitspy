@@ -2,7 +2,7 @@ pub mod ignores;
 
 use ignores::Ignores;
 use notify::RecursiveMode;
-use notify_debouncer_full::{new_debouncer, DebouncedEvent, Debouncer, RecommendedCache};
+use notify_debouncer_full::{new_debouncer_opt, DebouncedEvent, Debouncer, NoCache};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -10,7 +10,7 @@ use std::time::Duration;
 
 const SETTLE: Duration = Duration::from_millis(300);
 
-type Watch = Debouncer<notify::RecommendedWatcher, RecommendedCache>;
+type Watch = Debouncer<notify::RecommendedWatcher, NoCache>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Change {
@@ -100,7 +100,13 @@ impl Watchers {
             }
         };
 
-        let Ok(mut debouncer) = new_debouncer(SETTLE, None, handler) else {
+        let Ok(mut debouncer) = new_debouncer_opt::<_, notify::RecommendedWatcher, NoCache>(
+            SETTLE,
+            None,
+            handler,
+            NoCache::new(),
+            notify::Config::default(),
+        ) else {
             return;
         };
 
@@ -232,6 +238,36 @@ mod tests {
             waited_for(&seen),
             Some(Change::WorkingTree),
             "правка файла обязана доходить сама, иначе счётчик стоит до переоткрытия"
+        );
+    }
+
+    #[test]
+    fn subscribing_does_not_walk_the_tree_no_matter_how_many_files_it_holds() {
+        let empty = tempfile::TempDir::new().expect("временный каталог");
+        std::fs::create_dir_all(empty.path().join(".git")).expect("каталог");
+
+        let crowded = tempfile::TempDir::new().expect("временный каталог");
+        std::fs::create_dir_all(crowded.path().join(".git")).expect("каталог");
+        for pack in 0..200 {
+            let dir = crowded.path().join("node_modules").join(format!("pkg{pack}"));
+            std::fs::create_dir_all(&dir).expect("каталог");
+            for file in 0..100 {
+                std::fs::write(dir.join(format!("f{file}.js")), "x").expect("файл");
+            }
+        }
+
+        let watchers = Watchers::default();
+        let started = std::time::Instant::now();
+        watchers.watch(empty.path(), |_| {});
+        let baseline = started.elapsed();
+
+        let started = std::time::Instant::now();
+        watchers.watch(crowded.path(), |_| {});
+        let crowded_took = started.elapsed();
+
+        assert!(
+            crowded_took < baseline * 3 + Duration::from_millis(20),
+            "подписка обязана быть мгновенной, а не обходом дерева: quesk с 751 тысячей файлов ждал 15 секунд; пустой {baseline:?}, набитый {crowded_took:?}"
         );
     }
 
