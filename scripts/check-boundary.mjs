@@ -23,7 +23,7 @@ for (const path of sources) {
   }
 }
 
-execFileSync('cargo', ['test', '-q', '-p', 'gitspy-app'], { cwd: root, stdio: 'ignore' });
+execFileSync('cargo', ['test', '-q', '-p', 'gitspy-app'], { cwd: root, stdio: 'inherit' });
 
 const changed = execFileSync('git', ['diff', '--name-only', '--', 'src/generated'], {
   cwd: root,
