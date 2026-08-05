@@ -15,7 +15,7 @@ import { useCommitSearch } from './search';
 import { panelFor } from './panel';
 import { fetchReadyUpdate, restartToUpdate } from './updater';
 import { clampPanel, PANEL_LIMITS } from './resize';
-import { applyZoom } from './zoom';
+import { applyZoom, zoomForKey } from './zoom';
 import { BottomBar } from './shell/BottomBar';
 import { ResizeGrip } from './shell/parts';
 import type {
@@ -99,6 +99,20 @@ export default function App() {
   useEffect(() => {
     void applyZoom(zoom).catch(() => {});
   }, [zoom]);
+
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      const next = zoomForKey(event.key, zoomRef.current);
+      if (next === null) return;
+      event.preventDefault();
+      setZoom(next);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setZoom]);
 
   useEffect(() => {
     let stopped = false;
