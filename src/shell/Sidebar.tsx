@@ -11,7 +11,8 @@ import { chipsFor } from '../chips';
 import { buildChipMenu, type MenuAction } from '../menuItems';
 import { showNativeMenu } from '../nativeMenu';
 import { usePref } from '../prefs';
-import { InlineNote, ListRow } from './parts';
+import { clampPanel, PANEL_LIMITS } from '../resize';
+import { InlineNote, ListRow, ResizeGrip } from './parts';
 import type { Ask } from './AskBar';
 import type { Operation, PullListView, PullView, RefKind, RefView, WorktreeView } from '../types';
 
@@ -260,6 +261,8 @@ export function Sidebar({
 }: Props) {
   const { t } = useTranslation();
   const [view, setView] = usePref<ViewKey>('sidebar.view', 'local');
+  const [width, setWidth] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
+  const dragFrom = useRef(width);
   const [filter, setFilter] = useState('');
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
   const [first, setFirst] = useState(0);
@@ -446,7 +449,18 @@ export function Sidebar({
   }
 
   return (
-    <aside className="flex w-68 shrink-0 flex-col">
+    <aside
+      className="relative flex shrink-0 flex-col"
+      style={{ width: clampPanel('sidebar', width) }}
+    >
+      <ResizeGrip
+        edge="right"
+        onStart={() => {
+          dragFrom.current = clampPanel('sidebar', width);
+        }}
+        onMove={(dx) => setWidth(clampPanel('sidebar', dragFrom.current + dx))}
+        onEnd={() => {}}
+      />
       <div className="flex items-center gap-1 px-2.5 pb-2">
         <div className="relative min-w-0 flex-1">
           <Icon.search className="text-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
