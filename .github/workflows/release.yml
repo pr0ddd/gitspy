@@ -82,4 +82,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --generate-notes
+          gh release create "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --generate-notes ||
+            gh release upload "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --clobber
