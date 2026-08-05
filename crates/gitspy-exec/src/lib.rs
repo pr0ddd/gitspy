@@ -116,6 +116,26 @@ impl Cancel {
     }
 }
 
+fn the_path_is_simply_absent(stderr: &str) -> bool {
+    stderr.contains("does not exist")
+        || stderr.contains("exists on disk, but not in")
+        || stderr.contains("unknown revision or path not in the working tree")
+}
+
+fn shown_or_absent(read: Result<String, Error>) -> Result<String, Error> {
+    match read {
+        Ok(text) => Ok(text),
+        Err(Error::Failed { code, stderr }) => {
+            if the_path_is_simply_absent(&stderr) {
+                Ok(String::new())
+            } else {
+                Err(Error::Failed { code, stderr })
+            }
+        }
+        Err(other) => Err(other),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Git {
     program: PathBuf,
@@ -124,7 +144,29 @@ pub struct Git {
 
 impl Git {
     pub fn discover() -> Result<Self, Error> {
+        if let Some(shell) = std::env::var_os("SHELL") {
+            if let Some(found) = Self::found_by_the_login_shell(Path::new(&shell)) {
+                return Ok(found);
+            }
+        }
         Self::at(Path::new("git"))
+    }
+
+    pub fn found_by_the_login_shell(shell: &Path) -> Option<Self> {
+        let out = Command::new(shell)
+            .args(["-lc", "command -v git"])
+            .stdin(Stdio::null())
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let named = String::from_utf8_lossy(&out.stdout);
+        let program = named.trim();
+        if program.is_empty() {
+            return None;
+        }
+        Self::at(Path::new(program)).ok()
     }
 
     pub fn at(program: &Path) -> Result<Self, Error> {
@@ -325,11 +367,7 @@ impl Git {
     }
 
     fn stage_content(&self, repo: &Path, stage: u8, path: &str) -> Result<String, Error> {
-        match self.read_raw(repo, &["show", &format!(":{stage}:{path}")]) {
-            Ok(text) => Ok(text),
-            Err(Error::Failed { .. }) => Ok(String::new()),
-            Err(other) => Err(other),
-        }
+        shown_or_absent(self.read_raw(repo, &["show", &format!(":{stage}:{path}")]))
     }
 
     pub fn conflict_merged(&self, repo: &Path, path: &str) -> Result<String, Error> {
@@ -596,11 +634,7 @@ impl Git {
     }
 
     pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {
-        match self.read(repo, &["show", &format!("{reference}:{path}")]) {
-            Ok(text) => Ok(text),
-            Err(Error::Failed { .. }) => Ok(String::new()),
-            Err(other) => Err(other),
-        }
+        shown_or_absent(self.read(repo, &["show", &format!("{reference}:{path}")]))
     }
 
     pub fn remotes(&self, repo: &Path) -> Vec<String> {
