@@ -15,6 +15,7 @@ import { useCommitSearch } from './search';
 import { panelFor } from './panel';
 import { fetchReadyUpdate, restartToUpdate } from './updater';
 import { clampPanel, PANEL_LIMITS } from './resize';
+import { applyZoom } from './zoom';
 import { BottomBar } from './shell/BottomBar';
 import { ResizeGrip } from './shell/parts';
 import type {
@@ -93,6 +94,11 @@ export default function App() {
   const [panelWidth, setPanelWidth] = usePref<number>('details.width', PANEL_LIMITS.details.fallback);
   const panelDragFrom = useRef(panelWidth);
   const [readyUpdate, setReadyUpdate] = useState<string | null>(null);
+  const [zoom, setZoom] = usePref<number>('ui.zoom', 1);
+
+  useEffect(() => {
+    void applyZoom(zoom).catch(() => {});
+  }, [zoom]);
 
   useEffect(() => {
     let stopped = false;
@@ -730,7 +736,12 @@ export default function App() {
               </aside>
               </div>
               </div>
-              <BottomBar ready={readyUpdate} onRestart={() => void restartToUpdate()} />
+              <BottomBar
+                zoom={zoom}
+                onZoom={setZoom}
+                ready={readyUpdate}
+                onRestart={() => void restartToUpdate()}
+              />
               </div>
           </>
         )}

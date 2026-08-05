@@ -50,6 +50,7 @@ import {
 } from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
 import { wipBadgesX, wipContent } from './wip';
+import { canvasDensity } from './zoom';
 
 export { chipAt, placeChips };
 
@@ -151,7 +152,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   const { width, height } = frame;
 
   const t = theme();
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDensity();
   const wantW = Math.round(width * dpr);
   const wantH = Math.round(height * dpr);
   if (canvas.width !== wantW || canvas.height !== wantH) {
@@ -560,7 +561,7 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   const { repo, hoverChip, metrics: m, scrollY, height } = frame;
   if (!repo || !hoverChip) return;
 
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDensity();
   const { first, last, shift } = visibleRange(m, scrollY, height, repo.count, dpr);
   if (hoverChip.row < first || hoverChip.row >= last) return;
 

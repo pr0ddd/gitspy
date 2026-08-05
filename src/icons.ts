@@ -19,6 +19,8 @@ import {
   CircleArrowUp,
   Plus,
   RefreshCw,
+  ZoomIn,
+  ZoomOut,
   CircleUserRound,
   Loader2,
   Lock,
@@ -80,6 +82,8 @@ export const Icon = {
 
   fetch: RefreshCw,
   update: CircleArrowUp,
+  zoomIn: ZoomIn,
+  zoomOut: ZoomOut,
   pull: Download,
   push: Upload,
   clone: CloudDownload,
