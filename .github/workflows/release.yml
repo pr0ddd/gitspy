@@ -35,6 +35,9 @@ jobs:
       - name: Versions agree
         run: node scripts/check-release-version.mjs "$GITHUB_REF_NAME"
 
+      - name: Updates base url present
+        run: test -n "${{ vars.UPDATES_BASE_URL }}"
+
       - name: Build, sign, notarize
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
