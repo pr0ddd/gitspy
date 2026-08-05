@@ -14,7 +14,9 @@ import { AvatarCache } from './avatarCache';
 import { useCommitSearch } from './search';
 import { panelFor } from './panel';
 import { fetchReadyUpdate, restartToUpdate } from './updater';
+import { clampPanel, PANEL_LIMITS } from './resize';
 import { BottomBar } from './shell/BottomBar';
+import { ResizeGrip } from './shell/parts';
 import type {
   AccountView,
   Operation,
@@ -88,6 +90,8 @@ export default function App() {
   const [cloning, setCloning] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
+  const [panelWidth, setPanelWidth] = usePref<number>('details.width', PANEL_LIMITS.details.fallback);
+  const panelDragFrom = useRef(panelWidth);
   const [readyUpdate, setReadyUpdate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -664,7 +668,18 @@ export default function App() {
                   />
                 )}
               </main>
-              <aside className="flex w-80 shrink-0 flex-col border-l">
+              <aside
+                className="relative flex shrink-0 flex-col border-l"
+                style={{ width: clampPanel('details', panelWidth) }}
+              >
+                <ResizeGrip
+                  edge="left"
+                  onStart={() => {
+                    panelDragFrom.current = clampPanel('details', panelWidth);
+                  }}
+                  onMove={(dx) => setPanelWidth(clampPanel('details', panelDragFrom.current - dx))}
+                  onEnd={() => {}}
+                />
                 {panel === 'workingTree' ? (
                   tree && tree.entries.length > 0 ? (
                     <WorkingTree

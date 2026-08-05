@@ -172,6 +172,39 @@ export function PanelNote({ children }: { children: React.ReactNode }) {
   return <p className="text-muted-foreground p-4 text-center text-xs">{children}</p>;
 }
 
+type ResizeGripProps = {
+  edge: 'left' | 'right';
+  onStart: () => void;
+  onMove: (dx: number) => void;
+  onEnd: () => void;
+};
+
+export function ResizeGrip({ edge, onStart, onMove, onEnd }: ResizeGripProps) {
+  return (
+    <div
+      className={cn(
+        'hover:bg-fill-2 active:bg-fill-3 absolute inset-y-0 z-10 w-1 cursor-col-resize transition-colors',
+        edge === 'left' ? 'left-0' : 'right-0',
+      )}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        const grip = event.currentTarget;
+        const from = event.clientX;
+        grip.setPointerCapture(event.pointerId);
+        onStart();
+        const moved = (raw: PointerEvent) => onMove(raw.clientX - from);
+        const done = () => {
+          grip.removeEventListener('pointermove', moved);
+          onEnd();
+        };
+        grip.addEventListener('pointermove', moved);
+        grip.addEventListener('pointerup', done, { once: true });
+        grip.addEventListener('pointercancel', done, { once: true });
+      }}
+    />
+  );
+}
+
 export function FilePath({ path, budget = 64 }: { path: string; budget?: number }) {
   const { directory, name } = splitPath(path);
   return (
