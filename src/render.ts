@@ -671,6 +671,8 @@ function drawChip(
       );
     } else if (chip.marks.includes('local')) {
       strokeGlyphInSlot(ctx, GLYPH.local, slotX, y, chipM.markSize);
+    } else if (chip.marks.includes('tag')) {
+      strokeGlyphInSlot(ctx, GLYPH.tag, slotX, y, chipM.markSize);
     } else {
       const letter = chip.name.slice(0, 1).toUpperCase();
       ctx.fillText(letter, placed.x + (w - ctx.measureText(letter).width) / 2, y);
@@ -698,7 +700,7 @@ function drawChip(
         chipM.markSize,
       );
     } else {
-      strokeGlyphInSlot(ctx, GLYPH.local, markX, y, chipM.markSize);
+      strokeGlyphInSlot(ctx, mark === 'tag' ? GLYPH.tag : GLYPH.local, markX, y, chipM.markSize);
     }
     markX += chipM.markSize + chipM.gap;
   }
