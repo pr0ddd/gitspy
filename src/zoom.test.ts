@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ZOOM_STEPS, zoomIn, zoomLabel, zoomOut } from './zoom';
+import { ZOOM_STEPS, zoomForKey, zoomIn, zoomLabel, zoomOut } from './zoom';
 
 describe('шаги масштаба', () => {
   it('края лестницы — 80 и 300 процентов', () => {
@@ -28,5 +28,20 @@ describe('шаги масштаба', () => {
     expect(zoomLabel(1)).toBe('100%');
     expect(zoomLabel(1.25)).toBe('125%');
     expect(zoomLabel(0.8)).toBe('80%');
+  });
+});
+
+describe('горячие клавиши масштаба', () => {
+  it('плюс и равно растят, минус и подчёркивание уменьшают, ноль сбрасывает', () => {
+    expect(zoomForKey('=', 1)).toBe(1.1);
+    expect(zoomForKey('+', 1)).toBe(1.1);
+    expect(zoomForKey('-', 1)).toBe(0.9);
+    expect(zoomForKey('_', 1)).toBe(0.9);
+    expect(zoomForKey('0', 2)).toBe(1);
+  });
+
+  it('чужие клавиши остаются чужими', () => {
+    expect(zoomForKey('a', 1), 'иначе перехватим Cmd+A и прочие сочетания').toBeNull();
+    expect(zoomForKey('9', 1)).toBeNull();
   });
 });

@@ -12,6 +12,13 @@ export const zoomOut = (zoom: number): number =>
 
 export const zoomLabel = (zoom: number): string => `${Math.round(zoom * 100)}%`;
 
+export const zoomForKey = (key: string, zoom: number): number | null => {
+  if (key === '=' || key === '+') return zoomIn(zoom);
+  if (key === '-' || key === '_') return zoomOut(zoom);
+  if (key === '0') return 1;
+  return null;
+};
+
 let level = 1;
 
 export const applyZoom = async (zoom: number): Promise<void> => {

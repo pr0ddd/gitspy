@@ -81,7 +81,7 @@
   "update.restart": "Restart to update to {{version}}",
   "zoom.in": "Zoom in",
   "zoom.out": "Zoom out",
-  "zoom.reset": "Reset zoom",
+  "zoom.pick": "Zoom level",
   "history.empty": "No commits touch this file",
   "history.end": "End of history",
   "history.title": "File history",
