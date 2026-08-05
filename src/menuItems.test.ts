@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildChipMenu, buildCommitMenu, type MenuContext } from './menuItems';
+import { buildChipMenu, buildCommitFileMenu, buildFileMenu, buildCommitMenu, type MenuContext } from './menuItems';
 import { chipsFor } from './chips';
 import type { RefKind, RefView } from './types';
 
@@ -172,3 +172,63 @@ const sectionsItem = (sections: ReturnType<typeof buildCommitMenu>, id: string) 
 
 const flatItem = (sections: ReturnType<typeof buildCommitMenu>, id: string) =>
   flat(sections).find((i) => i.id === id)!;
+
+describe('меню файла рабочего дерева', () => {
+  it('unstaged файл предлагает stage, staged — unstage', () => {
+    const ids = (staged: boolean) =>
+      buildFileMenu({ path: 'src/a.ts', staged })
+        .flat()
+        .map((item) => item.id);
+
+    expect(ids(false)).toContain('stage');
+    expect(ids(false)).not.toContain('unstage');
+    expect(ids(true)).toContain('unstage');
+    expect(ids(true)).not.toContain('stage');
+  });
+
+  it('ignore предлагает точное имя, расширение и папку', () => {
+    const ignore = buildFileMenu({ path: 'crates/core/src/dump.rs', staged: false })
+      .flat()
+      .find((item) => item.id === 'ignore');
+
+    expect(
+      ignore?.children?.map((child) =>
+        child.action?.kind === 'ignore' ? child.action.pattern : '',
+      ),
+    ).toEqual(['crates/core/src/dump.rs', '*.rs', 'crates/core/src/']);
+  });
+
+  it('файл в корне без расширения не предлагает пустых шаблонов', () => {
+    const ignore = buildFileMenu({ path: 'sandbox', staged: false })
+      .flat()
+      .find((item) => item.id === 'ignore');
+
+    expect(ignore?.children?.length, 'только точное имя').toBe(1);
+  });
+
+  it('деструктивные пункты помечены и стоят отдельно', () => {
+    const sections = buildFileMenu({ path: 'src/a.ts', staged: false });
+    const last = sections[sections.length - 1];
+
+    expect(last.map((item) => item.id)).toEqual(['deleteFile']);
+    expect(last[0].danger).toBe(true);
+  });
+});
+
+describe('меню файла коммита', () => {
+  it('предлагает историю, открытие, путь и патч — без stage и удаления', () => {
+    const ids = buildCommitFileMenu('abc123', 'src/a.ts')
+      .flat()
+      .map((item) => item.id);
+
+    expect(ids).toEqual(['fileHistory', 'openFile', 'reveal', 'copyPath', 'copyPatch']);
+  });
+
+  it('патч помнит, из какого коммита резать', () => {
+    const patch = buildCommitFileMenu('abc123', 'src/a.ts')
+      .flat()
+      .find((item) => item.id === 'copyPatch');
+
+    expect(patch?.action).toEqual({ kind: 'copyCommitPatch', commit: 'abc123', path: 'src/a.ts' });
+  });
+});

@@ -2,14 +2,13 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Icon } from '../icons';
+import { hostOf } from '../host';
 import type { Session } from '../session';
 import { Hint } from '@/components/ui/tooltip';
 
 type Props = {
   sessions: Session[];
   active: string | null;
-  sidebarHidden: boolean;
-  onToggleSidebar: () => void;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onStart: () => void;
@@ -19,8 +18,6 @@ type Props = {
 export function RepoTabs({
   sessions,
   active,
-  sidebarHidden,
-  onToggleSidebar,
   onActivate,
   onClose,
   onStart,
@@ -33,38 +30,29 @@ export function RepoTabs({
       data-tauri-drag-region
       className="flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto pr-2 pl-20"
     >
-      <Hint text={t(sidebarHidden ? 'sidebar.expand' : 'sidebar.collapse')}>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onToggleSidebar}
-          className="text-muted-foreground mr-1 size-6.5 shrink-0"
-        >
-          {sidebarHidden ? (
-            <Icon.expand className="size-3.5" />
-          ) : (
-            <Icon.collapse className="size-3.5" />
-          )}
-        </Button>
-      </Hint>
       {sessions.map((session) => {
         const current = session.path === active;
+        const host = hostOf(session.repo?.remotes ?? []);
+        const Mark = host ? Icon[host] : Icon.folder;
         return (
-          <Hint key={session.path} text={session.path}>
             <div
+              key={session.path}
+              title={session.path}
               onClick={() => onActivate(session.path)}
               className={cn(
-                'group flex h-7 max-w-56 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-2.5 whitespace-nowrap transition-colors',
+                'group flex h-7.5 max-w-56 cursor-pointer items-center gap-2 rounded-md pl-3 pr-1.5 text-xs whitespace-nowrap transition-colors',
                 current
                   ? 'bg-fill-2 text-foreground'
                   : 'text-muted-foreground hover:bg-fill-1',
               )}
             >
-              <span className="truncate">{session.name}</span>
+              <Mark className={cn('size-3.5 shrink-0', current ? '' : 'opacity-75')} />
+              <span className="min-w-0 truncate">{session.name}</span>
               <Button
                 variant="muted"
                 size="icon-2xs"
                 reveal
+                className={cn(current && 'opacity-100')}
                 aria-label={t('repo.close')}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -74,7 +62,6 @@ export function RepoTabs({
                 <Icon.close />
               </Button>
             </div>
-          </Hint>
         );
       })}
       <Hint text={t('start.title')}>

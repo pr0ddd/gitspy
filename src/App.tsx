@@ -4,9 +4,10 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { METRICS_AVATARS } from './render';
+import { METRICS_AVATARS, METRICS_COMPACT } from './render';
 import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from './toast';
 import * as ipc from './ipc';
+import { readPref, usePref, writePref } from './prefs';
 import { EMPTY, sessionsReducer } from './session';
 import { useRepoData } from './repoData';
 import { AvatarCache } from './avatarCache';
@@ -28,10 +29,11 @@ type Main =
   | { kind: 'graph' }
   | { kind: 'diff'; target: DiffTarget }
   | { kind: 'conflict'; path: string }
-  | { kind: 'history'; path: string }
+  | { kind: 'history'; path: string; from?: string }
   | { kind: 'pull'; pull: PullView };
 import { RepoTabs } from './shell/RepoTabs';
 import { Toolbar } from './shell/Toolbar';
+import { ConfirmBar } from './shell/ConfirmBar';
 import { Sidebar } from './shell/Sidebar';
 import { Details } from './shell/Details';
 import { GraphView } from './shell/GraphView';
@@ -73,6 +75,7 @@ export default function App() {
   const [main, setMain] = useState<Main>({ kind: 'graph' });
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
+  const [confirming, setConfirming] = useState<Operation | null>(null);
   const adoptTree = useCallback((next: WorkingTreeView) => {
     setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
@@ -82,8 +85,16 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cloning, setCloning] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
-  const [railed, setRailed] = useState(false);
+  const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
+  const toggleRail = useCallback(() => {
+    setRailed((now) => {
+      const next = !now;
+      writePref('sidebar.collapsed', next);
+      return next;
+    });
+  }, []);
   const [asking, setAsking] = useState<Ask | null>(null);
+  const [compact, setCompact] = usePref('graph.compact', false);
   const data = useRepoData();
   const avatarsRef = useRef(new AvatarCache(() => setAvatarTick((n) => n + 1)));
   const [avatarTick, setAvatarTick] = useState(0);
@@ -111,11 +122,11 @@ export default function App() {
     const toggleSidebar = (e: KeyboardEvent) => {
       if (e.key !== '\\' || !(e.metaKey || e.ctrlKey)) return;
       e.preventDefault();
-      setRailed((now) => !now);
+      toggleRail();
     };
     window.addEventListener('keydown', toggleSidebar);
     return () => window.removeEventListener('keydown', toggleSidebar);
-  }, []);
+  }, [toggleRail]);
 
   useEffect(() => {
     const suppressWebviewMenu = (e: MouseEvent) => {
@@ -351,6 +362,27 @@ export default function App() {
     [load],
   );
 
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    const stored = readPref<string[]>('session.open', []);
+    stored.forEach((path) => openPath(path));
+    const lastActive = readPref<string | null>('session.active', null);
+    if (lastActive && stored.includes(lastActive)) {
+      dispatch({ kind: 'activate', path: lastActive });
+    }
+  }, [openPath]);
+
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    writePref(
+      'session.open',
+      sessions.map((s) => s.path),
+    );
+    writePref('session.active', active);
+  }, [sessions, active]);
+
   const pickRepo = useCallback(async () => {
     const picked = await openDialog({
       directory: true,
@@ -389,6 +421,14 @@ export default function App() {
       dispatch({ kind: 'select', path: active, index });
     },
     [active],
+  );
+
+  const revealCommit = useCallback(
+    (index: number) => {
+      select(index);
+      setMain({ kind: 'graph' });
+    },
+    [select],
   );
 
   const search = useCommitSearch(active, redraw, select);
@@ -464,22 +504,44 @@ export default function App() {
   );
 
   return (
-    <TooltipProvider delayDuration={150} skipDelayDuration={300}>
+    <TooltipProvider delayDuration={600} skipDelayDuration={0}>
       <div className="flex h-full flex-col">
         <RepoTabs
           sessions={sessions}
           active={active}
-          sidebarHidden={railed}
-          onToggleSidebar={() => setRailed((now) => !now)}
           onActivate={(path) => dispatch({ kind: 'activate', path })}
           onClose={closeRepo}
           onStart={() => dispatch({ kind: 'activate', path: null })}
           onSettings={() => setSettingsOpen(true)}
         />
 
-        <div className="flex min-h-0 flex-1 pr-2 pb-2">
+        {current === null ? null : confirming ? (
+          <ConfirmBar
+            operation={confirming}
+            onConfirm={(operation) => {
+              setConfirming(null);
+              runOperation(operation);
+            }}
+            onCancel={() => setConfirming(null)}
+          />
+        ) : (
+          <Toolbar
+            tree={tree}
+            onRun={runOperation}
+            onAsk={(kind) => setAsking({ kind })}
+            onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
+            search={search.query}
+            found={search.found}
+            at={search.at}
+            onSearch={search.setQuery}
+            onStep={search.step}
+            busy={busy}
+            running={running?.kind ?? null}
+          />
+        )}
+
+        <div className={cn('flex min-h-0 flex-1 pr-2', current === null && 'pb-2')}>
         {current === null ? (
-          <div className="bg-card shadow-sheet ml-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
           <StartPage
             recent={recent}
             onOpen={pickRepo}
@@ -490,16 +552,16 @@ export default function App() {
             onCreate={createRepo}
             onConnect={() => setSettingsOpen(true)}
           />
-          </div>
         ) : (
           <>
-              {railed ? null : (
               <Sidebar
+                collapsed={railed}
+                onToggle={toggleRail}
                 session={current}
                 pulls={pulls}
                 currentBranch={tree?.branch ?? null}
                 checkingOut={checkingOut}
-                onPick={select}
+                onPick={revealCommit}
                 onCheckout={checkoutRef}
                 onRun={runOperation}
                 onCopy={copy}
@@ -509,30 +571,12 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              )}
-              <div
-                className={cn(
-                  'bg-card shadow-sheet relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border',
-                  railed && 'ml-2',
-                )}
-              >
+              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
               <AskBar
                 ask={asking}
                 onOpenChange={(next) => !next && setAsking(null)}
                 onRun={runOperation}
-              />
-              <Toolbar
-                tree={tree}
-                onRun={runOperation}
-                onAsk={(kind) => setAsking({ kind })}
-                onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
-                search={search.query}
-                found={search.found}
-                at={search.at}
-                onSearch={search.setQuery}
-                onStep={search.step}
-                busy={busy}
-                running={running?.kind ?? null}
               />
               <div className="flex min-h-0 flex-1">
               <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -544,12 +588,13 @@ export default function App() {
                     onTree={adoptTree}
                     onRun={runPathOperation}
                     onTarget={(target) => setMain({ kind: 'diff', target })}
-                    onHistory={(path) => setMain({ kind: 'history', path })}
+                    onHistory={(path, from) => setMain({ kind: 'history', path, from })}
                   />
                 ) : main.kind === 'history' && current.repo ? (
                   <FileHistoryView
                     repo={current.path}
                     path={main.path}
+                    from={main.from ?? null}
                     avatars={avatarsRef.current}
                     onClose={() => setMain({ kind: 'graph' })}
                   />
@@ -583,7 +628,7 @@ export default function App() {
                     avatars={avatarsRef.current}
                     rows={cacheFor(current.path)}
                     redraw={redraw + avatarTick}
-                    metrics={METRICS_AVATARS}
+                    metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
                     pullHeads={pullHeads}
                     currentBranch={tree?.branch ?? null}
                     onSelect={select}
@@ -597,6 +642,8 @@ export default function App() {
                     message={message}
                     onMessage={setMessage}
                     onCommit={commit}
+                    compact={compact}
+                    onCompact={setCompact}
                   />
                 )}
               </main>
@@ -604,6 +651,7 @@ export default function App() {
                 {panel === 'workingTree' ? (
                   tree && tree.entries.length > 0 ? (
                     <WorkingTree
+                      repo={current.path}
                       tree={tree}
                       busy={busy}
                       committing={running?.kind === 'commit'}
@@ -617,6 +665,9 @@ export default function App() {
                       onCommit={commit}
                       onRun={runPathOperation}
                       onOperation={runOperation}
+                      onConfirm={setConfirming}
+                      onCopy={copy}
+                      onHistory={(path) => setMain({ kind: 'history', path })}
                       onOpen={(path, status, staged) =>
                         setMain(
                           viewForEntry(status, staged) === 'conflict'
@@ -633,6 +684,7 @@ export default function App() {
                 ) : (
                   <Details
                     session={current}
+                    onHistory={(path, from) => setMain({ kind: 'history', path, from })}
                     rows={cacheFor(current.path)}
                     pending={tree ? tree.staged + tree.unstaged : 0}
                     conflicts={tree?.conflicts ?? 0}
@@ -644,6 +696,10 @@ export default function App() {
                   />
                 )}
               </aside>
+              </div>
+              </div>
+              <div className="flex h-6 shrink-0 items-center justify-end px-1.5">
+                <span className="text-faint text-2xs tabular-nums">{__APP_VERSION__}</span>
               </div>
               </div>
           </>

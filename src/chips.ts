@@ -46,6 +46,7 @@ export const chipsFor = (labels: readonly RefView[], remotes: readonly string[])
   const absorbed = new Set(labels.map(tracked).filter((name): name is string => name !== null));
 
   const built = labels
+    .filter((r) => r.kind !== 'stash')
     .filter((r) => !(r.kind === 'remoteBranch' && absorbed.has(r.name)))
     .map((r) => {
       const upstreamName = tracked(r);

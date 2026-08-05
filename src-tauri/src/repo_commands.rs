@@ -378,6 +378,92 @@ pub async fn working_tree_diff(
     .await
 }
 
+fn inside_repo(repo: &Path, path: &str) -> Result<PathBuf, ErrorView> {
+    let joined = repo.join(path);
+    let repo_root = repo.canonicalize().map_err(io_error)?;
+    let full = joined.canonicalize().map_err(io_error)?;
+    if !full.starts_with(&repo_root) {
+        return Err(ErrorView {
+            code: "repo.outsidePath".to_string(),
+            params: std::collections::BTreeMap::new(),
+            detail: Some(path.to_string()),
+        });
+    }
+    Ok(full)
+}
+
+fn io_error(e: std::io::Error) -> ErrorView {
+    ErrorView {
+        code: "repo.io".to_string(),
+        params: std::collections::BTreeMap::new(),
+        detail: Some(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn append_ignore(repo: String, pattern: String) -> Result<(), ErrorView> {
+    let file = PathBuf::from(&repo).join(".gitignore");
+    let now = std::fs::read_to_string(&file).unwrap_or_default();
+    let mut next = now.clone();
+    if !next.is_empty() && !next.ends_with('\n') {
+        next.push('\n');
+    }
+    next.push_str(&pattern);
+    next.push('\n');
+    std::fs::write(&file, next).map_err(io_error)
+}
+
+#[tauri::command]
+pub fn open_path(repo: String, path: String) -> Result<(), ErrorView> {
+    let full = inside_repo(Path::new(&repo), &path)?;
+    let status = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(&full).status()
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd").args(["/c", "start", ""]).arg(&full).status()
+    } else {
+        std::process::Command::new("xdg-open").arg(&full).status()
+    };
+    status.map(|_| ()).map_err(io_error)
+}
+
+#[tauri::command]
+pub fn reveal_path(repo: String, path: String) -> Result<(), ErrorView> {
+    let full = inside_repo(Path::new(&repo), &path)?;
+    let status = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg("-R").arg(&full).status()
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("explorer")
+            .arg(format!("/select,{}", full.display()))
+            .status()
+    } else {
+        let parent = full.parent().map(Path::to_path_buf).unwrap_or(full.clone());
+        std::process::Command::new("xdg-open").arg(parent).status()
+    };
+    status.map(|_| ()).map_err(io_error)
+}
+
+#[tauri::command]
+pub fn remove_path(repo: String, path: String) -> Result<(), ErrorView> {
+    let full = inside_repo(Path::new(&repo), &path)?;
+    std::fs::remove_file(full).map_err(io_error)
+}
+
+#[tauri::command]
+pub async fn commit_file_hunks(
+    repo: String,
+    hash: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<String, ErrorView> {
+    let git = state.git()?;
+    let repo_path = PathBuf::from(&repo);
+    on_reader(move || {
+        git.commit_diff_unified(&repo_path, &hash, &path)
+            .map_err(exec_error)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn working_tree_hunks(
     repo: String,
@@ -419,12 +505,13 @@ pub async fn apply_hunk(
 pub async fn file_history(
     repo: String,
     path: String,
+    from: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<FileCommitView>, ErrorView> {
     let git = state.git()?;
     let repo_path = PathBuf::from(&repo);
     on_reader(move || {
-        git.file_history(&repo_path, &path)
+        git.file_history(&repo_path, &path, from.as_deref())
             .map_err(exec_error)
             .map(|commits| {
                 commits

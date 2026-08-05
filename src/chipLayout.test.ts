@@ -26,6 +26,25 @@ const place = (
   pullHeads: ReadonlySet<string> = new Set(),
 ) => placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads).placed;
 
+describe('узкая колонка', () => {
+  it('первый чип сжимается в квадрат со значком, а не в пустую пилюлю', () => {
+    const [one] = place([ref('feature/long-name', 'localBranch')], 40);
+
+    expect(one.compact, 'имя не влезло — чип компактный').toBe(true);
+    expect(one.text).toBe('');
+    expect(one.w, 'квадрат — значок с полем, без хвоста имени').toBe(
+      METRICS.markSize + METRICS.pad,
+    );
+  });
+
+  it('в просторной колонке компактного режима нет', () => {
+    const [one] = place([ref('main', 'localBranch')]);
+
+    expect(one.compact).toBe(false);
+    expect(one.text).toBe('main');
+  });
+});
+
 describe('раскладка чипов', () => {
   it('первый чип начинается с отступа, следующий — после зазора', () => {
     const placed = place([ref('a', 'localBranch'), ref('b', 'localBranch')]);

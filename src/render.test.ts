@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { drawFrame, METRICS_AVATARS, type Frame } from './render';
 import { layoutColumns } from './columns';
+import { rowBandHeight } from './scene';
 import { RowCache } from './rows';
 import type { AvatarCache } from './avatarCache';
 import { GLYPH } from './glyphs';
@@ -8,11 +9,16 @@ import type { RefKind, RefView, RepoView, WindowView } from './types';
 
 class RecordedPath {
   d: string | undefined;
+  ops: { op: string; x: number; y: number }[] = [];
   constructor(d?: string) {
     this.d = d;
   }
-  moveTo() {}
-  lineTo() {}
+  moveTo(x: number, y: number) {
+    this.ops.push({ op: 'moveTo', x, y });
+  }
+  lineTo(x: number, y: number) {
+    this.ops.push({ op: 'lineTo', x, y });
+  }
   arcTo() {}
 }
 
@@ -26,6 +32,7 @@ const placedTexts: { text: string; x: number; y: number }[] = [];
 const strokedGlyphs: { d: string; x: number }[] = [];
 const drawnImages: { image: unknown; x: number }[] = [];
 const filledRects: { x: number; y: number; w: number; h: number }[] = [];
+const strokedPaths: { op: string; x: number; y: number }[][] = [];
 const arcs: { x: number; y: number; r: number }[] = [];
 let lastTranslateX = 0;
 
@@ -43,6 +50,7 @@ const context = () =>
       stroke: (path?: RecordedPath) => {
         calls.push('stroke');
         if (path?.d) strokedGlyphs.push({ d: path.d, x: lastTranslateX });
+        if (path?.ops.length) strokedPaths.push(path.ops);
       },
     } as Record<string, unknown>,
     {
@@ -221,8 +229,9 @@ const paint = (
   drawnImages.length = 0;
   filledRects.length = 0;
   arcs.length = 0;
+  strokedPaths.length = 0;
   drawFrame(canvas(), frameWith(refs, avatars, pullHeads, hoverChip, workingTree));
-  return { calls, texts, placedTexts, strokedGlyphs, drawnImages, filledRects, arcs };
+  return { calls, texts, placedTexts, strokedGlyphs, drawnImages, filledRects, arcs, strokedPaths };
 };
 
 describe('кадр рисуется целиком', () => {
@@ -232,16 +241,16 @@ describe('кадр рисуется целиком', () => {
       ref('origin/main', 'remoteBranch'),
     ]);
 
-    expect(painted.texts).toContain('сообщение');
-    expect(painted.texts).toContain('автор');
+    expect(painted.texts, 'шапка таблицы набирается капсом').toContain('СООБЩЕНИЕ');
+    expect(painted.texts).toContain('АВТОР');
   });
 
   it('репозиторий без единой ссылки рисуется так же полно', () => {
-    expect(paint([]).texts).toContain('сообщение');
+    expect(paint([]).texts).toContain('СООБЩЕНИЕ');
   });
 
   it('чип без upstream тоже не роняет кадр', () => {
-    expect(paint([ref('wip', 'localBranch')]).texts).toContain('сообщение');
+    expect(paint([ref('wip', 'localBranch')]).texts).toContain('СООБЩЕНИЕ');
   });
 });
 
@@ -356,9 +365,27 @@ describe('метки на чипах', () => {
       'прямоугольник на всю строку ушёл в прошлое',
     ).toBe(false);
     expect(
-      painted.arcs.some((a) => a.r === METRICS_AVATARS.rowH / 2),
-      'левый край подсветки — полукруг радиусом в полстроки вокруг узла',
+      painted.arcs.some((a) => a.r === rowBandHeight(METRICS_AVATARS) / 2),
+      'левый край подсветки — полукруг радиусом в полполосы вокруг узла',
     ).toBe(true);
+  });
+
+  it('строки разделены зазором: ни одна полоса не занимает высоту строки целиком', () => {
+    const painted = paint([]);
+    const band = rowBandHeight(METRICS_AVATARS);
+
+    expect(
+      painted.filledRects.some((r) => r.h === band && r.w > 100),
+      'заливка дорожки идёт по полосе, а не по всей строке',
+    ).toBe(true);
+    expect(
+      painted.filledRects.some((r) => r.h === band && r.w > 100 && r.x < 224),
+      'полоса не выглядывает левее центра узла',
+    ).toBe(false);
+    expect(
+      painted.filledRects.some((r) => r.h === METRICS_AVATARS.rowH && r.w > 100),
+      'полоса во всю высоту строки смыкается с соседней и зазор исчезает',
+    ).toBe(false);
   });
 
   it('наведённая строка без своих ссылок показывает ветку-владельца приглушённо', () => {
@@ -440,11 +467,14 @@ describe('метки на чипах', () => {
     expect(painted.texts).toContain('wip');
   });
 
-  it('чип стеша остаётся голым именем', () => {
+  it('стеш без чипа: квадратный узел с иконкой, имя не рисуется', () => {
     const painted = paint([ref('stash@{0}', 'stash')]);
 
-    expect(painted.strokedGlyphs).toEqual([]);
-    expect(painted.texts).toContain('stash@{0}');
+    expect(painted.texts, 'чипа stash@{0} больше нет').not.toContain('stash@{0}');
+    expect(
+      painted.strokedGlyphs.some((g) => g.d === GLYPH.stash.d),
+      'в квадрате узла — иконка стеша',
+    ).toBe(true);
   });
 
   it('у HEAD галочка остаётся в начале имени, а метка всё равно справа', () => {

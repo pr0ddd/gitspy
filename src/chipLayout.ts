@@ -15,6 +15,7 @@ export type PlacedChip = {
   readonly text: string;
   readonly fullText: string;
   readonly hasPull: boolean;
+  readonly compact: boolean;
 };
 
 export type ChipOverflow = {
@@ -88,7 +89,8 @@ export function placeChips(
       };
     }
 
-    const w = measure(text) + metrics.pad * 2 + trailW;
+    const compact = !text;
+    const w = compact ? metrics.markSize + metrics.pad : measure(text) + metrics.pad * 2 + trailW;
     placed.push({
       chip,
       x: left,
@@ -97,6 +99,7 @@ export function placeChips(
       text,
       fullText,
       hasPull,
+      compact,
     });
     left += w + CHIP_SPACING;
   }

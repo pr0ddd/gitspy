@@ -1,9 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { fireEvent, render } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+beforeEach(() => localStorage.clear());
+import { fireEvent, render, screen } from '@testing-library/react';
+import { vi } from 'vitest';
+import { showNativeMenu } from '../nativeMenu';
+
+vi.mock('../nativeMenu', () => ({ showNativeMenu: vi.fn(() => Promise.resolve()) }));
+vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn(() => Promise.resolve(false)) }));
 import '../i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { WorkingTree } from './WorkingTree';
-import type { WorkingTreeView } from '../types';
+import type { Operation, WorkingTreeView } from '../types';
 
 const treeWith = (staged: number): WorkingTreeView => ({
   branch: 'branches',
@@ -25,6 +32,8 @@ const treeWith = (staged: number): WorkingTreeView => ({
 });
 
 type Extra = Partial<{
+  onConfirm: (operation: Operation) => void;
+  onRun: () => void;
   description: string;
   amend: boolean;
   onAmend: (next: boolean) => void;
@@ -37,6 +46,7 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
   render(
     <TooltipProvider>
       <WorkingTree
+        repo="/repo"
         tree={tree}
         busy={false}
         committing={false}
@@ -48,12 +58,71 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
         onDescription={extra.onDescription ?? (() => {})}
         onAmend={extra.onAmend ?? (() => {})}
         onCommit={onCommit}
-        onRun={() => {}}
+        onRun={extra.onRun ?? (() => {})}
         onOperation={() => {}}
+        onConfirm={extra.onConfirm ?? (() => {})}
         onOpen={() => {}}
+        onCopy={() => {}}
+        onHistory={() => {}}
       />
     </TooltipProvider>,
   );
+
+describe('шапка панели рабочего дерева', () => {
+  it('корзина не выбрасывает изменения сама, а просит подтверждения', () => {
+    const asked: Operation[] = [];
+    let ranStraightAway = 0;
+    const { getByRole } = draw(treeWith(2), '', () => {}, {
+      onConfirm: (operation) => asked.push(operation),
+      onRun: () => (ranStraightAway += 1),
+    });
+
+    fireEvent.click(getByRole('button', { name: /discard all changes/i }));
+
+    expect(asked, 'нажатие корзины отдаёт операцию на подтверждение').toEqual([
+      { kind: 'discardAll' },
+    ]);
+    expect(ranStraightAway, 'без подтверждения ничего не выполняется').toBe(0);
+  });
+
+  it('считает все изменения и называет ветку, на которой они лежат', () => {
+    const { getByText } = draw(treeWith(3), '', () => {});
+
+    expect(getByText('3 file changes on')).toBeTruthy();
+    expect(getByText('branches')).toBeTruthy();
+  });
+
+  it('единственное изменение считается в единственном числе', () => {
+    const { getByText } = draw(treeWith(1), '', () => {});
+
+    expect(getByText('1 file change on')).toBeTruthy();
+  });
+
+  it('вид «дерево» собирает файлы под каталог, вид «путь» держит их плоско', () => {
+    const { getByRole, queryByText } = draw(treeWith(2), '', () => {});
+
+    expect(queryByText('src'), 'в плоском виде каталог отдельной строкой не стоит').toBeNull();
+
+    fireEvent.click(getByRole('button', { name: /tree/i }));
+
+    expect(queryByText('src'), 'в дереве каталог становится строкой').toBeTruthy();
+    expect(queryByText('file-0.ts'), 'а файл под ним теряет путь из имени').toBeTruthy();
+  });
+});
+
+describe('контекстное меню файла', () => {
+  it('правый клик по строке открывает меню с файловыми действиями', () => {
+    vi.mocked(showNativeMenu).mockClear();
+    draw(treeWith(2), '', () => {});
+
+    fireEvent.contextMenu(screen.getByText('file-0.ts'));
+
+    expect(showNativeMenu).toHaveBeenCalledTimes(1);
+    const [sections] = vi.mocked(showNativeMenu).mock.calls[0];
+    expect(sections.flat().map((item) => item.id)).toContain('unstage');
+    expect(sections.flat().map((item) => item.id)).toContain('ignore');
+  });
+});
 
 describe('коммит из панели рабочего дерева', () => {
   it('кнопка мертва, пока сообщение пустое', () => {
@@ -158,6 +227,7 @@ describe('панель во время слияния', () => {
     render(
       <TooltipProvider>
         <WorkingTree
+          repo="/repo"
           tree={tree}
           busy={false}
           committing={false}
@@ -171,7 +241,10 @@ describe('панель во время слияния', () => {
           onCommit={over.onCommit ?? (() => {})}
           onRun={(operation) => over.onRun?.(operation)}
           onOperation={(operation) => over.onOperation?.(operation)}
+          onConfirm={() => {}}
           onOpen={() => {}}
+          onCopy={() => {}}
+          onHistory={() => {}}
         />
       </TooltipProvider>,
     );

@@ -14,6 +14,9 @@ import {
   minimapBand,
   minimapFraction,
   rowAtY,
+  rowBandHeight,
+  scrollToCenter,
+  rowBandInset,
   rowTop,
   scrollForAnchor,
   visibleRange,
@@ -26,6 +29,30 @@ const HEIGHT = 800;
 
 const colsWith = (graph: number) => layoutColumns(listWidth(WIDTH), { graph });
 const COLS = layoutColumns(listWidth(WIDTH), {});
+
+describe('зазор между строками графа', () => {
+  it('строка не заливается во всю высоту: соседние полосы разделены, как в the reference client', () => {
+    expect(rowBandHeight(M), 'полоса в 30px строке').toBe(24);
+    expect(
+      M.rowH - rowBandHeight(M),
+      'зазор — 21% шага строки, замерено по the reference client',
+    ).toBe(6);
+  });
+
+  it('на плотной раскладке зазор ужимается вместе со строкой, а не остаётся прежним', () => {
+    expect(rowBandInset(METRICS_COMPACT), 'строка 28px').toBe(3);
+    expect(rowBandHeight(METRICS_COMPACT)).toBe(22);
+  });
+
+  it('узел помещается в полосу целиком на обеих плотностях', () => {
+    for (const m of [M, METRICS_COMPACT]) {
+      expect(
+        rowBandHeight(m) >= m.nodeR * 2,
+        `узел радиуса ${m.nodeR} торчит из полосы ${rowBandHeight(m)}px`,
+      ).toBe(true);
+    }
+  });
+});
 
 describe('видимый диапазон', () => {
   it('в начале истории показывает строки с нуля', () => {
@@ -58,6 +85,26 @@ describe('якорь прокрутки', () => {
   it('туда и обратно даёт исходную прокрутку', () => {
     const scrollY = 42 * M.rowH + 9;
     expect(scrollForAnchor(M, anchorAt(M, scrollY))).toBeCloseTo(scrollY);
+  });
+});
+
+describe('центрирование выделенной строки', () => {
+  const H = HEADER_H + M.rowH * 10;
+
+  it('видимую строку не трогает: щелчок в графе не должен дёргать прокрутку', () => {
+    const at = M.rowH * 100;
+    expect(scrollToCenter(M, 103, at, H, 1000)).toBe(at);
+  });
+
+  it('строка вне окна встаёт в середину окна', () => {
+    const got = scrollToCenter(M, 500, 0, H, 1000);
+    const view = H - HEADER_H;
+    expect(got).toBe(500 * M.rowH - (view - M.rowH) / 2);
+  });
+
+  it('у краёв истории прижимается к пределам, а не уходит за них', () => {
+    expect(scrollToCenter(M, 0, M.rowH * 500, H, 1000)).toBe(0);
+    expect(scrollToCenter(M, 999, 0, H, 1000)).toBe(maxScroll(M, 1000, H));
   });
 });
 
@@ -209,7 +256,7 @@ describe('дно колонки графа', () => {
 });
 
 describe('проматывание к выделенной строке', () => {
-  const H = 26 + M.rowH * 10;
+  const H = HEADER_H + M.rowH * 10;
   const COUNT = 1000;
 
   it('видимую строку не трогает вовсе', () => {

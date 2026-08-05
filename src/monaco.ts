@@ -53,6 +53,8 @@ export function setUpMonaco(): void {
       'diffEditor.insertedLineBackground': `${token('--status-added')}14`,
       'diffEditor.removedLineBackground': `${token('--status-deleted')}14`,
       'diffEditor.border': token('--border'),
+      'diffEditorOverview.insertedForeground': `${token('--status-added')}cc`,
+      'diffEditorOverview.removedForeground': `${token('--status-deleted')}cc`,
       'scrollbarSlider.background': `${token('--muted-foreground')}44`,
       'scrollbarSlider.hoverBackground': `${token('--muted-foreground')}66`,
     },
@@ -60,6 +62,23 @@ export function setUpMonaco(): void {
 
   probe.remove();
 }
+
+export const EDITOR_BASE = {
+  theme: THEME,
+  readOnly: true,
+  automaticLayout: true,
+  fontFamily: "'Geist Mono Variable', ui-monospace, Menlo, monospace",
+  fontSize: 13,
+  lineHeight: 20,
+  minimap: { enabled: true },
+  scrollBeyondLastLine: false,
+  lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
+} as const;
+
+export const DIFF_EDITOR_BASE = {
+  ...EDITOR_BASE,
+  renderOverviewRuler: true,
+} as const;
 
 const BY_EXTENSION: Record<string, string> = {
   ts: 'typescript',

@@ -12,10 +12,14 @@ const buttonVariants = cva(
         default: 'bg-primary text-primary-foreground hover:bg-primary-hover',
         destructive:
           'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20',
+        destructiveSoft:
+          'bg-destructive/15 text-destructive hover:bg-destructive/25 focus-visible:ring-destructive/20',
         outline: 'border hover:bg-fill-1 hover:text-foreground',
         secondary: 'bg-fill-2 text-secondary-foreground hover:bg-fill-3',
         ghost: 'hover:bg-fill-1 hover:text-foreground',
         muted: 'text-muted-foreground hover:bg-fill-1 hover:text-foreground',
+        action:
+          'text-muted-foreground font-normal [&_svg]:opacity-75 hover:bg-fill-1 hover:text-foreground hover:[&_svg]:opacity-100',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {

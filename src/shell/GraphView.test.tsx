@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Profiler } from 'react';
+import { Profiler, useState } from 'react';
 import { act, render } from '@testing-library/react';
 import { GraphView } from './GraphView';
 import { showNativeMenu } from '../nativeMenu';
@@ -112,6 +112,53 @@ const settleFrames = () =>
       }),
   );
 
+describe('перерисовка каркаса', () => {
+  const stillProps = {
+    avatars: null,
+    redraw: 0,
+    metrics: METRICS_AVATARS,
+    pullHeads: new Set<string>(),
+    currentBranch: null,
+    onSelect: () => {},
+    onCheckoutRef: () => {},
+    onRun: () => {},
+    onCopy: () => {},
+    onAsk: () => {},
+    onWorktree: () => {},
+    onOpenUrl: () => {},
+    onNeed: () => {},
+    message: '',
+    onMessage: () => {},
+    onCommit: () => {},
+    compact: false,
+    onCompact: () => {},
+  };
+
+  it('переключение сайдбара — рендер родителя — не перерисовывает граф', () => {
+    const rows = new RowCache();
+    rows.put(0, window());
+    const session = sessionWith(CHUNK);
+    const reads = vi.spyOn(rows, 'row');
+    let flip: () => void = () => {};
+
+    function Frame() {
+      const [, setOpen] = useState(false);
+      flip = () => setOpen((now) => !now);
+      return <GraphView session={session} rows={rows} {...stillProps} />;
+    }
+
+    render(<Frame />);
+    const afterMount = reads.mock.calls.length;
+
+    act(() => flip());
+
+    expect(
+      reads.mock.calls.length,
+      'тело графа не выполняется при перерисовке каркаса',
+    ).toBe(afterMount);
+  });
+});
+
 describe('прокрутка графа', () => {
   it('не вызывает ни одного React-рендера', () => {
     const rows = new RowCache();
@@ -139,6 +186,8 @@ describe('прокрутка графа', () => {
           message=""
           onMessage={() => {}}
           onCommit={() => {}}
+          compact={false}
+          onCompact={() => {}}
         />
       </Profiler>,
     );
@@ -185,6 +234,8 @@ describe('прокрутка графа', () => {
         message=""
         onMessage={() => {}}
         onCommit={() => {}}
+        compact={false}
+        onCompact={() => {}}
       />,
     );
 
@@ -217,6 +268,8 @@ describe('прокрутка графа', () => {
         message=""
         onMessage={() => {}}
         onCommit={() => {}}
+        compact={false}
+        onCompact={() => {}}
       />,
     );
 
@@ -268,6 +321,8 @@ describe('прокрутка графа', () => {
         message=""
         onMessage={() => {}}
         onCommit={() => {}}
+        compact={false}
+        onCompact={() => {}}
       />
     );
 

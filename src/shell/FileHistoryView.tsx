@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import * as ipc from '../ipc';
-import { languageOf, monaco, setUpMonaco, THEME } from '../monaco';
+import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco } from '../monaco';
 import { notifyError } from '../toast';
 import { Icon } from '../icons';
 import { laneColour } from '../theme';
-import { ViewBar } from './parts';
+import { editorOptionsFor, type DiffMode } from '../diff';
+import { usePref } from '../prefs';
+import { DiffToolbar } from './DiffToolbar';
+import { InlineNote, ViewBar } from './parts';
 import { shortenDirectory, splitPath } from '../paths';
 import { relativeTime } from '../time';
 import type { AvatarCache } from '../avatarCache';
@@ -17,6 +20,7 @@ import type { BlameSpanView, FileCommitView } from '../types';
 type Props = {
   repo: string;
   path: string;
+  from: string | null;
   avatars: AvatarCache | null;
   onClose: () => void;
 };
@@ -29,18 +33,7 @@ function CommitAvatar({ avatars, email }: { avatars: AvatarCache | null; email: 
   return <span className="bg-fill-2 size-6 shrink-0 rounded-md" />;
 }
 
-const LINE_H = 20;
-
-const EDITOR_OPTIONS = {
-  theme: THEME,
-  readOnly: true,
-  automaticLayout: true,
-  fontFamily: "'Geist Mono Variable', ui-monospace, Menlo, monospace",
-  fontSize: 13,
-  lineHeight: LINE_H,
-  minimap: { enabled: true },
-  scrollBeyondLastLine: false,
-} as const;
+const LINE_H = EDITOR_BASE.lineHeight;
 
 const spanTint = (hash: string): string => laneColour(parseInt(hash.slice(0, 2), 16) % 12);
 
@@ -108,11 +101,14 @@ function BlameGutter({
   );
 }
 
-export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
+export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
   const { t, i18n } = useTranslation();
-  const [history, setHistory] = useState<FileCommitView[]>([]);
+  const [history, setHistory] = useState<FileCommitView[] | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
   const [view, setView] = useState<'file' | 'diff'>('file');
+  const [mode, setMode] = usePref<DiffMode>('diff.mode', 'split');
+  const [whitespace, setWhitespace] = usePref('diff.whitespace', false);
+  const [wrap, setWrap] = usePref('diff.wrap', false);
   const [blame, setBlame] = useState<BlameSpanView[] | null>(null);
   const [blaming, setBlaming] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
@@ -120,23 +116,27 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
   const fileHost = useRef<HTMLDivElement | null>(null);
   const diffHost = useRef<HTMLDivElement | null>(null);
   const editors = useRef<monaco.IDisposable[]>([]);
+  const diffEditor = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const diffLook = useRef({ mode, whitespace, wrap });
+  diffLook.current = { mode, whitespace, wrap };
 
-  const entry = history.find((c) => c.hash === chosen) ?? history[0] ?? null;
+  const commits = history ?? [];
+  const entry = commits.find((c) => c.hash === chosen) ?? commits[0] ?? null;
 
   useEffect(() => {
     let cancelled = false;
     ipc
-      .fileHistory(repo, path)
-      .then((commits) => {
+      .fileHistory(repo, path, from)
+      .then((found) => {
         if (cancelled) return;
-        setHistory(commits);
-        setChosen(commits[0]?.hash ?? null);
+        setHistory(found);
+        setChosen(found[0]?.hash ?? null);
       })
       .catch(notifyError);
     return () => {
       cancelled = true;
     };
-  }, [repo, path]);
+  }, [repo, path, from]);
 
   useEffect(() => {
     if (!entry || !blaming) {
@@ -171,7 +171,8 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
         const language = languageOf(at);
         if (view === 'file' && fileHost.current) {
           const editor = monaco.editor.create(fileHost.current, {
-            ...EDITOR_OPTIONS,
+            ...EDITOR_BASE,
+            wordWrap: diffLook.current.wrap ? 'on' : 'off',
             value: sides.after,
             language,
           });
@@ -180,13 +181,27 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
         }
         if (view === 'diff' && diffHost.current) {
           const editor = monaco.editor.createDiffEditor(diffHost.current, {
-            ...EDITOR_OPTIONS,
-            renderOverviewRuler: false,
+            ...DIFF_EDITOR_BASE,
+            ...editorOptionsFor(diffLook.current.mode),
+            ignoreTrimWhitespace: diffLook.current.whitespace,
+            diffWordWrap: diffLook.current.wrap ? 'on' : 'off',
           });
           editor.setModel({
             original: monaco.editor.createModel(sides.before, language),
             modified: monaco.editor.createModel(sides.after, language),
           });
+          const once = editor.onDidUpdateDiff(() => {
+            once.dispose();
+            const change = editor.getLineChanges()?.[0];
+            if (!change) return;
+            editor
+              .getModifiedEditor()
+              .revealLineNearTop(
+                Math.max(1, change.modifiedStartLineNumber),
+                monaco.editor.ScrollType.Immediate,
+              );
+          });
+          diffEditor.current = editor;
           editors.current.push(editor);
         }
       })
@@ -196,11 +211,22 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
       cancelled = true;
       editors.current.forEach((editor) => editor.dispose());
       editors.current = [];
+      diffEditor.current = null;
     };
   }, [repo, path, entry?.hash, view]);
 
+  useEffect(() => {
+    diffEditor.current?.updateOptions({
+      ...editorOptionsFor(mode),
+      ignoreTrimWhitespace: whitespace,
+      diffWordWrap: wrap ? 'on' : 'off',
+    });
+    diffEditor.current?.getModifiedEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+    diffEditor.current?.getOriginalEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+  }, [mode, whitespace, wrap]);
+
   const now = Date.now() / 1000;
-  const born = history[history.length - 1];
+  const born = commits[commits.length - 1];
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -213,34 +239,7 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
           <span className="text-foreground truncate font-medium">{splitPath(path).name}</span>
         </span>
 
-        <div className="flex flex-1 items-center justify-center gap-2">
-          <div className="border-input flex h-6 shrink-0 items-center overflow-hidden rounded-md border">
-          <Button
-            variant={view === 'file' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-full rounded-none px-2 text-xs"
-            onClick={() => setView('file')}
-          >
-            {t('diff.fileView')}
-          </Button>
-          <Button
-            variant={view === 'diff' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-full rounded-none px-2 text-xs"
-            onClick={() => setView('diff')}
-          >
-            {t('diff.diffView')}
-          </Button>
-          </div>
-          <Button
-            variant={blaming ? 'secondary' : 'ghost'}
-            size="xs"
-            className="shrink-0"
-            onClick={() => setBlaming((now) => !now)}
-          >
-            {t('history.blame')}
-          </Button>
-        </div>
+        <span className="flex-1" />
 
         <Hint text={t('diff.close')}>
           <Button variant="ghost" size="icon" className="size-6 shrink-0" onClick={onClose}>
@@ -249,10 +248,35 @@ export function FileHistoryView({ repo, path, avatars, onClose }: Props) {
         </Hint>
       </ViewBar>
 
+      <DiffToolbar
+        view={view}
+        mode={mode}
+        whitespace={whitespace}
+        wrap={wrap}
+        onView={setView}
+        onMode={setMode}
+        onWhitespace={setWhitespace}
+        onWrap={setWrap}
+        onStep={(where) => diffEditor.current?.goToDiff(where)}
+        extra={
+          <Button
+            variant={blaming ? 'secondary' : 'action'}
+            size="xs"
+            className="shrink-0"
+            onClick={() => setBlaming((now) => !now)}
+          >
+            {t('history.blame')}
+          </Button>
+        }
+      />
+
       <div className="flex min-h-0 flex-1">
         <div className="border-border flex w-80 shrink-0 flex-col overflow-y-auto border-r">
+          {history !== null && commits.length === 0 ? (
+            <InlineNote>{t('history.empty')}</InlineNote>
+          ) : null}
           <ul>
-            {history.map((commit) => (
+            {commits.map((commit) => (
               <li key={commit.hash}>
                 <button
                   onClick={() => setChosen(commit.hash)}

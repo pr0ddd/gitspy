@@ -1,5 +1,11 @@
 export type ColumnKey = 'branchTag' | 'graph' | 'author' | 'date' | 'sha';
 
+export type HideableColumn = 'branchTag' | 'author' | 'date' | 'sha';
+
+export const HIDEABLE: readonly HideableColumn[] = ['branchTag', 'author', 'date', 'sha'];
+
+export const DEFAULT_HIDDEN: readonly HideableColumn[] = ['author', 'date', 'sha'];
+
 export type StoredWidths = Partial<Record<ColumnKey, number>>;
 
 export type Band = {
@@ -43,14 +49,20 @@ export const defaultWidths = (listW: number): Record<ColumnKey, number> => {
   return { branchTag, graph, author, date, sha };
 };
 
-export function layoutColumns(listW: number, stored: StoredWidths): Cols {
+export function layoutColumns(
+  listW: number,
+  stored: StoredWidths,
+  hidden: ReadonlySet<HideableColumn> = new Set(),
+): Cols {
   const wanted = { ...defaultWidths(listW), ...stored };
+  const shown = (key: ColumnKey, size: number) =>
+    key !== 'graph' && hidden.has(key as HideableColumn) ? 0 : size;
   const width: Record<ColumnKey, number> = {
-    branchTag: Math.max(FLOORS.branchTag, wanted.branchTag),
+    branchTag: shown('branchTag', Math.max(FLOORS.branchTag, wanted.branchTag)),
     graph: Math.max(FLOORS.graph, wanted.graph),
-    author: Math.max(FLOORS.author, wanted.author),
-    date: Math.max(FLOORS.date, wanted.date),
-    sha: Math.max(FLOORS.sha, wanted.sha),
+    author: shown('author', Math.max(FLOORS.author, wanted.author)),
+    date: shown('date', Math.max(FLOORS.date, wanted.date)),
+    sha: shown('sha', Math.max(FLOORS.sha, wanted.sha)),
   };
 
   const spent = () => width.branchTag + width.graph + width.author + width.date + width.sha;
@@ -60,6 +72,7 @@ export function layoutColumns(listW: number, stored: StoredWidths): Cols {
     let deficit = MESSAGE_FLOOR - message;
     for (const key of SQUEEZE_ORDER) {
       if (deficit <= 0) break;
+      if (width[key] === 0) continue;
       const give = Math.min(deficit, width[key] - FLOORS[key]);
       width[key] -= give;
       deficit -= give;
@@ -83,13 +96,43 @@ export type Divider = {
   readonly give: ColumnKey | null;
 };
 
-export const dividers = (cols: Cols): Divider[] => [
-  { x: cols.branchTag.left + cols.branchTag.width, take: 'branchTag', give: 'graph' },
-  { x: cols.graph.left + cols.graph.width, take: 'graph', give: null },
-  { x: cols.author.left, take: null, give: 'author' },
-  { x: cols.date.left, take: 'author', give: 'date' },
-  { x: cols.sha.left, take: 'date', give: 'sha' },
-];
+export const dividers = (cols: Cols): Divider[] => {
+  const found: Divider[] = [];
+  if (cols.branchTag.width > 0) {
+    found.push({ x: cols.branchTag.left + cols.branchTag.width, take: 'branchTag', give: 'graph' });
+  }
+  found.push({ x: cols.graph.left + cols.graph.width, take: 'graph', give: null });
+
+  const trailing = (['author', 'date', 'sha'] as const).filter((key) => cols[key].width > 0);
+  let before: ColumnKey | null = null;
+  for (const key of trailing) {
+    found.push({ x: cols[key].left, take: before, give: key });
+    before = key;
+  }
+  return found;
+};
+
+const HIDDEN_KEY = 'gitspy.columns.hidden';
+
+export function loadHidden(): Set<HideableColumn> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY);
+    if (!raw) return new Set(DEFAULT_HIDDEN);
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set(DEFAULT_HIDDEN);
+    return new Set(parsed.filter((key): key is HideableColumn => HIDEABLE.includes(key)));
+  } catch {
+    return new Set(DEFAULT_HIDDEN);
+  }
+}
+
+export function saveHidden(hidden: ReadonlySet<HideableColumn>): void {
+  try {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden]));
+  } catch {
+    return;
+  }
+}
 
 const GRIP = 4;
 

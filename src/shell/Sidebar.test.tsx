@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+beforeEach(() => localStorage.clear());
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sidebar } from './Sidebar';
 import { showNativeMenu } from '../nativeMenu';
@@ -7,6 +9,23 @@ import { newSession, type Session } from '../session';
 import type { RefView, RepoView } from '../types';
 
 vi.mock('../nativeMenu', () => ({ showNativeMenu: vi.fn() }));
+
+const drawn = vi.hoisted(() => ({ branchRows: 0 }));
+
+vi.mock('../icons', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../icons')>();
+  const Up = real.Icon.up;
+  return {
+    ...real,
+    Icon: {
+      ...real.Icon,
+      up: (props: React.ComponentProps<typeof Up>) => {
+        drawn.branchRows += 1;
+        return <Up {...props} />;
+      },
+    },
+  };
+});
 
 const branch = (patch: Partial<RefView> = {}): RefView => ({
   name: 'main',
@@ -47,6 +66,8 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
       <Sidebar
         session={sessionWith(refs)}
         pulls={null}
+        collapsed={false}
+        onToggle={() => {}}
         checkingOut={null}
         currentBranch="main"
         onPick={handlers.onPick ?? (() => {})}
@@ -63,6 +84,79 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
   );
 
 const row = (name: string) => screen.getByText(name).closest('button') as HTMLElement;
+
+describe('перерисовка списков', () => {
+  it('переключение вида не перерисовывает строки, которых оно не касается', () => {
+    draw([branch({ name: 'main', ahead: 1 }), branch({ name: 'feature', ahead: 2 })]);
+    drawn.branchRows = 0;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
+
+    expect(
+      drawn.branchRows,
+      'строки веток не перерисовываются, когда открыт другой вид',
+    ).toBe(0);
+  });
+});
+
+describe('окно списка', () => {
+  const thousand = () =>
+    Array.from({ length: 1000 }, (_, i) => branch({ name: `b-${String(i).padStart(4, '0')}` }));
+
+  it('тысяча веток не превращается в тысячу строк', () => {
+    draw(thousand());
+
+    expect(
+      document.querySelectorAll('button').length,
+      'рисуется окно видимых строк, а не весь список',
+    ).toBeLessThan(120);
+  });
+
+  it('прокрутка доводит до дальних строк, а начало уходит из окна', () => {
+    draw(thousand());
+    const list = document.querySelector('[data-slot="sidebar-rows"]') as HTMLElement;
+
+    list.scrollTop = 500 * 33;
+    fireEvent.scroll(list);
+
+    expect(screen.getByText('b-0500')).toBeTruthy();
+    expect(screen.queryByText('b-0001'), 'начало списка выгружено').toBeNull();
+  });
+});
+
+describe('свёрнутый сайдбар', () => {
+  it('рейка иконок вместо пустоты: щелчок по виду раскрывает панель', () => {
+    const onToggle = vi.fn();
+    render(
+      <TooltipProvider>
+        <Sidebar
+          session={sessionWith([branch()])}
+          pulls={null}
+          collapsed
+          onToggle={onToggle}
+          checkingOut={null}
+          currentBranch="main"
+          onPick={() => {}}
+          onCheckout={() => {}}
+          onRun={() => {}}
+          onCopy={() => {}}
+          onAsk={() => {}}
+          onWorktree={() => {}}
+          onOpenUrl={() => {}}
+          onPullsExpanded={() => {}}
+          onPickPull={() => {}}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.queryByPlaceholderText(/filter/i), 'фильтра в рейке нет').toBeNull();
+    expect(screen.getByRole('button', { name: 'Tags' }), 'иконки видов остались').toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
+
+    expect(onToggle, 'щелчок по иконке раскрывает панель').toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('щелчки по ветке', () => {
   it('одинарный щелчок выделяет коммит и не переключает ветку', () => {
