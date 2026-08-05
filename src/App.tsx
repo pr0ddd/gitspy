@@ -13,6 +13,8 @@ import { useRepoData } from './repoData';
 import { AvatarCache } from './avatarCache';
 import { useCommitSearch } from './search';
 import { panelFor } from './panel';
+import { fetchReadyUpdate, restartToUpdate } from './updater';
+import { BottomBar } from './shell/BottomBar';
 import type {
   AccountView,
   Operation,
@@ -86,6 +88,21 @@ export default function App() {
   const [cloning, setCloning] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
+  const [readyUpdate, setReadyUpdate] = useState<string | null>(null);
+
+  useEffect(() => {
+    let stopped = false;
+    const poll = () =>
+      fetchReadyUpdate()
+        .then((version) => !stopped && version && setReadyUpdate(version))
+        .catch(() => {});
+    void poll();
+    const timer = setInterval(poll, 4 * 60 * 60 * 1000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, []);
   const toggleRail = useCallback(() => {
     setRailed((now) => {
       const next = !now;
@@ -698,9 +715,7 @@ export default function App() {
               </aside>
               </div>
               </div>
-              <div className="flex h-6 shrink-0 items-center justify-end px-1.5">
-                <span className="text-faint text-2xs tabular-nums">{__APP_VERSION__}</span>
-              </div>
+              <BottomBar ready={readyUpdate} onRestart={() => void restartToUpdate()} />
               </div>
           </>
         )}
