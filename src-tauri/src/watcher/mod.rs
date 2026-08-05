@@ -211,6 +211,10 @@ mod tests {
         seen.recv_timeout(Duration::from_secs(5)).ok()
     }
 
+    fn stragglers_from_setup_drained(seen: &std::sync::mpsc::Receiver<Change>) {
+        while seen.recv_timeout(Duration::from_millis(500)).is_ok() {}
+    }
+
     #[test]
     fn an_edited_file_reaches_the_application_without_reopening_the_repository() {
         let dir = tempfile::TempDir::new().expect("временный каталог");
@@ -243,6 +247,7 @@ mod tests {
         watchers.watch(dir.path(), move |change| {
             let _ = say.send(change);
         });
+        stragglers_from_setup_drained(&seen);
 
         for i in 0..20 {
             std::fs::write(dir.path().join("target").join(format!("out{i}")), "x").expect("файл");
