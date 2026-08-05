@@ -16,6 +16,7 @@ import {
   GitCommitHorizontal,
   GitPullRequest,
   Cloud,
+  CircleArrowUp,
   Plus,
   RefreshCw,
   CircleUserRound,
@@ -78,6 +79,7 @@ export const Icon = {
   commit: GitCommitHorizontal,
 
   fetch: RefreshCw,
+  update: CircleArrowUp,
   pull: Download,
   push: Upload,
   clone: CloudDownload,

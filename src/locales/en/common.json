@@ -78,6 +78,7 @@
   "history.added": "Added as {{path}}",
   "history.authored": "Authored by {{author}} on {{when}}",
   "history.blame": "Blame",
+  "update.restart": "Restart to update to {{version}}",
   "history.empty": "No commits touch this file",
   "history.end": "End of history",
   "history.title": "File history",
