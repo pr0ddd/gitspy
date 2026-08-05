@@ -1,6 +1,6 @@
 import type { RefKind, RefView } from './types';
 
-export type ChipMark = 'local' | 'remote';
+export type ChipMark = 'local' | 'remote' | 'tag';
 
 export const remoteAvatarKey = (avatarUrl: string): string => `remote:${avatarUrl}`;
 
@@ -16,6 +16,7 @@ export type Chip = {
 const marksOf = (kind: RefKind): ChipMark[] => {
   if (kind === 'localBranch') return ['local'];
   if (kind === 'remoteBranch') return ['remote'];
+  if (kind === 'tag') return ['tag'];
   return [];
 };
 

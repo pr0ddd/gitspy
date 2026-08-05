@@ -460,10 +460,17 @@ describe('метки на чипах', () => {
     expect(last.text, 'раскрытый чип кладётся последним, то есть поверх').toBe('wip');
   });
 
-  it('тег с именем как у PR-ветки значка не получает', () => {
+  it('тег с именем как у PR-ветки получает значок тега, но не PR', () => {
     const painted = paint([ref('wip', 'tag')], null, new Set(['wip']));
 
-    expect(painted.strokedGlyphs).toEqual([]);
+    expect(
+      painted.strokedGlyphs.some((g) => g.d === GLYPH.pull.d),
+      'совпадение имени с веткой PR не делает тег пул-реквестом',
+    ).toBe(false);
+    expect(
+      painted.strokedGlyphs.some((g) => g.d === GLYPH.tag.d),
+      'чип тега носит значок тега',
+    ).toBe(true);
     expect(painted.texts).toContain('wip');
   });
 
