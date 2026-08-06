@@ -1,3 +1,4 @@
+pub mod loopback;
 pub mod storage;
 
 use crate::paths::data_dir;
