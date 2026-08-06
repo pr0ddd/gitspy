@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hostKindOf, splitRecent } from './startPage';
+import { hostKindOf, splitListing, splitRecent } from './startPage';
 import type { RecentRepo } from '@/types';
 
 const entry = (path: string, favorite = false): RecentRepo => ({
@@ -24,6 +24,15 @@ describe('срез недавних на секции', () => {
     );
     expect(favorites.map((e) => e.name)).toEqual(['Alpha']);
     expect(rest.map((e) => e.name)).toEqual(['Alps']);
+  });
+});
+
+describe('срез репозиториев хостинга', () => {
+  it('избранные уходят в свою секцию, фильтр режет обе', () => {
+    const repos = [{ fullName: 'me/a' }, { fullName: 'me/b' }, { fullName: 'you/ab' }];
+    const { favorites, rest } = splitListing(repos, new Set(['me/a']), 'a');
+    expect(favorites.map((r) => r.fullName)).toEqual(['me/a']);
+    expect(rest.map((r) => r.fullName)).toEqual(['you/ab']);
   });
 });
 

@@ -15,7 +15,7 @@ import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { relativeTime } from '@/time';
 import { Hint } from '@/components/ui/tooltip';
-import { hostKindOf, splitRecent } from '@/features/repo';
+import { hostKindOf, splitListing, splitRecent } from '@/features/repo';
 import type { ConnectionView, RecentRepo, RepoListingView, RepoPassportView } from '@/types';
 
 type Props = {
@@ -46,11 +46,11 @@ const tintOf = (name: string): number => {
 
 function OwnerTile({ url, name }: { url: string; name: string }) {
   if (url) {
-    return <img src={url} alt="" className="size-8 shrink-0 rounded-md" />;
+    return <img src={url} alt="" className="size-5 shrink-0 rounded-sm" />;
   }
   return (
     <span
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold"
+      className="text-2xs flex size-5 shrink-0 items-center justify-center rounded-sm font-semibold"
       style={{ background: laneSoft(tintOf(name)), color: laneColour(tintOf(name)) }}
     >
       {name.slice(0, 1).toUpperCase()}
@@ -110,6 +110,32 @@ function SourceIcon({ host }: { host: string | null | undefined }) {
   return <Mark className="text-faint size-3.5 shrink-0" />;
 }
 
+function StarButton({
+  starred,
+  onToggle,
+}: {
+  starred: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Hint text={starred ? t('start.unstar') : t('start.star')}>
+      <Button
+        variant="muted"
+        size="icon-xs"
+        reveal={!starred}
+        aria-label={starred ? t('start.unstar') : t('start.star')}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(!starred);
+        }}
+      >
+        <Icon.star className={cn('size-3.5', starred && 'text-modified fill-current')} />
+      </Button>
+    </Hint>
+  );
+}
+
 function RepoRow({
   entry,
   passport,
@@ -132,11 +158,11 @@ function RepoRow({
     <ListRow
       as="div"
       tall
-      gutter={entry.favorite ? <Icon.star className="text-modified size-3.5" /> : null}
       className={cn(!entry.exists && 'opacity-40')}
       title={entry.exists ? entry.path : t('start.missing')}
       onClick={() => entry.exists && onOpenPath(entry.path)}
     >
+      <StarButton starred={entry.favorite} onToggle={(next) => onFavorite(entry.path, next)} />
       <SourceIcon host={passport?.host} />
       <span className="shrink-0 text-sm font-medium">{entry.name}</span>
       <span className="text-faint group-hover:text-muted-foreground text-2xs min-w-0 flex-1 truncate font-mono">
@@ -145,7 +171,7 @@ function RepoRow({
       {entry.exists ? (
         passport?.branch ? (
           <span className="text-muted-foreground flex max-w-48 shrink-0 items-center gap-1.5 text-xs">
-            <Icon.branch className="size-3 shrink-0" />
+            <Icon.branch className="size-3.5 shrink-0" />
             <span className="truncate">{passport.branch}</span>
           </span>
         ) : null
@@ -154,23 +180,10 @@ function RepoRow({
           {t('start.missing')}
         </Badge>
       )}
-      <span className="text-faint text-2xs w-22 shrink-0 text-right group-hover:hidden">
+      <span className="text-faint text-2xs w-22 shrink-0 text-right">
         {relativeTime(entry.openedAt, now, language)}
       </span>
-      <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
-        <Hint text={entry.favorite ? t('start.unstar') : t('start.star')}>
-          <Button
-            variant="muted"
-            size="icon-xs"
-            aria-label={entry.favorite ? t('start.unstar') : t('start.star')}
-            onClick={(e) => {
-              e.stopPropagation();
-              onFavorite(entry.path, !entry.favorite);
-            }}
-          >
-            <Icon.star className={cn(entry.favorite && 'text-modified')} />
-          </Button>
-        </Hint>
+      <span className="flex shrink-0 items-center gap-0.5">
         <Hint text={t('menu.reveal')}>
           <Button
             variant="muted"
@@ -181,7 +194,7 @@ function RepoRow({
               void ipc.revealPath(entry.path, '.').catch(notifyError);
             }}
           >
-            <Icon.open />
+            <Icon.open className="size-3.5" />
           </Button>
         </Hint>
         <Hint text={t('start.forget')}>
@@ -194,9 +207,50 @@ function RepoRow({
               onForget(entry.path);
             }}
           >
-            <Icon.close />
+            <Icon.close className="size-3.5" />
           </Button>
         </Hint>
+      </span>
+    </ListRow>
+  );
+}
+
+function HostRepoRow({
+  repo,
+  starred,
+  now,
+  language,
+  onStar,
+  onClone,
+}: {
+  repo: RepoListingView;
+  starred: boolean;
+  now: number;
+  language: string;
+  onStar: (fullName: string, next: boolean) => void;
+  onClone: (url: string) => void;
+}) {
+  const [owner, name] = repo.fullName.split('/');
+  return (
+    <ListRow as="div" tall title={repo.description ?? repo.fullName}>
+      <StarButton starred={starred} onToggle={(next) => onStar(repo.fullName, next)} />
+      <OwnerTile url={repo.ownerAvatarUrl} name={repo.fullName} />
+      <span className="min-w-0 shrink-0 truncate text-sm">
+        <span className="text-muted-foreground">{owner}/</span>
+        <span className="font-medium">{name}</span>
+      </span>
+      {repo.private ? <Icon.private className="text-faint size-3.5 shrink-0" /> : null}
+      <span className="min-w-0 flex-1" />
+      <Button
+        size="2xs"
+        variant="secondary"
+        onClick={() => onClone(repo.cloneUrl)}
+        className="shrink-0"
+      >
+        {GIT.clone}
+      </Button>
+      <span className="text-faint text-2xs w-22 shrink-0 text-right">
+        {repo.pushedAt ? relativeTime(Date.parse(repo.pushedAt) / 1000, now, language) : ''}
       </span>
     </ListRow>
   );
@@ -221,6 +275,7 @@ export function StartPage({
   const [failed, setFailed] = useState(false);
   const [links, setLinks] = useState<ConnectionView[]>([]);
   const [passports, setPassports] = useState<ReadonlyMap<string, RepoPassportView>>(new Map());
+  const [hostStars, setHostStars] = usePref<string[]>('start.hostFavorites', []);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -301,10 +356,24 @@ export function StartPage({
   const needle = filter.trim().toLowerCase();
 
   const { favorites, rest } = useMemo(() => splitRecent(recent, filter), [recent, filter]);
-  const shownRepos = useMemo(
-    () => (needle ? repos.filter((r) => r.fullName.toLowerCase().includes(needle)) : repos),
-    [repos, needle],
+  const starredHere = useMemo(
+    () =>
+      new Set(
+        hostStars
+          .filter((key) => connection && key.startsWith(`${connection.id} `))
+          .map((key) => key.slice(`${connection?.id} `.length)),
+      ),
+    [hostStars, connection],
   );
+  const hostSplit = useMemo(
+    () => splitListing(repos, starredHere, filter),
+    [repos, starredHere, filter],
+  );
+  const starHostRepo = (fullName: string, next: boolean) => {
+    if (!connection) return;
+    const key = `${connection.id} ${fullName}`;
+    setHostStars(next ? [...hostStars.filter((k) => k !== key), key] : hostStars.filter((k) => k !== key));
+  };
 
   const local = source === 'all' || source === 'favorites';
 
@@ -473,45 +542,42 @@ export function StartPage({
             </div>
           ) : (
             <>
-              <ul>
-                {shownRepos.map((repo) => (
-                  <li key={repo.fullName} className="group">
-                    <div className="hover:bg-hover-fill flex h-16 items-center gap-3 rounded-lg px-2">
-                      <OwnerTile url={repo.ownerAvatarUrl} name={repo.fullName} />
-                      <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm">
-                            <span className="text-muted-foreground">
-                              {repo.fullName.split('/')[0]}/
-                            </span>
-                            <span className="font-medium">{repo.fullName.split('/')[1]}</span>
-                          </span>
-                          {repo.private ? (
-                            <Icon.private className="text-faint size-3 shrink-0" />
-                          ) : null}
-                        </span>
-                        {repo.description ? (
-                          <span className="text-faint text-2xs truncate">{repo.description}</span>
-                        ) : null}
-                      </span>
-                      <Button
-                        size="2xs"
-                        variant="secondary"
-                        reveal
-                        onClick={() => onClone(repo.cloneUrl)}
-                        className="shrink-0"
-                      >
-                        {GIT.clone}
-                      </Button>
-                      <span className="text-faint text-2xs w-22 shrink-0 text-right">
-                        {repo.pushedAt
-                          ? relativeTime(Date.parse(repo.pushedAt) / 1000, now, i18n.language)
-                          : ''}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {hostSplit.favorites.length > 0 ? (
+                <>
+                  <SectionHeader>
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {t('start.favorites')}
+                    </span>
+                    <span className="text-faint tabular-nums">{hostSplit.favorites.length}</span>
+                  </SectionHeader>
+                  {hostSplit.favorites.map((repo) => (
+                    <HostRepoRow
+                      key={repo.fullName}
+                      repo={repo}
+                      starred
+                      now={now}
+                      language={i18n.language}
+                      onStar={starHostRepo}
+                      onClone={onClone}
+                    />
+                  ))}
+                  <SectionHeader>
+                    <span className="min-w-0 flex-1 truncate text-left">{t('start.all')}</span>
+                    <span className="text-faint tabular-nums">{hostSplit.rest.length}</span>
+                  </SectionHeader>
+                </>
+              ) : null}
+              {hostSplit.rest.map((repo) => (
+                <HostRepoRow
+                  key={repo.fullName}
+                  repo={repo}
+                  starred={false}
+                  now={now}
+                  language={i18n.language}
+                  onStar={starHostRepo}
+                  onClone={onClone}
+                />
+              ))}
               {busy && repos.length === 0 ? (
                 <p className="text-muted-foreground flex items-center gap-1.5 px-2 py-3 text-xs">
                   <Icon.waiting className="size-3 animate-spin" />
@@ -521,7 +587,10 @@ export function StartPage({
               {!busy && failed ? (
                 <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.failed')}</p>
               ) : null}
-              {!busy && !failed && repos.length > 0 && shownRepos.length === 0 ? (
+              {!busy &&
+              !failed &&
+              repos.length > 0 &&
+              hostSplit.favorites.length + hostSplit.rest.length === 0 ? (
                 <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.searchEmpty')}</p>
               ) : null}
             </>
