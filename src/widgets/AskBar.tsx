@@ -1,3 +1,4 @@
+import type { Ask } from '@/features/menus';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -5,14 +6,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import type { Operation } from '@/types';
 
-export type Ask =
-  | { kind: 'branch' }
-  | { kind: 'stash' }
-  | { kind: 'branchAt'; hash: string }
-  | { kind: 'tagAt'; hash: string }
-  | { kind: 'annotatedTagAt'; hash: string }
-  | { kind: 'renameBranch'; from: string }
-  | { kind: 'editMessage'; full: string };
 
 type Props = {
   ask: Ask | null;
@@ -147,3 +140,5 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
     </div>
   );
 }
+
+export type { Ask };
