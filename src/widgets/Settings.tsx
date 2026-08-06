@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/icons';
@@ -437,7 +437,7 @@ function AiSection() {
     if (!server.models.includes(model)) setModel(server.models[0] ?? '');
   };
 
-  const check = async () => {
+  const check = async (quiet: boolean) => {
     const candidates = baseUrl.trim()
       ? [baseUrl.trim()]
       : [AI_DEFAULT_URLS.ollama, AI_DEFAULT_URLS.lmstudio];
@@ -452,11 +452,15 @@ function AiSection() {
         }
       }
     } catch (error) {
-      notifyError(error);
+      if (!quiet) notifyError(error);
     } finally {
       setChecking(false);
     }
   };
+
+  useEffect(() => {
+    void check(true);
+  }, []);
 
   return (
     <div className="space-y-7">
@@ -474,7 +478,7 @@ function AiSection() {
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder={AI_DEFAULT_URLS.ollama}
           />
-          <Button variant="outline" size="sm" disabled={checking} onClick={() => void check()}>
+          <Button variant="outline" size="sm" disabled={checking} onClick={() => void check(false)}>
             {checking ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
             {t('settings.aiCheck')}
           </Button>
@@ -491,7 +495,11 @@ function AiSection() {
               className="w-72 justify-between font-normal"
             >
               <span className="truncate">{model || t('settings.aiNoModel')}</span>
-              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+              {checking ? (
+                <Icon.waiting className="size-3 animate-spin opacity-60" />
+              ) : (
+                <Icon.chevron className="size-3 rotate-90 opacity-60" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-72">
