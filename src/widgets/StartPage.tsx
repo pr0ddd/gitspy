@@ -221,7 +221,7 @@ export function StartPage({
         </div>
       </aside>
 
-      <div className="bg-card shadow-sheet flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+      <div className="bg-card flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
         <div className="flex h-16 shrink-0 items-center gap-3.5 px-6">
           <span className="bg-fill-2 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
             {local ? (

@@ -156,7 +156,7 @@ export function Settings({
       </aside>
       )}
 
-      <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+      <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
         <ViewBar>
           <Icon.settings className="text-muted-foreground size-3.5" />
           <span className="text-muted-foreground shrink-0">{t('settings.title')}</span>

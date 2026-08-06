@@ -370,7 +370,7 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+              <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
               <AskBar
                 ask={asking}
                 onOpenChange={(next) => !next && setAsking(null)}
