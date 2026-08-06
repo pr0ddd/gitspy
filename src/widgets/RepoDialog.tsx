@@ -93,7 +93,7 @@ function RepoPicker({
         placeholder={t('repoDialog.searchRemotes')}
         className="h-8 text-xs"
       />
-      <div className="h-44 overflow-y-auto rounded-md border">
+      <div className="h-72 overflow-y-auto rounded-md border">
         {owners.map((owner) => (
           <div key={owner}>
             <div className="text-faint text-2xs sticky top-0 flex h-6 items-center bg-card px-3 tracking-wide uppercase">
@@ -298,7 +298,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !running && onOpenChange(next)}>
-      <DialogContent className="flex h-104 max-w-3xl gap-0 overflow-hidden p-0">
+      <DialogContent className="flex h-140 gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <aside className="bg-fill-1 flex w-52 shrink-0 flex-col gap-px border-r p-2">
           {mode === 'init' ? (
             <NavItem
