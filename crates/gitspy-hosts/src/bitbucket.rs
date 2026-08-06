@@ -3,7 +3,7 @@ use crate::{classify, github::Repo, Account, Error};
 use serde::Deserialize;
 
 pub const ID: &str = "bitbucket";
-pub const CLIENT_ID: &str = "";
+pub const CLIENT_ID: &str = "BrwEHEtaBoyuqe1kNC1xVgAPeByqpWKU";
 pub const BASE_URL: &str = "https://bitbucket.org";
 const API: &str = "https://api.bitbucket.org/2.0";
 
