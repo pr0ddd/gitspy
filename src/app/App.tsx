@@ -487,6 +487,8 @@ export default function App() {
                 ) : (
                   <Details
                     session={current}
+                    avatars={avatars}
+                    avatarTick={avatarTick}
                     onHistory={(path, from) => setMain({ kind: 'history', path, from })}
                     rows={cacheFor(current.path)}
                     pending={tree ? tree.staged + tree.unstaged : 0}
