@@ -207,7 +207,7 @@
   "settings.disconnect": "Disconnect",
   "settings.general": "General",
   "settings.initBranch": "Default branch name",
-  "settings.initBranchDefault": "git default",
+  "settings.initBranchDefault": "main",
   "settings.initBranchHint": "Used when initializing a new repository. Empty keeps whatever git is configured to use.",
   "settings.integrations": "Integrations",
   "settings.integrationsHint": "Connecting an account is what makes avatars and pull requests possible. Nothing is fetched when a repository is opened.",
