@@ -3,7 +3,7 @@ pub struct Prompt {
     pub user: String,
 }
 
-const RULES: &str = "You write git commit messages from staged diffs. Respond with strict JSON only, no markdown, no code fences: {\"summary\": \"...\", \"description\": \"...\"}. The summary is in English, imperative mood, at most 72 characters, no trailing period; name the dominant change precisely - never a vague 'refactor code' or 'update files'. The description is 2 to 5 plain sentences and must carry information the summary does not: name the concrete parts that changed (components, functions, settings), say what behaves differently now, and why the change was made when the diff makes it evident. Never restate or paraphrase the summary in the description - a reader has both in front of them. No lists, no headers, no file-by-file enumeration. Use an empty description only for a trivial one-line change. The diff may be truncated; describe only what is visible.";
+const RULES: &str = "You write git commit messages from staged diffs. Respond with strict JSON only, no markdown, no code fences: {\"summary\": \"...\", \"description\": \"...\"}. The summary is in English, imperative mood, at most 72 characters, no trailing period; name the dominant change precisely - never a vague 'refactor code' or 'update files'. The description is 2 to 5 plain sentences and must carry information the summary does not. Its first sentence states the intent of the change - what the whole diff is driving at, not a file list. The following sentences name the concrete parts that changed (components, functions, settings) and say what behaves differently now. Never restate or paraphrase the summary in the description - a reader has both in front of them. No lists, no headers, no file-by-file enumeration. Use an empty description only for a trivial one-line change. The diff may be truncated; describe only what is visible.";
 
 pub fn build_prompt(diff: &str) -> Prompt {
     Prompt {
@@ -47,6 +47,10 @@ mod tests {
         assert!(
             prompt.system.contains("2 to 5"),
             "описанию задан объём: одно предложение вырождается в пересказ заголовка"
+        );
+        assert!(
+            prompt.system.contains("first sentence states the intent"),
+            "без явного требования описание ныряет в перечисление, минуя цель правки"
         );
     }
 }
