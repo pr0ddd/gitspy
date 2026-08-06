@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { METRICS_AVATARS, METRICS_COMPACT } from './render';
-import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from './toast';
+import { notifyError } from './toast';
 import * as ipc from './ipc';
 import { readPref, usePref, writePref } from './prefs';
 import { EMPTY, sessionsReducer } from './session';
@@ -15,6 +15,7 @@ import { useCommitSearch } from './search';
 import { panelFor } from './panel';
 import { restartToUpdate, useReadyUpdate } from './updater';
 import { useSessionActions } from './sessionActions';
+import { copyText as copy, openExternalUrl as openUrl, useOperations } from './repoActions';
 import { clampPanel, PANEL_LIMITS } from './resize';
 import { useZoom } from './zoom';
 import { BottomBar } from './shell/BottomBar';
@@ -26,7 +27,6 @@ import type {
   PullListView,
   PullView,
   RecentRepo,
-  RefView,
   RemoteView,
   WorkingTreeView,
 } from './types';
@@ -63,21 +63,6 @@ export default function App() {
   const [world, dispatch] = useReducer(sessionsReducer, EMPTY);
   const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
-  const [running, setRunning] = useState<{ kind: string; target?: string } | null>(null);
-  const busy = running !== null;
-  const checkingOut = running?.kind === 'checkout' ? (running.target ?? null) : null;
-
-  const busyWhile = useCallback(
-    async (marker: { kind: string; target?: string }, work: () => Promise<unknown>) => {
-      setRunning(marker);
-      try {
-        await work();
-      } finally {
-        setRunning(null);
-      }
-    },
-    [],
-  );
   const [main, setMain] = useState<Main>({ kind: 'graph' });
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
@@ -330,39 +315,10 @@ export default function App() {
     };
   }, [active, reload, refillFirstWindow]);
 
-  const runOperation = useCallback(
-    (operation: Operation) => {
-      if (!active) return;
-      void busyWhile({ kind: operation.kind }, async () => {
-        try {
-          await ipc.runOperation(active, operation, () => {});
-        } catch (e) {
-          notifyOperationFailed(operation, e);
-          return;
-        }
-        notifyOperation(operation);
-        void ipc.resolveAvatars(active).catch(() => undefined);
-        await reload(active).catch(notifyError);
-      });
-    },
-    [active, reload, busyWhile],
+  const { running, busy, checkingOut, busyWhile, runOperation, checkoutRef } = useOperations(
+    active,
+    reload,
   );
-
-
-
-  const checkoutRef = useCallback(
-    (ref: RefView) => {
-      if (!active) return;
-      void busyWhile({ kind: 'checkout', target: ref.name }, () =>
-        ipc
-          .checkoutRef(active, ref.name, ref.kind)
-          .then(() => reload(active))
-          .catch(notifyError),
-      );
-    },
-    [active, reload, busyWhile],
-  );
-
 
   const { openPath, pickRepo, createRepo, closeRepo, forget } = useSessionActions({
     sessions,
@@ -434,14 +390,6 @@ export default function App() {
     );
   }, [active, message, description, amend, reload, busyWhile]);
 
-  const copy = useCallback((text: string) => {
-    void navigator.clipboard.writeText(text);
-    notifyCopied(text);
-  }, []);
-
-  const openUrl = useCallback((url: string) => {
-    ipc.openUrl(url).catch(notifyError);
-  }, []);
 
   const addWorktree = useCallback(
     async (at: string) => {
