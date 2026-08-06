@@ -29,6 +29,9 @@ export type { RepoView } from './generated/RepoView';
 export type { RowView } from './generated/RowView';
 export type { WindowView } from './generated/WindowView';
 export type { WorktreeView } from './generated/WorktreeView';
+export type { CommitDraftView } from './generated/CommitDraftView';
+
+export type AiProviderId = 'ollama' | 'lmstudio';
 
 export const NODE_KIND = { normal: 0, merge: 1, root: 2, open: 3 } as const;
 export const SEGMENT_KIND = { through: 0, branch: 1, merge: 2, stemUp: 3, stemDown: 4 } as const;

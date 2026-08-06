@@ -249,7 +249,10 @@ mod tests {
         let crowded = tempfile::TempDir::new().expect("временный каталог");
         std::fs::create_dir_all(crowded.path().join(".git")).expect("каталог");
         for pack in 0..200 {
-            let dir = crowded.path().join("node_modules").join(format!("pkg{pack}"));
+            let dir = crowded
+                .path()
+                .join("node_modules")
+                .join(format!("pkg{pack}"));
             std::fs::create_dir_all(&dir).expect("каталог");
             for file in 0..100 {
                 std::fs::write(dir.join(format!("f{file}.js")), "x").expect("файл");

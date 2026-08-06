@@ -6,8 +6,8 @@ use gitspy_exec::Git;
 use gitspy_repo::History;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use tauri::State;
 
 pub struct AppState {
@@ -47,7 +47,8 @@ impl AppState {
     }
 
     pub fn set_autofetch_minutes(&self, minutes: u64) {
-        self.autofetch_minutes.store(minutes.min(60), Ordering::Relaxed);
+        self.autofetch_minutes
+            .store(minutes.min(60), Ordering::Relaxed);
     }
 
     pub fn needs_reading(&self, repo: &str) -> bool {

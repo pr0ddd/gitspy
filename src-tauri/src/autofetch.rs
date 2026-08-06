@@ -104,7 +104,10 @@ mod tests {
     #[test]
     fn the_sweep_is_due_by_the_current_setting_and_zero_switches_it_off() {
         assert!(due(Duration::from_secs(60), 1));
-        assert!(!due(Duration::from_secs(59), 1), "рано: минута ещё не прошла");
+        assert!(
+            !due(Duration::from_secs(59), 1),
+            "рано: минута ещё не прошла"
+        );
         assert!(
             !due(Duration::from_secs(3600), 0),
             "ноль — это выключено, а не «фетчить всегда»"

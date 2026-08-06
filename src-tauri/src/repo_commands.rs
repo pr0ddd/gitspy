@@ -421,7 +421,10 @@ pub fn open_path(repo: String, path: String) -> Result<(), ErrorView> {
     let status = if cfg!(target_os = "macos") {
         std::process::Command::new("open").arg(&full).status()
     } else if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd").args(["/c", "start", ""]).arg(&full).status()
+        std::process::Command::new("cmd")
+            .args(["/c", "start", ""])
+            .arg(&full)
+            .status()
     } else {
         std::process::Command::new("xdg-open").arg(&full).status()
     };
@@ -432,7 +435,10 @@ pub fn open_path(repo: String, path: String) -> Result<(), ErrorView> {
 pub fn reveal_path(repo: String, path: String) -> Result<(), ErrorView> {
     let full = inside_repo(Path::new(&repo), &path)?;
     let status = if cfg!(target_os = "macos") {
-        std::process::Command::new("open").arg("-R").arg(&full).status()
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&full)
+            .status()
     } else if cfg!(target_os = "windows") {
         std::process::Command::new("explorer")
             .arg(format!("/select,{}", full.display()))

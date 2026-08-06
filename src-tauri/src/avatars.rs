@@ -216,16 +216,21 @@ pub async fn resolve_avatars(
     }
 
     if !remote.is_empty() {
-        if let Ok((connection, owner, name)) =
-            hosts::connected_target(&app, &state, &repo).await
-        {
+        if let Ok((connection, owner, name)) = hosts::connected_target(&app, &state, &repo).await {
             if let Some(token) = hosts::token(&app, &connection.id) {
-                if let Ok(client) = gitspy_hosts::host::Host::for_connection(
-                    connection.kind,
-                    &connection.base_url,
-                ) {
-                    resolve_on_host(&client, &token, &owner, &name, &remote, &mut wanted, &mut index)
-                        .await;
+                if let Ok(client) =
+                    gitspy_hosts::host::Host::for_connection(connection.kind, &connection.base_url)
+                {
+                    resolve_on_host(
+                        &client,
+                        &token,
+                        &owner,
+                        &name,
+                        &remote,
+                        &mut wanted,
+                        &mut index,
+                    )
+                    .await;
                 }
             }
         }

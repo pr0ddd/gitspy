@@ -79,7 +79,8 @@ pub async fn init_repo(
 
     let mut seeds: Vec<(&str, String)> = Vec::new();
     if gitignore.is_some() || license.is_some() {
-        let templates = gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
+        let templates =
+            gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
         let token = crate::hosts::token(&app, "github");
         if let Some(name) = gitignore.as_deref() {
             seeds.push((
@@ -112,8 +113,8 @@ pub async fn init_repo(
         }
         git.first_commit(&at, "Initial commit").map_err(exec_error)
     })
-        .await
-        .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))??;
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))??;
 
     Ok(path)
 }
@@ -135,9 +136,7 @@ pub struct LicenseView {
 }
 
 #[tauri::command]
-pub async fn template_catalog(
-    app: tauri::AppHandle,
-) -> Result<TemplateCatalogView, ErrorView> {
+pub async fn template_catalog(app: tauri::AppHandle) -> Result<TemplateCatalogView, ErrorView> {
     {
         let known = KNOWN_CATALOG.lock().expect("каталог не отравлен");
         if let Some(found) = known.as_ref() {
@@ -220,7 +219,8 @@ pub async fn seed_repo(
             std::fs::write(at.join(file), content)
                 .map_err(|e| ErrorView::new("init.seed").detail(e.to_string()))?;
         }
-        git.first_commit(&at, "Initial commit").map_err(exec_error)?;
+        git.first_commit(&at, "Initial commit")
+            .map_err(exec_error)?;
 
         if push {
             let owned = crate::hosts::credential_for(&credential_app, &git.remote_urls(&at));
