@@ -17,7 +17,7 @@ describe('страница настроек', () => {
     expect(container.innerHTML, 'закрытые настройки — это отсутствие, а не display:none').toBe('');
   });
 
-  it('слева секции, выбор секции меняет содержимое', () => {
+  it('слева секции, выбор секции меняет содержимое и шапку', () => {
     render(<Settings {...shown} />);
     expect(screen.getByRole('button', { name: 'General' })).toBeTruthy();
 
@@ -26,5 +26,9 @@ describe('страница настроек', () => {
       screen.getByRole('button', { name: /Connect GitHub/ }),
       'секция интеграций несёт живое подключение GitHub, а не заглушку',
     ).toBeTruthy();
+    expect(
+      screen.getByRole('banner').textContent,
+      'ViewBar-шапка называет открытую секцию',
+    ).toContain('Integrations');
   });
 });
