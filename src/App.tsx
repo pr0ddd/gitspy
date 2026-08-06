@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
@@ -16,10 +16,9 @@ import { restartToUpdate, useReadyUpdate } from './updater';
 import { useSessionActions } from './sessionActions';
 import { useRepoLoading } from './repoLoading';
 import { copyText as copy, openExternalUrl as openUrl, useOperations } from './repoActions';
-import { clampPanel, PANEL_LIMITS } from './resize';
 import { useZoom } from './zoom';
 import { BottomBar } from './shell/BottomBar';
-import { ResizeGrip } from './shell/parts';
+import { DetailsPane } from './shell/DetailsPane';
 import type {
   AccountView,
   Operation,
@@ -51,7 +50,6 @@ import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
 import { AskBar, type Ask } from './shell/AskBar';
 import { PullPanel } from './shell/PullPanel';
-import { PanelNote } from './shell/parts';
 import { composeCommitMessage } from './commitMessage';
 import { viewForEntry } from './conflict';
 
@@ -75,8 +73,6 @@ export default function App() {
   const [cloning, setCloning] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
-  const [panelWidth, setPanelWidth] = usePref<number>('details.width', PANEL_LIMITS.details.fallback);
-  const panelDragFrom = useRef(panelWidth);
   const readyUpdate = useReadyUpdate();
   const { zoom, setZoom } = useZoom();
   const toggleRail = useCallback(() => {
@@ -410,21 +406,17 @@ export default function App() {
                   />
                 )}
               </main>
-              <aside
-                className="relative flex shrink-0 flex-col border-l"
-                style={{ width: clampPanel('details', panelWidth) }}
+              <DetailsPane
+                note={
+                  panel === 'workingTree' && !(tree && tree.entries.length > 0)
+                    ? 'workingTreeClean'
+                    : panel === 'noCommits'
+                      ? 'noCommits'
+                      : null
+                }
               >
-                <ResizeGrip
-                  edge="left"
-                  onStart={() => {
-                    panelDragFrom.current = clampPanel('details', panelWidth);
-                  }}
-                  onMove={(dx) => setPanelWidth(clampPanel('details', panelDragFrom.current - dx))}
-                  onEnd={() => {}}
-                />
-                {panel === 'workingTree' ? (
-                  tree && tree.entries.length > 0 ? (
-                    <WorkingTree
+                {panel === 'workingTree' && tree ? (
+                  <WorkingTree
                       repo={current.path}
                       tree={tree}
                       busy={busy}
@@ -450,11 +442,6 @@ export default function App() {
                         )
                       }
                     />
-                  ) : (
-                    <PanelNote>{t('workingTree.clean')}</PanelNote>
-                  )
-                ) : panel === 'noCommits' ? (
-                  <PanelNote>{t('repo.emptyHint')}</PanelNote>
                 ) : (
                   <Details
                     session={current}
@@ -469,7 +456,7 @@ export default function App() {
                     }
                   />
                 )}
-              </aside>
+              </DetailsPane>
               </div>
               </div>
               <BottomBar
