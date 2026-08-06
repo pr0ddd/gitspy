@@ -13,9 +13,9 @@ import { useRepoData } from './repoData';
 import { AvatarCache } from './avatarCache';
 import { useCommitSearch } from './search';
 import { panelFor } from './panel';
-import { fetchReadyUpdate, restartToUpdate } from './updater';
+import { restartToUpdate, useReadyUpdate } from './updater';
 import { clampPanel, PANEL_LIMITS } from './resize';
-import { applyZoom, zoomForKey } from './zoom';
+import { useZoom } from './zoom';
 import { BottomBar } from './shell/BottomBar';
 import { ResizeGrip } from './shell/parts';
 import type {
@@ -93,40 +93,8 @@ export default function App() {
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
   const [panelWidth, setPanelWidth] = usePref<number>('details.width', PANEL_LIMITS.details.fallback);
   const panelDragFrom = useRef(panelWidth);
-  const [readyUpdate, setReadyUpdate] = useState<string | null>(null);
-  const [zoom, setZoom] = usePref<number>('ui.zoom', 1);
-
-  useEffect(() => {
-    void applyZoom(zoom).catch(() => {});
-  }, [zoom]);
-
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-      const next = zoomForKey(event.key, zoomRef.current);
-      if (next === null) return;
-      event.preventDefault();
-      setZoom(next);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [setZoom]);
-
-  useEffect(() => {
-    let stopped = false;
-    const poll = () =>
-      fetchReadyUpdate()
-        .then((version) => !stopped && version && setReadyUpdate(version))
-        .catch(() => {});
-    void poll();
-    const timer = setInterval(poll, 60 * 60 * 1000);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
-    };
-  }, []);
+  const readyUpdate = useReadyUpdate();
+  const { zoom, setZoom } = useZoom();
   const toggleRail = useCallback(() => {
     setRailed((now) => {
       const next = !now;
