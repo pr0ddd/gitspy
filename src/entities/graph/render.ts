@@ -704,7 +704,7 @@ function drawVScroll(ctx: CanvasRenderingContext2D, frame: Frame, listW: number)
   const thumb = vScrollThumb(m, repo.count, scrollY, height);
   if (!thumb) return;
   ctx.fillStyle = theme().fill3;
-  roundRect(ctx, listW - VSCROLL_W + 2, thumb.top + 2, VSCROLL_W - 4, thumb.height - 4, (VSCROLL_W - 4) / 2);
+  roundRect(ctx, listW + 2, thumb.top + 2, VSCROLL_W - 4, thumb.height - 4, (VSCROLL_W - 4) / 2);
   ctx.fill();
 }
 

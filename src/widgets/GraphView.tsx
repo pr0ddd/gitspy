@@ -8,6 +8,7 @@ import {
   maxScroll,
   maxScrollX,
   MINIMAP_W,
+  VSCROLL_W,
   placeChips,
   type Frame,
   type HoverChip,
@@ -614,7 +615,7 @@ export const GraphView = memo(function GraphView({
         {session?.loading ? (
           <div
             className="text-muted-foreground pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
-            style={{ right: minimapRef.current ? MINIMAP_W : 0 }}
+            style={{ right: minimapRef.current ? MINIMAP_W : VSCROLL_W }}
           >
             <Icon.waiting className="size-5 animate-spin" />
             <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
@@ -624,7 +625,7 @@ export const GraphView = memo(function GraphView({
         {!session || (!session.repo && !session.loading) ? (
           <div
             className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
-            style={{ right: minimapRef.current ? MINIMAP_W : 0 }}
+            style={{ right: minimapRef.current ? MINIMAP_W : VSCROLL_W }}
           >
             {t('repo.emptyHint')}
           </div>

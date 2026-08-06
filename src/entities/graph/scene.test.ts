@@ -11,6 +11,7 @@ import {
   listWidth,
   maxScroll,
   vScrollThumb,
+  VSCROLL_W,
   MINIMAP_W,
   maxScrollX,
   minimapBand,
@@ -287,9 +288,13 @@ describe('проматывание к выделенной строке', () => 
 });
 
 describe('рельса минимапы', () => {
-  it('выключенная минимапа отдаёт свои пиксели списку', () => {
+  it('без минимапы список кончается перед полосой скроллбара, а не под ней', () => {
     expect(listWidth(1000)).toBe(1000 - MINIMAP_W);
-    expect(listWidth(1000, false), 'место рельсы не резервируется впустую').toBe(1000);
+    expect(
+      listWidth(1000, false),
+      'ползунку резервируется своя полоса — иначе он ложится поверх текста колонок',
+    ).toBe(1000 - VSCROLL_W);
+    expect(VSCROLL_W).toBeLessThan(MINIMAP_W);
   });
 });
 
