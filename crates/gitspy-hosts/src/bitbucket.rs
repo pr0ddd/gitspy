@@ -125,6 +125,24 @@ pub fn parse_repos(body: &str) -> Result<(Vec<Repo>, Option<String>), Error> {
 }
 
 #[derive(Debug, Deserialize)]
+struct WireAccess {
+    workspace: WireWorkspace,
+}
+
+#[derive(Debug, Deserialize)]
+struct WireWorkspace {
+    slug: String,
+}
+
+pub fn parse_workspaces(body: &str) -> Result<(Vec<String>, Option<String>), Error> {
+    let page: WirePage<WireAccess> = serde_json::from_str(body).map_err(unexpected)?;
+    Ok((
+        page.values.into_iter().map(|a| a.workspace.slug).collect(),
+        page.next,
+    ))
+}
+
+#[derive(Debug, Deserialize)]
 struct WireBranch {
     branch: Option<WireBranchName>,
     repository: Option<WireRepoRef>,
@@ -309,15 +327,31 @@ impl Bitbucket {
         parse_account(&self.fetch(&format!("{API}/user"), token).await?)
     }
 
-    pub async fn repos(&self, token: &str, pages: u32) -> Result<Vec<Repo>, Error> {
+    async fn workspaces(&self, token: &str) -> Result<Vec<String>, Error> {
         let mut all = Vec::new();
-        let mut url = format!("{API}/repositories?role=member&sort=-updated_on&pagelen=100");
-        for _ in 0..pages {
-            let (found, next) = parse_repos(&self.fetch(&url, token).await?)?;
+        let mut url = format!("{API}/user/workspaces?pagelen=100");
+        loop {
+            let (found, next) = parse_workspaces(&self.fetch(&url, token).await?)?;
             all.extend(found);
             match next {
                 Some(following) => url = following,
-                None => break,
+                None => return Ok(all),
+            }
+        }
+    }
+
+    pub async fn repos(&self, token: &str, pages: u32) -> Result<Vec<Repo>, Error> {
+        let mut all = Vec::new();
+        for workspace in self.workspaces(token).await? {
+            let mut url =
+                format!("{API}/repositories/{workspace}?sort=-updated_on&pagelen=100");
+            for _ in 0..pages {
+                let (found, next) = parse_repos(&self.fetch(&url, token).await?)?;
+                all.extend(found);
+                match next {
+                    Some(following) => url = following,
+                    None => break,
+                }
             }
         }
         Ok(all)
@@ -438,6 +472,21 @@ mod tests {
         assert_eq!(repos[0].clone_url, "https://bitbucket.org/team/tool.git");
         assert_eq!(repos[0].ssh_url, "git@bitbucket.org:team/tool.git");
         assert!(next.is_some(), "битбакет листается по next-ссылке, а не номеру страницы");
+    }
+
+    #[test]
+    fn parse_workspaces_reads_slugs_from_the_access_page() {
+        let body = r#"{"values":[
+            {"type":"workspace_access","workspace":{"slug":"gitspy"}},
+            {"type":"workspace_access","workspace":{"slug":"pr0ddd"}}
+        ]}"#;
+        let (slugs, next) = parse_workspaces(body).expect("воркспейсы читаются");
+        assert_eq!(
+            slugs,
+            vec!["gitspy".to_string(), "pr0ddd".to_string()],
+            "глобальный список реп битбакет выпилил (410) — репы собираются по воркспейсам"
+        );
+        assert!(next.is_none());
     }
 
     #[test]
