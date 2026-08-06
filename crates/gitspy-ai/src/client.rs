@@ -45,14 +45,19 @@ struct ErrorEnvelope {
 }
 
 #[derive(Deserialize)]
-struct ErrorBody {
-    message: String,
+#[serde(untagged)]
+enum ErrorBody {
+    Bare(String),
+    Wrapped { message: String },
 }
 
 fn server_said(body: &str) -> Option<String> {
     serde_json::from_str::<ErrorEnvelope>(body)
         .ok()
-        .map(|envelope| envelope.error.message)
+        .map(|envelope| match envelope.error {
+            ErrorBody::Bare(text) => text,
+            ErrorBody::Wrapped { message } => message,
+        })
 }
 
 fn reply_error(status: u16, body: &str, model: Option<&str>) -> AiError {
@@ -151,7 +156,6 @@ pub async fn detect_server(base_url: &str) -> Result<AiServer, AiError> {
 }
 
 pub async fn generate_commit(
-    provider: AiProvider,
     base_url: &str,
     model: &str,
     diff: &str,
@@ -163,7 +167,7 @@ pub async fn generate_commit(
         .map_err(unreachable)?;
     let response = client
         .post(chat_url(base_url))
-        .json(&chat_body(provider, model, &prompt))
+        .json(&chat_body(model, &prompt))
         .send()
         .await
         .map_err(unreachable)?;
@@ -228,6 +232,22 @@ mod tests {
             error.detail(),
             "400: context length exceeded",
             "подробность — статус и фраза сервера без конверта"
+        );
+    }
+
+    #[test]
+    fn ollama_bare_string_error_is_unwrapped_too() {
+        let body = r#"{"error":"'response_format.type' must be 'json_schema' or 'text'"}"#;
+        let error = reply_error(400, body, Some("gemma"));
+        assert_eq!(
+            error.code(),
+            "ai.refused",
+            "отказ сервера — свой код, не сеть"
+        );
+        assert_eq!(
+            error.detail(),
+            "400: 'response_format.type' must be 'json_schema' or 'text'",
+            "у Ollama ошибка — голая строка, и её тоже достаём из конверта"
         );
     }
 

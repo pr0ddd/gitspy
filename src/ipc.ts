@@ -28,7 +28,6 @@ import type {
   WindowView,
   WorkingTreeView,
   WorktreeView,
-  AiProviderId,
   AiServerView,
   CommitDraftView,
 } from '@/types';
@@ -235,9 +234,5 @@ export const onAvatarsChanged = (handler: (repo: string) => void) =>
 export const aiDetectServer = (baseUrl: string) =>
   invoke<AiServerView>('ai_detect_server', { baseUrl });
 
-export const aiGenerateCommit = (
-  repo: string,
-  provider: AiProviderId,
-  baseUrl: string,
-  model: string,
-) => invoke<CommitDraftView>('ai_generate_commit', { repo, provider, baseUrl, model });
+export const aiGenerateCommit = (repo: string, baseUrl: string, model: string) =>
+  invoke<CommitDraftView>('ai_generate_commit', { repo, baseUrl, model });

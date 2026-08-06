@@ -8,14 +8,6 @@ pub enum AiProvider {
 }
 
 impl AiProvider {
-    pub fn from_id(id: &str) -> Option<Self> {
-        match id {
-            "ollama" => Some(Self::Ollama),
-            "lmstudio" => Some(Self::LmStudio),
-            _ => None,
-        }
-    }
-
     pub fn id(&self) -> &'static str {
         match self {
             Self::Ollama => "ollama",
@@ -43,7 +35,7 @@ pub fn chat_models(models: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-pub fn chat_body(provider: AiProvider, model: &str, prompt: &Prompt) -> Value {
+pub fn chat_body(model: &str, prompt: &Prompt) -> Value {
     json!({
         "model": model,
         "messages": [
@@ -52,29 +44,26 @@ pub fn chat_body(provider: AiProvider, model: &str, prompt: &Prompt) -> Value {
         ],
         "stream": false,
         "temperature": 0.2,
-        "response_format": response_format(provider),
+        "response_format": response_format(),
     })
 }
 
-fn response_format(provider: AiProvider) -> Value {
-    match provider {
-        AiProvider::Ollama => json!({ "type": "json_object" }),
-        AiProvider::LmStudio => json!({
-            "type": "json_schema",
-            "json_schema": {
-                "name": "commit_draft",
-                "strict": true,
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "summary": { "type": "string" },
-                        "description": { "type": "string" }
-                    },
-                    "required": ["summary", "description"]
-                }
+fn response_format() -> Value {
+    json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "commit_draft",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "summary": { "type": "string" },
+                    "description": { "type": "string" }
+                },
+                "required": ["summary", "description"]
             }
-        }),
-    }
+        }
+    })
 }
 
 #[cfg(test)]
@@ -83,21 +72,16 @@ mod tests {
     use crate::prompt::build_prompt;
 
     #[test]
-    fn ids_round_trip() {
+    fn ids_name_the_provider_for_the_frontend() {
         assert_eq!(
-            AiProvider::from_id("ollama"),
-            Some(AiProvider::Ollama),
-            "ollama узнаётся по id"
+            AiProvider::Ollama.id(),
+            "ollama",
+            "id — контракт с фронтендом"
         );
         assert_eq!(
-            AiProvider::from_id("lmstudio"),
-            Some(AiProvider::LmStudio),
-            "lmstudio узнаётся по id"
-        );
-        assert_eq!(
-            AiProvider::from_id("openai"),
-            None,
-            "чужой id — отказ, не паника"
+            AiProvider::LmStudio.id(),
+            "lmstudio",
+            "id — контракт с фронтендом"
         );
     }
 
@@ -116,7 +100,7 @@ mod tests {
 
     #[test]
     fn chat_body_carries_model_and_both_messages() {
-        let body = chat_body(AiProvider::Ollama, "qwen2.5-coder", &build_prompt("diff"));
+        let body = chat_body("qwen2.5-coder", &build_prompt("diff"));
         assert_eq!(body["model"], "qwen2.5-coder", "имя модели уходит как есть");
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["role"], "user");
@@ -127,20 +111,14 @@ mod tests {
     }
 
     #[test]
-    fn response_format_differs_per_provider() {
-        let prompt = build_prompt("diff");
-        let ollama = chat_body(AiProvider::Ollama, "m", &prompt);
-        let lmstudio = chat_body(AiProvider::LmStudio, "m", &prompt);
+    fn response_format_is_a_json_schema_for_everyone() {
+        let body = chat_body("m", &build_prompt("diff"));
         assert_eq!(
-            ollama["response_format"]["type"], "json_object",
-            "Ollama понимает json_object"
+            body["response_format"]["type"], "json_schema",
+            "свежая Ollama принимает только json_schema или text, LM Studio тоже понимает схему"
         );
         assert_eq!(
-            lmstudio["response_format"]["type"], "json_schema",
-            "LM Studio строже: полная json-схема"
-        );
-        assert_eq!(
-            lmstudio["response_format"]["json_schema"]["schema"]["required"],
+            body["response_format"]["json_schema"]["schema"]["required"],
             serde_json::json!(["summary", "description"]),
             "схема требует оба поля"
         );
@@ -157,20 +135,6 @@ mod detect_tests {
             version_url("http://hulk:1234/"),
             "http://hulk:1234/api/version",
             "зонд бьёт в эндпоинт, который есть только у Ollama"
-        );
-    }
-
-    #[test]
-    fn ids_survive_round_trip_through_id() {
-        assert_eq!(
-            AiProvider::from_id(AiProvider::Ollama.id()),
-            Some(AiProvider::Ollama),
-            "id обязан разбираться обратно в тот же провайдер"
-        );
-        assert_eq!(
-            AiProvider::from_id(AiProvider::LmStudio.id()),
-            Some(AiProvider::LmStudio),
-            "id обязан разбираться обратно в тот же провайдер"
         );
     }
 
