@@ -1,6 +1,6 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { isNotOpen } from './errors';
+import { isNotOpen } from '@/errors';
 import { EVENTS } from './generated/events';
 import type {
   AccountView,
@@ -26,7 +26,7 @@ import type {
   WindowView,
   WorkingTreeView,
   WorktreeView,
-} from './types';
+} from '@/types';
 
 export const openRepo = (path: string) => invoke<RepoView>('open_repo', { path });
 

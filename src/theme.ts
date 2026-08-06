@@ -1,4 +1,4 @@
-import type { RefKind } from './types';
+import type { RefKind } from '@/types';
 
 export type Theme = {
   graph: string[];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
-import { describeError, isNotOpen } from './errors';
+import { describeError, isNotOpen } from '@/errors';
 
 const echo = ((key: string) => key) as unknown as TFunction<'errors'>;
 

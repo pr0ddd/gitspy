@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toHex } from './colour';
+import { toHex } from '@/colour';
 
 const HEX = /^#[0-9a-f]{6}$/;
 

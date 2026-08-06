@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
-import i18next from './i18n';
-import { notifyOperation, notifyOperationFailed } from './toast';
-import type { Operation } from './types';
+import i18next from '@/i18n';
+import { notifyOperation, notifyOperationFailed } from '@/toast';
+import type { Operation } from '@/types';
 
 vi.mock('sonner', () => {
   const base = vi.fn();

@@ -21,9 +21,9 @@ export const GIT = {
   workingTree: '// WIP',
 } as const;
 
-import type { IconName } from './icons';
+import type { IconName } from '@/icons';
 
-import type { Operation } from './types';
+import type { Operation } from '@/types';
 
 export const TOOLBAR_ACTIONS: ReadonlyArray<{
   label: string;

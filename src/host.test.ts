@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { hostOf } from './host';
-import type { RemoteView } from './types';
+import { hostOf } from '@/host';
+import type { RemoteView } from '@/types';
 
 const remote = (webUrl: string | null): RemoteView => ({ name: 'origin', avatarUrl: null, webUrl });
 

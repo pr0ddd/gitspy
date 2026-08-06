@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { relativeTime } from './time';
+import { relativeTime } from '@/time';
 
 const NOW = 1_800_000_000;
 

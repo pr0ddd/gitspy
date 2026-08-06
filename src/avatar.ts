@@ -1,4 +1,4 @@
-import { canvasDensity } from './zoom';
+import { canvasDensity } from '@/zoom';
 
 const cache = new Map<string, HTMLCanvasElement>();
 
