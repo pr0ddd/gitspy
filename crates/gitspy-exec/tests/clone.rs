@@ -45,6 +45,7 @@ fn a_clone_leaves_a_working_repository_at_the_chosen_path() {
         .clone_into(
             &from.path().display().to_string(),
             &destination,
+            false,
             None,
             &Cancel::new(),
             &mut |_| {},
@@ -74,6 +75,7 @@ fn a_clone_into_a_taken_path_fails_instead_of_mixing_two_repositories() {
         .clone_into(
             &from.path().display().to_string(),
             &destination,
+            false,
             None,
             &Cancel::new(),
             &mut |_| {},
@@ -121,5 +123,40 @@ fn init_names_the_first_branch_when_the_user_chose_one() {
         String::from_utf8_lossy(&head.stdout).trim(),
         "refs/heads/trunk",
         "имя первой ветки из настройки обязано дойти до git init -b"
+    );
+}
+
+#[test]
+fn a_shallow_clone_brings_one_commit_of_history() {
+    let from = source();
+    std::fs::write(from.path().join("second.md"), "ещё").expect("файл пишется");
+    run(from.path(), &["add", "-A"]);
+    run(from.path(), &["commit", "-m", "второй"]);
+
+    let into = TempDir::new().expect("временный каталог");
+    let destination = into.path().join("shallow-copy");
+
+    Git::discover()
+        .expect("git найден")
+        .clone_into(
+            &format!("file://{}", from.path().display()),
+            &destination,
+            true,
+            None,
+            &Cancel::new(),
+            &mut |_| {},
+        )
+        .expect("клон проходит");
+
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(&destination)
+        .args(["rev-list", "--count", "HEAD"])
+        .output()
+        .expect("git запускается");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        "1",
+        "--depth 1 обязан отрезать историю до одного коммита"
     );
 }
