@@ -190,6 +190,22 @@ export const anchorAt = (m: Metrics, scrollY: number): Anchor => ({
 export const scrollForAnchor = (m: Metrics, anchor: Anchor): number =>
   anchor.index * m.rowH + anchor.offset;
 
+export const VSCROLL_W = 14;
+
+export function vScrollThumb(
+  m: Metrics,
+  count: number,
+  scrollY: number,
+  height: number,
+): { top: number; height: number } | null {
+  const limit = maxScroll(m, count, height);
+  if (limit <= 0) return null;
+  const band = contentHeight(height);
+  const thumbH = Math.max(30, band * (band / (count * m.rowH)));
+  const top = HEADER_H + (Math.min(scrollY, limit) / limit) * (band - thumbH);
+  return { top, height: thumbH };
+}
+
 export const MINIMAP_TOP = HEADER_H;
 
 export const minimapBand = (height: number): number => Math.max(1, height - MINIMAP_TOP);

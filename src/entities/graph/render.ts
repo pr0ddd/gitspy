@@ -10,6 +10,8 @@ import {
   maxScrollX,
   MINIMAP_TOP,
   MINIMAP_W,
+  VSCROLL_W,
+  vScrollThumb,
   minimapBand,
   pinWidth,
   rowBandHeight,
@@ -33,6 +35,9 @@ import {
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
 import { wipBadgesX, wipContent } from './wip';
 import { canvasDensity } from '@/zoom';
+import { readPref } from '@/prefs';
+
+export type DescriptionMode = 'always' | 'hover' | 'never';
 
 
 const CORNER = 7;
@@ -133,6 +138,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   const { width, height } = frame;
 
   const t = theme();
+  const descriptionMode = readPref<DescriptionMode>('graph.description', 'always');
   const dpr = canvasDensity();
   const wantW = Math.round(width * dpr);
   const wantH = Math.round(height * dpr);
@@ -512,7 +518,9 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillText(fitted, msgX, yc);
 
       const body = row.body;
-      if (body && fitted === subject) {
+      const wanted =
+        descriptionMode === 'always' || (descriptionMode === 'hover' && i === hover);
+      if (wanted && body && fitted === subject) {
         const used = ctx.measureText(subject).width;
         const rest = subjMax - used - 10;
         if (rest > 20) {
@@ -534,7 +542,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   }
 
   drawHeader(ctx, width, cols, msgX, colAuthor, colDate, colHash, frame.columns);
-  drawMinimap(ctx, frame, listW);
+  if (frame.minimap === null) drawVScroll(ctx, frame, listW);
+  else drawMinimap(ctx, frame, listW);
   drawHoveredChip(ctx, frame);
 }
 
@@ -687,6 +696,16 @@ function drawChip(
     markX += chipM.markSize + chipM.gap;
   }
   if (placed.hasPull) strokeGlyphInSlot(ctx, GLYPH.pull, markX, y, chipM.pullSize);
+}
+
+function drawVScroll(ctx: CanvasRenderingContext2D, frame: Frame, listW: number): void {
+  const { repo, metrics: m, scrollY, height } = frame;
+  if (!repo) return;
+  const thumb = vScrollThumb(m, repo.count, scrollY, height);
+  if (!thumb) return;
+  ctx.fillStyle = theme().fill3;
+  roundRect(ctx, listW - VSCROLL_W + 2, thumb.top + 2, VSCROLL_W - 4, thumb.height - 4, (VSCROLL_W - 4) / 2);
+  ctx.fill();
 }
 
 function drawHScroll(

@@ -9,8 +9,9 @@ import {
   contentHeight,
   graphGeometry,
   listWidth,
-  MINIMAP_W,
   maxScroll,
+  vScrollThumb,
+  MINIMAP_W,
   maxScrollX,
   minimapBand,
   minimapFraction,
@@ -289,5 +290,28 @@ describe('рельса минимапы', () => {
   it('выключенная минимапа отдаёт свои пиксели списку', () => {
     expect(listWidth(1000)).toBe(1000 - MINIMAP_W);
     expect(listWidth(1000, false), 'место рельсы не резервируется впустую').toBe(1000);
+  });
+});
+
+describe('вертикальный скроллбар без минимапы', () => {
+  const m = METRICS_AVATARS;
+
+  it('умещающийся список ползунка не получает', () => {
+    expect(vScrollThumb(m, 5, 0, 800), 'скроллить нечего — рисовать нечего').toBeNull();
+  });
+
+  it('ползунок пропорционален видимой доле и ходит по всей полосе', () => {
+    const count = 1000;
+    const height = 800;
+    const top = vScrollThumb(m, count, 0, height)!;
+    expect(top.top).toBe(HEADER_H);
+
+    const limit = maxScroll(m, count, height);
+    const bottom = vScrollThumb(m, count, limit, height)!;
+    expect(
+      Math.round(bottom.top + bottom.height),
+      'на самом низу ползунок упирается в край, а не вылетает',
+    ).toBe(height);
+    expect(bottom.height).toBeGreaterThanOrEqual(30);
   });
 });

@@ -35,6 +35,7 @@ import {
   loadHidden,
   saveHidden,
   saveWidths,
+  type DescriptionMode,
   type HideableColumn,
 } from '@/entities/graph';
 import type { AccountView, DeviceView } from '@/types';
@@ -278,6 +279,7 @@ function InterfaceSection({
 }) {
   const { t } = useTranslation();
   const [minimap, setMinimap] = usePref<boolean>('graph.minimap', true);
+  const [description, setDescription] = usePref<DescriptionMode>('graph.description', 'always');
   const [hidden, setHidden] = useState<ReadonlySet<HideableColumn>>(loadHidden);
 
   const flipColumn = (key: HideableColumn) => {
@@ -326,6 +328,29 @@ function InterfaceSection({
           onCheckedChange={(next) => onCompact(next === true)}
           aria-label={t('settings.compact')}
         />
+      </SettingRow>
+
+      <SettingRow label={t('settings.description')} hint={t('settings.descriptionHint')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-72 justify-between font-normal">
+              {t(`settings.description_${description}` as 'settings.description_always')}
+              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuRadioGroup
+              value={description}
+              onValueChange={(next) => setDescription(next as DescriptionMode)}
+            >
+              {(['always', 'hover', 'never'] as const).map((mode) => (
+                <DropdownMenuRadioItem key={mode} value={mode}>
+                  {t(`settings.description_${mode}` as 'settings.description_always')}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SettingRow>
 
       <SettingRow label={t('settings.minimap')} hint={t('settings.minimapHint')}>
