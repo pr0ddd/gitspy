@@ -28,6 +28,15 @@ import {
   TAB_SIZE_LIMITS,
 } from '@/settingsModel';
 import { PULL_CHOICES, type PullMode } from '@/vocabulary';
+import { ZOOM_STEPS, zoomLabel } from '@/zoom';
+import {
+  DEFAULT_HIDDEN,
+  HIDEABLE,
+  loadHidden,
+  saveHidden,
+  saveWidths,
+  type HideableColumn,
+} from '@/entities/graph';
 import type { AccountView, DeviceView } from '@/types';
 
 const HOST = 'github';
@@ -36,14 +45,19 @@ type Props = {
   open: boolean;
   account: AccountView | null;
   collapsed: boolean;
+  zoom: number;
+  onZoom: (zoom: number) => void;
+  compact: boolean;
+  onCompact: (compact: boolean) => void;
   onToggle: () => void;
   onDisconnected: () => void;
 };
 
-type SectionKey = 'general' | 'editor' | 'integrations';
+type SectionKey = 'general' | 'interface' | 'editor' | 'integrations';
 
 const SECTIONS: ReadonlyArray<{ key: SectionKey; label: string; icon: IconName }> = [
   { key: 'general', label: 'settings.general', icon: 'settings' },
+  { key: 'interface', label: 'settings.interface', icon: 'appearance' },
   { key: 'editor', label: 'settings.editor', icon: 'edit' },
   { key: 'integrations', label: 'settings.integrations', icon: 'host' },
 ];
@@ -72,7 +86,17 @@ export function SettingRow({
   );
 }
 
-export function Settings({ open, account, collapsed, onToggle, onDisconnected }: Props) {
+export function Settings({
+  open,
+  account,
+  collapsed,
+  zoom,
+  onZoom,
+  compact,
+  onCompact,
+  onToggle,
+  onDisconnected,
+}: Props) {
   const { t } = useTranslation();
   const [section, setSection] = usePref<SectionKey>('settings.section', 'general');
   const [width] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
@@ -146,6 +170,13 @@ export function Settings({ open, account, collapsed, onToggle, onDisconnected }:
             </h1>
             {section === 'general' ? (
               <GeneralSection />
+            ) : section === 'interface' ? (
+              <InterfaceSection
+                zoom={zoom}
+                onZoom={onZoom}
+                compact={compact}
+                onCompact={onCompact}
+              />
             ) : section === 'editor' ? (
               <EditorSection />
             ) : (
@@ -229,6 +260,101 @@ function GeneralSection() {
           className="h-8 w-72 text-sm"
           aria-label={t('settings.initBranch')}
         />
+      </SettingRow>
+    </div>
+  );
+}
+
+function InterfaceSection({
+  zoom,
+  onZoom,
+  compact,
+  onCompact,
+}: {
+  zoom: number;
+  onZoom: (zoom: number) => void;
+  compact: boolean;
+  onCompact: (compact: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const [minimap, setMinimap] = usePref<boolean>('graph.minimap', true);
+  const [hidden, setHidden] = useState<ReadonlySet<HideableColumn>>(loadHidden);
+
+  const flipColumn = (key: HideableColumn) => {
+    const next = new Set(hidden);
+    if (!next.delete(key)) next.add(key);
+    saveHidden(next);
+    setHidden(next);
+  };
+
+  const resetColumns = () => {
+    saveWidths({});
+    const defaults = new Set(DEFAULT_HIDDEN);
+    saveHidden(defaults);
+    setHidden(defaults);
+    onCompact(false);
+  };
+
+  return (
+    <div className="space-y-7">
+      <SettingRow label={t('settings.zoom')} hint={t('settings.zoomHint')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-72 justify-between font-normal">
+              {zoomLabel(zoom)}
+              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuRadioGroup
+              value={String(zoom)}
+              onValueChange={(next) => onZoom(Number(next))}
+            >
+              {[...ZOOM_STEPS].reverse().map((step) => (
+                <DropdownMenuRadioItem key={step} value={String(step)} className="tabular-nums">
+                  {zoomLabel(step)}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SettingRow>
+
+      <SettingRow label={t('settings.compact')} hint={t('settings.compactHint')}>
+        <Checkbox
+          checked={compact}
+          onCheckedChange={(next) => onCompact(next === true)}
+          aria-label={t('settings.compact')}
+        />
+      </SettingRow>
+
+      <SettingRow label={t('settings.minimap')} hint={t('settings.minimapHint')}>
+        <Checkbox
+          checked={minimap}
+          onCheckedChange={(next) => setMinimap(next === true)}
+          aria-label={t('settings.minimap')}
+        />
+      </SettingRow>
+
+      <SettingRow label={t('settings.columns')} hint={t('settings.columnsHint')}>
+        <div className="flex flex-col gap-2.5">
+          {HIDEABLE.map((key) => (
+            <label key={key} className="flex items-center gap-2.5 text-sm">
+              <Checkbox
+                checked={!hidden.has(key)}
+                onCheckedChange={() => flipColumn(key)}
+                aria-label={t(`column.${key}` as 'column.author')}
+              />
+              {t(`column.${key}` as 'column.author')}
+            </label>
+          ))}
+        </div>
+      </SettingRow>
+
+      <SettingRow label={t('settings.resetColumns')} hint={t('settings.resetColumnsHint')}>
+        <Button variant="outline" size="sm" onClick={resetColumns}>
+          {t('menu.resetColumns')}
+        </Button>
       </SettingRow>
     </div>
   );

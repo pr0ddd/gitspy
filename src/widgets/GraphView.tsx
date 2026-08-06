@@ -32,6 +32,7 @@ import { Icon } from '@/icons';
 import { buildMinimap } from '@/entities/graph';
 import { buildChipMenu, buildColumnsMenu, buildCommitMenu, type MenuAction, type MenuContext } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
+import { readPref } from '@/prefs';
 import type { Session } from '@/entities/repo';
 import type { AvatarCache } from '@/avatarCache';
 import type { RowCache } from '@/entities/graph';
@@ -127,6 +128,7 @@ export const GraphView = memo(function GraphView({
   const rafRef = useRef<number | null>(null);
   const storedRef = useRef<StoredWidths>(loadWidths());
   const hiddenRef = useRef(loadHidden());
+  const minimapRef = useRef(readPref<boolean>('graph.minimap', true));
   const dragRef = useRef<
     'minimap' | 'hscroll' | { divider: Divider; fromX: number; fromStored: StoredWidths } | null
   >(null);
@@ -195,7 +197,7 @@ export const GraphView = memo(function GraphView({
     const f = frameRef.current;
     frameRef.current = {
       ...f,
-      cols: layoutColumns(listWidth(f.width), storedRef.current, hiddenRef.current),
+      cols: layoutColumns(listWidth(f.width, minimapRef.current), storedRef.current, hiddenRef.current),
     };
     patch({ scrollX: clampScrollX(frameRef.current.scrollX) });
   }, [patch, clampScrollX]);
@@ -210,7 +212,7 @@ export const GraphView = memo(function GraphView({
       avatars,
       pullHeads,
       refsByCommit: session?.refsByCommit ?? new Map(),
-      minimap: buildMinimap(session?.repo ?? null, f.height),
+      minimap: minimapRef.current ? buildMinimap(session?.repo ?? null, f.height) : null,
       columns,
       selected: session?.selected ?? 0,
       scrollY: sameRepo ? f.scrollY : 0,
@@ -238,8 +240,8 @@ export const GraphView = memo(function GraphView({
         ...f,
         width,
         height,
-        cols: layoutColumns(listWidth(width), storedRef.current, hiddenRef.current),
-        minimap: buildMinimap(f.repo, height),
+        cols: layoutColumns(listWidth(width, minimapRef.current), storedRef.current, hiddenRef.current),
+        minimap: minimapRef.current ? buildMinimap(f.repo, height) : null,
       };
       frameRef.current = { ...frameRef.current, scrollY: clampScroll(frameRef.current.scrollY) };
       needRows();
@@ -412,7 +414,7 @@ export const GraphView = memo(function GraphView({
             const now = frameRef.current;
             frameRef.current = {
               ...now,
-              cols: layoutColumns(listWidth(now.width), storedRef.current, hiddenRef.current),
+              cols: layoutColumns(listWidth(now.width, minimapRef.current), storedRef.current, hiddenRef.current),
             };
             patch({});
           },
@@ -422,6 +424,7 @@ export const GraphView = memo(function GraphView({
 
       const target = pointerTarget(x, y, {
         width: f.width,
+        minimap: minimapRef.current,
         height: f.height,
         cols: f.cols,
         metrics: f.metrics,
@@ -478,7 +481,7 @@ export const GraphView = memo(function GraphView({
       const f = frameRef.current;
       storedRef.current = resized(
         held.fromStored,
-        layoutColumns(listWidth(f.width), held.fromStored, hiddenRef.current),
+        layoutColumns(listWidth(f.width, minimapRef.current), held.fromStored, hiddenRef.current),
         held.divider,
         x - held.fromX,
       );
@@ -488,6 +491,7 @@ export const GraphView = memo(function GraphView({
 
     const sceneOf = (f: Frame): PointerScene => ({
       width: f.width,
+      minimap: minimapRef.current,
       height: f.height,
       cols: f.cols,
       metrics: f.metrics,
@@ -609,7 +613,7 @@ export const GraphView = memo(function GraphView({
         {session?.loading ? (
           <div
             className="text-muted-foreground pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
-            style={{ right: MINIMAP_W }}
+            style={{ right: minimapRef.current ? MINIMAP_W : 0 }}
           >
             <Icon.waiting className="size-5 animate-spin" />
             <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
@@ -619,7 +623,7 @@ export const GraphView = memo(function GraphView({
         {!session || (!session.repo && !session.loading) ? (
           <div
             className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
-            style={{ right: MINIMAP_W }}
+            style={{ right: minimapRef.current ? MINIMAP_W : 0 }}
           >
             {t('repo.emptyHint')}
           </div>

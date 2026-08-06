@@ -325,7 +325,17 @@ export default function App() {
 
         <div className="flex min-h-0 flex-1 pr-2">
         {settings === 'active' ? (
-          <Settings open account={account} collapsed={railed} onToggle={toggleRail} onDisconnected={() => setAccount(null)} />
+          <Settings
+            open
+            account={account}
+            collapsed={railed}
+            zoom={zoom}
+            onZoom={setZoom}
+            compact={compact}
+            onCompact={setCompact}
+            onToggle={toggleRail}
+            onDisconnected={() => setAccount(null)}
+          />
         ) : current === null ? (
           <StartPage
             recent={recent}

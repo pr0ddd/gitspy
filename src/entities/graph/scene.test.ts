@@ -9,6 +9,7 @@ import {
   contentHeight,
   graphGeometry,
   listWidth,
+  MINIMAP_W,
   maxScroll,
   maxScrollX,
   minimapBand,
@@ -281,5 +282,12 @@ describe('проматывание к выделенной строке', () => 
 
   it('в репозитории короче окна прокрутка остаётся нулевой', () => {
     expect(scrollToReveal(M, 2, 0, H, 3)).toBe(0);
+  });
+});
+
+describe('рельса минимапы', () => {
+  it('выключенная минимапа отдаёт свои пиксели списку', () => {
+    expect(listWidth(1000)).toBe(1000 - MINIMAP_W);
+    expect(listWidth(1000, false), 'место рельсы не резервируется впустую').toBe(1000);
   });
 });
