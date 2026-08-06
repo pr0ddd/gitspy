@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/icons';
 import { FilePath, ListRow, PanelBar, SectionHeader, StatusBadge } from '@/parts';
 import { buildFileTree, sortedByPath, type FileNode } from '@/features/fileTree';
+import { useGenerateCommit } from '@/features/repo';
 import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
 
 export type PreviousCommit = { readonly subject: string; readonly body: string };
@@ -320,23 +321,50 @@ function MessageFields({
   onMessage,
   onDescription,
   onHotkey,
+  generateHint,
+  generateReady,
+  generating,
+  onGenerate,
 }: {
   message: string;
   description: string;
   onMessage: (text: string) => void;
   onDescription: (text: string) => void;
   onHotkey: (e: React.KeyboardEvent) => void;
+  generateHint: string;
+  generateReady: boolean;
+  generating: boolean;
+  onGenerate: () => void;
 }) {
   const { t } = useTranslation();
   return (
     <>
-      <input
-        value={message}
-        onChange={(e) => onMessage(e.target.value)}
-        onKeyDown={onHotkey}
-        placeholder={t('workingTree.messagePlaceholder')}
-        className="bg-fill-1 text-foreground placeholder:text-faint focus:bg-fill-2 w-full rounded-md px-2.5 py-1.5 text-sm outline-none"
-      />
+      <div className="relative">
+        <input
+          value={message}
+          onChange={(e) => onMessage(e.target.value)}
+          onKeyDown={onHotkey}
+          placeholder={t('workingTree.messagePlaceholder')}
+          className="bg-fill-1 text-foreground placeholder:text-faint focus:bg-fill-2 w-full rounded-md py-1.5 pl-2.5 pr-8 text-sm outline-none"
+        />
+        <Hint text={generateHint}>
+          <span className="absolute top-1/2 right-1 -translate-y-1/2">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t('workingTree.generate')}
+              disabled={!generateReady || generating}
+              onClick={onGenerate}
+            >
+              {generating ? (
+                <Icon.waiting className="size-3.5 animate-spin" />
+              ) : (
+                <Icon.sparkle className="size-3.5" />
+              )}
+            </Button>
+          </span>
+        </Hint>
+      </div>
       <textarea
         value={description}
         onChange={(e) => onDescription(e.target.value)}
@@ -436,6 +464,10 @@ function MergingPanel({
           onMessage={onMessage}
           onDescription={onDescription}
           onHotkey={commitOnHotkey}
+          generateHint={t('workingTree.generateNeedsStaged')}
+          generateReady={false}
+          generating={false}
+          onGenerate={() => {}}
         />
         <div className="flex gap-2">
           <Button className="flex-1" disabled={!committable || busy} onClick={onCommit}>
@@ -524,6 +556,21 @@ export function WorkingTree(props: Props) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && committable) onCommit();
   };
 
+  const ai = useGenerateCommit({
+    repo,
+    hasStaged: staged.length > 0,
+    onDraft: (summary, body) => {
+      onMessage(summary);
+      onDescription(body);
+    },
+  });
+  const generateHint =
+    ai.readiness === 'needsStaged'
+      ? t('workingTree.generateNeedsStaged')
+      : ai.readiness === 'needsSetup'
+        ? t('workingTree.generateNeedsSetup')
+        : t('workingTree.generate');
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PanelHead
@@ -576,6 +623,10 @@ export function WorkingTree(props: Props) {
           onMessage={onMessage}
           onDescription={onDescription}
           onHotkey={commitOnHotkey}
+          generateHint={generateHint}
+          generateReady={ai.readiness === 'ready'}
+          generating={ai.generating}
+          onGenerate={ai.generate}
         />
         {tree.merging ? null : (
           <label

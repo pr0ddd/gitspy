@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
-import type { WorkingTreeView } from '@/types';
+import { usePref } from '@/prefs';
+import { AI_DEFAULT_URLS, SETTINGS } from '@/settingsModel';
+import type { AiProviderId, WorkingTreeView } from '@/types';
 
 export const composeCommitMessage = (summary: string, description: string): string => {
   const head = summary.trim();
@@ -49,4 +51,35 @@ export function useCommitDraft({ active, mergeSubject, busyWhile, reload, adoptT
   }, [active, message, description, amend, reload, busyWhile, adoptTree]);
 
   return { message, setMessage, description, setDescription, amend, setAmend, commit };
+}
+
+export type GenerateReadiness = 'ready' | 'needsStaged' | 'needsSetup';
+
+export function useGenerateCommit({
+  repo,
+  hasStaged,
+  onDraft,
+}: {
+  repo: string;
+  hasStaged: boolean;
+  onDraft: (summary: string, description: string) => void;
+}) {
+  const [provider] = usePref<AiProviderId>(SETTINGS.aiProvider, 'ollama');
+  const [baseUrl] = usePref<string>(SETTINGS.aiBaseUrl, '');
+  const [model] = usePref<string>(SETTINGS.aiModel, '');
+  const [generating, setGenerating] = useState(false);
+
+  const readiness: GenerateReadiness = !model ? 'needsSetup' : !hasStaged ? 'needsStaged' : 'ready';
+
+  const generate = useCallback(() => {
+    if (readiness !== 'ready' || generating) return;
+    setGenerating(true);
+    ipc
+      .aiGenerateCommit(repo, provider, baseUrl.trim() || AI_DEFAULT_URLS[provider], model)
+      .then((draft) => onDraft(draft.summary, draft.description))
+      .catch(notifyError)
+      .finally(() => setGenerating(false));
+  }, [readiness, generating, repo, provider, baseUrl, model, onDraft]);
+
+  return { readiness, generating, generate };
 }
