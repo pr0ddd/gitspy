@@ -8,6 +8,7 @@ import { GIT } from '@/vocabulary';
 import { Icon } from '@/icons';
 import { HOVER_FILL, NavItem } from '@/parts';
 import { clampPanel, PANEL_LIMITS } from '@/resize';
+import { laneColour, laneSoft } from '@/theme';
 import { usePref } from '@/prefs';
 import * as ipc from '@/ipc';
 import { relativeTime } from '@/time';
@@ -32,6 +33,28 @@ const shorten = (path: string) => {
 };
 
 const initialsOf = (name: string) => name.slice(0, 2).toLowerCase();
+
+const TILE_TINTS = 12;
+
+const tintOf = (name: string): number => {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) % 997;
+  return hash % TILE_TINTS;
+};
+
+function OwnerTile({ url, name }: { url: string; name: string }) {
+  if (url) {
+    return <img src={url} alt="" className="size-8 shrink-0 rounded-md" />;
+  }
+  return (
+    <span
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold"
+      style={{ background: laneSoft(tintOf(name)), color: laneColour(tintOf(name)) }}
+    >
+      {name.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
 
 function SourceRow({
   chosen,
@@ -328,11 +351,7 @@ export function StartPage({
                 {shownRepos.map((repo) => (
                   <li key={repo.fullName} className="group">
                     <div className={cn(HOVER_FILL, 'flex h-16 items-center gap-3 rounded-lg px-2')}>
-                      <img
-                        src={repo.ownerAvatarUrl}
-                        alt=""
-                        className="size-8 shrink-0 rounded-md"
-                      />
+                      <OwnerTile url={repo.ownerAvatarUrl} name={repo.fullName} />
                       <span className="flex min-w-0 flex-1 flex-col gap-1">
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm">
