@@ -202,7 +202,7 @@
   --muted-foreground: lch(39.176% 1.25 282);
   --faint-foreground: lch(64.64% 1.25 282);
   --surface: lch(94.44% 0.5 282);
-  --surface-raised: lch(99% 0.5 282);
+  --surface-raised: lch(92.94% 0.5 282);
 }
 
 [data-theme='pure-light'] {
@@ -220,7 +220,7 @@
   --muted-foreground: lch(41.429% 1 142.924);
   --faint-foreground: lch(68.357% 1 142.924);
   --surface: lch(97.667% 0 142.924);
-  --surface-raised: lch(100% 0 142.924);
+  --surface-raised: lch(96.333% 0 142.924);
 }
 
 @theme inline {
