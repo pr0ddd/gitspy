@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import * as ipc from '@/ipc';
+import { runRepoWork, useRepoWork } from '@/features/repo';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
 import { SectionHeader, ViewBar } from '@/parts';
@@ -162,7 +163,7 @@ function SidePane({
 export function ConflictView({ repo, path, from, into, onClose, onResolved }: Props) {
   const { t } = useTranslation();
   const [file, setFile] = useState<ConflictFileView | null>(null);
-  const [saving, setSaving] = useState(false);
+  const work = useRepoWork(repo);
   const blocks = useMemo(() => (file ? parseConflictFile(file.merged) : []), [file]);
   const [picks, setPicks] = useState<Picks>({});
   const conflicts = useMemo(
@@ -226,12 +227,9 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
   };
 
   const save = () => {
-    setSaving(true);
-    ipc
-      .resolveConflict(repo, path, composeOutput(blocks, picks))
-      .then(onResolved)
-      .catch(notifyError)
-      .finally(() => setSaving(false));
+    void runRepoWork(repo, { kind: 'resolveConflict', target: path }, () =>
+      ipc.resolveConflict(repo, path, composeOutput(blocks, picks)).then(onResolved),
+    );
   };
 
   let outNo = 0;
@@ -249,7 +247,7 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
           {t('conflict.count', { count: conflicts.length })}
         </span>
 
-        <Button size="xs" className="ml-auto shrink-0" disabled={!file || saving} onClick={save}>
+        <Button size="xs" className="ml-auto shrink-0" disabled={!file || work !== null} onClick={save}>
           <Icon.resolve className="size-3.5" />
           {t('conflict.markResolved')}
         </Button>

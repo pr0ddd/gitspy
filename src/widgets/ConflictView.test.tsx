@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import '../i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { workStore } from '@/entities/repo';
 import { ConflictView } from './ConflictView';
 import * as ipc from '@/ipc';
 
@@ -114,5 +115,22 @@ describe('резолв конфликтов выбором строк', () => {
       vi.mocked(ipc.resolveConflict).mock.calls[0],
       'на диск уходит именно то, что человек собрал из строк',
     ).toEqual(['/r', 'greeting.ts', 'top();\nours();\nbottom();']);
+  });
+
+  it('пока сохранение идёт, полоса репозитория занята', async () => {
+    workStore.setState({ works: new Map() });
+    vi.mocked(ipc.resolveConflict).mockReturnValue(new Promise(() => {}) as never);
+    const view = draw();
+    await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
+
+    fireEvent.click(view.getByRole('button', { name: /mark resolved/i }));
+
+    await waitFor(() =>
+      expect(
+        workStore.getState().works.get('/r'),
+        'запись в рабочее дерево обязана занимать полосу репозитория',
+      ).toEqual({ kind: 'resolveConflict', target: 'greeting.ts' }),
+    );
+    workStore.setState({ works: new Map() });
   });
 });
