@@ -535,9 +535,11 @@ function HostCard({
         setStarted(null);
       }
     });
+    const failed = ipc.onHostFailed(() => setStarted(null));
     return () => {
       alive = false;
       void stop.then((off) => off());
+      void failed.then((off) => off());
     };
   }, [host.id]);
 

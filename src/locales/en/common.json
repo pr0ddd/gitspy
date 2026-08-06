@@ -207,7 +207,7 @@
   "settings.compact": "Compact graph",
   "settings.compactHint": "Tighter rows without author avatars. Also in the graph header context menu.",
   "settings.connect": "Connect {{host}}",
-  "settings.connectHint": "The browser opens on github.com, you confirm there, and that is it. No token is typed anywhere.",
+  "settings.connectHint": "Everything happens in the browser: confirm access there and the account appears here.",
   "settings.description": "Commit description",
   "settings.descriptionHint": "The grey first line of the body after the subject in the graph.",
   "settings.description_always": "Always",
