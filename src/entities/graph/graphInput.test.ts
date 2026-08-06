@@ -7,6 +7,7 @@ const WIDTH = 1400;
 const HEIGHT = 800;
 
 const scene: PointerScene = {
+  minimap: true,
   width: WIDTH,
   height: HEIGHT,
   cols: layoutColumns(listWidth(WIDTH), {}),

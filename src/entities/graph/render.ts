@@ -147,7 +147,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   ctx.fillStyle = t.panel;
   ctx.fillRect(0, 0, width, height);
 
-  const listW = listWidth(width);
+  const listW = listWidth(width, frame.minimap !== null);
   const cols = frame.cols;
   const g = graphGeometry(m, repo?.maxLane ?? 0, scrollX, cols);
   const msgX = cols.message.left + 12;

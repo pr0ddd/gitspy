@@ -16,6 +16,10 @@ const shown = {
   open: true,
   account: null,
   collapsed: false,
+  zoom: 1,
+  onZoom: () => {},
+  compact: false,
+  onCompact: () => {},
   onToggle: () => {},
   onDisconnected: () => {},
 };
@@ -55,5 +59,26 @@ describe('страница настроек', () => {
       screen.getByRole('banner').textContent,
       'ViewBar-шапка называет открытую секцию',
     ).toContain('Integrations');
+  });
+});
+
+describe('секция Interface', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('минимапа и колонки пишут в те же хранилища, что живой граф', () => {
+    render(<Settings {...shown} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Interface' }));
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Graph minimap' }));
+    expect(
+      localStorage.getItem('gitspy.graph.minimap'),
+      'граф читает этот преф при маунте — иначе галка была бы бутафорией',
+    ).toBe('false');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Branch / Tag' }));
+    expect(
+      localStorage.getItem('gitspy.columns.hidden'),
+      'видимость колонок делит хранилище с контекстным меню шапки',
+    ).toContain('branchTag');
   });
 });

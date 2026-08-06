@@ -48,7 +48,8 @@ export const rowBandInset = (m: Metrics): number => Math.round((m.rowH * ROW_GAP
 
 export const rowBandHeight = (m: Metrics): number => m.rowH - 2 * rowBandInset(m);
 
-export const listWidth = (width: number): number => width - MINIMAP_W;
+export const listWidth = (width: number, minimap = true): number =>
+  width - (minimap ? MINIMAP_W : 0);
 
 export const contentHeight = (height: number): number => Math.max(0, height - HEADER_H);
 

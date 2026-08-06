@@ -10,6 +10,7 @@ export type PointerTarget =
 
 export type PointerScene = {
   readonly width: number;
+  readonly minimap: boolean;
   readonly height: number;
   readonly cols: Cols;
   readonly metrics: Metrics;
@@ -18,9 +19,9 @@ export type PointerScene = {
 };
 
 export function pointerTarget(x: number, y: number, scene: PointerScene): PointerTarget {
-  const { width, height, cols, metrics, scrollY, count } = scene;
+  const { width, minimap, height, cols, metrics, scrollY, count } = scene;
 
-  if (x >= listWidth(width)) return { kind: 'minimap' };
+  if (minimap && x >= listWidth(width)) return { kind: 'minimap' };
 
   if (y < HEADER_H) {
     const divider = dividerAt(x, cols);
