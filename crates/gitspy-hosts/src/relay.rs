@@ -1,7 +1,7 @@
 use crate::Error;
 use serde::Deserialize;
 
-pub const RELAY_URL: &str = "";
+pub const RELAY_URL: &str = "https://gitspy-oauth-relay.pavel-erohovets.workers.dev";
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,10 +92,10 @@ mod tests {
     }
 
     #[test]
-    fn an_unconfigured_relay_refuses_before_any_network() {
+    fn the_relay_is_configured_with_our_worker() {
         assert!(
-            configured().is_err(),
-            "пустой RELAY_URL — честный отказ, а не запрос в никуда"
+            configured().expect("релей настроен").starts_with("https://"),
+            "обмен кодов ходит только по https"
         );
     }
 }
