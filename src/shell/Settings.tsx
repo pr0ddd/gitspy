@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Icon, type IconName } from '../icons';
+import { NavItem } from './parts';
 import * as ipc from '../ipc';
 import { notifyError } from '../toast';
 import { usePref } from '../prefs';
@@ -54,24 +54,15 @@ export function Settings({ open, account, onDisconnected }: Props) {
       <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border">
       <aside className="border-border flex w-56 shrink-0 flex-col border-r py-3">
         <span className="text-faint px-4 pb-2 text-xs">{t('settings.title')}</span>
-        {SECTIONS.map(({ key, label, icon }) => {
-          const Glyph = Icon[icon];
-          return (
-            <button
-              key={key}
-              onClick={() => setSection(key)}
-              className={cn(
-                'mx-2 flex h-8 items-center gap-2.5 rounded-md px-2 text-sm transition-colors',
-                key === section
-                  ? 'bg-fill-2 text-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-fill-1 hover:text-foreground',
-              )}
-            >
-              <Glyph className="size-4 opacity-75" />
-              {t(label as 'settings.general')}
-            </button>
-          );
-        })}
+        {SECTIONS.map(({ key, label, icon }) => (
+          <NavItem
+            key={key}
+            icon={icon}
+            label={t(label as 'settings.general')}
+            active={key === section}
+            onClick={() => setSection(key)}
+          />
+        ))}
       </aside>
 
       <main className="min-w-0 flex-1 overflow-y-auto">

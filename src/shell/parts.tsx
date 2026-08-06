@@ -174,6 +174,57 @@ export function PanelNote({ children }: { children: React.ReactNode }) {
   return <p className="text-muted-foreground p-4 text-center text-xs">{children}</p>;
 }
 
+type NavItemProps = {
+  icon?: IconName;
+  lead?: React.ReactNode;
+  label?: string;
+  name?: string;
+  active?: boolean;
+  hint?: string;
+  hintSide?: React.ComponentProps<typeof Hint>['side'];
+  end?: React.ReactNode;
+  onClick: () => void;
+};
+
+export function NavItem({
+  icon,
+  lead,
+  label,
+  name,
+  active,
+  hint,
+  hintSide,
+  end,
+  onClick,
+}: NavItemProps) {
+  const Glyph = icon ? Icon[icon] : null;
+  const button = (
+    <button
+      aria-label={name ?? label ?? hint}
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'flex shrink-0 items-center rounded-md transition-colors',
+        label ? 'h-8 w-full gap-2.5 px-2 text-sm' : 'size-8 justify-center',
+        active
+          ? 'bg-fill-2 text-foreground'
+          : 'text-muted-foreground hover:bg-fill-1 hover:text-foreground',
+      )}
+    >
+      {Glyph ? <Glyph className="size-4 opacity-75" /> : lead}
+      {label ? <span className="min-w-0 flex-1 truncate text-left">{label}</span> : null}
+      {end}
+    </button>
+  );
+  return hint ? (
+    <Hint text={hint} side={hintSide}>
+      {button}
+    </Hint>
+  ) : (
+    button
+  );
+}
+
 type TabProps = {
   icon: IconName;
   label: string;
