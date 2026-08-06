@@ -450,10 +450,6 @@ pub struct AccountView {
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 #[ts(export, export_to = "../../src/generated/")]
 pub enum ConnectStartView {
-    DeviceCode {
-        user_code: String,
-        verification_uri: String,
-    },
     BrowserAuth {
         url: String,
     },

@@ -19,7 +19,7 @@
 
 | Метод | GitHub | GitLab.com | GitLab self-hosted | Bitbucket |
 |---|---|---|---|---|
-| `connect()` | device-код | браузер: PKCE + loopback `127.0.0.1` | форма URL + PAT | браузер: наш CF-воркер + деплинк |
+| `connect()` | браузер: код → наш CF-воркер | браузер: PKCE + loopback | форма URL + PAT | браузер: код → наш CF-воркер |
 | `account()` | `/user` | `/user` | то же | `/2.0/user` |
 | `repos()` | как сейчас | `/projects?membership=true` | то же | `/2.0/repositories?role=member` |
 | `pulls()`, `pull_detail()`, `pull_comments()` | как сейчас | merge requests API | то же | pullrequests API |
@@ -35,10 +35,14 @@ GitLab self-hosted — это не отдельный код, а `GitLab` с д�
 `start_connect(host)` возвращает enum `ConnectStart`:
 
 ```
-DeviceCode { user_code, verification_uri }      — GitHub
-BrowserAuth { url }                             — GitLab.com, Bitbucket
+BrowserAuth { url }                             — GitHub, GitLab.com, Bitbucket
 TokenForm { fields: [BaseUrl?, Username?, Token] } — self-hosted GitLab
 ```
+
+Все браузерные входы редиректят на общий loopback `127.0.0.1:53682`;
+деплинк не нужен. GitHub и Bitbucket меняют код на токен через наш
+CF-воркер (`/exchange`), GitLab — напрямую PKCE. Device-флоу GitHub
+удалён: вход везде одинаковый.
 
 Фронтенд рендерит его **одним data-driven компонентом**; четыре карточки
 Integrations не имеют собственной логики.
@@ -46,8 +50,8 @@ Integrations не имеют собственной логики.
 Физика способов (почему они разные — ограничения провайдеров, а не наш
 выбор):
 
-- **GitHub**: device flow, как сейчас; GitHub не отдаёт токен без секрета
-  иначе.
+- **GitHub**: браузерный authorization code; обмен — через воркер (GitHub
+  не отдаёт токен без client secret, PKCE без секрета не поддерживает).
 - **GitLab.com**: authorization code + PKCE, публичное приложение без
   секрета; на время входа приложение поднимает loopback-слушатель на
   фиксированном `127.0.0.1:53682` и ловит редирект (GitLab требует
@@ -109,9 +113,9 @@ Integrations не имеют собственной логики.
 - Каталог `workers/oauth-relay/` в репозитории; деплой wrangler-ом,
   секреты (`BITBUCKET_CLIENT_ID`, `BITBUCKET_CLIENT_SECRET`) в env
   воркера.
-- Один маршрут: `GET /bitbucket/callback?code=…` → обмен кода на токен →
-  HTML-страница «Success» (наши токены оформления, без брендов) с
-  деплинком и кнопкой. Воркер ничего не хранит.
+- Маршруты: `POST /exchange {host, code}` (github|bitbucket) и
+  `POST /refresh {host, refresh}` (bitbucket). Воркер ничего не хранит;
+  страница «можно закрыть вкладку» отдаётся самим loopback-слушателем.
 - refresh-токен Bitbucket: сохраняем рядом с access (у Bitbucket access
   живёт 2 часа); обновление — прямым запросом из приложения? Нет:
   refresh тоже требует секрета → воркер получает второй маршрут

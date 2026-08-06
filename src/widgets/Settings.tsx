@@ -484,6 +484,7 @@ function EditorSection() {
 const HOSTS: ReadonlyArray<{ id: string; label: string; icon: IconName }> = [
   { id: 'github', label: 'GitHub', icon: 'github' },
   { id: 'gitlab', label: 'GitLab', icon: 'gitlab' },
+  { id: 'bitbucket', label: 'Bitbucket', icon: 'bitbucket' },
 ];
 
 function IntegrationsSection({
@@ -593,27 +594,11 @@ function HostCard({
 
 function ConnectPending({ started }: { started: ConnectStartView }) {
   const { t } = useTranslation();
-
-  if (started.kind === 'browserAuth') {
-    return (
-      <div className="bg-fill-1 flex max-w-xl items-center gap-2.5 rounded-md p-4 text-xs">
-        <Icon.waiting className="size-3 shrink-0 animate-spin" />
-        <span className="text-muted-foreground">{t('settings.browserWaiting')}</span>
-      </div>
-    );
-  }
-
+  if (started.kind !== 'browserAuth') return null;
   return (
-    <div className="bg-fill-1 max-w-xl space-y-3 rounded-md p-4 text-center">
-      <p className="text-muted-foreground text-xs">{t('settings.codeHint')}</p>
-      <div className="font-mono text-2xl font-semibold tracking-widest select-all">
-        {started.userCode}
-      </div>
-      <div className="text-muted-foreground flex items-center justify-center gap-1.5 text-xs">
-        <Icon.waiting className="size-3 animate-spin" />
-        {t('settings.waiting')}
-      </div>
-      <div className="text-muted-foreground text-xs break-all">{started.verificationUri}</div>
+    <div className="bg-fill-1 flex max-w-xl items-center gap-2.5 rounded-md p-4 text-xs">
+      <Icon.waiting className="size-3 shrink-0 animate-spin" />
+      <span className="text-muted-foreground">{t('settings.browserWaiting')}</span>
     </div>
   );
 }

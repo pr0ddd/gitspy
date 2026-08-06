@@ -1,6 +1,6 @@
 use gitspy_hosts::github::Repo;
 use gitspy_hosts::pulls::PullSummary;
-use gitspy_hosts::secrets::Files;
+use gitspy_hosts::secrets::{Files, Secrets};
 use gitspy_hosts::host::HostKind;
 use gitspy_hosts::Account;
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,33 @@ pub fn save_connections(dir: &Path, connections: &[Connection]) {
     if let Ok(text) = serde_json::to_string_pretty(connections) {
         let _ = std::fs::write(connections_file(dir), text);
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredTokens {
+    pub access: String,
+    #[serde(default)]
+    pub refresh: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<i64>,
+}
+
+pub fn read_tokens(dir: &Path, host: &str) -> Option<StoredTokens> {
+    let raw = secrets(dir).read(host).ok().flatten()?;
+    match serde_json::from_str::<StoredTokens>(&raw) {
+        Ok(parsed) => Some(parsed),
+        Err(_) => Some(StoredTokens {
+            access: raw,
+            refresh: None,
+            expires_at: None,
+        }),
+    }
+}
+
+pub fn save_tokens(dir: &Path, host: &str, tokens: &StoredTokens) -> Result<(), gitspy_hosts::Error> {
+    let text = serde_json::to_string(tokens).unwrap_or_else(|_| tokens.access.clone());
+    secrets(dir).write(host, &text)
 }
 
 pub fn secrets(dir: &Path) -> Files {
@@ -197,6 +224,33 @@ mod tests {
         forget(dir.path(), "github");
         assert!(read(dir.path(), "github").account.is_none());
         assert!(read(dir.path(), "gitlab").account.is_some());
+    }
+
+    #[test]
+    fn a_plain_old_token_reads_as_an_access_only_set() {
+        let dir = TempDir::new().expect("временный каталог");
+        secrets(dir.path()).write("github", "gho_plain").expect("пишется");
+        assert_eq!(
+            read_tokens(dir.path(), "github"),
+            Some(StoredTokens {
+                access: "gho_plain".into(),
+                refresh: None,
+                expires_at: None,
+            }),
+            "старый токен-строка не должен пропасть при переходе на токен-сеты"
+        );
+    }
+
+    #[test]
+    fn a_token_set_round_trips_with_refresh_and_expiry() {
+        let dir = TempDir::new().expect("временный каталог");
+        let wanted = StoredTokens {
+            access: "bb".into(),
+            refresh: Some("bbr".into()),
+            expires_at: Some(1234567),
+        };
+        save_tokens(dir.path(), "bitbucket", &wanted).expect("пишется");
+        assert_eq!(read_tokens(dir.path(), "bitbucket"), Some(wanted));
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::pulls::{Comment, PullDetail, PullSummary};
-use crate::{github, gitlab, Account, Error};
+use crate::{bitbucket, github, gitlab, Account, Error};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum HostKind {
     GitHub,
     GitLab,
+    Bitbucket,
 }
 
 pub struct HostCredential {
@@ -30,6 +31,7 @@ pub enum ConnectStart {
 pub enum Host {
     GitHub(github::GitHub),
     GitLab(gitlab::GitLab),
+    Bitbucket(bitbucket::Bitbucket),
 }
 
 impl Host {
@@ -37,6 +39,7 @@ impl Host {
         match kind {
             HostKind::GitHub => Ok(Host::GitHub(github::GitHub::new()?)),
             HostKind::GitLab => Ok(Host::GitLab(gitlab::GitLab::new(base_url)?)),
+            HostKind::Bitbucket => Ok(Host::Bitbucket(bitbucket::Bitbucket::new()?)),
         }
     }
 
@@ -50,6 +53,10 @@ impl Host {
                 url: gitlab.base_url().to_string(),
                 username: "oauth2",
             },
+            Host::Bitbucket(_) => HostCredential {
+                url: bitbucket::BASE_URL.to_string(),
+                username: "x-token-auth",
+            },
         }
     }
 
@@ -57,6 +64,7 @@ impl Host {
         match self {
             Host::GitHub(github) => github.account(token).await,
             Host::GitLab(gitlab) => gitlab.account(token).await,
+            Host::Bitbucket(bitbucket) => bitbucket.account(token).await,
         }
     }
 
@@ -64,6 +72,7 @@ impl Host {
         match self {
             Host::GitHub(github) => github.repos(token, pages).await,
             Host::GitLab(gitlab) => gitlab.repos(token, pages).await,
+            Host::Bitbucket(bitbucket) => bitbucket.repos(token, pages).await,
         }
     }
 
@@ -76,6 +85,10 @@ impl Host {
         match self {
             Host::GitHub(github) => github.pulls(token, owner, name).await,
             Host::GitLab(gitlab) => gitlab.pulls(token, owner, name).await.map(|found| (found, false)),
+            Host::Bitbucket(bitbucket) => bitbucket
+                .pulls(token, owner, name)
+                .await
+                .map(|found| (found, false)),
         }
     }
 
@@ -89,6 +102,7 @@ impl Host {
         match self {
             Host::GitHub(github) => github.pull_detail(token, owner, name, number).await,
             Host::GitLab(gitlab) => gitlab.pull_detail(token, owner, name, number).await,
+            Host::Bitbucket(bitbucket) => bitbucket.pull_detail(token, owner, name, number).await,
         }
     }
 
@@ -102,6 +116,7 @@ impl Host {
         match self {
             Host::GitHub(github) => github.pull_comments(token, owner, name, number).await,
             Host::GitLab(gitlab) => gitlab.pull_comments(token, owner, name, number).await,
+            Host::Bitbucket(bitbucket) => bitbucket.pull_comments(token, owner, name, number).await,
         }
     }
 
@@ -115,6 +130,7 @@ impl Host {
         match self {
             Host::GitHub(github) => github.commit_author(token, owner, name, hash).await,
             Host::GitLab(gitlab) => gitlab.commit_author(token, owner, name, hash).await,
+            Host::Bitbucket(bitbucket) => bitbucket.commit_author(token, owner, name, hash).await,
         }
     }
 
@@ -128,6 +144,7 @@ impl Host {
         match self {
             Host::GitHub(github) => github.commit_avatars(token, owner, name, pages).await,
             Host::GitLab(gitlab) => gitlab.commit_avatars(token, owner, name, pages).await,
+            Host::Bitbucket(bitbucket) => bitbucket.commit_avatars(token, owner, name, pages).await,
         }
     }
 }
@@ -143,6 +160,14 @@ mod tests {
         let cred = github.credential();
         assert_eq!(cred.username, "x-access-token");
         assert_eq!(cred.url, "https://github.com");
+
+        let bitbucket = Host::for_connection(HostKind::Bitbucket, "https://bitbucket.org")
+            .expect("bitbucket строится");
+        assert_eq!(
+            bitbucket.credential().username,
+            "x-token-auth",
+            "битбакет пускает oauth-токен только под этим именем"
+        );
 
         let gitlab = Host::for_connection(HostKind::GitLab, "https://git.corp.dev/")
             .expect("gitlab строится");
