@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/ui/tooltip';
+import { Icon, type IconName } from '../icons';
 import { shortenDirectory, splitPath } from '../paths';
 
 const INDENT = ['pl-0', 'pl-4', 'pl-8', 'pl-12', 'pl-16', 'pl-20'] as const;
@@ -170,6 +172,46 @@ export function PanelBanner({
 
 export function PanelNote({ children }: { children: React.ReactNode }) {
   return <p className="text-muted-foreground p-4 text-center text-xs">{children}</p>;
+}
+
+type TabProps = {
+  icon: IconName;
+  label: string;
+  current: boolean;
+  title?: string;
+  closeLabel: string;
+  onSelect: () => void;
+  onClose: () => void;
+};
+
+export function Tab({ icon, label, current, title, closeLabel, onSelect, onClose }: TabProps) {
+  const Glyph = Icon[icon];
+  return (
+    <div
+      title={title}
+      onClick={onSelect}
+      className={cn(
+        'group flex h-7.5 max-w-56 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-3 text-xs whitespace-nowrap transition-colors',
+        current ? 'bg-fill-2 text-foreground' : 'text-muted-foreground hover:bg-fill-1',
+      )}
+    >
+      <Glyph className={cn('size-3.5 shrink-0', !current && 'opacity-75')} />
+      <span className="min-w-0 truncate">{label}</span>
+      <Button
+        variant="muted"
+        size="icon-2xs"
+        reveal
+        className={cn(current && 'opacity-100')}
+        aria-label={closeLabel}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      >
+        <Icon.close />
+      </Button>
+    </div>
+  );
 }
 
 type ResizeGripProps = {
