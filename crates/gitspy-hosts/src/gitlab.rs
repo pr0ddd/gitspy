@@ -3,7 +3,7 @@ use crate::{classify, github::Repo, Account, Error};
 use serde::Deserialize;
 
 pub const ID: &str = "gitlab";
-pub const CLIENT_ID: &str = "";
+pub const CLIENT_ID: &str = "8eb22227e51566cc06f44e6ef3b007d322f1b4751d1ae2b6ef9d296c3bcbcc30";
 pub const REDIRECT: &str = "http://127.0.0.1:53682/callback";
 
 fn unexpected(detail: impl ToString) -> Error {
