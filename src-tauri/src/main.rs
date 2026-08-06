@@ -84,10 +84,6 @@ fn main() {
         ])
         .setup(|app| {
             autofetch::start(app.handle().clone());
-            #[cfg(debug_assertions)]
-            if let Some(window) = app.get_webview_window("main") {
-                window.open_devtools();
-            }
             Ok(())
         })
         .on_window_event(|window, event| {
