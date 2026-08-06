@@ -182,14 +182,16 @@ describe('коммит из панели рабочего дерева', () => {
       onMessage: (text) => (message = text),
       onDescription: (text) => (description = text),
     });
-    fireEvent.click(getByRole('checkbox'));
+    fireEvent.click(getByRole('checkbox', { name: 'Amend previous commit' }));
     expect(message, 'заголовок прошлого коммита переехал в поле').toBe('старая тема');
     expect(description, 'тело прошлого коммита переехало в описание').toBe('старое тело');
   });
 
   it('без прошлого коммита amend недоступен', () => {
     const { getByRole } = draw(treeWith(1), 'fix', () => {}, { previous: null });
-    expect((getByRole('checkbox') as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (getByRole('checkbox', { name: 'Amend previous commit' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 });
 
@@ -297,7 +299,10 @@ describe('панель во время слияния', () => {
     expect(view.queryByText(/resolved files/i)).toBeNull();
     expect(view.getByRole('button', { name: /commit and merge/i })).toBeTruthy();
     expect(view.getByRole('button', { name: /abort merge/i })).toBeTruthy();
-    expect(view.queryByRole('checkbox'), 'амендить посреди слияния нельзя').toBeNull();
+    expect(
+      view.queryByRole('checkbox', { name: 'Amend previous commit' }),
+      'амендить посреди слияния нельзя',
+    ).toBeNull();
   });
 
   it('снятие разрешённого файла возвращает конфликт, а не голый reset', () => {
@@ -323,6 +328,9 @@ describe('панель во время слияния', () => {
 
   it('амендить посреди слияния нельзя — чекбокса нет', () => {
     const { queryByRole } = drawMerging(mergingTree(1, 0));
-    expect(queryByRole('checkbox'), 'git commit --amend при MERGE_HEAD отказывает').toBeNull();
+    expect(
+      queryByRole('checkbox', { name: 'Amend previous commit' }),
+      'git commit --amend при MERGE_HEAD отказывает',
+    ).toBeNull();
   });
 });

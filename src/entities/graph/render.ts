@@ -255,14 +255,14 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     if (g.leftShadow) {
       const sh = ctx.createLinearGradient(g.contentLeft, 0, g.contentLeft + SHADOW_BAND, 0);
-      sh.addColorStop(0, 'rgba(0,0,0,0.55)');
+      sh.addColorStop(0, t.shade);
       sh.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = sh;
       ctx.fillRect(g.contentLeft, HEADER_H, SHADOW_BAND, height - HEADER_H);
     }
     if (g.rightShadow) {
       const sh = ctx.createLinearGradient(g.contentRight, 0, g.contentRight - SHADOW_BAND, 0);
-      sh.addColorStop(0, 'rgba(0,0,0,0.55)');
+      sh.addColorStop(0, t.shade);
       sh.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = sh;
       ctx.fillRect(g.contentRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
@@ -286,8 +286,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       if (g.isStuck(lane)) {
         ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 5;
+        ctx.shadowColor = t.shade;
+        ctx.shadowBlur = 4;
         ctx.fillStyle = t.panel;
         ctx.beginPath();
         ctx.arc(x, y, m.nodeR + 1.5, 0, Math.PI * 2);
@@ -404,7 +404,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fillStyle = t.refSoft[more.chips[0].kind];
         roundRect(ctx, more.x, y - chipH / 2, more.w, chipH, 6);
         ctx.fill();
-        ctx.fillStyle = t.foreground;
+        ctx.fillStyle = t.subject;
         ctx.fillText(moreLabel(more.count), more.x + chipM.pad, y);
       }
       const chipEnd = more
@@ -577,7 +577,7 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   const chipH = m.rowH - 6;
 
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowColor = theme().shade;
   ctx.shadowBlur = 8;
 
   if (hoverChip.at === 'more') {
@@ -646,8 +646,8 @@ function drawChip(
   if (placed.compact && !expanded) {
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
-    ctx.fillStyle = t.foreground;
-    ctx.strokeStyle = t.foreground;
+    ctx.fillStyle = t.subject;
+    ctx.strokeStyle = t.subject;
     const slotX = placed.x + (w - chipM.markSize) / 2;
     if (chip.isHead) {
       ctx.fillText('✓', placed.x + (w - ctx.measureText('✓').width) / 2, y);
@@ -675,8 +675,8 @@ function drawChip(
 
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
-  ctx.fillStyle = t.foreground;
-  ctx.strokeStyle = t.foreground;
+  ctx.fillStyle = t.subject;
+  ctx.strokeStyle = t.subject;
   ctx.fillText(text, placed.x + chipM.pad, y);
 
   let markX = placed.x + chipM.pad + ctx.measureText(text).width + chipM.gap;

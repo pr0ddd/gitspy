@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/icons';
-import { FilePath, ListRow, PanelBar, SectionHeader } from '@/parts';
+import { FilePath, ListRow, PanelBar, SectionHeader, StatusBadge } from '@/parts';
 import { buildFileTree, sortedByPath, type FileNode } from '@/features/fileTree';
 import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
 
@@ -39,16 +39,6 @@ type Props = {
   onHistory: (path: string) => void;
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  A: 'text-added',
-  M: 'text-modified',
-  D: 'text-deleted',
-  R: 'text-renamed',
-  C: 'text-renamed',
-  T: 'text-modified',
-  U: 'text-conflict',
-  '?': 'text-added',
-};
 
 function FileRow({
   entry,
@@ -79,9 +69,7 @@ function FileRow({
         {entry.letter === 'U' ? (
           <Icon.conflict className="text-conflict size-3 shrink-0" />
         ) : (
-          <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[entry.letter])}>
-            {entry.letter}
-          </span>
+          <StatusBadge letter={entry.letter} />
         )}
         {name === undefined ? <FilePath path={entry.path} /> : <span className="truncate">{name}</span>}
         <Button
@@ -522,6 +510,7 @@ export function WorkingTree(props: Props) {
   const staged = tree.entries.filter((e) => e.staged);
   const unstaged = tree.entries.filter((e) => !e.staged);
   const committable = message.trim().length > 0 && (staged.length > 0 || amend);
+  const [pushAfter, setPushAfter] = usePref<boolean>('commit.push', false);
 
   const toggleAmend = (next: boolean) => {
     if (next && previous) {
@@ -599,10 +588,19 @@ export function WorkingTree(props: Props) {
               checked={amend}
               disabled={!previous}
               onCheckedChange={(next) => toggleAmend(next === true)}
+              aria-label={t('workingTree.amend')}
             />
             {t('workingTree.amend')}
           </label>
         )}
+        <label className="text-muted-foreground flex items-center gap-2 text-xs">
+          <Checkbox
+            checked={pushAfter}
+            onCheckedChange={(next) => setPushAfter(next === true)}
+            aria-label={t('workingTree.pushAfter')}
+          />
+          {t('workingTree.pushAfter')}
+        </label>
         {tree.merging ? (
           <div className="flex gap-2">
             <Button

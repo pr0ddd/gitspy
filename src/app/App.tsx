@@ -206,6 +206,9 @@ export default function App() {
       busyWhile,
       reload,
       adoptTree,
+      onCommitted: () => {
+        if (readPref<boolean>('commit.push', false)) void runOperation({ kind: 'push' });
+      },
     });
 
   const { openPath, pickRepo, closeRepo, forget } = useSessionActions({

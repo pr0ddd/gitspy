@@ -40,7 +40,6 @@
   --surface: oklch(0.135 0.003 265);
   --surface-raised: oklch(0.215 0.005 265);
   --surface-hover: var(--fill-2);
-  --header-line: oklch(0.27 0.005 265);
 
   --status-added: oklch(0.74 0.16 150);
   --status-deleted: oklch(0.66 0.19 25);
@@ -59,6 +58,9 @@
 
   --subject-foreground: oklch(0.885 0.003 265);
 
+  --banner: color-mix(in oklab, var(--primary) 25%, transparent);
+  --banner-conflict: color-mix(in oklab, var(--destructive) 25%, transparent);
+  --graph-shade: oklch(0 0 0 / 0.5);
   --graph-1: oklch(0.66 0.17 268);
   --graph-2: oklch(0.64 0.19 325);
   --graph-3: oklch(0.72 0.14 195);
@@ -96,7 +98,6 @@
   --ring: #5e69d1;
   --border: lch(14.16% 1.48 272);
   --input: lch(14.16% 1.48 272);
-  --header-line: lch(16.32% 1.48 272);
   --surface: lch(2.595% 0.4 272);
   --surface-raised: lch(9.345% 0.85 272);
 }
@@ -119,7 +120,6 @@
   --ring: #5e69d1;
   --border: lch(19.071% 7.768 282.863);
   --input: lch(19.071% 7.768 282.863);
-  --header-line: lch(21.471% 7.768 282.863);
   --surface: lch(6.221% 6.568 282.863);
   --surface-raised: lch(13.721% 7.068 282.863);
 }
@@ -142,13 +142,15 @@
   --ring: #5e69d1;
   --border: lch(21.836% 3.413 272.695);
   --input: lch(21.836% 3.413 272.695);
-  --header-line: lch(24.236% 3.413 272.695);
   --surface: lch(8.986% 2.213 272.695);
   --surface-raised: lch(16.486% 2.713 272.695);
 }
 
 [data-theme='linear-light'],
 [data-theme='pure-light'] {
+  --banner: color-mix(in oklab, var(--primary) 12%, transparent);
+  --banner-conflict: color-mix(in oklab, var(--destructive) 12%, transparent);
+  --graph-shade: oklch(0 0 0 / 0.1);
   --fill-1: oklch(0 0 0 / 0.04);
   --fill-2: oklch(0 0 0 / 0.07);
   --fill-3: oklch(0 0 0 / 0.11);
@@ -171,22 +173,24 @@
   --ref-stash: oklch(0.5 0.12 320);
   --ref-worktree: oklch(0.52 0.12 195);
   --ref-current: oklch(0.53 0.15 150);
-  --graph-1: oklch(0.52 0.17 268);
-  --graph-2: oklch(0.5 0.19 325);
-  --graph-3: oklch(0.54 0.13 195);
-  --graph-4: oklch(0.58 0.13 92);
-  --graph-5: oklch(0.54 0.16 20);
-  --graph-6: oklch(0.54 0.14 150);
-  --graph-7: oklch(0.52 0.13 220);
-  --graph-8: oklch(0.57 0.13 55);
-  --graph-9: oklch(0.5 0.16 300);
-  --graph-10: oklch(0.56 0.13 120);
-  --graph-11: oklch(0.52 0.17 350);
-  --graph-12: oklch(0.5 0.15 245);
+  --graph-1: oklch(0.60 0.17 268 / 0.6);
+  --graph-2: oklch(0.58 0.19 325 / 0.6);
+  --graph-3: oklch(0.62 0.13 195 / 0.6);
+  --graph-4: oklch(0.66 0.13 92 / 0.6);
+  --graph-5: oklch(0.62 0.16 20 / 0.6);
+  --graph-6: oklch(0.62 0.14 150 / 0.6);
+  --graph-7: oklch(0.60 0.13 220 / 0.6);
+  --graph-8: oklch(0.65 0.13 55 / 0.6);
+  --graph-9: oklch(0.58 0.16 300 / 0.6);
+  --graph-10: oklch(0.64 0.13 120 / 0.6);
+  --graph-11: oklch(0.60 0.17 350 / 0.6);
+  --graph-12: oklch(0.58 0.15 245 / 0.6);
 }
 
 [data-theme='linear-light'] {
   --background: lch(94.44% 0.5 282);
+  --border: lch(84.44% 0 282);
+  --input: lch(84.44% 0 282);
   --card: lch(97.94% 0.5 282);
   --popover: lch(99% 0.5 282);
   --foreground: lch(9.794% 0 282);
@@ -197,15 +201,14 @@
   --subject-foreground: lch(19.588% 1.25 282);
   --muted-foreground: lch(39.176% 1.25 282);
   --faint-foreground: lch(64.64% 1.25 282);
-  --border: lch(88.49% 0 282);
-  --input: lch(88.49% 0 282);
-  --header-line: lch(84.44% 0 282);
   --surface: lch(94.44% 0.5 282);
   --surface-raised: lch(99% 0.5 282);
 }
 
 [data-theme='pure-light'] {
   --background: lch(97.667% 0 142.924);
+  --border: lch(89% 0 142.924);
+  --input: lch(89% 0 142.924);
   --card: lch(100% 0 142.924);
   --popover: lch(100% 0 142.924);
   --foreground: lch(10.357% 0 142.924);
@@ -216,9 +219,6 @@
   --subject-foreground: lch(20.714% 1 142.924);
   --muted-foreground: lch(41.429% 1 142.924);
   --faint-foreground: lch(68.357% 1 142.924);
-  --border: lch(93.7% 0 142.924);
-  --input: lch(93.7% 0 142.924);
-  --header-line: lch(91% 0 142.924);
   --surface: lch(97.667% 0 142.924);
   --surface-raised: lch(100% 0 142.924);
 }
@@ -247,7 +247,6 @@
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
-  --color-header-line: var(--header-line);
 
   --color-added: var(--status-added);
   --color-deleted: var(--status-deleted);
@@ -268,6 +267,9 @@
   --color-fill-2: var(--fill-2);
   --color-fill-3: var(--fill-3);
   --color-faint: var(--faint-foreground);
+  --color-subject: var(--subject-foreground);
+  --color-banner: var(--banner);
+  --color-banner-conflict: var(--banner-conflict);
   --color-primary-hover: var(--primary-hover);
 
   --radius-sm: calc(var(--radius) - 2px);
