@@ -153,6 +153,43 @@ export default function App() {
     remotes,
   });
 
+  useEffect(() => {
+    setMain({ kind: 'graph' });
+    setPulls(null);
+    setAmend(false);
+    if (!active) return;
+
+    let alive = true;
+    const stale = (view: PullListView) => Date.now() / 1000 - view.fetchedAt > 300;
+    ipc
+      .pullRequests(active, false, true)
+      .then((known) => {
+        if (!alive || !known) return;
+        setPulls(known);
+        if (!stale(known)) return;
+        return ipc.pullRequests(active, true, true).then((fresh) => {
+          if (alive && fresh) setPulls(fresh);
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) {
+      setTree(null);
+      return;
+    }
+    ipc.workingTree(active).then(adoptTree).catch(notifyError);
+  }, [active, adoptTree]);
+
+  const mergeSubject = tree?.merging?.subject ?? null;
+  useEffect(() => {
+    if (mergeSubject) setMessage((now) => (now.trim() ? now : mergeSubject));
+  }, [mergeSubject]);
+
   const { running, busy, checkingOut, busyWhile, runOperation, checkoutRef } = useOperations(
     active,
     reload,
