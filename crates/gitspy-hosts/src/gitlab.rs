@@ -50,23 +50,29 @@ struct WireProject {
     namespace: Option<WireNamespace>,
 }
 
+fn repo_of(p: WireProject) -> Repo {
+    Repo {
+        full_name: p.path_with_namespace,
+        description: p.description.filter(|d| !d.trim().is_empty()),
+        private: p.visibility != "public",
+        clone_url: p.http_url_to_repo,
+        ssh_url: p.ssh_url_to_repo,
+        pushed_at: p.last_activity_at,
+        owner_avatar_url: p
+            .avatar_url
+            .or(p.namespace.and_then(|n| n.avatar_url))
+            .unwrap_or_default(),
+    }
+}
+
+pub fn parse_repo(body: &str) -> Result<Repo, Error> {
+    let wire: WireProject = serde_json::from_str(body).map_err(unexpected)?;
+    Ok(repo_of(wire))
+}
+
 pub fn parse_repos(body: &str) -> Result<Vec<Repo>, Error> {
     let entries: Vec<WireProject> = serde_json::from_str(body).map_err(unexpected)?;
-    Ok(entries
-        .into_iter()
-        .map(|p| Repo {
-            full_name: p.path_with_namespace,
-            description: p.description.filter(|d| !d.trim().is_empty()),
-            private: p.visibility != "public",
-            clone_url: p.http_url_to_repo,
-            ssh_url: p.ssh_url_to_repo,
-            pushed_at: p.last_activity_at,
-            owner_avatar_url: p
-                .avatar_url
-                .or(p.namespace.and_then(|n| n.avatar_url))
-                .unwrap_or_default(),
-        })
-        .collect())
+    Ok(entries.into_iter().map(repo_of).collect())
 }
 
 #[derive(Debug, Deserialize)]
@@ -279,6 +285,35 @@ impl GitLab {
             return Err(classify(status, &body, None));
         }
         parse_token(&body)
+    }
+
+    pub async fn create_repo(
+        &self,
+        token: &str,
+        name: &str,
+        description: &str,
+        private: bool,
+    ) -> Result<Repo, Error> {
+        let response = self
+            .client
+            .post(self.api("/projects"))
+            .bearer_auth(token)
+            .json(&serde_json::json!({
+                "name": name,
+                "description": description,
+                "visibility": if private { "private" } else { "public" },
+            }))
+            .send()
+            .await
+            .map_err(|e| Error::Network {
+                detail: e.to_string(),
+            })?;
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+        if status >= 400 {
+            return Err(classify(status, &body, None));
+        }
+        parse_repo(&body)
     }
 
     pub async fn account(&self, token: &str) -> Result<Account, Error> {

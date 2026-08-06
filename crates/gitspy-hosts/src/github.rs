@@ -72,24 +72,33 @@ struct RepoEntry {
     owner: RepoOwner,
 }
 
+fn repo_of(entry: RepoEntry) -> Repo {
+    Repo {
+        full_name: entry.full_name,
+        description: entry.description.filter(|d| !d.trim().is_empty()),
+        private: entry.private,
+        clone_url: entry.clone_url,
+        ssh_url: entry.ssh_url,
+        pushed_at: entry.pushed_at,
+        owner_avatar_url: entry.owner.avatar_url,
+    }
+}
+
+pub fn parse_repo(body: &str) -> Result<Repo, Error> {
+    let entry: RepoEntry = serde_json::from_str(body).map_err(|e| Error::Unexpected {
+        status: 200,
+        detail: e.to_string(),
+    })?;
+    Ok(repo_of(entry))
+}
+
 pub fn parse_repos(body: &str) -> Result<Vec<Repo>, Error> {
     let entries: Vec<RepoEntry> = serde_json::from_str(body).map_err(|e| Error::Unexpected {
         status: 200,
         detail: e.to_string(),
     })?;
 
-    Ok(entries
-        .into_iter()
-        .map(|entry| Repo {
-            full_name: entry.full_name,
-            description: entry.description.filter(|d| !d.trim().is_empty()),
-            private: entry.private,
-            clone_url: entry.clone_url,
-            ssh_url: entry.ssh_url,
-            pushed_at: entry.pushed_at,
-            owner_avatar_url: entry.owner.avatar_url,
-        })
-        .collect())
+    Ok(entries.into_iter().map(repo_of).collect())
 }
 
 #[derive(Debug, Deserialize)]
@@ -211,6 +220,36 @@ impl GitHub {
             return Ok(body);
         }
         Err(classify(status, &body, retry_after))
+    }
+
+    pub async fn create_repo(
+        &self,
+        token: &str,
+        name: &str,
+        description: &str,
+        private: bool,
+    ) -> Result<Repo, Error> {
+        let response = self
+            .client
+            .post("https://api.github.com/user/repos")
+            .bearer_auth(token)
+            .header("Accept", "application/vnd.github+json")
+            .json(&serde_json::json!({
+                "name": name,
+                "description": description,
+                "private": private,
+            }))
+            .send()
+            .await
+            .map_err(|e| Error::Network {
+                detail: e.to_string(),
+            })?;
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+        if status >= 400 {
+            return Err(classify(status, &body, None));
+        }
+        parse_repo(&body)
     }
 
     pub async fn account(&self, token: &str) -> Result<Account, Error> {

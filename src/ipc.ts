@@ -162,6 +162,31 @@ export const cloneRepo = (
   return invoke<string>('clone_repo', { url, parent, name, shallow, progress });
 };
 
+export const hostNamespaces = (host: string) => invoke<string[]>('host_namespaces', { host });
+
+export const hostCreateRepo = (
+  host: string,
+  namespace: string,
+  name: string,
+  description: string,
+  isPrivate: boolean,
+) =>
+  invoke<RepoListingView>('host_create_repo', {
+    host,
+    namespace,
+    name,
+    description,
+    private: isPrivate,
+  });
+
+export const seedRepo = (
+  path: string,
+  branch: string | null,
+  gitignore: string | null,
+  license: string | null,
+  push: boolean,
+) => invoke<void>('seed_repo', { path, branch, gitignore, license, push });
+
 export const templateCatalog = () => invoke<TemplateCatalogView>('template_catalog');
 
 export const initRepo = (

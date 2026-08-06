@@ -679,6 +679,11 @@ impl Git {
         self.read(path, &["commit", "-m", message]).map(|_| ())
     }
 
+    pub fn rename_unborn_branch(&self, path: &Path, branch: &str) -> Result<(), Error> {
+        self.read(path, &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")])
+            .map(|_| ())
+    }
+
     fn prepared(&self, credential: Option<&Credential>) -> Command {
         let environment = env::environment(self.askpass.as_deref());
 
