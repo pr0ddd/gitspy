@@ -11,9 +11,9 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePref } from '@/prefs';
-import { HOVER_FILL, SearchField } from '@/parts';
+import { SearchField } from '@/parts';
 import type { Operation, WorkingTreeView } from '@/types';
-import { PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
+import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
 import { Icon } from '@/icons';
 
 type Props = {
@@ -42,6 +42,116 @@ export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
 const pullOperation = (mode: PullMode): Operation =>
   mode === 'fetch' ? { kind: 'fetch' } : { kind: mode };
 
+function Tally({ count, tone }: { count: number; tone: 'ahead' | 'behind' }) {
+  if (count === 0) return null;
+  return (
+    <span className={cn('text-2xs tabular-nums', tone === 'ahead' ? 'opacity-85' : 'text-behind')}>
+      {count}
+    </span>
+  );
+}
+
+function ExchangeDeck({
+  tree,
+  push,
+  busy,
+  running,
+  pullMode,
+  onPullMode,
+  onRun,
+}: {
+  tree: WorkingTreeView | null;
+  push: Operation | null;
+  busy: boolean;
+  running: string | null;
+  pullMode: PullMode;
+  onPullMode: (next: PullMode) => void;
+  onRun: (operation: Operation) => void;
+}) {
+  const { t } = useTranslation();
+  const wanted = pullOperation(pullMode);
+  const ahead = tree?.ahead ?? 0;
+  const behind = tree?.behind ?? 0;
+  const charged = push !== null && ahead > 0 && !busy;
+  const pushHint = tree?.remotes.length ? t('toolbar.noUpstream') : t('toolbar.noRemote');
+
+  const pushing = push !== null && running === push.kind;
+  const pulling = running === wanted.kind;
+
+  const pushButton = (
+    <Button
+      variant={charged ? 'default' : 'action'}
+      size="sm"
+      disabled={!push || busy}
+      onClick={() => push && onRun(push)}
+    >
+      <Icon.push className={cn('size-4', pushing && 'animate-lift')} />
+      {GIT.push}
+      <Tally count={ahead} tone="ahead" />
+    </Button>
+  );
+
+  return (
+    <>
+      <span
+        className={cn(
+          'group/split has-[[data-state=open]]:bg-fill-1 flex items-center rounded-md transition-colors',
+          !busy && 'hover:bg-hover-fill',
+        )}
+      >
+        <Button
+          variant="split"
+          size="sm-lead"
+          disabled={busy}
+          onClick={() => onRun(wanted)}
+        >
+          <Icon.pull className={cn('size-4', pulling && 'animate-dive')} />
+          {GIT.pull}
+          <Tally count={behind} tone="behind" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="split"
+              size="sm-tail"
+              disabled={busy}
+              aria-label={t('pull.chooseDefault')}
+            >
+              <Icon.chevron className="size-3.5 rotate-90" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel className="text-muted-foreground max-w-56 text-xs font-normal">
+              {t('pull.chooseDefault')}
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={pullMode}
+              onValueChange={(next) => onPullMode(next as PullMode)}
+            >
+              {PULL_CHOICES.map(({ mode, label: choice }) => (
+                <DropdownMenuRadioItem key={mode} value={mode}>
+                  {t(choice as 'pull.default')}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </span>
+
+      {push ? (
+        pushButton
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0}>{pushButton}</span>
+          </TooltipTrigger>
+          <TooltipContent>{pushHint}</TooltipContent>
+        </Tooltip>
+      )}
+    </>
+  );
+}
+
 export function Toolbar({
   tree,
   onRun,
@@ -59,136 +169,49 @@ export function Toolbar({
   const push = pushFor(tree);
   const [pullMode, setPullMode] = usePref<PullMode>('toolbar.pull', 'pull');
 
-  const chosen = (operation?: Operation) =>
-    operation?.kind === 'push' ? push : (operation ?? null);
-
-  const why = (operation?: Operation) => {
-    if (operation?.kind !== 'push') return t('toolbar.needsOperations');
-    return tree?.remotes.length ? t('toolbar.needsOperations') : t('toolbar.noRemote');
-  };
-
   return (
-    <div className="flex h-11 shrink-0 items-center gap-2 px-2">
+    <div className="flex h-10 shrink-0 items-center gap-2 px-2">
       <div className="w-64" aria-hidden />
-      <div className="flex flex-1 items-center justify-center gap-1">
-        {TOOLBAR_ACTIONS.map(({ label, icon, operation, asks, terminal }) => {
-          const Glyph = Icon[icon];
-          const runnable = chosen(operation);
+      <div className="flex min-w-0 flex-1 items-center justify-center">
+        <div className="bg-control-fill flex items-center gap-0.5 rounded-lg p-0.5">
+          <ExchangeDeck
+            tree={tree}
+            push={push}
+            busy={busy}
+            running={running}
+            pullMode={pullMode}
+            onPullMode={setPullMode}
+            onRun={onRun}
+          />
 
-          if (operation?.kind === 'pull') {
-            const wanted = pullOperation(pullMode);
-            const spinning = running === wanted.kind;
-            return (
-              <span
-                key={label}
-                className={cn(
-                  'group flex items-center rounded-md transition-colors has-[[data-state=open]]:bg-fill-1',
-                  !busy && HOVER_FILL,
-                )}
-              >
-                <Button
-                  variant="action"
-                  size="xs"
-                  className="rounded-r-none pr-1"
-                  disabled={busy}
-                  onClick={() => onRun(wanted)}
-                >
-                  {spinning ? (
-                    <Icon.waiting className="size-3.5 animate-spin" />
-                  ) : (
-                    <Glyph className="size-3.5" />
-                  )}
-                  {label}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="action"
-                      size="xs"
-                      reveal
-                      className="rounded-l-none px-1.5 data-[state=open]:opacity-100"
-                      disabled={busy}
-                      aria-label={t('pull.chooseDefault')}
-                    >
-                      <Icon.chevron className="size-3 rotate-90" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuLabel className="text-muted-foreground max-w-56 text-xs font-normal">
-                      {t('pull.chooseDefault')}
-                    </DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={pullMode}
-                      onValueChange={(next) => setPullMode(next as PullMode)}
-                    >
-                      {PULL_CHOICES.map(({ mode, label: choice }) => (
-                        <DropdownMenuRadioItem key={mode} value={mode}>
-                          {t(choice as 'pull.default')}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </span>
-            );
-          }
-
-          if (asks || terminal) {
+          {TOOLBAR_ACTIONS.map(({ label, icon, operation, asks, terminal }) => {
+            const Glyph = Icon[icon];
+            const spinning = operation !== undefined && running === operation.kind;
             return (
               <Button
                 key={label}
                 variant="action"
-                size="xs"
+                size="sm"
                 disabled={busy}
-                onClick={() => (terminal ? onTerminal() : onAsk(asks!))}
+                onClick={() =>
+                  terminal ? onTerminal() : asks ? onAsk(asks) : operation && onRun(operation)
+                }
               >
-                <Glyph className="size-3.5" />
+                {spinning ? (
+                  <Icon.waiting className="size-4 animate-spin" />
+                ) : (
+                  <Glyph className="size-4" />
+                )}
                 {label}
               </Button>
             );
-          }
-          const hint =
-            runnable?.kind === 'pushSetUpstream' ? t('toolbar.noUpstream') : why(operation);
-          const spinning = runnable !== null && running === runnable.kind;
-          const primary = operation?.kind === 'push' && runnable !== null && !busy;
-
-          const button = (
-            <Button
-              variant={primary ? 'default' : 'action'}
-              size="xs"
-              disabled={!runnable || busy}
-              onClick={() => runnable && onRun(runnable)}
-            >
-              {spinning ? (
-                <Icon.waiting className="size-3.5 animate-spin" />
-              ) : (
-                <Glyph className="size-3.5" />
-              )}
-              {label}
-              {primary && tree && tree.ahead > 0 ? (
-                <span className="tabular-nums opacity-85">{tree.ahead}</span>
-              ) : null}
-            </Button>
-          );
-
-          if (runnable && runnable.kind !== 'pushSetUpstream') {
-            return <span key={label}>{button}</span>;
-          }
-          return (
-            <Tooltip key={label}>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>{button}</span>
-              </TooltipTrigger>
-              <TooltipContent>{hint}</TooltipContent>
-            </Tooltip>
-          );
-        })}
+          })}
+        </div>
       </div>
 
       <div className="flex w-64 shrink-0 items-center gap-1">
         <SearchField
           value={search}
-          size="xs"
           placeholder={t('search.placeholder')}
           onChange={onSearch}
           onKeyDown={(e) => e.key === 'Enter' && onStep(e.shiftKey ? -1 : 1)}

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import * as ipc from '@/ipc';
 import {
   notifyCopied,
@@ -6,29 +6,14 @@ import {
   notifyOperation,
   notifyOperationFailed,
 } from '@/toast';
+import { runRepoWork } from './repoWork';
 import type { Operation, RefView } from '@/types';
 
 export function useOperations(active: string | null, reload: (path: string) => Promise<void>) {
-  const [running, setRunning] = useState<{ kind: string; target?: string } | null>(null);
-  const busy = running !== null;
-  const checkingOut = running?.kind === 'checkout' ? (running.target ?? null) : null;
-
-  const busyWhile = useCallback(
-    async (marker: { kind: string; target?: string }, work: () => Promise<unknown>) => {
-      setRunning(marker);
-      try {
-        await work();
-      } finally {
-        setRunning(null);
-      }
-    },
-    [],
-  );
-
   const runOperation = useCallback(
     (operation: Operation) => {
       if (!active) return;
-      void busyWhile({ kind: operation.kind }, async () => {
+      void runRepoWork(active, { kind: operation.kind }, async () => {
         try {
           await ipc.runOperation(active, operation, () => {});
         } catch (e) {
@@ -40,23 +25,20 @@ export function useOperations(active: string | null, reload: (path: string) => P
         await reload(active).catch(notifyError);
       });
     },
-    [active, reload, busyWhile],
+    [active, reload],
   );
 
   const checkoutRef = useCallback(
     (ref: RefView) => {
       if (!active) return;
-      void busyWhile({ kind: 'checkout', target: ref.name }, () =>
-        ipc
-          .checkoutRef(active, ref.name, ref.kind)
-          .then(() => reload(active))
-          .catch(notifyError),
+      void runRepoWork(active, { kind: 'checkout', target: ref.name }, () =>
+        ipc.checkoutRef(active, ref.name, ref.kind).then(() => reload(active)),
       );
     },
-    [active, reload, busyWhile],
+    [active, reload],
   );
 
-  return { running, busy, checkingOut, busyWhile, runOperation, checkoutRef };
+  return { runOperation, checkoutRef };
 }
 
 export const copyText = (text: string): void => {

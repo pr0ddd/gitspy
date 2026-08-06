@@ -14,14 +14,16 @@ const buttonVariants = cva(
           'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20',
         destructiveSoft:
           'bg-destructive/15 text-destructive hover:bg-destructive/25 focus-visible:ring-destructive/20',
-        outline: 'border-button-border border hover:bg-fill-1 hover:text-foreground',
+        outline: 'border-button-border border hover:bg-hover-fill hover:text-foreground',
         secondary: 'bg-fill-2 text-secondary-foreground hover:bg-fill-3',
-        ghost: 'hover:bg-fill-1 hover:text-foreground',
-        muted: 'text-muted-foreground hover:bg-fill-1 hover:text-foreground',
+        ghost: 'hover:bg-hover-fill hover:text-foreground',
+        muted: 'text-muted-foreground hover:bg-hover-fill hover:text-foreground',
         field:
           'bg-control-fill hover:bg-control-fill-hover text-muted-foreground hover:text-foreground',
         action:
-          'text-muted-foreground font-normal [&_svg]:opacity-75 hover:bg-fill-1 hover:text-foreground hover:[&_svg]:opacity-100',
+          'text-muted-foreground font-normal [&_svg]:opacity-75 hover:bg-hover-fill hover:text-foreground hover:[&_svg]:opacity-100',
+        split:
+          'text-muted-foreground font-normal [&_svg]:opacity-75 group-hover/split:text-foreground group-hover/split:[&_svg]:opacity-100',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
@@ -32,6 +34,8 @@ const buttonVariants = cva(
           "h-6.5 gap-1 rounded-md px-2 text-2xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         xs: "h-7 gap-1.5 rounded-md px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3",
         sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
+        'sm-lead': 'h-8 gap-1.5 rounded-md pr-1 pl-2.5',
+        'sm-tail': 'h-8 rounded-md px-1',
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
         'icon-2xs': "size-5 rounded-md [&_svg:not([class*='size-'])]:size-3",

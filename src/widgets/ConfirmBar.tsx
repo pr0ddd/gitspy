@@ -22,12 +22,12 @@ export function ConfirmBar({ operation, onConfirm, onCancel }: Props) {
   if (!operation) return null;
 
   return (
-    <div className="bg-primary/15 animate-in fade-in flex h-11 shrink-0 items-center justify-center gap-3 px-4 duration-150">
+    <div className="bg-primary/15 animate-in fade-in flex h-10 shrink-0 items-center justify-center gap-3 px-4 duration-150">
       <span className="text-sm">{t(`confirm.${operation.kind}` as 'confirm.discardAll')}</span>
-      <Button size="xs" variant="destructive" onClick={() => onConfirm(operation)}>
+      <Button size="sm" variant="destructive" onClick={() => onConfirm(operation)}>
         {t(`confirm.${operation.kind}Action` as 'confirm.discardAllAction')}
       </Button>
-      <Button size="xs" variant="secondary" onClick={onCancel}>
+      <Button size="sm" variant="secondary" onClick={onCancel}>
         {t('ask.cancel')}
       </Button>
     </div>

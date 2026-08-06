@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
+import { runRepoWork } from './repoWork';
 import { usePref } from '@/prefs';
 import { AI_DEFAULT_URLS, SETTINGS } from '@/settingsModel';
 import type { AiProviderId, WorkingTreeView } from '@/types';
@@ -18,13 +19,12 @@ export const composeCommitMessage = (summary: string, description: string): stri
 type Wiring = {
   active: string | null;
   mergeSubject: string | null;
-  busyWhile: (marker: { kind: string }, work: () => Promise<unknown>) => Promise<void>;
   reload: (path: string) => Promise<void>;
   adoptTree: (tree: WorkingTreeView) => void;
   onCommitted?: () => void;
 };
 
-export function useCommitDraft({ active, mergeSubject, busyWhile, reload, adoptTree, onCommitted }: Wiring) {
+export function useCommitDraft({ active, mergeSubject, reload, adoptTree, onCommitted }: Wiring) {
   const [message, setMessage] = useState('');
   const [description, setDescription] = useState('');
   const [amend, setAmend] = useState(false);
@@ -39,20 +39,18 @@ export function useCommitDraft({ active, mergeSubject, busyWhile, reload, adoptT
 
   const commit = useCallback(() => {
     if (!active || !message.trim()) return;
-    void busyWhile({ kind: 'commit' }, () =>
-      ipc
-        .commit(active, composeCommitMessage(message, description), amend)
-        .then((updated) => {
-          adoptTree(updated);
-          setMessage('');
-          setDescription('');
-          setAmend(false);
-          onCommitted?.();
-          return reload(active);
-        })
-        .catch(notifyError),
-    );
-  }, [active, message, description, amend, reload, busyWhile, adoptTree]);
+    void runRepoWork(active, { kind: 'commit' }, () =>
+      ipc.commit(active, composeCommitMessage(message, description), amend).then((updated) => {
+        adoptTree(updated);
+        setMessage('');
+        setDescription('');
+        setAmend(false);
+        return reload(active);
+      }),
+    ).then((committed) => {
+      if (committed) onCommitted?.();
+    });
+  }, [active, message, description, amend, reload, adoptTree, onCommitted]);
 
   return { message, setMessage, description, setDescription, amend, setAmend, commit };
 }
