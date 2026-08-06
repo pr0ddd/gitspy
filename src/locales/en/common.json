@@ -205,7 +205,6 @@
   "settings.connect": "Connect GitHub",
   "settings.connectHint": "The browser opens on github.com, you confirm there, and that is it. No token is typed anywhere.",
   "settings.disconnect": "Disconnect",
-  "settings.exit": "Exit settings",
   "settings.general": "General",
   "settings.integrations": "Integrations",
   "settings.nothingYet": "Nothing to set up here yet.",

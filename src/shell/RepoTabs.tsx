@@ -9,19 +9,23 @@ import { Hint } from '@/components/ui/tooltip';
 type Props = {
   sessions: Session[];
   active: string | null;
+  settings: 'closed' | 'open' | 'active';
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onStart: () => void;
   onSettings: () => void;
+  onCloseSettings: () => void;
 };
 
 export function RepoTabs({
   sessions,
   active,
+  settings,
   onActivate,
   onClose,
   onStart,
   onSettings,
+  onCloseSettings,
 }: Props) {
   const { t } = useTranslation();
 
@@ -64,6 +68,35 @@ export function RepoTabs({
             </div>
         );
       })}
+      {settings === 'closed' ? null : (
+        <div
+          onClick={onSettings}
+          className={cn(
+            'group flex h-7.5 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-3 text-xs whitespace-nowrap transition-colors',
+            settings === 'active'
+              ? 'bg-fill-2 text-foreground'
+              : 'text-muted-foreground hover:bg-fill-1',
+          )}
+        >
+          <Icon.settings
+            className={cn('size-3.5 shrink-0', settings === 'active' ? '' : 'opacity-75')}
+          />
+          <span>{t('settings.title')}</span>
+          <Button
+            variant="muted"
+            size="icon-2xs"
+            reveal
+            className={cn(settings === 'active' && 'opacity-100')}
+            aria-label={t('repo.close')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCloseSettings();
+            }}
+          >
+            <Icon.close />
+          </Button>
+        </div>
+      )}
       <Hint text={t('start.title')}>
         <Button
           variant="ghost"

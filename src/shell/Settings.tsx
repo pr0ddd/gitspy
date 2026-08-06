@@ -13,7 +13,6 @@ const HOST = 'github';
 type Props = {
   open: boolean;
   account: AccountView | null;
-  onOpenChange: (open: boolean) => void;
   onDisconnected: () => void;
 };
 
@@ -44,24 +43,17 @@ export function SettingRow({
   );
 }
 
-export function Settings({ open, account, onOpenChange, onDisconnected }: Props) {
+export function Settings({ open, account, onDisconnected }: Props) {
   const { t } = useTranslation();
   const [section, setSection] = usePref<SectionKey>('settings.section', 'general');
 
   if (!open) return null;
 
   return (
-    <div className="bg-background fixed inset-0 z-40 flex">
-      <aside className="border-border flex w-64 shrink-0 flex-col border-r pt-10">
-        <button
-          onClick={() => onOpenChange(false)}
-          className="text-foreground hover:bg-fill-1 mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-sm font-medium transition-colors"
-        >
-          <Icon.back className="size-4" />
-          {t('settings.exit')}
-        </button>
-
-        <span className="text-faint px-4 pt-6 pb-2 text-xs">{t('settings.title')}</span>
+    <div className="flex min-w-0 flex-1 pl-2">
+      <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border">
+      <aside className="border-border flex w-56 shrink-0 flex-col border-r py-3">
+        <span className="text-faint px-4 pb-2 text-xs">{t('settings.title')}</span>
         {SECTIONS.map(({ key, label, icon }) => {
           const Glyph = Icon[icon];
           return (
@@ -83,7 +75,7 @@ export function Settings({ open, account, onOpenChange, onDisconnected }: Props)
       </aside>
 
       <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-6 px-8 py-12">
+        <div className="mx-auto max-w-2xl space-y-6 px-8 py-10">
           {section === 'general' ? (
             <p className="text-muted-foreground text-sm">{t('settings.nothingYet')}</p>
           ) : (
@@ -94,6 +86,7 @@ export function Settings({ open, account, onOpenChange, onDisconnected }: Props)
           )}
         </div>
       </main>
+      </div>
     </div>
   );
 }
