@@ -1,5 +1,5 @@
 import { dividerAt, type Cols, type Divider } from './columns';
-import { HEADER_H, HSCROLL_H, listWidth, maxScroll, rowAtY, VSCROLL_W, type Metrics } from './scene';
+import { HEADER_H, HSCROLL_H, listWidth, maxScroll, rowAtY, type Metrics } from './scene';
 
 export type PointerTarget =
   | { kind: 'minimap' }
@@ -26,7 +26,7 @@ export function pointerTarget(x: number, y: number, scene: PointerScene): Pointe
   if (
     !minimap &&
     y >= HEADER_H &&
-    x >= listWidth(width, false) - VSCROLL_W &&
+    x >= listWidth(width, false) &&
     maxScroll(metrics, count, height) > 0
   ) {
     return { kind: 'vscroll' };
