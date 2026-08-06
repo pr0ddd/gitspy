@@ -13,6 +13,53 @@ pub struct Known {
     pub repos: Vec<Repo>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum HostKind {
+    GitHub,
+    GitLab,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Connection {
+    pub id: String,
+    pub kind: HostKind,
+    pub base_url: String,
+    pub login: String,
+}
+
+fn connections_file(dir: &Path) -> PathBuf {
+    dir.join("connections.json")
+}
+
+pub fn load_connections(dir: &Path) -> Vec<Connection> {
+    if let Ok(text) = std::fs::read_to_string(connections_file(dir)) {
+        if let Ok(found) = serde_json::from_str::<Vec<Connection>>(&text) {
+            return found;
+        }
+    }
+    let orphan = read(dir, "github");
+    match orphan.account {
+        Some(account) => vec![Connection {
+            id: "github".into(),
+            kind: HostKind::GitHub,
+            base_url: "https://github.com".into(),
+            login: account.login,
+        }],
+        None => Vec::new(),
+    }
+}
+
+pub fn save_connections(dir: &Path, connections: &[Connection]) {
+    if std::fs::create_dir_all(dir).is_err() {
+        return;
+    }
+    if let Ok(text) = serde_json::to_string_pretty(connections) {
+        let _ = std::fs::write(connections_file(dir), text);
+    }
+}
+
 pub fn secrets(dir: &Path) -> Files {
     Files::at(dir)
 }
@@ -156,4 +203,51 @@ mod tests {
         assert!(read(dir.path(), "github").account.is_none());
         assert!(read(dir.path(), "gitlab").account.is_some());
     }
+
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn an_old_lone_github_account_reads_as_a_connection() {
+        let dir = TempDir::new().expect("временный каталог");
+        save(
+            dir.path(),
+            "github",
+            &Known {
+                account: Some(Account {
+                    host: "github".into(),
+                    login: "pr0ddd".into(),
+                    name: None,
+                    avatar_url: String::new(),
+                }),
+                repos: Vec::new(),
+            },
+        );
+
+        let found = load_connections(dir.path());
+        assert_eq!(
+            found,
+            vec![Connection {
+                id: "github".into(),
+                kind: HostKind::GitHub,
+                base_url: "https://github.com".into(),
+                login: "pr0ddd".into(),
+            }],
+            "старый одиночный аккаунт не должен пропасть при обновлении приложения"
+        );
+    }
+
+    #[test]
+    fn the_connection_list_round_trips() {
+        let dir = TempDir::new().expect("временный каталог");
+        let wanted = vec![Connection {
+            id: "gitlab".into(),
+            kind: HostKind::GitLab,
+            base_url: "https://gitlab.com".into(),
+            login: "dev".into(),
+        }];
+        save_connections(dir.path(), &wanted);
+        assert_eq!(load_connections(dir.path()), wanted);
+    }
+
 }
