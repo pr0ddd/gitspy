@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePref } from '@/prefs';
+import { HOVER_FILL } from '@/parts';
 import type { Operation, WorkingTreeView } from '@/types';
 import { TOOLBAR_ACTIONS } from '@/vocabulary';
 import { Icon } from '@/icons';
@@ -92,7 +93,7 @@ export function Toolbar({
                 key={label}
                 className={cn(
                   'group flex items-center rounded-md transition-colors has-[[data-state=open]]:bg-fill-1',
-                  !busy && 'hover:bg-fill-1',
+                  !busy && HOVER_FILL,
                 )}
               >
                 <Button

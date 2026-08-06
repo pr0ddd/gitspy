@@ -13,7 +13,7 @@ import { buildChipMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { usePref } from '@/prefs';
 import { clampPanel, PANEL_LIMITS } from '@/resize';
-import { InlineNote, ListRow, NavItem, ResizeGrip } from '@/parts';
+import { HOVER_FILL, InlineNote, ListRow, NavItem, ResizeGrip } from '@/parts';
 import type { Ask } from './AskBar';
 import type { Operation, PullListView, PullView, RefKind, RefView, WorktreeView } from '@/types';
 
@@ -204,7 +204,7 @@ function ViewSwitch({
                 'flex h-8 items-center rounded-full px-2 text-xs transition-colors',
                 chosen
                   ? 'bg-fill-2 text-foreground min-w-0 font-medium'
-                  : 'text-muted-foreground hover:bg-fill-1 hover:text-foreground shrink-0',
+                  : cn(HOVER_FILL, 'text-muted-foreground hover:text-foreground shrink-0'),
               )}
             >
               <Glyph className="size-3.5 shrink-0" />
