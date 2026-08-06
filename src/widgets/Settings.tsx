@@ -18,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  AI_DEFAULT_URLS,
+  AI_PROVIDERS,
   AUTOFETCH_LIMITS,
   clampAutofetch,
   clampFontSize,
@@ -39,7 +41,7 @@ import {
   type DescriptionMode,
   type HideableColumn,
 } from '@/entities/graph';
-import type { AccountView } from '@/types';
+import type { AccountView, AiProviderId } from '@/types';
 import { HOSTS, HostCard } from '@/widgets/HostConnect';
 
 type Props = {
@@ -54,13 +56,14 @@ type Props = {
   onDisconnected: () => void;
 };
 
-type SectionKey = 'general' | 'interface' | 'editor' | 'integrations';
+type SectionKey = 'general' | 'interface' | 'editor' | 'integrations' | 'ai';
 
 const SECTIONS: ReadonlyArray<{ key: SectionKey; label: string; icon: IconName }> = [
   { key: 'general', label: 'settings.general', icon: 'settings' },
   { key: 'interface', label: 'settings.interface', icon: 'appearance' },
   { key: 'editor', label: 'settings.editor', icon: 'edit' },
   { key: 'integrations', label: 'settings.integrations', icon: 'host' },
+  { key: 'ai', label: 'settings.ai', icon: 'sparkle' },
 ];
 
 export function SettingRow({
@@ -180,6 +183,8 @@ export function Settings({
               />
             ) : section === 'editor' ? (
               <EditorSection />
+            ) : section === 'ai' ? (
+              <AiSection />
             ) : (
               <IntegrationsSection account={account} onDisconnected={onDisconnected} />
             )}
@@ -413,6 +418,99 @@ const installedFonts = (): string[] =>
   typeof document !== 'undefined' && document.fonts
     ? monospaceChoices((family) => document.fonts.check(`12px '${family}'`))
     : [];
+
+function AiSection() {
+  const { t } = useTranslation();
+  const [provider, setProvider] = usePref<AiProviderId>(SETTINGS.aiProvider, 'ollama');
+  const [baseUrl, setBaseUrl] = usePref<string>(SETTINGS.aiBaseUrl, '');
+  const [model, setModel] = usePref<string>(SETTINGS.aiModel, '');
+  const [models, setModels] = useState<string[]>([]);
+  const [checking, setChecking] = useState(false);
+
+  const url = baseUrl.trim() || AI_DEFAULT_URLS[provider];
+  const chosen = AI_PROVIDERS.find((p) => p.key === provider) ?? AI_PROVIDERS[0];
+
+  const pickProvider = (next: string) => {
+    setProvider(next as AiProviderId);
+    setModels([]);
+    setModel('');
+  };
+
+  const check = () => {
+    setChecking(true);
+    ipc
+      .aiListModels(provider, url)
+      .then((found) => {
+        setModels(found);
+        if (!found.includes(model)) setModel(found[0] ?? '');
+      })
+      .catch(notifyError)
+      .finally(() => setChecking(false));
+  };
+
+  return (
+    <div className="space-y-7">
+      <SettingRow label={t('settings.aiProvider')} hint={t('settings.aiProviderHint')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-72 justify-between font-normal">
+              {t(chosen.label as 'settings.aiOllama')}
+              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuRadioGroup value={provider} onValueChange={pickProvider}>
+              {AI_PROVIDERS.map((entry) => (
+                <DropdownMenuRadioItem key={entry.key} value={entry.key}>
+                  {t(entry.label as 'settings.aiOllama')}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SettingRow>
+
+      <SettingRow label={t('settings.aiServer')} hint={t('settings.aiServerHint')}>
+        <div className="flex w-72 items-center gap-2">
+          <Input
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder={AI_DEFAULT_URLS[provider]}
+          />
+          <Button variant="outline" size="sm" disabled={checking} onClick={check}>
+            {checking ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
+            {t('settings.aiCheck')}
+          </Button>
+        </div>
+      </SettingRow>
+
+      <SettingRow label={t('settings.aiModel')} hint={t('settings.aiModelHint')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={models.length === 0 && !model}
+              className="w-72 justify-between font-normal"
+            >
+              <span className="truncate">{model || t('settings.aiNoModel')}</span>
+              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuRadioGroup value={model} onValueChange={setModel}>
+              {models.map((name) => (
+                <DropdownMenuRadioItem key={name} value={name}>
+                  {name}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SettingRow>
+    </div>
+  );
+}
 
 function EditorSection() {
   const { t } = useTranslation();
