@@ -148,7 +148,7 @@ export function StatusBadge({ letter }: { letter: string }) {
   return (
     <span
       className={cn(
-        'text-2xs flex size-3.5 shrink-0 items-center justify-center rounded-sm font-semibold',
+        'text-2xs flex size-3.5 shrink-0 items-center justify-center rounded-xs font-semibold',
         STATUS_TONE[letter] ?? 'bg-fill-2 text-muted-foreground',
       )}
     >
@@ -186,7 +186,7 @@ export function PanelBanner({
       </span>
       <Button
         variant={tone === 'conflict' ? 'destructiveSoft' : 'default'}
-        size="2xs"
+        size="3xs"
         onClick={onClick}
       >
         {action}

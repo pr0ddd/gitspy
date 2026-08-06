@@ -4,13 +4,12 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
-import { GIT } from '@/vocabulary';
 import { Icon } from '@/icons';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import { FilePath, HOVER_FILL, ListRow, PanelBanner, PanelBar, PanelNote, SectionHeader, StatusBadge } from '@/parts';
+import { FilePath, HOVER_FILL, ListRow, PanelBanner, PanelNote, SectionHeader, StatusBadge } from '@/parts';
 import type { ChangedFileView, RefKind } from '@/types';
 
 type Props = {
@@ -53,7 +52,7 @@ function MetaPill({
       title={title}
       onClick={onClick}
       className={cn(
-        'text-2xs inline-flex h-5 max-w-full items-center gap-1 rounded-md border px-1.5',
+        'inline-flex h-6 max-w-full items-center gap-1.5 rounded-md border px-2 text-xs',
         head ? 'border-primary/40 text-foreground' : 'text-muted-foreground',
         onClick && HOVER_FILL,
       )}
@@ -142,18 +141,17 @@ export function Details({
         />
       ) : null}
 
-      <PanelBar className="border-t-0">
-        <Icon.commit className="text-muted-foreground size-3.5" />
-        <span className="text-muted-foreground">{GIT.commit}</span>
-      </PanelBar>
-
       <div className="shrink-0">
-        <div className="space-y-3 px-5 pt-2 pb-5">
-          <p className="text-foreground text-sm leading-snug font-semibold">{row.subject}</p>
+        <div className="space-y-3 px-5 pt-4 pb-5">
+          <p className="text-subject text-base leading-snug font-semibold">{row.subject}</p>
 
           <div className="flex flex-wrap gap-1.5">
-            <MetaPill title={row.email}>{row.author}</MetaPill>
+            <MetaPill title={row.email}>
+              <Icon.person className="size-3 shrink-0 opacity-70" />
+              {row.author}
+            </MetaPill>
             <MetaPill>
+              <Icon.clock className="size-3 shrink-0 opacity-70" />
               <span className="tabular-nums">
                 {new Intl.DateTimeFormat(i18n.language, {
                   dateStyle: 'medium',
@@ -162,6 +160,7 @@ export function Details({
               </span>
             </MetaPill>
             <MetaPill title={t('details.copyHash')} onClick={() => onCopy(row.hash)}>
+              <Icon.hash className="size-3 shrink-0 opacity-70" />
               <span className="font-mono">{row.hash.slice(0, 8)}</span>
               <Icon.copy className="size-2.5 opacity-60" />
             </MetaPill>
@@ -177,7 +176,7 @@ export function Details({
           </div>
 
           {row.body ? (
-            <p className="text-muted-foreground max-h-40 overflow-y-auto text-xs leading-relaxed break-words whitespace-pre-wrap">
+            <p className="text-subject max-h-40 overflow-y-auto text-xs leading-relaxed break-words whitespace-pre-wrap">
               {row.body}
             </p>
           ) : null}
