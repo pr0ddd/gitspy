@@ -6,8 +6,13 @@ import { vi } from 'vitest';
 vi.mock('@/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   setAutofetchMinutes: vi.fn(() => Promise.resolve()),
-  aiListModels: vi.fn(() => Promise.resolve(['qwen2.5-coder', 'llama3.1'])),
+  aiDetectServer: vi.fn(() =>
+    Promise.resolve({ provider: 'lmstudio', models: ['qwen2.5-coder', 'llama3.1'] }),
+  ),
+  onHostConnected: vi.fn(() => Promise.resolve(() => {})),
+  onHostFailed: vi.fn(() => Promise.resolve(() => {})),
 }));
+import * as ipc from '@/ipc';
 import { Settings } from './Settings';
 
 const render = (ui: React.ReactElement) => bare(<TooltipProvider>{ui}</TooltipProvider>);
@@ -66,45 +71,48 @@ describe('страница настроек', () => {
 describe('секция AI', () => {
   beforeEach(() => localStorage.clear());
 
-  it('провайдер задаёт плейсхолдер адреса, проверка наполняет список моделей', async () => {
+  it('проверка адреса сама определяет провайдера и выбирает первую модель', async () => {
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
 
-    expect(
-      screen.getByPlaceholderText('http://localhost:11434'),
-      'по умолчанию провайдер Ollama со своим портом',
-    ).toBeTruthy();
-
     fireEvent.click(screen.getByRole('button', { name: 'Load models' }));
+
     expect(
       await screen.findByRole('button', { name: 'qwen2.5-coder' }),
       'первая модель из ответа сервера выбирается сама',
     ).toBeTruthy();
     expect(
+      localStorage.getItem('gitspy.ai.provider'),
+      'провайдера называет сервер, а не пользователь',
+    ).toBe('"lmstudio"');
+    expect(
       localStorage.getItem('gitspy.ai.model'),
       'выбор модели пишется в преф, который читает кнопка генерации',
     ).toBe('"qwen2.5-coder"');
+    expect(
+      screen.getByText('Found LM Studio at this address.'),
+      'найденный провайдер назван человеку',
+    ).toBeTruthy();
   });
 
-  it('смена провайдера сбрасывает модель и меняет плейсхолдер', async () => {
-    localStorage.setItem('gitspy.ai.model', '"qwen2.5-coder"');
+  it('пустой адрес пробует оба локальных порта по очереди', async () => {
+    vi.mocked(ipc.aiDetectServer)
+      .mockClear()
+      .mockRejectedValueOnce(new Error('dead'))
+      .mockResolvedValueOnce({ provider: 'lmstudio', models: ['llama3.1'] });
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
 
-    fireEvent.pointerDown(
-      screen.getByRole('button', { name: 'Ollama' }),
-      { button: 0, ctrlKey: false, pointerId: 1 },
-    );
-    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'LM Studio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load models' }));
 
     expect(
-      screen.getByPlaceholderText('http://localhost:1234'),
-      'плейсхолдер следует за провайдером',
+      await screen.findByRole('button', { name: 'llama3.1' }),
+      'второй порт спасает, когда первый молчит',
     ).toBeTruthy();
-    expect(
-      localStorage.getItem('gitspy.ai.model'),
-      'список моделей принадлежит серверу: чужая модель не переживает смену провайдера',
-    ).toBe('""');
+    expect(vi.mocked(ipc.aiDetectServer).mock.calls.map((call) => call[0])).toEqual([
+      'http://localhost:11434',
+      'http://localhost:1234',
+    ]);
   });
 });
 

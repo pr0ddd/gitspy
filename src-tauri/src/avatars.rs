@@ -58,6 +58,7 @@ pub fn read_index(dir: &Path) -> Index {
         index.refused.clear();
         index.version = RESOLVER_GENERATION;
     }
+    index.files.retain(|_, name| root(dir).join(name).exists());
     index
 }
 
@@ -296,6 +297,8 @@ mod tests {
     fn refusals_of_an_older_resolver_are_retried_and_files_are_kept() {
         let dir = tempfile::TempDir::new().expect("временный каталог");
         std::fs::create_dir_all(dir.path().join("avatars")).expect("каталог аватарок");
+        std::fs::write(dir.path().join("avatars").join("x.img"), b"png")
+            .expect("картинка на диске");
         std::fs::write(
             dir.path().join("avatars").join("index.json"),
             r#"{"files":{"a@e":"x.img"},"refused":["b@e"]}"#,
@@ -311,6 +314,28 @@ mod tests {
             back.files.get("a@e").map(String::as_str),
             Some("x.img"),
             "скачанные картинки переживают смену резолвера"
+        );
+    }
+
+    #[test]
+    fn an_entry_whose_file_vanished_is_forgotten_so_the_picture_is_fetched_again() {
+        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let mut index = Index::default();
+        keep_image(dir.path(), "kept@e", b"png", &mut index);
+        keep_image(dir.path(), "lost@e", b"png", &mut index);
+        save_index(dir.path(), &index);
+
+        let lost = root(dir.path()).join(index.files.get("lost@e").expect("записан"));
+        std::fs::remove_file(lost).expect("картинка исчезла мимо нас");
+
+        let back = read_index(dir.path());
+        assert!(
+            !back.files.contains_key("lost@e"),
+            "индекс без файла обещает картинку, которой нет: фронт получит битый путь, а резолвер сочтёт email известным и никогда не скачает заново"
+        );
+        assert!(
+            back.files.contains_key("kept@e"),
+            "уцелевшие картинки чистка не задевает"
         );
     }
 

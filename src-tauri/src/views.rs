@@ -201,6 +201,13 @@ mod ref_view_tests {
 
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
+pub struct AiServerView {
+    pub provider: String,
+    pub models: Vec<String>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 pub struct CommitDraftView {
     pub summary: String,
     pub description: String,
