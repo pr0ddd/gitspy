@@ -14,13 +14,19 @@ const LOCK_FILES: &[&str] = &[
 
 pub fn trim_diff(diff: &str) -> String {
     let mut out = String::new();
+    let mut unlisted = 0usize;
     for chunk in split_files(diff) {
         let shaped = shape_file(chunk);
-        if out.len() + shaped.len() > TOTAL_LIMIT {
+        if out.len() + shaped.len() <= TOTAL_LIMIT {
+            out.push_str(&shaped);
+        } else if out.len() < TOTAL_LIMIT {
             out.push_str(&counted_header(chunk));
         } else {
-            out.push_str(&shaped);
+            unlisted += 1;
         }
+    }
+    if unlisted > 0 {
+        out.push_str(&format!("[{unlisted} more changed files]\n"));
     }
     out
 }
@@ -184,16 +190,30 @@ mod tests {
             diff.push_str(&file_chunk(&format!("src/file{n}.rs"), 100));
         }
         let trimmed = trim_diff(&diff);
-        assert!(trimmed.len() <= TOTAL_LIMIT + 4096, "общий лимит держится");
-        for n in 0..40 {
-            assert!(
-                trimmed.contains(&format!("file{n}.rs")),
-                "каждый затронутый файл виден модели хотя бы именем"
-            );
-        }
+        assert!(
+            trimmed.len() <= TOTAL_LIMIT + FILE_LIMIT,
+            "общий лимит держится"
+        );
         assert!(
             trimmed.contains("(+100 -0)"),
             "у свёрнутого файла счётчик строк"
+        );
+    }
+
+    #[test]
+    fn hundreds_of_files_stay_bounded_by_a_tail_counter() {
+        let mut diff = String::new();
+        for n in 0..500 {
+            diff.push_str(&file_chunk(&format!("src/file{n}.rs"), 100));
+        }
+        let trimmed = trim_diff(&diff);
+        assert!(
+            trimmed.len() <= TOTAL_LIMIT + FILE_LIMIT,
+            "и на сотнях файлов выход не растёт: заголовки хвоста не бесплатны"
+        );
+        assert!(
+            trimmed.contains("more changed files]"),
+            "невместившийся хвост считается одной строкой, а не перечисляется"
         );
     }
 }
