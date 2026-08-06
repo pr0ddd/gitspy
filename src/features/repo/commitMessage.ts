@@ -75,7 +75,7 @@ export function useGenerateCommit({
     if (readiness !== 'ready' || generating) return;
     setGenerating(true);
     ipc
-      .aiGenerateCommit(repo, provider, baseUrl.trim() || AI_DEFAULT_URLS[provider], model)
+      .aiGenerateCommit(repo, baseUrl.trim() || AI_DEFAULT_URLS[provider], model)
       .then((draft) => onDraft(draft.summary, draft.description))
       .catch(notifyError)
       .finally(() => setGenerating(false));

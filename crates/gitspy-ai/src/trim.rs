@@ -1,5 +1,5 @@
-pub const FILE_LIMIT: usize = 4096;
-pub const TOTAL_LIMIT: usize = 49152;
+pub const FILE_LIMIT: usize = 2048;
+pub const TOTAL_LIMIT: usize = 10240;
 
 const LOCK_FILES: &[&str] = &[
     "package-lock.json",

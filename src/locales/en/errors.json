@@ -5,7 +5,6 @@
   "ai.noModels": "The server at {{url}} has no models installed yet",
   "ai.refused": "The AI server rejected the request",
   "ai.nothingStaged": "Stage changes to generate a commit message",
-  "ai.unknownProvider": "Unknown AI provider: {{provider}}",
   "ai.unreachable": "Could not reach the AI server at {{url}}",
   "app.dataDir": "Could not reach the application data folder",
   "app.stateLock": "Application state is unavailable",
