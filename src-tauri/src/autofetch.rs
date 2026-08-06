@@ -15,14 +15,23 @@ pub fn interval(minutes: u64) -> Duration {
     Duration::from_secs(minutes.max(1) * 60)
 }
 
-pub fn start(app: tauri::AppHandle, minutes: u64) {
-    if minutes == 0 {
-        return;
-    }
+pub fn due(elapsed: Duration, minutes: u64) -> bool {
+    minutes > 0 && elapsed >= interval(minutes)
+}
 
-    std::thread::spawn(move || loop {
-        std::thread::sleep(interval(minutes));
-        sweep(&app);
+const TICK: Duration = Duration::from_secs(15);
+
+pub fn start(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let mut swept = std::time::Instant::now();
+        loop {
+            std::thread::sleep(TICK);
+            let minutes = app.state::<AppState>().autofetch_minutes();
+            if due(swept.elapsed(), minutes) {
+                sweep(&app);
+                swept = std::time::Instant::now();
+            }
+        }
     });
 }
 
@@ -89,6 +98,20 @@ mod tests {
             interval(0),
             Duration::from_secs(60),
             "нулевой интервал крутил бы фетч без остановки"
+        );
+    }
+
+    #[test]
+    fn the_sweep_is_due_by_the_current_setting_and_zero_switches_it_off() {
+        assert!(due(Duration::from_secs(60), 1));
+        assert!(!due(Duration::from_secs(59), 1), "рано: минута ещё не прошла");
+        assert!(
+            !due(Duration::from_secs(3600), 0),
+            "ноль — это выключено, а не «фетчить всегда»"
+        );
+        assert!(
+            due(Duration::from_secs(300), 5),
+            "смена настройки действует со следующего тика, без перезапуска"
         );
     }
 }

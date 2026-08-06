@@ -40,3 +40,12 @@ export const TOOLBAR_ACTIONS: ReadonlyArray<{
   { label: GIT.pop, icon: 'stash', operation: { kind: 'stashPop' } },
   { label: GIT.terminal, icon: 'terminal', terminal: true },
 ];
+
+export type PullMode = 'fetch' | 'pull' | 'pullFfOnly' | 'pullRebase';
+
+export const PULL_CHOICES: ReadonlyArray<{ mode: PullMode; label: string }> = [
+  { mode: 'fetch', label: 'pull.fetchAll' },
+  { mode: 'pull', label: 'pull.default' },
+  { mode: 'pullFfOnly', label: 'pull.ffOnly' },
+  { mode: 'pullRebase', label: 'pull.rebase' },
+];

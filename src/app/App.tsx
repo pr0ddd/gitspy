@@ -22,6 +22,7 @@ import {
   useSessionActions,
 } from '@/features/repo';
 import { useZoom } from '@/zoom';
+import { clampAutofetch, SETTINGS } from '@/settingsModel';
 import { BottomBar } from '@/widgets/BottomBar';
 import { DetailsPane } from '@/widgets/DetailsPane';
 import type {
@@ -104,6 +105,9 @@ export default function App() {
 
   useEffect(() => {
     ipc.recentRepos().then(setRecent).catch(notifyError);
+    void ipc
+      .setAutofetchMinutes(clampAutofetch(readPref(SETTINGS.autofetchMinutes, 1)))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { readPref, writePref } from '@/prefs';
+import { SETTINGS } from '@/settingsModel';
 import type { Session, SessionsAction } from '@/entities/repo';
 import type { RecentRepo } from '@/types';
 
@@ -31,6 +32,7 @@ export function useSessionActions({ sessions, active, dispatch, load, drop, setR
   useEffect(() => {
     if (restoredRef.current) return;
     restoredRef.current = true;
+    if (!readPref<boolean>(SETTINGS.rememberTabs, true)) return;
     const stored = readPref<string[]>('session.open', []);
     stored.forEach((path) => openPath(path));
     const lastActive = readPref<string | null>('session.active', null);
@@ -41,6 +43,11 @@ export function useSessionActions({ sessions, active, dispatch, load, drop, setR
 
   useEffect(() => {
     if (!restoredRef.current) return;
+    if (!readPref<boolean>(SETTINGS.rememberTabs, true)) {
+      writePref('session.open', []);
+      writePref('session.active', null);
+      return;
+    }
     writePref(
       'session.open',
       sessions.map((s) => s.path),
@@ -64,7 +71,8 @@ export function useSessionActions({ sessions, active, dispatch, load, drop, setR
       title: t('start.createTitle'),
     });
     if (typeof picked !== 'string') return;
-    ipc.initRepo(picked).then(openPath).catch(notifyError);
+    const branch = readPref<string>(SETTINGS.initBranch, '').trim();
+    ipc.initRepo(picked, branch || null).then(openPath).catch(notifyError);
   }, [t, openPath]);
 
   const closeRepo = useCallback(
