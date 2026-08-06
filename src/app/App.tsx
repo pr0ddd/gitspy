@@ -206,7 +206,7 @@ export default function App() {
       },
     });
 
-  const { openPath, pickRepo, closeRepo, forget } = useSessionActions({
+  const { openPath, pickRepo, closeRepo, forget, favorite } = useSessionActions({
     sessions,
     active,
     dispatch,
@@ -349,6 +349,7 @@ export default function App() {
               onOpen={pickRepo}
               onOpenPath={openPath}
               onForget={forget}
+              onFavorite={favorite}
               onClone={(url) => setAdding({ mode: 'clone', url })}
               onCreate={() => setAdding({ mode: 'init', url: '' })}
               onConnect={() => setSettings('active')}
