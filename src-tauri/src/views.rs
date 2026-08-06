@@ -212,7 +212,7 @@ pub struct WorktreeView {
 
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum RowView {
     #[serde(rename_all = "camelCase")]
     Commit {
@@ -447,7 +447,7 @@ pub struct AccountView {
 }
 
 #[derive(Serialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 #[ts(export, export_to = "../../src/generated/")]
 pub enum ConnectStartView {
     DeviceCode {

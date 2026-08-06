@@ -12,11 +12,10 @@ import { usePref } from '@/prefs';
 import * as ipc from '@/ipc';
 import { relativeTime } from '@/time';
 import { Hint } from '@/components/ui/tooltip';
-import type { AccountView, RecentRepo, RepoListingView } from '@/types';
+import type { ConnectionView, RecentRepo, RepoListingView } from '@/types';
 
 type Props = {
   recent: RecentRepo[];
-  account: AccountView | null;
   onOpen: () => void;
   onOpenPath: (path: string) => void;
   onForget: (path: string) => void;
@@ -25,7 +24,7 @@ type Props = {
   onConnect: () => void;
 };
 
-type Source = 'local' | 'github';
+type Source = string;
 
 const shorten = (path: string) => {
   const match = path.match(/^\/(?:Users|home)\/[^/]+(\/.*)?$/);
@@ -73,7 +72,6 @@ function SourceRow({
 
 export function StartPage({
   recent,
-  account,
   onOpen,
   onOpenPath,
   onForget,
@@ -88,9 +86,27 @@ export function StartPage({
   const [repos, setRepos] = useState<RepoListingView[]>([]);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [links, setLinks] = useState<ConnectionView[]>([]);
 
   useEffect(() => {
-    if (!account) {
+    let alive = true;
+    const pull = () =>
+      ipc
+        .connections()
+        .then((found) => alive && setLinks(found))
+        .catch(() => undefined);
+    void pull();
+    const stop = ipc.onHostConnected(() => void pull());
+    return () => {
+      alive = false;
+      void stop.then((off) => off());
+    };
+  }, []);
+
+  const connection = links.find((c) => c.id === source) ?? null;
+
+  useEffect(() => {
+    if (!connection) {
       setRepos([]);
       return;
     }
@@ -98,20 +114,21 @@ export function StartPage({
     setBusy(true);
     setFailed(false);
     ipc
-      .hostRepos('github', false)
+      .hostRepos(connection.id, false)
       .then((found) => alive && setRepos(found))
       .catch(() => alive && setFailed(true))
       .finally(() => alive && setBusy(false));
     return () => {
       alive = false;
     };
-  }, [account]);
+  }, [connection?.id]);
 
   const refresh = () => {
+    if (!connection) return;
     setBusy(true);
     setFailed(false);
     ipc
-      .hostRepos('github', true)
+      .hostRepos(connection.id, true)
       .then(setRepos)
       .catch(() => setFailed(true))
       .finally(() => setBusy(false));
@@ -130,7 +147,7 @@ export function StartPage({
   );
 
   const local = source === 'local';
-  const hasRows = local ? shownRecent.length > 0 : account !== null && shownRepos.length > 0;
+  const hasRows = local ? shownRecent.length > 0 : connection !== null && shownRepos.length > 0;
 
   return (
     <>
@@ -155,20 +172,29 @@ export function StartPage({
           <div className="text-faint flex h-6 items-center px-2.5 text-2xs tracking-wide uppercase">
             {t('start.accounts')}
           </div>
-          <SourceRow
-            chosen={!local}
-            label={account ? account.login : 'GitHub'}
-            count={account ? repos.length : undefined}
-            connect={!account}
-            badge={
-              account ? (
-                <img src={account.avatarUrl} alt="" className="size-5" />
-              ) : (
-                <Icon.github className="text-muted-foreground size-3" />
-              )
-            }
-            onPick={() => setSource('github')}
-          />
+          {links.length === 0 ? (
+            <SourceRow
+              chosen={false}
+              label="GitHub · GitLab"
+              connect
+              badge={<Icon.github className="text-muted-foreground size-3" />}
+              onPick={onConnect}
+            />
+          ) : (
+            links.map((link) => {
+              const Mark = Icon[link.kind as 'github'] ?? Icon.host;
+              return (
+                <SourceRow
+                  key={link.id}
+                  chosen={source === link.id}
+                  label={link.login}
+                  count={source === link.id ? repos.length : undefined}
+                  badge={<Mark className="text-muted-foreground size-3" />}
+                  onPick={() => setSource(link.id)}
+                />
+              );
+            })
+          )}
         </div>
       </aside>
 
@@ -177,20 +203,18 @@ export function StartPage({
           <span className="bg-fill-2 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
             {local ? (
               <Icon.folder className="text-muted-foreground size-4" />
-            ) : account ? (
-              <img src={account.avatarUrl} alt="" className="size-8" />
             ) : (
-              <Icon.github className="text-muted-foreground size-4" />
+              <Icon.host className="text-muted-foreground size-4" />
             )}
           </span>
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="truncate text-base font-medium">
-              {local ? t('start.local') : (account?.name ?? account?.login ?? 'GitHub')}
+              {local ? t('start.local') : (connection?.login ?? 'GitHub')}
             </span>
             <span className="text-faint text-2xs truncate">
               {local
                 ? t('start.repoCount', { count: recent.length })
-                : (account?.login ?? t('host.connectHint'))}
+                : (connection?.baseUrl ?? t('host.connectHint'))}
             </span>
           </div>
 
@@ -221,7 +245,7 @@ export function StartPage({
                   {t('start.create')}
                 </Button>
               </>
-            ) : account ? (
+            ) : connection ? (
               <Hint text={t('host.refresh')}>
                 <Button variant="action" size="xs" onClick={refresh} disabled={busy}>
                   <Icon.fetch className={cn('size-3.5', busy && 'animate-spin')} />
@@ -287,7 +311,7 @@ export function StartPage({
                 ))}
               </ul>
             )
-          ) : !account ? (
+          ) : !connection ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <span className="bg-fill-2 flex size-10 items-center justify-center rounded-xl">
                 <Icon.github className="text-muted-foreground size-5" />
