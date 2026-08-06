@@ -6,7 +6,8 @@ use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
     BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
-    RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
+    RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView, WorktreeView,
+    MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
