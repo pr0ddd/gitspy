@@ -13,7 +13,7 @@ import { buildChipMenu, type MenuAction } from '../menuItems';
 import { showNativeMenu } from '../nativeMenu';
 import { usePref } from '../prefs';
 import { clampPanel, PANEL_LIMITS } from '../resize';
-import { InlineNote, ListRow, ResizeGrip } from './parts';
+import { InlineNote, ListRow, NavItem, ResizeGrip } from './parts';
 import type { Ask } from './AskBar';
 import type { Operation, PullListView, PullView, RefKind, RefView, WorktreeView } from '../types';
 
@@ -412,39 +412,22 @@ export function Sidebar({
   if (collapsed) {
     return (
       <aside className="flex w-12 shrink-0 flex-col items-center gap-1">
-        <Hint text={t('sidebar.expand')} side="right">
-          <button
-            aria-label={t('sidebar.expand')}
-            onClick={onToggle}
-            className="text-muted-foreground hover:bg-fill-1 hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
-          >
-            <Icon.expand className="size-4" />
-          </button>
-        </Hint>
+        <NavItem icon="expand" hint={t('sidebar.expand')} hintSide="right" onClick={onToggle} />
         <span className="h-1" />
-        {VIEWS.map(({ key, title, icon }) => {
-          const Glyph = Icon[icon];
-          const count = counts[key];
-          return (
-            <Hint key={key} text={count === null ? title : `${title} · ${count}`} side="right">
-              <button
-                aria-label={title}
-                onClick={() => {
-                  pickView(key);
-                  onToggle();
-                }}
-                className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-md transition-colors',
-                  key === view
-                    ? 'bg-fill-2 text-foreground'
-                    : 'text-muted-foreground hover:bg-fill-1 hover:text-foreground',
-                )}
-              >
-                <Glyph className="size-4" />
-              </button>
-            </Hint>
-          );
-        })}
+        {VIEWS.map(({ key, title, icon }) => (
+          <NavItem
+            key={key}
+            icon={icon}
+            name={title}
+            active={key === view}
+            hint={counts[key] === null ? title : `${title} · ${counts[key]}`}
+            hintSide="right"
+            onClick={() => {
+              pickView(key);
+              onToggle();
+            }}
+          />
+        ))}
       </aside>
     );
   }

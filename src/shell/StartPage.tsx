@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { GIT } from '../vocabulary';
 import { Icon } from '../icons';
+import { NavItem } from './parts';
 import * as ipc from '../ipc';
 import { relativeTime } from '../time';
 import { Hint } from '@/components/ui/tooltip';
@@ -48,22 +49,23 @@ function SourceRow({
 }) {
   const { t } = useTranslation();
   return (
-    <button
+    <NavItem
+      active={chosen}
+      label={label}
+      lead={
+        <span className="bg-fill-2 flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-md">
+          {badge}
+        </span>
+      }
+      end={
+        count !== undefined ? (
+          <span className="text-faint shrink-0 tabular-nums">{count}</span>
+        ) : connect ? (
+          <span className="text-faint shrink-0">{t('start.connect')}</span>
+        ) : undefined
+      }
       onClick={onPick}
-      className={cn(
-        'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-xs transition-colors',
-        chosen ? 'bg-fill-2 text-foreground' : 'text-muted-foreground hover:bg-fill-1',
-      )}
-    >
-      <span className="bg-fill-2 flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-md">
-        {badge}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-      {count === undefined ? null : (
-        <span className="text-faint shrink-0 tabular-nums">{count}</span>
-      )}
-      {connect ? <span className="text-faint shrink-0">{t('start.connect')}</span> : null}
-    </button>
+    />
   );
 }
 
