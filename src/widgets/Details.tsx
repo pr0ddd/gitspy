@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { identicon } from '@/avatar';
 import type { AvatarCache } from '@/avatarCache';
 import type { Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
@@ -127,7 +128,8 @@ export function Details({
   }
 
   void avatarTick;
-  const authorPortrait = avatars?.srcOf(row.email) ?? null;
+  const authorPortrait =
+    avatars?.srcOf(row.email) ?? identicon(row.email || row.author, 28).toDataURL();
   const when = new Date(row.time * 1000);
   const labels = session.refsByCommit.get(index) ?? [];
 
@@ -154,11 +156,7 @@ export function Details({
 
           <div className="flex flex-wrap gap-1.5">
             <MetaPill title={row.email}>
-              {authorPortrait ? (
-                <img src={authorPortrait} alt="" className="size-3.5 shrink-0 rounded-full" />
-              ) : (
-                <Icon.person className="size-3 shrink-0 opacity-70" />
-              )}
+              <img src={authorPortrait} alt="" className="size-3.5 shrink-0 rounded-full" />
               {row.author}
             </MetaPill>
             <MetaPill>
