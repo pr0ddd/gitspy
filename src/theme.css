@@ -272,6 +272,7 @@
   --color-banner-conflict: var(--banner-conflict);
   --color-primary-hover: var(--primary-hover);
 
+  --radius-xs: 4px;
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 4px);

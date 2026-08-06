@@ -520,7 +520,7 @@ export default function App() {
           onCloned={openPath}
         />
 
-        <Toaster position="bottom-right" offset={16} />
+        <Toaster position="bottom-right" offset={16} style={{ '--width': '430px' } as React.CSSProperties} />
       </div>
     </TooltipProvider>
   );
