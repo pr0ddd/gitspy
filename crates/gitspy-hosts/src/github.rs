@@ -265,9 +265,13 @@ impl GitHub {
         owner: &str,
         repo: &str,
         sha: &str,
-    ) -> Option<(String, String)> {
+    ) -> Result<Option<(String, String)>, Error> {
         let url = format!("{API}/repos/{owner}/{repo}/commits/{sha}");
-        parse_commit_author(&self.get(token, &url).await.ok()?)
+        match self.get(token, &url).await {
+            Ok(body) => Ok(parse_commit_author(&body)),
+            Err(Error::Unexpected { status: 404, .. }) => Ok(None),
+            Err(other) => Err(other),
+        }
     }
 
     pub async fn commit_avatars(

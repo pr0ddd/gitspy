@@ -153,17 +153,24 @@ async fn resolve_on_host(
         }))
         .await;
 
+        let mut throttled = false;
         for (email, resolved) in asked {
             match resolved {
-                Some((_, url)) => {
+                Ok(Some((_, url))) => {
                     wanted.insert(email, url);
                 }
-                None => {
+                Ok(None) => {
                     if !index.refused.contains(&email) {
                         index.refused.push(email);
                     }
                 }
+                Err(_) => {
+                    throttled = true;
+                }
             }
+        }
+        if throttled {
+            return;
         }
     }
 }

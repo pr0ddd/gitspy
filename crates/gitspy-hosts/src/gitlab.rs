@@ -404,15 +404,23 @@ impl GitLab {
         owner: &str,
         name: &str,
         hash: &str,
-    ) -> Option<(String, String)> {
+    ) -> Result<Option<(String, String)>, Error> {
         let url = self.api(&format!(
             "/projects/{}/repository/commits/{hash}",
             Self::project(owner, name)
         ));
-        let body = self.fetch(&url, token).await.ok()?;
-        let email = parse_commit_email(&body)?;
-        let avatar = self.avatar_by_email(token, &email).await?;
-        Some((email.to_lowercase(), avatar))
+        let body = match self.fetch(&url, token).await {
+            Ok(body) => body,
+            Err(Error::Unexpected { status: 404, .. }) => return Ok(None),
+            Err(other) => return Err(other),
+        };
+        let Some(email) = parse_commit_email(&body) else {
+            return Ok(None);
+        };
+        Ok(self
+            .avatar_by_email(token, &email)
+            .await
+            .map(|avatar| (email.to_lowercase(), avatar)))
     }
 
     pub async fn commit_avatars(
