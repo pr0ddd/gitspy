@@ -53,6 +53,7 @@ import { ConflictView } from '@/widgets/ConflictView';
 import { FileHistoryView } from '@/widgets/FileHistoryView';
 import { WorkingTree } from '@/widgets/WorkingTree';
 import { Settings } from '@/widgets/Settings';
+import { applyStoredAppearance } from '@/appearance';
 import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
@@ -102,6 +103,10 @@ export default function App() {
     current ? cacheFor(current.path).row(current.selected) : undefined,
     current?.repo?.count ?? 0,
   );
+
+  useEffect(() => {
+    applyStoredAppearance();
+  }, []);
 
   useEffect(() => {
     ipc.recentRepos().then(setRecent).catch(notifyError);
