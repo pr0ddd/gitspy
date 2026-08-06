@@ -10,6 +10,7 @@ import { buildRefTree, filterRefTree, flattenRefTree, type FlatRef } from '@/ent
 import { chipsFor } from '@/entities/graph';
 import { buildChipMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
+import { useRepoWork } from '@/features/repo';
 import { usePref } from '@/prefs';
 import { clampPanel, PANEL_LIMITS } from '@/resize';
 import { HOVER_FILL, InlineNote, ListRow, NavItem, ResizeGrip, SearchField } from '@/parts';
@@ -22,7 +23,6 @@ type Props = {
   collapsed: boolean;
   onToggle: () => void;
   currentBranch: string | null;
-  checkingOut: string | null;
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
   onRun: (operation: Operation) => void;
@@ -248,7 +248,6 @@ export function Sidebar({
   collapsed,
   onToggle,
   currentBranch,
-  checkingOut,
   onPick,
   onCheckout,
   onRun,
@@ -260,6 +259,8 @@ export function Sidebar({
   onPickPull,
 }: Props) {
   const { t } = useTranslation();
+  const work = useRepoWork(session?.path ?? null);
+  const checkingOut = work?.kind === 'checkout' ? (work.target ?? null) : null;
   const [view, setView] = usePref<ViewKey>('sidebar.view', 'local');
   const [width, setWidth] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
   const dragFrom = useRef(width);

@@ -197,7 +197,6 @@ export default function App() {
   const { runOperation, checkoutRef } = useOperations(active, reload);
   const work = useRepoWork(active);
   const busy = work !== null;
-  const checkingOut = work?.kind === 'checkout' ? (work.target ?? null) : null;
 
   const { message, setMessage, description, setDescription, amend, setAmend, commit } =
     useCommitDraft({
@@ -321,6 +320,7 @@ export default function App() {
           />
         ) : (
           <Toolbar
+            repo={current.path}
             tree={tree}
             onRun={runOperation}
             onAsk={(kind) => setAsking({ kind })}
@@ -330,8 +330,6 @@ export default function App() {
             at={search.at}
             onSearch={search.setQuery}
             onStep={search.step}
-            busy={busy}
-            running={work?.kind ?? null}
           />
         )}
 
@@ -366,7 +364,6 @@ export default function App() {
                 session={current}
                 pulls={pulls}
                 currentBranch={tree?.branch ?? null}
-                checkingOut={checkingOut}
                 onPick={revealCommit}
                 onCheckout={checkoutRef}
                 onRun={runOperation}
