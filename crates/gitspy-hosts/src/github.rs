@@ -7,17 +7,13 @@ const API: &str = "https://api.github.com";
 const AGENT: &str = "gitspy";
 const TIMEOUT: Duration = Duration::from_secs(15);
 
-const REGISTERED_APPLICATION: &str = "Ov23liwJUp05jibxF7iB";
-
-pub const CLIENT_ID: Option<&str> = match option_env!("GITSPY_GITHUB_CLIENT_ID") {
-    Some(id) => Some(id),
-    None => Some(REGISTERED_APPLICATION),
-};
+pub const CLIENT_ID: &str = "Ov23liXV2eyAvL4adXzb";
 
 pub fn application() -> Result<&'static str, Error> {
-    CLIENT_ID
-        .filter(|id| !id.trim().is_empty())
-        .ok_or(Error::NoApplication)
+    if CLIENT_ID.trim().is_empty() {
+        return Err(Error::NoApplication);
+    }
+    Ok(CLIENT_ID)
 }
 
 pub fn authorize_url(state: &str) -> Result<String, Error> {
