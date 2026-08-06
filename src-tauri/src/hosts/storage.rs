@@ -1,6 +1,7 @@
 use gitspy_hosts::github::Repo;
 use gitspy_hosts::pulls::PullSummary;
 use gitspy_hosts::secrets::Files;
+use gitspy_hosts::host::HostKind;
 use gitspy_hosts::Account;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -11,13 +12,6 @@ pub struct Known {
     pub account: Option<Account>,
     #[serde(default)]
     pub repos: Vec<Repo>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum HostKind {
-    GitHub,
-    GitLab,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]

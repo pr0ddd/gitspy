@@ -206,16 +206,18 @@ pub async fn run_operation(
     let lane = state.queue.lane(&repo);
     let path = PathBuf::from(&repo);
 
-    let token = operation
-        .reaches_the_network()
-        .then(|| hosts::token(&app, gitspy_hosts::github::ID))
-        .flatten();
+    let wants_network = operation.reaches_the_network();
+    let credential_app = app.clone();
 
     let outcome = on_reader(move || {
         let _held = lane.lock().expect("полоса очереди не отравлена");
-        let credential = token.as_deref().map(|token| gitspy_exec::Credential {
-            url: hosts::GITHUB_URL,
-            token,
+        let owned = wants_network
+            .then(|| hosts::credential_for(&credential_app, &git.remote_urls(&path)))
+            .flatten();
+        let credential = owned.as_ref().map(|c| gitspy_exec::Credential {
+            url: &c.url,
+            username: c.username,
+            token: &c.token,
         });
 
         operations::run(
@@ -638,13 +640,15 @@ pub async fn checkout_pull(
     let git = state.git()?;
     let lane = state.queue.lane(&repo);
     let path = PathBuf::from(&repo);
-    let token = hosts::token(&app, gitspy_hosts::github::ID);
+    let credential_app = app.clone();
 
     on_reader(move || {
         let _held = lane.lock().expect("полоса очереди не отравлена");
-        let credential = token.as_deref().map(|token| gitspy_exec::Credential {
-            url: hosts::GITHUB_URL,
-            token,
+        let owned = hosts::credential_for(&credential_app, &git.remote_urls(&path));
+        let credential = owned.as_ref().map(|c| gitspy_exec::Credential {
+            url: &c.url,
+            username: c.username,
+            token: &c.token,
         });
 
         for step in operations::checkout_pull_commands(number, &branch, from_fork) {

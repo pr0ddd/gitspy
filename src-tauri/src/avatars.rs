@@ -121,8 +121,8 @@ async fn fetch_bytes(url: &str) -> Option<Vec<u8>> {
 const EXACT_LOOKUPS_PER_RUN: usize = 500;
 const LOOKUPS_AT_ONCE: usize = 8;
 
-async fn resolve_on_github(
-    client: &gitspy_hosts::github::GitHub,
+async fn resolve_on_host(
+    client: &gitspy_hosts::host::Host,
     token: &str,
     owner: &str,
     name: &str,
@@ -209,22 +209,16 @@ pub async fn resolve_avatars(
     }
 
     if !remote.is_empty() {
-        if let Some(token) = hosts::token(&app, gitspy_hosts::github::ID) {
-            let git = state.git()?;
-            let path = std::path::PathBuf::from(&repo);
-            let remotes = crate::state::on_reader(move || Ok(git.remote_urls(&path))).await?;
-            if let Some((owner, name)) = gitspy_hosts::remote::preferred_github_remote(&remotes) {
-                if let Ok(client) = gitspy_hosts::github::GitHub::new() {
-                    resolve_on_github(
-                        &client,
-                        &token,
-                        &owner,
-                        &name,
-                        &remote,
-                        &mut wanted,
-                        &mut index,
-                    )
-                    .await;
+        if let Ok((connection, owner, name)) =
+            hosts::connected_target(&app, &state, &repo).await
+        {
+            if let Some(token) = hosts::token(&app, &connection.id) {
+                if let Ok(client) = gitspy_hosts::host::Host::for_connection(
+                    connection.kind,
+                    &connection.base_url,
+                ) {
+                    resolve_on_host(&client, &token, &owner, &name, &remote, &mut wanted, &mut index)
+                        .await;
                 }
             }
         }

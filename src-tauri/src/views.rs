@@ -115,15 +115,16 @@ pub struct RemoteView {
 pub fn build_remote_views(urls: Vec<(String, String)>) -> Vec<RemoteView> {
     urls.into_iter()
         .map(|(name, url)| {
-            let github = gitspy_hosts::remote::github_repo(&url);
+            let split = gitspy_hosts::remote::split_remote(&url);
             RemoteView {
                 name,
-                avatar_url: github
+                avatar_url: split.as_ref().and_then(|(host, owner, _)| {
+                    (host == "github.com")
+                        .then(|| format!("https://github.com/{owner}.png?size=64"))
+                }),
+                web_url: split
                     .as_ref()
-                    .map(|(owner, _)| format!("https://github.com/{owner}.png?size=64")),
-                web_url: github
-                    .as_ref()
-                    .map(|(owner, repo)| format!("https://github.com/{owner}/{repo}")),
+                    .map(|(host, owner, repo)| format!("https://{host}/{owner}/{repo}")),
             }
         })
         .collect()
@@ -446,24 +447,26 @@ pub struct AccountView {
 }
 
 #[derive(Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/generated/")]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceView {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    pub interval: u32,
-    pub expires_in: u32,
+pub enum ConnectStartView {
+    DeviceCode {
+        user_code: String,
+        verification_uri: String,
+    },
+    BrowserAuth {
+        url: String,
+    },
 }
 
-pub fn build_device(device: gitspy_hosts::github::Device) -> DeviceView {
-    DeviceView {
-        device_code: device.device_code,
-        user_code: device.user_code,
-        verification_uri: device.verification_uri,
-        interval: device.interval as u32,
-        expires_in: device.expires_in as u32,
-    }
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/generated/")]
+pub struct ConnectionView {
+    pub id: String,
+    pub kind: String,
+    pub base_url: String,
+    pub login: String,
 }
 
 #[derive(Serialize, TS)]
