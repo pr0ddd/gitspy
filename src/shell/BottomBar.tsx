@@ -41,17 +41,13 @@ export function BottomBar({ zoom, onZoom, ready, onRestart }: Props) {
               {zoomLabel(zoom)}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top">
+          <DropdownMenuContent align="start" side="top" className="min-w-0">
             <DropdownMenuRadioGroup
               value={String(zoom)}
               onValueChange={(next) => onZoom(Number(next))}
             >
               {[...ZOOM_STEPS].reverse().map((step) => (
-                <DropdownMenuRadioItem
-                  key={step}
-                  value={String(step)}
-                  className="justify-end tabular-nums"
-                >
+                <DropdownMenuRadioItem key={step} value={String(step)} className="tabular-nums">
                   {zoomLabel(step)}
                 </DropdownMenuRadioItem>
               ))}
