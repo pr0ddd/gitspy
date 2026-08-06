@@ -452,7 +452,7 @@ export function Sidebar({
             value={filter}
             placeholder={t('sidebar.filter')}
             onChange={(e) => setFilter(e.target.value)}
-            className="h-8 pl-8 text-xs"
+            className="bg-fill-1 h-8 pl-8 text-xs"
           />
         </div>
         <Hint text={t('sidebar.collapse')}>

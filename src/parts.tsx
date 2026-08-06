@@ -4,7 +4,7 @@ import { Hint } from '@/components/ui/tooltip';
 import { Icon, type IconName } from '@/icons';
 import { shortenDirectory, splitPath } from '@/paths';
 
-export const HOVER_FILL = 'hover:bg-fill-1 transition-colors';
+export const HOVER_FILL = 'hover:bg-fill-1';
 
 const INDENT = ['pl-0', 'pl-4', 'pl-8', 'pl-12', 'pl-16', 'pl-20'] as const;
 
@@ -56,7 +56,7 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'text-subject flex w-full items-center gap-2.5 rounded-md px-2 text-left text-xs transition-colors',
+        'text-subject flex w-full items-center gap-2.5 rounded-md px-2 text-left text-xs',
         tall ? 'h-11' : 'h-8',
         as === 'div' && 'group cursor-pointer',
         current ? 'text-foreground bg-fill-2 font-medium' : 'hover:bg-fill-1',
@@ -92,7 +92,7 @@ export function SectionHeader({ onClick, className, children }: SectionHeaderPro
     <Tag
       onClick={onClick}
       className={cn(
-        'text-muted-foreground flex h-7.5 w-full shrink-0 items-center gap-2.5 rounded-md px-2 text-xs transition-colors',
+        'text-muted-foreground flex h-7.5 w-full shrink-0 items-center gap-2.5 rounded-md px-2 text-xs',
         onClick && 'hover:bg-fill-1',
         className,
       )}
@@ -229,7 +229,7 @@ export function NavItem({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'flex shrink-0 items-center rounded-md transition-colors',
+        'flex shrink-0 items-center rounded-md',
         label ? 'h-8 w-full gap-2.5 px-2 text-sm' : 'size-8 justify-center',
         active
           ? 'bg-fill-2 text-foreground'
@@ -267,7 +267,7 @@ export function Tab({ icon, label, current, title, closeLabel, onSelect, onClose
       title={title}
       onClick={onSelect}
       className={cn(
-        'group flex h-7.5 max-w-56 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-3 text-xs whitespace-nowrap transition-colors',
+        'group flex h-7.5 max-w-56 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-3 text-xs whitespace-nowrap',
         current ? 'bg-fill-2 text-foreground' : 'text-muted-foreground hover:bg-fill-1',
       )}
     >

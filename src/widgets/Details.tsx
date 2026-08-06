@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import type { AvatarCache } from '@/avatarCache';
 import type { Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
 import { Icon } from '@/icons';
@@ -13,6 +14,8 @@ import { FilePath, HOVER_FILL, ListRow, PanelBanner, PanelNote, SectionHeader, S
 import type { ChangedFileView, RefKind } from '@/types';
 
 type Props = {
+  avatars: AvatarCache | null;
+  avatarTick: number;
   session: Session | null;
   rows: RowCache;
   pending: number;
@@ -63,6 +66,8 @@ function MetaPill({
 }
 
 export function Details({
+  avatars,
+  avatarTick,
   session,
   rows,
   pending,
@@ -121,6 +126,8 @@ export function Details({
     );
   }
 
+  void avatarTick;
+  const authorPortrait = avatars?.srcOf(row.email) ?? null;
   const when = new Date(row.time * 1000);
   const labels = session.refsByCommit.get(index) ?? [];
 
@@ -147,7 +154,11 @@ export function Details({
 
           <div className="flex flex-wrap gap-1.5">
             <MetaPill title={row.email}>
-              <Icon.person className="size-3 shrink-0 opacity-70" />
+              {authorPortrait ? (
+                <img src={authorPortrait} alt="" className="size-3.5 shrink-0 rounded-full" />
+              ) : (
+                <Icon.person className="size-3 shrink-0 opacity-70" />
+              )}
               {row.author}
             </MetaPill>
             <MetaPill>
