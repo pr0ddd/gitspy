@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/icons';
 import { FilePath, ListRow, PanelBar, SectionHeader, StatusBadge } from '@/parts';
 import { buildFileTree, sortedByPath, type FileNode } from '@/features/fileTree';
-import { subjectLeft, useGenerateCommit } from '@/features/repo';
+import { subjectLeft, useGenerateCommit, useRepoWork } from '@/features/repo';
 import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
 
 export type PreviousCommit = { readonly subject: string; readonly body: string };
@@ -25,8 +25,6 @@ export type PreviousCommit = { readonly subject: string; readonly body: string }
 type Props = {
   repo: string;
   tree: WorkingTreeView;
-  busy: boolean;
-  committing: boolean;
   message: string;
   description: string;
   amend: boolean;
@@ -415,8 +413,8 @@ function MessageFields({
 }
 
 function MergingPanel({
+  repo,
   tree,
-  busy,
   message,
   description,
   onMessage,
@@ -427,6 +425,7 @@ function MergingPanel({
   onOpen,
 }: Omit<Props, 'amend' | 'previous' | 'onAmend'>) {
   const { t } = useTranslation();
+  const busy = useRepoWork(repo) !== null;
   const conflicted = tree.entries.filter((e) => !e.staged && e.letter === 'U');
   const pending = tree.entries.filter((e) => !e.staged && e.letter !== 'U');
   const resolved = tree.entries.filter((e) => e.staged);
@@ -527,8 +526,6 @@ export function WorkingTree(props: Props) {
   const {
     repo,
     tree,
-    busy,
-    committing,
     message,
     description,
     amend,
@@ -544,6 +541,9 @@ export function WorkingTree(props: Props) {
     onHistory,
   } = props;
   const { t } = useTranslation();
+  const work = useRepoWork(repo);
+  const busy = work !== null;
+  const committing = work?.kind === 'commit';
 
   const openFileMenu = (entry: StatusEntryView) => {
     showNativeMenu(

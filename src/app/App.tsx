@@ -457,8 +457,6 @@ export default function App() {
                       <WorkingTree
                         repo={current.path}
                         tree={tree}
-                        busy={busy}
-                        committing={work?.kind === 'commit'}
                         message={message}
                         description={description}
                         amend={amend}
