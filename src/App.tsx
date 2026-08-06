@@ -87,7 +87,7 @@ export default function App() {
   const [message, setMessage] = useState('');
   const [description, setDescription] = useState('');
   const [amend, setAmend] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<'closed' | 'open' | 'active'>('closed');
   const [cloning, setCloning] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
@@ -549,14 +549,22 @@ export default function App() {
       <div className="flex h-full flex-col">
         <RepoTabs
           sessions={sessions}
-          active={active}
-          onActivate={(path) => dispatch({ kind: 'activate', path })}
+          active={settings === 'active' ? '' : active}
+          settings={settings}
+          onActivate={(path) => {
+            setSettings((now) => (now === 'closed' ? now : 'open'));
+            dispatch({ kind: 'activate', path });
+          }}
           onClose={closeRepo}
-          onStart={() => dispatch({ kind: 'activate', path: null })}
-          onSettings={() => setSettingsOpen(true)}
+          onStart={() => {
+            setSettings((now) => (now === 'closed' ? now : 'open'));
+            dispatch({ kind: 'activate', path: null });
+          }}
+          onSettings={() => setSettings('active')}
+          onCloseSettings={() => setSettings('closed')}
         />
 
-        {current === null ? null : confirming ? (
+        {current === null || settings === 'active' ? null : confirming ? (
           <ConfirmBar
             operation={confirming}
             onConfirm={(operation) => {
@@ -581,8 +589,15 @@ export default function App() {
           />
         )}
 
-        <div className={cn('flex min-h-0 flex-1 pr-2', current === null && 'pb-2')}>
-        {current === null ? (
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 pr-2',
+            (current === null || settings === 'active') && 'pb-2',
+          )}
+        >
+        {settings === 'active' ? (
+          <Settings open account={account} onDisconnected={() => setAccount(null)} />
+        ) : current === null ? (
           <StartPage
             recent={recent}
             onOpen={pickRepo}
@@ -591,7 +606,7 @@ export default function App() {
             onForget={forget}
             onClone={setCloning}
             onCreate={createRepo}
-            onConnect={() => setSettingsOpen(true)}
+            onConnect={() => setSettings('active')}
           />
         ) : (
           <>
@@ -760,13 +775,6 @@ export default function App() {
           </>
         )}
         </div>
-
-        <Settings
-          open={settingsOpen}
-          account={account}
-          onOpenChange={setSettingsOpen}
-          onDisconnected={() => setAccount(null)}
-        />
 
         <CloneDialog
           open={cloning !== null}

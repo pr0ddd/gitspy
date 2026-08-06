@@ -1,12 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Settings } from './Settings';
 import '../i18n';
 
 const shown = {
   open: true,
   account: null,
-  onOpenChange: () => {},
   onDisconnected: () => {},
 };
 
@@ -27,12 +26,5 @@ describe('страница настроек', () => {
       screen.getByRole('button', { name: /Connect GitHub/ }),
       'секция интеграций несёт живое подключение GitHub, а не заглушку',
     ).toBeTruthy();
-  });
-
-  it('кнопка выхода закрывает страницу', () => {
-    const onOpenChange = vi.fn();
-    render(<Settings {...shown} onOpenChange={onOpenChange} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Exit settings' }));
-    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
