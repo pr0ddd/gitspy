@@ -6,10 +6,6 @@ use std::path::PathBuf;
 use tauri::ipc::Channel;
 use tauri::{Manager, State};
 
-fn token_for(app: &tauri::AppHandle) -> Option<String> {
-    hosts::token(app, gitspy_hosts::github::ID)
-}
-
 #[tauri::command]
 pub fn default_clone_dir(app: tauri::AppHandle) -> Result<String, ErrorView> {
     let parent = app
@@ -36,13 +32,14 @@ pub async fn clone_repo(
         return Err(ErrorView::new("clone.exists").param("path", into.display()));
     }
 
-    let token = token_for(&app);
+    let owned = hosts::credential_for(&app, &[("origin".to_string(), url.clone())]);
     let destination = into.clone();
 
     tauri::async_runtime::spawn_blocking(move || {
-        let credential = token.as_deref().map(|token| gitspy_exec::Credential {
-            url: hosts::GITHUB_URL,
-            token,
+        let credential = owned.as_ref().map(|c| gitspy_exec::Credential {
+            url: &c.url,
+            username: c.username,
+            token: &c.token,
         });
 
         git.clone_into(

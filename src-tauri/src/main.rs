@@ -57,6 +57,7 @@ fn main() {
             avatars::avatar_paths,
             avatars::resolve_avatars,
             hosts::start_connect,
+            hosts::connections,
             hosts::host_account,
             hosts::host_repos,
             hosts::disconnect_host,

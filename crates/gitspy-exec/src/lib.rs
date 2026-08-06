@@ -20,12 +20,13 @@ const TOKEN_VARIABLE: &str = "GITSPY_HOST_TOKEN";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Credential<'a> {
     pub url: &'a str,
+    pub username: &'a str,
     pub token: &'a str,
 }
 
-pub fn helper_for(url: &str) -> String {
+pub fn helper_for(url: &str, username: &str) -> String {
     format!(
-        "credential.{url}.helper=!f() {{ echo username=x-access-token; echo password=${TOKEN_VARIABLE}; }}; f"
+        "credential.{url}.helper=!f() {{ echo username={username}; echo password=${TOKEN_VARIABLE}; }}; f"
     )
 }
 
@@ -686,7 +687,7 @@ impl Git {
 
         if let Some(credential) = credential {
             command.env(TOKEN_VARIABLE, credential.token);
-            command.arg("-c").arg(helper_for(credential.url));
+            command.arg("-c").arg(helper_for(credential.url, credential.username));
         }
         command
     }
@@ -862,7 +863,7 @@ mod tests {
 
     #[test]
     fn the_helper_is_bound_to_one_host_so_the_token_never_goes_elsewhere() {
-        let helper = helper_for("https://github.com");
+        let helper = helper_for("https://github.com", "x-access-token");
         assert!(
             helper.starts_with("credential.https://github.com.helper="),
             "без привязки к адресу токен github ушёл бы и на чужой https-хост"
@@ -871,7 +872,7 @@ mod tests {
 
     #[test]
     fn the_token_itself_never_appears_in_the_command_line() {
-        let helper = helper_for("https://github.com");
+        let helper = helper_for("https://github.com", "x-access-token");
         assert!(
             helper.contains("$GITSPY_HOST_TOKEN") && !helper.contains("gho_"),
             "командную строку видит любой ps, поэтому секрет идёт окружением"

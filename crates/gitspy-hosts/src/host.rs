@@ -1,7 +1,9 @@
 use crate::pulls::{Comment, PullDetail, PullSummary};
 use crate::{github, gitlab, Account, Error};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum HostKind {
     GitHub,
     GitLab,

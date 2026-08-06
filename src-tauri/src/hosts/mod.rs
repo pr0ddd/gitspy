@@ -3,22 +3,22 @@ pub mod storage;
 
 use crate::paths::data_dir;
 use crate::state::AppState;
-use crate::views::{build_account, build_device, build_repo_listing};
+use crate::views::{build_account, build_pull_view, build_repo_listing};
 use crate::views::{
-    build_pull_view, AccountView, DeviceView, ErrorView, PullCardView, PullCommentView,
+    AccountView, ConnectStartView, ConnectionView, ErrorView, PullCardView, PullCommentView,
     PullListView, RepoListingView,
 };
 use gitspy_hosts::github::{Device, GitHub, Repo};
-use gitspy_hosts::remote::preferred_github_remote;
+use gitspy_hosts::host::{Host, HostKind};
+use gitspy_hosts::remote::matches_remote;
 use gitspy_hosts::secrets::Secrets;
-use gitspy_hosts::Account;
+use gitspy_hosts::{gitlab, pkce, Account};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use storage::Connection;
 use tauri::{Emitter, Manager, State};
 
 const REPO_PAGES: u32 = 10;
-
-pub const GITHUB_URL: &str = "https://github.com";
 
 pub const CONNECTED_EVENT: &str = "host:connected";
 pub const FAILED_EVENT: &str = "host:failed";
@@ -28,6 +28,7 @@ pub struct Hosts {
     accounts: Mutex<HashMap<String, Account>>,
     listings: Mutex<HashMap<String, Vec<Repo>>>,
     connecting: Mutex<HashMap<String, Device>>,
+    browsing: Mutex<HashMap<String, String>>,
 }
 
 impl Hosts {
@@ -44,6 +45,19 @@ impl Hosts {
     pub fn stop_waiting(&self, host: &str) {
         if let Ok(mut waiting) = self.connecting.lock() {
             waiting.remove(host);
+        }
+        if let Ok(mut browsing) = self.browsing.lock() {
+            browsing.remove(host);
+        }
+    }
+
+    fn already_browsing(&self, host: &str) -> Option<String> {
+        self.browsing.lock().ok()?.get(host).cloned()
+    }
+
+    fn browse_for(&self, host: &str, url: String) {
+        if let Ok(mut browsing) = self.browsing.lock() {
+            browsing.insert(host.to_string(), url);
         }
     }
 
@@ -86,11 +100,38 @@ pub fn host_error(e: gitspy_hosts::Error) -> ErrorView {
     }
 }
 
-fn only_known(host: &str) -> Result<(), ErrorView> {
-    if host != gitspy_hosts::github::ID {
-        return Err(ErrorView::new("host.unknown").param("host", host));
+fn known_def(host: &str) -> Result<(HostKind, &'static str), ErrorView> {
+    match host {
+        "github" => Ok((HostKind::GitHub, "https://github.com")),
+        "gitlab" => Ok((HostKind::GitLab, "https://gitlab.com")),
+        other => Err(ErrorView::new("host.unknown").param("host", other)),
     }
-    Ok(())
+}
+
+fn host_for(connection: &Connection) -> Result<Host, ErrorView> {
+    Host::for_connection(connection.kind, &connection.base_url).map_err(host_error)
+}
+
+fn connection_of(app: &tauri::AppHandle, host: &str) -> Option<Connection> {
+    let dir = data_dir(app).ok()?;
+    storage::load_connections(&dir)
+        .into_iter()
+        .find(|connection| connection.id == host)
+}
+
+fn remember_connection(app: &tauri::AppHandle, fresh: Connection) {
+    let Ok(dir) = data_dir(app) else { return };
+    let mut all = storage::load_connections(&dir);
+    all.retain(|c| c.id != fresh.id);
+    all.push(fresh);
+    storage::save_connections(&dir, &all);
+}
+
+fn forget_connection(app: &tauri::AppHandle, host: &str) {
+    let Ok(dir) = data_dir(app) else { return };
+    let mut all = storage::load_connections(&dir);
+    all.retain(|c| c.id != host);
+    storage::save_connections(&dir, &all);
 }
 
 pub fn token(app: &tauri::AppHandle, host: &str) -> Option<String> {
@@ -111,18 +152,17 @@ fn remember(app: &tauri::AppHandle, host: &str, known: &storage::Known) {
     }
 }
 
-async fn keep_the_token(
-    host: &str,
-    device: Device,
+fn keep_connected(
     app: &tauri::AppHandle,
+    host: &str,
+    kind: HostKind,
+    base_url: &str,
+    token: &str,
+    account: Account,
 ) -> Result<AccountView, ErrorView> {
-    let client = GitHub::new().map_err(host_error)?;
-    let token = client.wait_for_token(&device).await.map_err(host_error)?;
-    let account = client.account(&token).await.map_err(host_error)?;
-
     let dir = data_dir(app)?;
     storage::secrets(&dir)
-        .write(host, &token)
+        .write(host, token)
         .map_err(host_error)?;
     remember(
         app,
@@ -132,40 +172,98 @@ async fn keep_the_token(
             repos: remembered(app, host).repos,
         },
     );
-
+    remember_connection(
+        app,
+        Connection {
+            id: host.to_string(),
+            kind,
+            base_url: base_url.to_string(),
+            login: account.login.clone(),
+        },
+    );
     if let Some(hosts) = app.try_state::<Hosts>() {
         hosts.keep_account(host, account.clone());
     }
     Ok(build_account(account))
 }
 
-#[tauri::command]
-pub async fn start_connect(
-    host: String,
-    app: tauri::AppHandle,
-    hosts: State<'_, Hosts>,
-) -> Result<DeviceView, ErrorView> {
-    only_known(&host)?;
+async fn keep_the_github_token(
+    host: &str,
+    device: Device,
+    app: &tauri::AppHandle,
+) -> Result<AccountView, ErrorView> {
+    let client = GitHub::new().map_err(host_error)?;
+    let token = client.wait_for_token(&device).await.map_err(host_error)?;
+    let account = client.account(&token).await.map_err(host_error)?;
+    keep_connected(
+        app,
+        host,
+        HostKind::GitHub,
+        "https://github.com",
+        &token,
+        account,
+    )
+}
 
-    if let Some(waiting) = hosts.already_waiting(&host) {
-        return Ok(build_device(waiting));
+async fn keep_the_gitlab_token(
+    host: &str,
+    base_url: &str,
+    code: String,
+    verifier: String,
+    app: &tauri::AppHandle,
+) -> Result<AccountView, ErrorView> {
+    let client = gitlab::GitLab::new(base_url).map_err(host_error)?;
+    let (token, _refresh) = client
+        .exchange_code(&code, &verifier)
+        .await
+        .map_err(host_error)?;
+    let account = client.account(&token).await.map_err(host_error)?;
+    keep_connected(app, host, HostKind::GitLab, base_url, &token, account)
+}
+
+fn start_gitlab_connect(
+    host: String,
+    base_url: &'static str,
+    app: tauri::AppHandle,
+    hosts: &State<'_, Hosts>,
+) -> Result<ConnectStartView, ErrorView> {
+    if gitlab::CLIENT_ID.is_empty() {
+        return Err(ErrorView::new("host.notConfigured").param("host", &host));
+    }
+    if let Some(url) = hosts.already_browsing(&host) {
+        return Ok(ConnectStartView::BrowserAuth { url });
     }
 
-    let client = GitHub::new().map_err(host_error)?;
-    let device = client.ask_for_device().await.map_err(host_error)?;
-    hosts.wait_for(&host, device.clone());
+    let verifier = pkce::verifier();
+    let nonce = pkce::verifier();
+    let url = pkce::authorize_url(
+        base_url,
+        gitlab::CLIENT_ID,
+        gitlab::REDIRECT,
+        &pkce::challenge(&verifier),
+        &nonce,
+    );
 
-    let _ = tauri_plugin_opener::OpenerExt::opener(&app)
-        .open_url(&device.verification_uri, None::<&str>);
+    let seen = loopback::listen_once(nonce)
+        .map_err(|e| ErrorView::new("hosts.portBusy").detail(e.to_string()))?;
 
-    let waited_for = device.clone();
-    let waited_host = host.clone();
+    hosts.browse_for(&host, url.clone());
+    let _ = tauri_plugin_opener::OpenerExt::opener(&app).open_url(&url, None::<&str>);
+
     let notify = app.clone();
     tauri::async_runtime::spawn(async move {
-        let outcome = keep_the_token(&waited_host, waited_for, &notify).await;
+        let code = tauri::async_runtime::spawn_blocking(move || seen.recv().ok())
+            .await
+            .ok()
+            .flatten();
+
+        let outcome = match code {
+            Some(code) => keep_the_gitlab_token(&host, base_url, code, verifier, &notify).await,
+            None => Err(ErrorView::new("host.denied")),
+        };
 
         if let Some(hosts) = notify.try_state::<Hosts>() {
-            hosts.stop_waiting(&waited_host);
+            hosts.stop_waiting(&host);
         }
         let _ = match outcome {
             Ok(account) => notify.emit(CONNECTED_EVENT, account),
@@ -173,7 +271,72 @@ pub async fn start_connect(
         };
     });
 
-    Ok(build_device(device))
+    Ok(ConnectStartView::BrowserAuth { url })
+}
+
+#[tauri::command]
+pub async fn start_connect(
+    host: String,
+    app: tauri::AppHandle,
+    hosts: State<'_, Hosts>,
+) -> Result<ConnectStartView, ErrorView> {
+    let (kind, base_url) = known_def(&host)?;
+
+    match kind {
+        HostKind::GitLab => start_gitlab_connect(host, base_url, app, &hosts),
+        HostKind::GitHub => {
+            if let Some(waiting) = hosts.already_waiting(&host) {
+                return Ok(ConnectStartView::DeviceCode {
+                    user_code: waiting.user_code,
+                    verification_uri: waiting.verification_uri,
+                });
+            }
+
+            let client = GitHub::new().map_err(host_error)?;
+            let device = client.ask_for_device().await.map_err(host_error)?;
+            hosts.wait_for(&host, device.clone());
+
+            let _ = tauri_plugin_opener::OpenerExt::opener(&app)
+                .open_url(&device.verification_uri, None::<&str>);
+
+            let waited_for = device.clone();
+            let waited_host = host.clone();
+            let notify = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let outcome = keep_the_github_token(&waited_host, waited_for, &notify).await;
+
+                if let Some(hosts) = notify.try_state::<Hosts>() {
+                    hosts.stop_waiting(&waited_host);
+                }
+                let _ = match outcome {
+                    Ok(account) => notify.emit(CONNECTED_EVENT, account),
+                    Err(error) => notify.emit(FAILED_EVENT, error),
+                };
+            });
+
+            Ok(ConnectStartView::DeviceCode {
+                user_code: device.user_code,
+                verification_uri: device.verification_uri,
+            })
+        }
+    }
+}
+
+#[tauri::command]
+pub fn connections(app: tauri::AppHandle) -> Result<Vec<ConnectionView>, ErrorView> {
+    let dir = data_dir(&app)?;
+    Ok(storage::load_connections(&dir)
+        .into_iter()
+        .map(|c| ConnectionView {
+            id: c.id,
+            kind: match c.kind {
+                HostKind::GitHub => "github".to_string(),
+                HostKind::GitLab => "gitlab".to_string(),
+            },
+            base_url: c.base_url,
+            login: c.login,
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -194,8 +357,11 @@ pub async fn host_account(
     let Some(token) = token(&app, &host) else {
         return Ok(None);
     };
+    let Some(connection) = connection_of(&app, &host) else {
+        return Ok(None);
+    };
 
-    let client = GitHub::new().map_err(host_error)?;
+    let client = host_for(&connection)?;
     match client.account(&token).await {
         Ok(account) => {
             remember(
@@ -221,7 +387,7 @@ pub async fn host_repos(
     app: tauri::AppHandle,
     hosts: State<'_, Hosts>,
 ) -> Result<Vec<RepoListingView>, ErrorView> {
-    only_known(&host)?;
+    known_def(&host)?;
 
     if !refresh {
         if let Some(found) = hosts.known_repos(&host) {
@@ -237,8 +403,10 @@ pub async fn host_repos(
     }
 
     let token = token(&app, &host).ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    let connection =
+        connection_of(&app, &host).ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
 
-    let client = GitHub::new().map_err(host_error)?;
+    let client = host_for(&connection)?;
     let repos = client.repos(&token, REPO_PAGES).await.map_err(host_error)?;
 
     let view = repos.iter().map(build_repo_listing).collect();
@@ -263,73 +431,36 @@ pub fn disconnect_host(
     let dir = data_dir(&app)?;
     storage::secrets(&dir).forget(&host).map_err(host_error)?;
     storage::forget(&dir, &host);
+    forget_connection(&app, &host);
     crate::avatars::wipe(&dir);
     hosts.drop_everything(&host);
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct OwnedCredential {
+    pub url: String,
+    pub username: &'static str,
+    pub token: String,
+}
 
-    fn device() -> Device {
-        Device {
-            device_code: "dc".into(),
-            user_code: "AAAA-BBBB".into(),
-            verification_uri: "https://github.com/login/device".into(),
-            interval: 5,
-            expires_in: 900,
+pub fn credential_for(
+    app: &tauri::AppHandle,
+    remotes: &[(String, String)],
+) -> Option<OwnedCredential> {
+    let dir = data_dir(app).ok()?;
+    for connection in storage::load_connections(&dir) {
+        if matches_remote(remotes, &connection.base_url).is_none() {
+            continue;
         }
+        let token = storage::secrets(&dir).read(&connection.id).ok().flatten()?;
+        let cred = host_for(&connection).ok()?.credential();
+        return Some(OwnedCredential {
+            url: cred.url,
+            username: cred.username,
+            token,
+        });
     }
-
-    #[test]
-    fn a_second_press_joins_the_waiting_instead_of_asking_for_another_code() {
-        let hosts = Hosts::default();
-        assert_eq!(hosts.already_waiting("github"), None);
-
-        hosts.wait_for("github", device());
-        assert_eq!(
-            hosts.already_waiting("github").map(|d| d.user_code),
-            Some("AAAA-BBBB".to_string()),
-            "иначе десять нажатий заводят десять кодов и десять опросов github"
-        );
-    }
-
-    #[test]
-    fn a_finished_waiting_lets_the_next_attempt_start_clean() {
-        let hosts = Hosts::default();
-        hosts.wait_for("github", device());
-        hosts.stop_waiting("github");
-        assert_eq!(hosts.already_waiting("github"), None);
-    }
-
-    #[test]
-    fn disconnecting_forgets_the_account_and_the_listing_together() {
-        let hosts = Hosts::default();
-        hosts.keep_account(
-            "github",
-            Account {
-                host: "github".into(),
-                login: "pr0d".into(),
-                name: None,
-                avatar_url: "u".into(),
-            },
-        );
-        hosts.keep_repos("github", Vec::new());
-
-        hosts.drop_everything("github");
-        assert!(hosts.known_account("github").is_none());
-        assert!(
-            hosts.known_repos("github").is_none(),
-            "оставленный список показал бы чужие репозитории после смены аккаунта"
-        );
-    }
-
-    #[test]
-    fn an_unknown_host_is_refused_before_any_request() {
-        assert!(only_known("gitlab").is_err());
-        assert!(only_known("github").is_ok());
-    }
+    None
 }
 
 fn now_unix() -> i64 {
@@ -339,21 +470,28 @@ fn now_unix() -> i64 {
         .unwrap_or(0)
 }
 
-async fn github_target(
+pub(crate) async fn connected_target(
+    app: &tauri::AppHandle,
     state: &State<'_, AppState>,
     repo: &str,
-) -> Result<(String, String), ErrorView> {
+) -> Result<(Connection, String, String), ErrorView> {
     let git = state.git()?;
     let path = std::path::PathBuf::from(repo);
     let remotes = crate::state::on_reader(move || Ok(git.remote_urls(&path))).await?;
 
-    preferred_github_remote(&remotes).ok_or_else(|| ErrorView::new("host.notGitHub"))
+    let dir = data_dir(app)?;
+    for connection in storage::load_connections(&dir) {
+        if let Some((owner, name)) = matches_remote(&remotes, &connection.base_url) {
+            return Ok((connection, owner, name));
+        }
+    }
+    Err(ErrorView::new("host.noConnection"))
 }
 
-fn my_login(app: &tauri::AppHandle, hosts: &State<'_, Hosts>) -> String {
+fn my_login(app: &tauri::AppHandle, hosts: &State<'_, Hosts>, host: &str) -> String {
     hosts
-        .known_account(gitspy_hosts::github::ID)
-        .or_else(|| remembered(app, gitspy_hosts::github::ID).account)
+        .known_account(host)
+        .or_else(|| remembered(app, host).account)
         .map(|account| account.login)
         .unwrap_or_default()
 }
@@ -367,7 +505,7 @@ pub async fn pull_requests(
     state: State<'_, AppState>,
     hosts: State<'_, Hosts>,
 ) -> Result<Option<PullListView>, ErrorView> {
-    let (owner, name) = match github_target(&state, &repo).await {
+    let (connection, owner, name) = match connected_target(&app, &state, &repo).await {
         Ok(found) => found,
         Err(error) if !network => {
             let _ = error;
@@ -375,11 +513,11 @@ pub async fn pull_requests(
         }
         Err(error) => return Err(error),
     };
-    let login = my_login(&app, &hosts);
+    let login = my_login(&app, &hosts, &connection.id);
     let dir = data_dir(&app)?;
 
     if !refresh {
-        if let Some(known) = storage::read_pulls(&dir, gitspy_hosts::github::ID, &owner, &name) {
+        if let Some(known) = storage::read_pulls(&dir, &connection.id, &owner, &name) {
             return Ok(Some(PullListView {
                 pulls: known
                     .pulls
@@ -396,9 +534,9 @@ pub async fn pull_requests(
         return Ok(None);
     }
 
-    let token = token(&app, gitspy_hosts::github::ID)
-        .ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
-    let client = GitHub::new().map_err(host_error)?;
+    let token =
+        token(&app, &connection.id).ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    let client = host_for(&connection)?;
     let (pulls, truncated) = client
         .pulls(&token, &owner, &name)
         .await
@@ -407,7 +545,7 @@ pub async fn pull_requests(
     let fetched_at = now_unix();
     storage::save_pulls(
         &dir,
-        gitspy_hosts::github::ID,
+        &connection.id,
         &owner,
         &name,
         &storage::KnownPulls {
@@ -442,11 +580,11 @@ pub async fn pull_card(
     state: State<'_, AppState>,
     hosts: State<'_, Hosts>,
 ) -> Result<PullCardView, ErrorView> {
-    let (owner, name) = github_target(&state, &repo).await?;
-    let login = my_login(&app, &hosts);
-    let token = token(&app, gitspy_hosts::github::ID)
-        .ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
-    let client = GitHub::new().map_err(host_error)?;
+    let (connection, owner, name) = connected_target(&app, &state, &repo).await?;
+    let login = my_login(&app, &hosts, &connection.id);
+    let token =
+        token(&app, &connection.id).ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    let client = host_for(&connection)?;
 
     let detail = client
         .pull_detail(&token, &owner, &name, number as u64)
@@ -474,4 +612,85 @@ pub async fn pull_card(
             })
             .collect(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn device() -> Device {
+        Device {
+            device_code: "dc".into(),
+            user_code: "AAAA-BBBB".into(),
+            verification_uri: "https://github.com/login/device".into(),
+            interval: 5,
+            expires_in: 900,
+        }
+    }
+
+    #[test]
+    fn a_second_press_joins_the_waiting_instead_of_asking_for_another_code() {
+        let hosts = Hosts::default();
+        assert_eq!(hosts.already_waiting("github"), None);
+
+        hosts.wait_for("github", device());
+        assert_eq!(
+            hosts.already_waiting("github").map(|d| d.user_code),
+            Some("AAAA-BBBB".to_string()),
+            "иначе десять нажатий заводят десять кодов и десять опросов github"
+        );
+    }
+
+    #[test]
+    fn a_second_press_reuses_the_same_browser_url() {
+        let hosts = Hosts::default();
+        hosts.browse_for("gitlab", "https://gitlab.com/oauth/x".into());
+        assert_eq!(
+            hosts.already_browsing("gitlab").as_deref(),
+            Some("https://gitlab.com/oauth/x"),
+            "повторное нажатие не должно плодить слушателей и вкладок"
+        );
+        hosts.stop_waiting("gitlab");
+        assert_eq!(hosts.already_browsing("gitlab"), None);
+    }
+
+    #[test]
+    fn a_finished_waiting_lets_the_next_attempt_start_clean() {
+        let hosts = Hosts::default();
+        hosts.wait_for("github", device());
+        hosts.stop_waiting("github");
+        assert_eq!(hosts.already_waiting("github"), None);
+    }
+
+    #[test]
+    fn disconnecting_forgets_the_account_and_the_listing_together() {
+        let hosts = Hosts::default();
+        hosts.keep_account(
+            "github",
+            Account {
+                host: "github".into(),
+                login: "pr0d".into(),
+                name: None,
+                avatar_url: "u".into(),
+            },
+        );
+        hosts.keep_repos("github", Vec::new());
+
+        hosts.drop_everything("github");
+        assert!(hosts.known_account("github").is_none());
+        assert!(
+            hosts.known_repos("github").is_none(),
+            "оставленный список показал бы чужие репозитории после смены аккаунта"
+        );
+    }
+
+    #[test]
+    fn an_unknown_host_is_refused_before_any_request() {
+        assert!(known_def("trello").is_err());
+        assert!(known_def("github").is_ok());
+        assert!(
+            known_def("gitlab").is_ok(),
+            "gitlab — полноправный провайдер, а не особый случай"
+        );
+    }
 }
