@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/icons';
+import { Hint } from '@/components/ui/tooltip';
 import { NavItem, ViewBar } from '@/parts';
+import { clampPanel, PANEL_LIMITS } from '@/resize';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { usePref } from '@/prefs';
@@ -13,6 +15,8 @@ const HOST = 'github';
 type Props = {
   open: boolean;
   account: AccountView | null;
+  collapsed: boolean;
+  onToggle: () => void;
   onDisconnected: () => void;
 };
 
@@ -43,9 +47,10 @@ export function SettingRow({
   );
 }
 
-export function Settings({ open, account, onDisconnected }: Props) {
+export function Settings({ open, account, collapsed, onToggle, onDisconnected }: Props) {
   const { t } = useTranslation();
   const [section, setSection] = usePref<SectionKey>('settings.section', 'general');
+  const [width] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
 
   if (!open) return null;
 
@@ -53,8 +58,42 @@ export function Settings({ open, account, onDisconnected }: Props) {
 
   return (
     <>
-      <aside className="flex w-68 shrink-0 flex-col gap-0.5 px-2.5">
-        <span className="text-faint px-2 pb-2 text-xs">{t('settings.title')}</span>
+      {collapsed ? (
+        <aside className="flex w-12 shrink-0 flex-col items-center gap-1">
+          <NavItem icon="expand" hint={t('sidebar.expand')} hintSide="right" onClick={onToggle} />
+          <span className="h-1" />
+          {SECTIONS.map(({ key, label, icon }) => (
+            <NavItem
+              key={key}
+              icon={icon}
+              name={t(label as 'settings.general')}
+              hint={t(label as 'settings.general')}
+              hintSide="right"
+              active={key === section}
+              onClick={() => setSection(key)}
+            />
+          ))}
+        </aside>
+      ) : (
+      <aside
+        className="flex shrink-0 flex-col gap-0.5 px-2.5"
+        style={{ width: clampPanel('sidebar', width) }}
+      >
+        <div className="flex items-center gap-1 pb-2">
+          <span className="text-faint flex h-8 min-w-0 flex-1 items-center px-2 text-xs">
+            {t('settings.title')}
+          </span>
+          <Hint text={t('sidebar.collapse')}>
+            <Button
+              variant="field"
+              size="icon-sm"
+              aria-label={t('sidebar.collapse')}
+              onClick={onToggle}
+            >
+              <Icon.collapse className="size-4" />
+            </Button>
+          </Hint>
+        </div>
         {SECTIONS.map(({ key, label, icon }) => (
           <NavItem
             key={key}
@@ -65,6 +104,7 @@ export function Settings({ open, account, onDisconnected }: Props) {
           />
         ))}
       </aside>
+      )}
 
       <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
         <ViewBar>

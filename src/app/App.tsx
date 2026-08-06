@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 import { METRICS_AVATARS, METRICS_COMPACT } from '@/entities/graph';
 import { notifyError } from '@/toast';
 import * as ipc from '@/ipc';
@@ -293,7 +292,9 @@ export default function App() {
           onCloseSettings={() => setSettings('closed')}
         />
 
-        {current === null || settings === 'active' ? null : confirming ? (
+        {current === null || settings === 'active' ? (
+          <div className="h-11 shrink-0" />
+        ) : confirming ? (
           <ConfirmBar
             operation={confirming}
             onConfirm={(operation) => {
@@ -318,14 +319,9 @@ export default function App() {
           />
         )}
 
-        <div
-          className={cn(
-            'flex min-h-0 flex-1 pr-2',
-            (current === null || settings === 'active') && 'pb-2',
-          )}
-        >
+        <div className="flex min-h-0 flex-1 pr-2">
         {settings === 'active' ? (
-          <Settings open account={account} onDisconnected={() => setAccount(null)} />
+          <Settings open account={account} collapsed={railed} onToggle={toggleRail} onDisconnected={() => setAccount(null)} />
         ) : current === null ? (
           <StartPage
             recent={recent}
@@ -356,7 +352,6 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <div className="flex min-w-0 flex-1 flex-col">
               <div className="bg-card shadow-sheet relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
               <AskBar
                 ask={asking}
@@ -485,16 +480,16 @@ export default function App() {
               </DetailsPane>
               </div>
               </div>
-              <BottomBar
-                zoom={zoom}
-                onZoom={setZoom}
-                ready={readyUpdate}
-                onRestart={() => void restartToUpdate()}
-              />
-              </div>
           </>
         )}
         </div>
+
+        <BottomBar
+          zoom={zoom}
+          onZoom={setZoom}
+          ready={readyUpdate}
+          onRestart={() => void restartToUpdate()}
+        />
 
         <CloneDialog
           open={cloning !== null}

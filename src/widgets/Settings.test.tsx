@@ -1,11 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render as bare, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { Settings } from './Settings';
+
+const render = (ui: React.ReactElement) => bare(<TooltipProvider>{ui}</TooltipProvider>);
 import '../i18n';
 
 const shown = {
   open: true,
   account: null,
+  collapsed: false,
+  onToggle: () => {},
   onDisconnected: () => {},
 };
 
