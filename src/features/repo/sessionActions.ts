@@ -80,5 +80,12 @@ export function useSessionActions({ sessions, active, dispatch, load, drop, setR
     [setRecent],
   );
 
-  return { openPath, pickRepo, closeRepo, forget };
+  const favorite = useCallback(
+    (path: string, on: boolean) => {
+      ipc.favoriteRepo(path, on).then(setRecent).catch(notifyError);
+    },
+    [setRecent],
+  );
+
+  return { openPath, pickRepo, closeRepo, forget, favorite };
 }

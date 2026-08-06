@@ -54,6 +54,7 @@ import {
   ListTree,
   Unlink,
   Sparkles,
+  Star,
 } from 'lucide-react';
 import { createElement, type SVGProps } from 'react';
 
@@ -138,6 +139,7 @@ export const Icon = {
   github: GithubMark,
   gitlab: GitlabMark,
   bitbucket: BitbucketMark,
+  star: Star,
 } as const;
 
 export type IconName = keyof typeof Icon;
