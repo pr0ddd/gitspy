@@ -2,6 +2,7 @@
 
 pub mod avatars;
 pub mod github;
+pub mod host;
 pub mod gitlab;
 pub mod pkce;
 pub mod pulls;
