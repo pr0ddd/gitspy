@@ -119,6 +119,19 @@ fn repo_of(wire: WireRepo) -> Repo {
     }
 }
 
+pub fn parse_repo(body: &str) -> Result<Repo, Error> {
+    let wire: WireRepo = serde_json::from_str(body).map_err(unexpected)?;
+    Ok(repo_of(wire))
+}
+
+pub fn slug_of(name: &str) -> String {
+    name.trim()
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '_' { c } else { '-' })
+        .collect()
+}
+
 pub fn parse_repos(body: &str) -> Result<(Vec<Repo>, Option<String>), Error> {
     let page: WirePage<WireRepo> = serde_json::from_str(body).map_err(unexpected)?;
     Ok((page.values.into_iter().map(repo_of).collect(), page.next))
@@ -323,11 +336,43 @@ impl Bitbucket {
         Ok(body)
     }
 
+    pub async fn create_repo(
+        &self,
+        token: &str,
+        workspace: &str,
+        name: &str,
+        description: &str,
+        private: bool,
+    ) -> Result<Repo, Error> {
+        let slug = slug_of(name);
+        let response = self
+            .client
+            .post(format!("{API}/repositories/{workspace}/{slug}"))
+            .bearer_auth(token)
+            .json(&serde_json::json!({
+                "scm": "git",
+                "name": name,
+                "description": description,
+                "is_private": private,
+            }))
+            .send()
+            .await
+            .map_err(|e| Error::Network {
+                detail: e.to_string(),
+            })?;
+        let status = response.status().as_u16();
+        let body = response.text().await.unwrap_or_default();
+        if status >= 400 {
+            return Err(classify(status, &body, None));
+        }
+        parse_repo(&body)
+    }
+
     pub async fn account(&self, token: &str) -> Result<Account, Error> {
         parse_account(&self.fetch(&format!("{API}/user"), token).await?)
     }
 
-    async fn workspaces(&self, token: &str) -> Result<Vec<String>, Error> {
+    pub async fn workspaces(&self, token: &str) -> Result<Vec<String>, Error> {
         let mut all = Vec::new();
         let mut url = format!("{API}/user/workspaces?pagelen=100");
         loop {
@@ -555,6 +600,12 @@ mod tests {
             None,
             "автор без bitbucket-аккаунта аватара не даёт — и не выдумывается"
         );
+    }
+
+    #[test]
+    fn the_slug_tames_names_the_way_bitbucket_urls_need() {
+        assert_eq!(slug_of("My Cool Repo"), "my-cool-repo");
+        assert_eq!(slug_of("gitspy_test.2"), "gitspy_test.2");
     }
 
     #[test]

@@ -154,3 +154,76 @@ pub async fn template_catalog() -> Result<TemplateCatalogView, ErrorView> {
         licenses,
     })
 }
+
+#[tauri::command]
+pub async fn seed_repo(
+    path: String,
+    branch: Option<String>,
+    gitignore: Option<String>,
+    license: Option<String>,
+    push: bool,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), ErrorView> {
+    let git = state.git()?;
+    let at = PathBuf::from(&path);
+
+    let mut seeds: Vec<(&str, String)> = Vec::new();
+    if gitignore.is_some() || license.is_some() {
+        let templates =
+            gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
+        if let Some(name) = gitignore.as_deref() {
+            seeds.push((
+                ".gitignore",
+                templates
+                    .gitignore_source(name)
+                    .await
+                    .map_err(crate::hosts::host_error)?,
+            ));
+        }
+        if let Some(key) = license.as_deref() {
+            seeds.push((
+                "LICENSE",
+                templates
+                    .license_body(key)
+                    .await
+                    .map_err(crate::hosts::host_error)?,
+            ));
+        }
+    }
+    if seeds.is_empty() {
+        return Ok(());
+    }
+
+    let credential_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Some(name) = branch.as_deref().filter(|b| !b.trim().is_empty()) {
+            git.rename_unborn_branch(&at, name).map_err(exec_error)?;
+        }
+        for (file, content) in &seeds {
+            std::fs::write(at.join(file), content)
+                .map_err(|e| ErrorView::new("init.seed").detail(e.to_string()))?;
+        }
+        git.first_commit(&at, "Initial commit").map_err(exec_error)?;
+
+        if push {
+            let owned = crate::hosts::credential_for(&credential_app, &git.remote_urls(&at));
+            let credential = owned.as_ref().map(|c| gitspy_exec::Credential {
+                url: &c.url,
+                username: c.username,
+                token: &c.token,
+            });
+            git.run_as(
+                &at,
+                &["push", "-u", "origin", "HEAD"],
+                credential,
+                &gitspy_exec::Cancel::new(),
+                &mut |_| {},
+            )
+            .map_err(exec_error)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))?
+}

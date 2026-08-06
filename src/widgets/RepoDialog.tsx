@@ -202,6 +202,11 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
   const [license, setLicense] = useState('');
   const [catalog, setCatalog] = useState<TemplateCatalogView | null>(null);
   const [creating, setCreating] = useState(false);
+  const [description, setDescription] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [cloneAfter, setCloneAfter] = useState(true);
+  const [namespaces, setNamespaces] = useState<string[]>([]);
+  const [namespace, setNamespace] = useState('');
 
   useEffect(() => {
     if (!open || mode !== 'init') return;
@@ -222,6 +227,9 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
     setGitignore('');
     setLicense('');
     setCreating(false);
+    setDescription('');
+    setIsPrivate(false);
+    setCloneAfter(true);
     setAddress(url);
     setName(directoryFromUrl(url));
     setShallow(false);
@@ -243,16 +251,29 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
   useEffect(() => {
     setPicked(null);
     setRepos([]);
+    setNamespaces([]);
+    setNamespace('');
     if (!connection) return;
     let alive = true;
-    ipc
-      .hostRepos(connection.id, false)
-      .then((found) => alive && setRepos(found))
-      .catch(notifyError);
+    if (mode === 'clone') {
+      ipc
+        .hostRepos(connection.id, false)
+        .then((found) => alive && setRepos(found))
+        .catch(notifyError);
+    } else {
+      ipc
+        .hostNamespaces(connection.id)
+        .then((found) => {
+          if (!alive) return;
+          setNamespaces(found);
+          setNamespace(found[0] ?? '');
+        })
+        .catch(notifyError);
+    }
     return () => {
       alive = false;
     };
-  }, [connection?.id]);
+  }, [connection?.id, mode]);
 
   const running = step !== null || creating;
   const cloningUrl = tab === 'url' ? address.trim() : (picked?.cloneUrl ?? '');
@@ -275,6 +296,32 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
       })
       .catch(notifyError)
       .finally(() => setCreating(false));
+  };
+
+  const createRemote = () => {
+    if (!connection || !name.trim() || !namespace) return;
+    setCreating(true);
+    const fallback = readPref<string>(SETTINGS.initBranch, '').trim();
+    const wanted = branch.trim() || fallback;
+    ipc
+      .hostCreateRepo(connection.id, namespace, name.trim(), description.trim(), isPrivate)
+      .then(async (created) => {
+        if (!cloneAfter) {
+          onOpenChange(false);
+          return;
+        }
+        const folder = name.trim();
+        setStep({ stage: 'progress.counting', percent: 0, overall: 0 });
+        const path = await ipc.cloneRepo(created.cloneUrl, parent, folder, false, setStep);
+        await ipc.seedRepo(path, wanted || null, gitignore || null, license || null, true);
+        onOpenChange(false);
+        onCloned(path);
+      })
+      .catch(notifyError)
+      .finally(() => {
+        setCreating(false);
+        setStep(null);
+      });
   };
 
   const start = () => {
@@ -300,32 +347,21 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
     <Dialog open={open} onOpenChange={(next) => !running && onOpenChange(next)}>
       <DialogContent className="flex h-140 gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <aside className="bg-fill-1 flex w-52 shrink-0 flex-col gap-px border-r p-2">
-          {mode === 'init' ? (
+          <NavItem
+            icon={mode === 'init' ? 'folder' : URL_TAB.icon}
+            label={mode === 'init' ? t('repoDialog.localOnly') : t(URL_TAB.label as 'repoDialog.withUrl')}
+            active={tab === (mode === 'init' ? 'local' : 'url')}
+            onClick={() => setTab(mode === 'init' ? 'local' : 'url')}
+          />
+          {HOSTS.map((host) => (
             <NavItem
-              icon="folder"
-              label={t('repoDialog.localOnly')}
-              active={tab === 'local'}
-              onClick={() => setTab('local')}
+              key={host.id}
+              icon={host.icon}
+              label={host.label}
+              active={tab === host.id}
+              onClick={() => setTab(host.id)}
             />
-          ) : (
-            <>
-              <NavItem
-                icon={URL_TAB.icon}
-                label={t(URL_TAB.label as 'repoDialog.withUrl')}
-                active={tab === URL_TAB.key}
-                onClick={() => setTab(URL_TAB.key)}
-              />
-              {HOSTS.map((host) => (
-                <NavItem
-                  key={host.id}
-                  icon={host.icon}
-                  label={host.label}
-                  active={tab === host.id}
-                  onClick={() => setTab(host.id)}
-                />
-              ))}
-            </>
-          )}
+          ))}
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col gap-5 p-6">
@@ -333,8 +369,31 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
             {mode === 'init' ? t('repoDialog.initTitle') : GIT.clone}
           </DialogTitle>
 
-          {mode === 'init' ? (
+          {mode === 'init' && tab !== 'local' && !connection ? (
+            <div className="flex flex-1 flex-col justify-center gap-3">
+              <p className="text-muted-foreground text-sm">{t('settings.connectHint')}</p>
+              <div>
+                <HostCard
+                  host={HOSTS.find((h) => h.id === tab)!}
+                  seeded={null}
+                  onDisconnected={() => undefined}
+                />
+              </div>
+            </div>
+          ) : mode === 'init' ? (
             <div className="space-y-4">
+              {tab !== 'local' ? (
+                <>
+                  <Row label={t('repoDialog.account')}>
+                    <TemplatePick
+                      value={namespace}
+                      choices={namespaces.map((n) => ({ key: n, label: n }))}
+                      onPick={setNamespace}
+                      ariaLabel={t('repoDialog.account')}
+                    />
+                  </Row>
+                </>
+              ) : null}
               <Row label={t('repoDialog.name')}>
                 <Input
                   value={name}
@@ -344,7 +403,39 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
                   aria-label={t('repoDialog.name')}
                 />
               </Row>
-              <Row label={t('repoDialog.initIn')}>
+              {tab !== 'local' ? (
+                <>
+                  <Row label={t('repoDialog.description')}>
+                    <Input
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      disabled={running}
+                      className="h-8 text-xs"
+                      aria-label={t('repoDialog.description')}
+                    />
+                  </Row>
+                  <Row label={t('repoDialog.access')}>
+                    <TemplatePick
+                      value={isPrivate ? 'private' : 'public'}
+                      choices={[
+                        { key: 'public', label: t('repoDialog.public') },
+                        { key: 'private', label: t('repoDialog.private') },
+                      ]}
+                      onPick={(key) => setIsPrivate(key === 'private')}
+                      ariaLabel={t('repoDialog.access')}
+                    />
+                  </Row>
+                  <Row label={t('repoDialog.cloneAfter')}>
+                    <Checkbox
+                      checked={cloneAfter}
+                      onCheckedChange={(next) => setCloneAfter(next === true)}
+                      disabled={running}
+                      aria-label={t('repoDialog.cloneAfter')}
+                    />
+                  </Row>
+                </>
+              ) : null}
+              <Row label={tab === 'local' ? t('repoDialog.initIn') : t('repoDialog.where')}>
                 <div className="flex w-full gap-2">
                   <Input
                     value={parent}
@@ -492,9 +583,12 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
               </div>
             ) : mode === 'init' ? (
               <div className="flex justify-end">
-                <Button onClick={create} disabled={running || !name.trim()}>
+                <Button
+                  onClick={tab === 'local' ? create : createRemote}
+                  disabled={running || !name.trim() || (tab !== 'local' && !namespace)}
+                >
                   <Icon.add className="size-3.5" />
-                  {t('repoDialog.create')}
+                  {tab === 'local' ? t('repoDialog.create') : t('repoDialog.createAndClone')}
                 </Button>
               </div>
             ) : (

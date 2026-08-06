@@ -134,6 +134,33 @@ impl Host {
         }
     }
 
+    pub async fn create_repo(
+        &self,
+        token: &str,
+        namespace: &str,
+        name: &str,
+        description: &str,
+        private: bool,
+    ) -> Result<github::Repo, Error> {
+        match self {
+            Host::GitHub(github) => github.create_repo(token, name, description, private).await,
+            Host::GitLab(gitlab) => gitlab.create_repo(token, name, description, private).await,
+            Host::Bitbucket(bitbucket) => {
+                bitbucket
+                    .create_repo(token, namespace, name, description, private)
+                    .await
+            }
+        }
+    }
+
+    pub async fn namespaces(&self, token: &str) -> Result<Vec<String>, Error> {
+        match self {
+            Host::GitHub(github) => Ok(vec![github.account(token).await?.login]),
+            Host::GitLab(gitlab) => Ok(vec![gitlab.account(token).await?.login]),
+            Host::Bitbucket(bitbucket) => bitbucket.workspaces(token).await,
+        }
+    }
+
     pub async fn commit_avatars(
         &self,
         token: &str,

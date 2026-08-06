@@ -405,6 +405,43 @@ pub async fn host_repos(
 }
 
 #[tauri::command]
+pub async fn host_namespaces(
+    host: String,
+    app: tauri::AppHandle,
+) -> Result<Vec<String>, ErrorView> {
+    let connection =
+        connection_of(&app, &host).ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    let token = fresh_access(&app, &host)
+        .await
+        .ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    host_for(&connection)?
+        .namespaces(&token)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn host_create_repo(
+    host: String,
+    namespace: String,
+    name: String,
+    description: String,
+    private: bool,
+    app: tauri::AppHandle,
+) -> Result<RepoListingView, ErrorView> {
+    let connection =
+        connection_of(&app, &host).ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    let token = fresh_access(&app, &host)
+        .await
+        .ok_or_else(|| host_error(gitspy_hosts::Error::NoToken))?;
+    let created = host_for(&connection)?
+        .create_repo(&token, &namespace, &name, &description, private)
+        .await
+        .map_err(host_error)?;
+    Ok(build_repo_listing(&created))
+}
+
+#[tauri::command]
 pub fn disconnect_host(
     host: String,
     app: tauri::AppHandle,
