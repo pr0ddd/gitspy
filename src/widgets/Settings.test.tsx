@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 vi.mock('@/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   setAutofetchMinutes: vi.fn(() => Promise.resolve()),
+  aiListModels: vi.fn(() => Promise.resolve(['qwen2.5-coder', 'llama3.1'])),
 }));
 import { Settings } from './Settings';
 
@@ -59,6 +60,51 @@ describe('страница настроек', () => {
       screen.getByRole('banner').textContent,
       'ViewBar-шапка называет открытую секцию',
     ).toContain('Integrations');
+  });
+});
+
+describe('секция AI', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('провайдер задаёт плейсхолдер адреса, проверка наполняет список моделей', async () => {
+    render(<Settings {...shown} />);
+    fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
+
+    expect(
+      screen.getByPlaceholderText('http://localhost:11434'),
+      'по умолчанию провайдер Ollama со своим портом',
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load models' }));
+    expect(
+      await screen.findByRole('button', { name: 'qwen2.5-coder' }),
+      'первая модель из ответа сервера выбирается сама',
+    ).toBeTruthy();
+    expect(
+      localStorage.getItem('gitspy.ai.model'),
+      'выбор модели пишется в преф, который читает кнопка генерации',
+    ).toBe('"qwen2.5-coder"');
+  });
+
+  it('смена провайдера сбрасывает модель и меняет плейсхолдер', async () => {
+    localStorage.setItem('gitspy.ai.model', '"qwen2.5-coder"');
+    render(<Settings {...shown} />);
+    fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
+
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: 'Ollama' }),
+      { button: 0, ctrlKey: false, pointerId: 1 },
+    );
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'LM Studio' }));
+
+    expect(
+      screen.getByPlaceholderText('http://localhost:1234'),
+      'плейсхолдер следует за провайдером',
+    ).toBeTruthy();
+    expect(
+      localStorage.getItem('gitspy.ai.model'),
+      'список моделей принадлежит серверу: чужая модель не переживает смену провайдера',
+    ).toBe('""');
   });
 });
 

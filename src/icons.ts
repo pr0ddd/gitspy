@@ -53,6 +53,7 @@ import {
   List,
   ListTree,
   Unlink,
+  Sparkles,
 } from 'lucide-react';
 import { createElement, type SVGProps } from 'react';
 
@@ -103,6 +104,7 @@ export const Icon = {
   copy: Copy,
   settings: Settings,
   host: CircleUserRound,
+  sparkle: Sparkles,
   waiting: Loader2,
   private: Lock,
   collapse: PanelLeftClose,

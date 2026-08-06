@@ -1,3 +1,5 @@
+import type { AiProviderId } from '@/types';
+
 export const SETTINGS = {
   autofetchMinutes: 'autofetch.minutes',
   rememberTabs: 'session.remember',
@@ -8,7 +10,20 @@ export const SETTINGS = {
   editorTabSize: 'editor.tabSize',
   editorSyntax: 'editor.syntax',
   editorLineNumbers: 'editor.lineNumbers',
+  aiProvider: 'ai.provider',
+  aiBaseUrl: 'ai.baseUrl',
+  aiModel: 'ai.model',
 } as const;
+
+export const AI_DEFAULT_URLS: Record<AiProviderId, string> = {
+  ollama: 'http://localhost:11434',
+  lmstudio: 'http://localhost:1234',
+};
+
+export const AI_PROVIDERS: ReadonlyArray<{ key: AiProviderId; label: string }> = [
+  { key: 'ollama', label: 'settings.aiOllama' },
+  { key: 'lmstudio', label: 'settings.aiLmStudio' },
+];
 
 export const AUTOFETCH_LIMITS = { min: 0, max: 60, fallback: 1 } as const;
 
