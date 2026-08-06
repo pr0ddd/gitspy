@@ -8,11 +8,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePref } from '@/prefs';
-import { HOVER_FILL } from '@/parts';
+import { HOVER_FILL, SearchField } from '@/parts';
 import type { Operation, WorkingTreeView } from '@/types';
 import { PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
 import { Icon } from '@/icons';
@@ -187,16 +186,13 @@ export function Toolbar({
       </div>
 
       <div className="flex w-64 shrink-0 items-center gap-1">
-        <div className="relative min-w-0 flex-1">
-          <Icon.search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-3 -translate-y-1/2" />
-          <Input
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onStep(e.shiftKey ? -1 : 1)}
-            placeholder={t('search.placeholder')}
-            className="h-7 pl-7 text-xs"
-          />
-        </div>
+        <SearchField
+          value={search}
+          size="xs"
+          placeholder={t('search.placeholder')}
+          onChange={onSearch}
+          onKeyDown={(e) => e.key === 'Enter' && onStep(e.shiftKey ? -1 : 1)}
+        />
 
         {search.trim() ? (
           <>

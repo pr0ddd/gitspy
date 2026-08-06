@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import type { Operation } from '@/types';
 
 
@@ -94,32 +95,34 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
       <span className="shrink-0 text-sm">{t(wording.title as 'branch.title')}</span>
 
       {multiline ? (
-        <textarea
+        <Textarea
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={submitKeys}
           rows={2}
-          className="bg-fill-1 text-foreground focus:bg-fill-2 w-96 resize-none rounded-md px-2.5 py-1.5 text-sm outline-none"
+          className="w-96"
         />
       ) : (
         <Input
+          size="xs"
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={submitKeys}
           placeholder={t(wording.field as 'branch.name')}
-          className="h-7 w-64 text-xs"
+          className="w-64"
         />
       )}
 
       {needsMessage ? (
         <Input
+          size="xs"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={submitKeys}
           placeholder={t('tag.message')}
-          className="h-7 w-64 text-xs"
+          className="w-64"
         />
       ) : null}
 

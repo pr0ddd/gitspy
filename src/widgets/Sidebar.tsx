@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Session } from '@/entities/repo';
@@ -13,7 +12,7 @@ import { buildChipMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { usePref } from '@/prefs';
 import { clampPanel, PANEL_LIMITS } from '@/resize';
-import { HOVER_FILL, InlineNote, ListRow, NavItem, ResizeGrip } from '@/parts';
+import { HOVER_FILL, InlineNote, ListRow, NavItem, ResizeGrip, SearchField } from '@/parts';
 import type { Ask } from './AskBar';
 import type { Operation, PullListView, PullView, RefKind, RefView, WorktreeView } from '@/types';
 
@@ -203,7 +202,7 @@ function ViewSwitch({
               className={cn(
                 'flex h-8 items-center rounded-full px-2 text-xs transition-colors',
                 chosen
-                  ? 'bg-fill-2 text-foreground min-w-0 font-medium'
+                  ? 'bg-control-fill text-foreground min-w-0 font-medium'
                   : cn(HOVER_FILL, 'text-muted-foreground hover:text-foreground shrink-0'),
               )}
             >
@@ -446,15 +445,7 @@ export function Sidebar({
         onEnd={() => {}}
       />
       <div className="flex items-center gap-1 px-2.5 pb-2">
-        <div className="relative min-w-0 flex-1">
-          <Icon.search className="text-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
-          <Input
-            value={filter}
-            placeholder={t('sidebar.filter')}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-fill-1 h-8 pl-8 text-xs"
-          />
-        </div>
+        <SearchField value={filter} placeholder={t('sidebar.filter')} onChange={setFilter} />
         <Hint text={t('sidebar.collapse')}>
           <Button
             variant="field"

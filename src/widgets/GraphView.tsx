@@ -30,6 +30,7 @@ import {
   type StoredWidths,
 } from '@/entities/graph';
 import { Icon } from '@/icons';
+import { Input } from '@/components/ui/input';
 import { buildMinimap } from '@/entities/graph';
 import { buildChipMenu, buildColumnsMenu, buildCommitMenu, type MenuAction, type MenuContext } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
@@ -600,7 +601,7 @@ export const GraphView = memo(function GraphView({
           className="absolute top-0 left-0 hidden"
           style={{ willChange: 'transform' }}
         >
-          <input
+          <Input
             value={message}
             onChange={(e) => onMessage(e.target.value)}
             onKeyDown={(e) => {
@@ -609,7 +610,7 @@ export const GraphView = memo(function GraphView({
             }}
             onWheel={(e) => e.stopPropagation()}
             placeholder={t('workingTree.messagePlaceholder')}
-            className="bg-fill-1 text-foreground focus:bg-fill-2 h-full w-full rounded-md px-2.5 text-sm outline-none"
+            className="h-full text-sm"
           />
         </div>
         {session?.loading ? (
