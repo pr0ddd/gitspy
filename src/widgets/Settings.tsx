@@ -52,8 +52,8 @@ export function SettingRow({
       <span className="flex min-h-8 items-center justify-end text-right text-sm leading-snug">
         {label}
       </span>
-      <div className="flex min-w-0 flex-col justify-center gap-2 self-stretch">
-        {children}
+      <div className="min-w-0 space-y-2">
+        <div className="flex min-h-8 items-center">{children}</div>
         {hint ? (
           <p className="text-muted-foreground max-w-xl text-xs leading-relaxed">{hint}</p>
         ) : null}
@@ -189,12 +189,12 @@ function GeneralSection() {
       <SettingRow label={t('settings.pullDefault')} hint={t('settings.pullDefaultHint')}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="font-normal">
+            <Button variant="outline" size="sm" className="w-72 justify-between font-normal">
               {t(chosenPull.label as 'pull.default')}
               <Icon.chevron className="size-3 rotate-90 opacity-60" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
+          <DropdownMenuContent align="start" className="w-72">
             <DropdownMenuRadioGroup
               value={pull}
               onValueChange={(next) => setPull(next as PullMode)}
