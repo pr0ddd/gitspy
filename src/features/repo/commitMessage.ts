@@ -5,6 +5,10 @@ import { usePref } from '@/prefs';
 import { AI_DEFAULT_URLS, SETTINGS } from '@/settingsModel';
 import type { AiProviderId, WorkingTreeView } from '@/types';
 
+export const SUBJECT_BUDGET = 72;
+
+export const subjectLeft = (summary: string): number => SUBJECT_BUDGET - [...summary].length;
+
 export const composeCommitMessage = (summary: string, description: string): string => {
   const head = summary.trim();
   const body = description.trim();

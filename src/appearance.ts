@@ -7,10 +7,10 @@ export const APPEARANCE_PREF = 'ui.appearance';
 
 export const APPEARANCES = [
   { key: '', label: 'appearance.gitspy' },
-  { key: 'linear-dark', label: 'appearance.linearDark' },
+  { key: 'linear-dark', label: 'appearance.gitspyDark' },
   { key: 'classic-dark', label: 'appearance.classicDark' },
   { key: 'magic-blue', label: 'appearance.magicBlue' },
-  { key: 'linear-light', label: 'appearance.linearLight' },
+  { key: 'linear-light', label: 'appearance.gitspyLight' },
   { key: 'pure-light', label: 'appearance.pureLight' },
 ] as const;
 

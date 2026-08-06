@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Hint } from '@/components/ui/tooltip';
 import { Icon, type IconName } from '@/icons';
 import { shortenDirectory, splitPath } from '@/paths';
@@ -59,7 +60,7 @@ export function ListRow({
         'text-subject flex w-full items-center gap-2.5 rounded-md px-2 text-left text-xs',
         tall ? 'h-11' : 'h-8',
         as === 'div' && 'group cursor-pointer',
-        current ? 'text-foreground bg-fill-2 font-medium' : 'hover:bg-fill-1',
+        current ? 'text-foreground bg-control-fill font-medium' : 'hover:bg-fill-1',
         className,
       )}
     >
@@ -154,6 +155,72 @@ export function StatusBadge({ letter }: { letter: string }) {
     >
       {letter}
     </span>
+  );
+}
+
+const SEARCH_INSET = {
+  xs: { icon: 'left-2 size-3', pad: 'pl-7' },
+  sm: { icon: 'left-3 size-3.5', pad: 'pl-8' },
+} as const;
+
+export function SearchField({
+  value,
+  placeholder,
+  size = 'sm',
+  onChange,
+  onKeyDown,
+}: {
+  value: string;
+  placeholder: string;
+  size?: keyof typeof SEARCH_INSET;
+  onChange: (text: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+}) {
+  const inset = SEARCH_INSET[size];
+  return (
+    <div className="relative min-w-0 flex-1">
+      <Icon.search
+        className={cn(
+          'text-muted-foreground pointer-events-none absolute top-1/2 -translate-y-1/2',
+          inset.icon,
+        )}
+      />
+      <Input
+        value={value}
+        size={size}
+        placeholder={placeholder}
+        className={inset.pad}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+    </div>
+  );
+}
+
+export function Chip({
+  head,
+  title,
+  onClick,
+  children,
+}: {
+  head?: boolean;
+  title?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  const Tag = onClick ? 'button' : 'span';
+  return (
+    <Tag
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'border-chip-border bg-chip-background inline-flex h-6 max-w-full items-center gap-1.5 rounded-md border px-2 text-xs',
+        head ? 'border-primary/50 text-foreground' : 'text-muted-foreground',
+        onClick && HOVER_FILL,
+      )}
+    >
+      {children}
+    </Tag>
   );
 }
 
@@ -268,7 +335,7 @@ export function Tab({ icon, label, current, title, closeLabel, onSelect, onClose
       onClick={onSelect}
       className={cn(
         'group flex h-7.5 max-w-56 cursor-pointer items-center gap-2 rounded-md pr-1.5 pl-3 text-xs whitespace-nowrap',
-        current ? 'bg-fill-2 text-foreground' : 'text-muted-foreground hover:bg-fill-1',
+        current ? 'bg-control-fill text-foreground' : 'text-muted-foreground hover:bg-fill-1',
       )}
     >
       <Glyph className={cn('size-3.5 shrink-0', !current && 'opacity-75')} />
@@ -327,10 +394,10 @@ export function FilePath({ path, budget = 64 }: { path: string; budget?: number 
   const { directory, name } = splitPath(path);
   return (
     <span className="flex min-w-0 items-baseline">
-      <span className="text-muted-foreground min-w-0 truncate">
+      <span className="text-muted-foreground min-w-0 shrink truncate">
         {shortenDirectory(directory, budget)}
       </span>
-      <span className="min-w-16 truncate">{name}</span>
+      <span className="max-w-full shrink-0 truncate">{name}</span>
     </span>
   );
 }

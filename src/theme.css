@@ -34,7 +34,12 @@
   --destructive-foreground: oklch(0.99 0.002 25);
 
   --border: var(--fill-2);
-  --input: var(--fill-2);
+  --input: transparent;
+  --control-fill: var(--fill-2);
+  --control-fill-hover: var(--fill-3);
+  --chip-border: oklch(1 0 0 / 0.46);
+  --chip-background: transparent;
+  --button-border: oklch(1 0 0 / 0.16);
   --ring: oklch(0.64 0.16 277);
 
   --surface: oklch(0.135 0.003 265);
@@ -97,7 +102,6 @@
   --primary-foreground: #fdfdff;
   --ring: #5e69d1;
   --border: lch(14.16% 1.48 272);
-  --input: lch(14.16% 1.48 272);
   --surface: lch(2.595% 0.4 272);
   --surface-raised: lch(9.345% 0.85 272);
 }
@@ -119,7 +123,6 @@
   --primary-foreground: #fdfdff;
   --ring: #5e69d1;
   --border: lch(19.071% 7.768 282.863);
-  --input: lch(19.071% 7.768 282.863);
   --surface: lch(6.221% 6.568 282.863);
   --surface-raised: lch(13.721% 7.068 282.863);
 }
@@ -141,7 +144,6 @@
   --primary-foreground: #fdfdff;
   --ring: #5e69d1;
   --border: lch(21.836% 3.413 272.695);
-  --input: lch(21.836% 3.413 272.695);
   --surface: lch(8.986% 2.213 272.695);
   --surface-raised: lch(16.486% 2.713 272.695);
 }
@@ -154,6 +156,8 @@
   --fill-1: oklch(0 0 0 / 0.04);
   --fill-2: oklch(0 0 0 / 0.07);
   --fill-3: oklch(0 0 0 / 0.11);
+  --chip-border: oklch(0 0 0 / 0.38);
+  --button-border: oklch(0 0 0 / 0.2);
   --primary: #5e69d1;
   --primary-hover: #4f59c4;
   --primary-foreground: #fdfdff;
@@ -190,7 +194,6 @@
 [data-theme='linear-light'] {
   --background: lch(94.44% 0.5 282);
   --border: lch(84.44% 0 282);
-  --input: lch(84.44% 0 282);
   --card: lch(97.94% 0.5 282);
   --popover: lch(99% 0.5 282);
   --foreground: lch(9.794% 0 282);
@@ -208,7 +211,6 @@
 [data-theme='pure-light'] {
   --background: lch(97.667% 0 142.924);
   --border: lch(89% 0 142.924);
-  --input: lch(89% 0 142.924);
   --card: lch(100% 0 142.924);
   --popover: lch(100% 0 142.924);
   --foreground: lch(10.357% 0 142.924);
@@ -242,6 +244,11 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-control-fill: var(--control-fill);
+  --color-control-fill-hover: var(--control-fill-hover);
+  --color-chip-border: var(--chip-border);
+  --color-chip-background: var(--chip-background);
+  --color-button-border: var(--button-border);
   --color-ring: var(--ring);
 
   --color-surface: var(--surface);

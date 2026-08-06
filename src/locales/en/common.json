@@ -1,8 +1,8 @@
 {
   "appearance.classicDark": "Classic Dark",
   "appearance.gitspy": "Gitspy",
-  "appearance.linearDark": "Linear Dark",
-  "appearance.linearLight": "Linear Light",
+  "appearance.gitspyDark": "Gitspy Dark",
+  "appearance.gitspyLight": "Gitspy Light",
   "appearance.magicBlue": "Magic Blue",
   "appearance.pureLight": "Pure Light",
   "ask.cancel": "Cancel",
@@ -409,6 +409,7 @@
   "workingTree.stage": "Stage",
   "workingTree.stageAll": "Stage all",
   "workingTree.staged": "Staged",
+  "workingTree.subjectLeft": "Characters left in the summary",
   "workingTree.title": "Working tree",
   "workingTree.unstage": "Unstage",
   "workingTree.unstageAll": "Unstage all",

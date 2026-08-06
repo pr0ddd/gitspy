@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { usePref } from '@/prefs';
 import * as ipc from '@/ipc';
@@ -6,6 +7,8 @@ import { showNativeMenu } from '@/features/menus';
 import { notifyError } from '@/toast';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Hint } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
@@ -14,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/icons';
 import { FilePath, ListRow, PanelBar, SectionHeader, StatusBadge } from '@/parts';
 import { buildFileTree, sortedByPath, type FileNode } from '@/features/fileTree';
-import { useGenerateCommit } from '@/features/repo';
+import { subjectLeft, useGenerateCommit } from '@/features/repo';
 import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
 
 export type PreviousCommit = { readonly subject: string; readonly body: string };
@@ -170,7 +173,7 @@ function Section({
   onMenu?: (entry: StatusEntryView) => void;
 }) {
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col px-2.5">
       <SectionHeader>
         <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         <span className="shrink-0 tabular-nums">{count}</span>
@@ -205,7 +208,7 @@ function Section({
           )}
         </ul>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -315,6 +318,24 @@ function MergeHeading({ from, into }: { from: string | null; into: string | null
   );
 }
 
+function useWheelScrollsSideways(field: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    const el = field.current;
+    if (!el) return;
+
+    const roll = (e: WheelEvent) => {
+      const push = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (!push) return;
+      const was = el.scrollLeft;
+      el.scrollLeft = was + push;
+      if (el.scrollLeft !== was) e.preventDefault();
+    };
+
+    el.addEventListener('wheel', roll, { passive: false });
+    return () => el.removeEventListener('wheel', roll);
+  }, [field]);
+}
+
 function MessageFields({
   message,
   description,
@@ -337,18 +358,33 @@ function MessageFields({
   onGenerate: () => void;
 }) {
   const { t } = useTranslation();
+  const subject = useRef<HTMLInputElement>(null);
+  useWheelScrollsSideways(subject);
+  const left = subjectLeft(message);
+
   return (
-    <>
-      <div className="relative">
-        <input
+    <div className="bg-control-fill space-y-1 rounded-md px-2.5 py-2">
+      <div className="flex items-center gap-2">
+        <Input
+          ref={subject}
+          bare
           value={message}
           onChange={(e) => onMessage(e.target.value)}
           onKeyDown={onHotkey}
           placeholder={t('workingTree.messagePlaceholder')}
-          className="bg-fill-1 text-foreground placeholder:text-faint focus:bg-fill-2 w-full rounded-md py-1.5 pl-2.5 pr-8 text-sm outline-none"
+          className="h-7 text-sm"
         />
+        <span
+          aria-label={t('workingTree.subjectLeft')}
+          className={cn(
+            'shrink-0 text-xs tabular-nums',
+            left < 0 ? 'text-modified' : 'text-muted-foreground',
+          )}
+        >
+          {left}
+        </span>
         <Hint text={generateHint}>
-          <span className="absolute top-1/2 right-1 -translate-y-1/2">
+          <span className="shrink-0">
             <Button
               variant="ghost"
               size="icon-xs"
@@ -365,15 +401,16 @@ function MessageFields({
           </span>
         </Hint>
       </div>
-      <textarea
+      <Textarea
+        bare
         value={description}
         onChange={(e) => onDescription(e.target.value)}
         onKeyDown={onHotkey}
         placeholder={t('workingTree.descriptionPlaceholder')}
         rows={3}
-        className="bg-fill-1 text-foreground placeholder:text-faint focus:bg-fill-2 w-full resize-none rounded-md px-2.5 py-1.5 text-sm outline-none"
+        className="max-h-40 overflow-y-auto"
       />
-    </>
+    </div>
   );
 }
 

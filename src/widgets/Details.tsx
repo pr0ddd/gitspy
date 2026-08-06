@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { identicon } from '@/avatar';
 import type { AvatarCache } from '@/avatarCache';
 import type { Session } from '@/entities/repo';
@@ -11,7 +10,15 @@ import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import { FilePath, HOVER_FILL, ListRow, PanelBanner, PanelNote, SectionHeader, StatusBadge } from '@/parts';
+import {
+  Chip,
+  FilePath,
+  ListRow,
+  PanelBanner,
+  PanelNote,
+  SectionHeader,
+  StatusBadge,
+} from '@/parts';
 import type { ChangedFileView, RefKind } from '@/types';
 
 type Props = {
@@ -37,33 +44,6 @@ const REF_ICON: Record<RefKind, keyof typeof Icon> = {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
-}
-
-function MetaPill({
-  head,
-  title,
-  onClick,
-  children,
-}: {
-  head?: boolean;
-  title?: string;
-  onClick?: () => void;
-  children: React.ReactNode;
-}) {
-  const Tag = onClick ? 'button' : 'span';
-  return (
-    <Tag
-      title={title}
-      onClick={onClick}
-      className={cn(
-        'inline-flex h-6 max-w-full items-center gap-1.5 rounded-md border px-2 text-xs',
-        head ? 'border-primary/40 text-foreground' : 'text-muted-foreground',
-        onClick && HOVER_FILL,
-      )}
-    >
-      {children}
-    </Tag>
-  );
 }
 
 export function Details({
@@ -155,11 +135,11 @@ export function Details({
           <p className="text-subject text-base leading-snug font-semibold">{row.subject}</p>
 
           <div className="flex flex-wrap gap-1.5">
-            <MetaPill title={row.email}>
+            <Chip title={row.email}>
               <img src={authorPortrait} alt="" className="size-3.5 shrink-0 rounded-full" />
               {row.author}
-            </MetaPill>
-            <MetaPill>
+            </Chip>
+            <Chip>
               <Icon.clock className="size-3 shrink-0 opacity-70" />
               <span className="tabular-nums">
                 {new Intl.DateTimeFormat(i18n.language, {
@@ -167,19 +147,19 @@ export function Details({
                   timeStyle: 'short',
                 }).format(when)}
               </span>
-            </MetaPill>
-            <MetaPill title={t('details.copyHash')} onClick={() => onCopy(row.hash)}>
+            </Chip>
+            <Chip title={t('details.copyHash')} onClick={() => onCopy(row.hash)}>
               <Icon.hash className="size-3 shrink-0 opacity-70" />
               <span className="font-mono">{row.hash.slice(0, 8)}</span>
               <Icon.copy className="size-2.5 opacity-60" />
-            </MetaPill>
+            </Chip>
             {labels.map((ref) => {
               const Glyph = Icon[REF_ICON[ref.kind]];
               return (
-                <MetaPill key={`${ref.kind}:${ref.name}`} title={ref.name} head={ref.isHead}>
+                <Chip key={`${ref.kind}:${ref.name}`} title={ref.name} head={ref.isHead}>
                   <Glyph className="size-3 shrink-0" />
                   <span className="min-w-0 truncate">{ref.name}</span>
-                </MetaPill>
+                </Chip>
               );
             })}
           </div>
