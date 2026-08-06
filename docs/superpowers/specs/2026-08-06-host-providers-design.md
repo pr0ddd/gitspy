@@ -50,7 +50,9 @@ Integrations не имеют собственной логики.
   иначе.
 - **GitLab.com**: authorization code + PKCE, публичное приложение без
   секрета; на время входа приложение поднимает loopback-слушатель на
-  `127.0.0.1:<порт>` и ловит редирект.
+  фиксированном `127.0.0.1:53682` и ловит редирект (GitLab требует
+  точного совпадения Redirect URI, «любой порт» не разрешён; порт занят →
+  честная ошибка `hosts.portBusy`).
 - **Bitbucket**: PKCE без секрета не умеет — обмен кода на токен делает
   **наш Cloudflare Worker** (client secret в env воркера, в бинаре секретов
   нет). Воркер отдаёт страницу «Success» с кнопкой и деплинком
@@ -161,9 +163,9 @@ GitLab/Bitbucket. Протухший токен Bitbucket → тихий refresh
 
 ## Что понадобится от пользователя
 
-- Регистрация OAuth-приложения на gitlab.com (Redirect URI
-  `http://127.0.0.1:0/callback` — точные значения дам при реализации) →
-  client_id в код (публичный, не секрет).
+- Регистрация OAuth-приложения на gitlab.com: Redirect URI
+  `http://127.0.0.1:53682/callback`, scopes `api`, Confidential — выкл.
+  → client_id в код (публичный, не секрет).
 - Регистрация OAuth consumer в Bitbucket → client_id/secret в env
   воркера.
 - Деплой воркера (wrangler, тот же аккаунт Cloudflare, что R2).
