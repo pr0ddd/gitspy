@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
-import { usePref } from './prefs';
+import { usePref } from '@/prefs';
 
 export const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
 

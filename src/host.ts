@@ -1,4 +1,4 @@
-import type { RemoteView } from './types';
+import type { RemoteView } from '@/types';
 
 export type HostKind = 'github' | 'gitlab' | 'bitbucket';
 

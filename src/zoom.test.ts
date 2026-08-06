@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ZOOM_STEPS, zoomForKey, zoomIn, zoomLabel, zoomOut } from './zoom';
+import { ZOOM_STEPS, zoomForKey, zoomIn, zoomLabel, zoomOut } from '@/zoom';
 
 describe('шаги масштаба', () => {
   it('края лестницы — 80 и 300 процентов', () => {

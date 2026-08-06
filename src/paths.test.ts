@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { directoryFromUrl, shortenDirectory, splitPath } from './paths';
+import { directoryFromUrl, shortenDirectory, splitPath } from '@/paths';
 
 describe('разбор пути', () => {
   it('имя файла отделяется от каталога', () => {

@@ -10,3 +10,7 @@ class ResizeObserverStub {
 }
 
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
+
+if (typeof document !== 'undefined') {
+  document.queryCommandSupported ??= () => false;
+}

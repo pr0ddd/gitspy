@@ -60,8 +60,18 @@ cargo run -q --release -p gitspy-repo --example dump_repo -- <путь> <ско�
 ## Интерфейс
 
 Каркас: вкладки репозиториев, панель действий, слева ссылки, в центре граф
-на canvas, справа подробности. Компоненты живут в `src/shell/`, по файлу на
-часть каркаса; `src/App.tsx` — только композиция и состояние сессий.
+на canvas, справа подробности.
+
+**Фронтенд разложен по слоям FSD**, импорт — только строго вниз, между
+слайсами — только через фасад `index.ts` слайса (это сторожит ESLint):
+
+| Слой | Что там | Примеры |
+|---|---|---|
+| фундамент — корень `src/`, `components/ui/` | ipc, types, icons, theme, prefs, i18n, toast, словарь `parts.tsx`, shadcn | ничего не импортирует сверху |
+| `entities/` | предметные слайсы без React-каркаса | `graph` (scene, render, chips…), `repo` (session, repoData), `diff` (monaco, hunks) |
+| `features/` | поведение поверх сущностей | `search`, `updater`, `menus`, `repo` (загрузка, операции, черновик коммита) |
+| `widgets/` | компоненты каркаса, по файлу на часть | GraphView, Sidebar, Toolbar, Settings… |
+| `app/` | `App.tsx` — только композиция и состояние сессий, `main.tsx` | |
 
 ### shadcn и токены
 
@@ -74,7 +84,7 @@ cargo run -q --release -p gitspy-repo --example dump_repo -- <путь> <ско�
 `className` с частными значениями вроде `p-[7px]` или `text-[#7b8798]`.
 Оформление — утилиты Tailwind, привязанные к теме.
 
-**Повторяющиеся части каркаса — в `src/shell/parts.tsx`, и только там.**
+**Повторяющиеся части каркаса — в `src/parts.tsx`, и только там.**
 `ListRow` (строка любого списка, h-6), `SectionHeader` (заголовок секции, h-7),
 `PanelBar` (шапка боковой панели, h-8), `ViewBar` (шапка основного вида, h-9),
 `InlineNote` и `PanelNote` (пустые состояния), `FilePath` (каталог+имя).

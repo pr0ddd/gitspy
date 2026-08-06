@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { readPref, writePref } from './prefs';
+import { readPref, writePref } from '@/prefs';
 
 describe('память настроек', () => {
   beforeEach(() => localStorage.clear());

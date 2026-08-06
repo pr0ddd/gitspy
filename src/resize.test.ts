@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampPanel, PANEL_LIMITS } from './resize';
+import { clampPanel, PANEL_LIMITS } from '@/resize';
 
 describe('пределы ширины панелей', () => {
   it('ширина внутри пределов проходит как есть', () => {
