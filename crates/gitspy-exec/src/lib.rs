@@ -674,6 +674,11 @@ impl Git {
         }
     }
 
+    pub fn first_commit(&self, path: &Path, message: &str) -> Result<(), Error> {
+        self.read(path, &["add", "-A"])?;
+        self.read(path, &["commit", "-m", message]).map(|_| ())
+    }
+
     fn prepared(&self, credential: Option<&Credential>) -> Command {
         let environment = env::environment(self.askpass.as_deref());
 

@@ -160,3 +160,28 @@ fn a_shallow_clone_brings_one_commit_of_history() {
         "--depth 1 обязан отрезать историю до одного коммита"
     );
 }
+
+#[test]
+fn templates_land_in_history_as_the_first_commit() {
+    let dir = TempDir::new().expect("временный каталог");
+    let git = Git::discover().expect("git найден");
+    git.init(dir.path(), Some("main")).expect("init проходит");
+    std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("файл пишется");
+
+    run(dir.path(), &["config", "user.name", "Test"]);
+    run(dir.path(), &["config", "user.email", "test@example.com"]);
+    git.first_commit(dir.path(), "Initial commit")
+        .expect("первый коммит проходит");
+
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir.path())
+        .args(["log", "--format=%s", "-1"])
+        .output()
+        .expect("git запускается");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        "Initial commit",
+        "шаблоны попадают в историю, а не валяются незакоммиченными"
+    );
+}

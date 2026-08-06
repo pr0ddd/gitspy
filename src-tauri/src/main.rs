@@ -68,6 +68,7 @@ fn main() {
             clone::default_clone_dir,
             clone::clone_repo,
             clone::init_repo,
+            clone::template_catalog,
             terminal::open_terminal,
             terminal::open_in_editor,
             terminal::open_url,

@@ -72,7 +72,7 @@ export default function App() {
     setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
   const [settings, setSettings] = useState<'closed' | 'open' | 'active'>('closed');
-  const [cloning, setCloning] = useState<string | null>(null);
+  const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string } | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
   const readyUpdate = useReadyUpdate();
@@ -203,7 +203,7 @@ export default function App() {
       adoptTree,
     });
 
-  const { openPath, pickRepo, createRepo, closeRepo, forget } = useSessionActions({
+  const { openPath, pickRepo, closeRepo, forget } = useSessionActions({
     sessions,
     active,
     dispatch,
@@ -342,8 +342,8 @@ export default function App() {
             onOpen={pickRepo}
             onOpenPath={openPath}
             onForget={forget}
-            onClone={setCloning}
-            onCreate={createRepo}
+            onClone={(url) => setAdding({ mode: 'clone', url })}
+            onCreate={() => setAdding({ mode: 'init', url: '' })}
             onConnect={() => setSettings('active')}
           />
         ) : (
@@ -505,9 +505,10 @@ export default function App() {
         />
 
         <RepoDialog
-          open={cloning !== null}
-          url={cloning ?? ''}
-          onOpenChange={(next) => !next && setCloning(null)}
+          open={adding !== null}
+          mode={adding?.mode ?? 'clone'}
+          url={adding?.url ?? ''}
+          onOpenChange={(next) => !next && setAdding(null)}
           onCloned={openPath}
         />
 

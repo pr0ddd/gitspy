@@ -7,6 +7,7 @@ import type {
   CloneStepView,
   ConnectStartView,
   ConnectionView,
+  TemplateCatalogView,
   PullCardView,
   PullListView,
   RepoListingView,
@@ -161,8 +162,15 @@ export const cloneRepo = (
   return invoke<string>('clone_repo', { url, parent, name, shallow, progress });
 };
 
-export const initRepo = (path: string, branch: string | null) =>
-  invoke<string>('init_repo', { path, branch });
+export const templateCatalog = () => invoke<TemplateCatalogView>('template_catalog');
+
+export const initRepo = (
+  path: string,
+  branch: string | null,
+  gitignore: string | null,
+  license: string | null,
+) =>
+  invoke<string>('init_repo', { path, branch, gitignore, license });
 
 export const openTerminal = (repo: string) => invoke<void>('open_terminal', { repo });
 
