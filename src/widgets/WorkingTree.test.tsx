@@ -10,6 +10,12 @@ vi.mock('@/features/menus', async (importOriginal) => ({
   showNativeMenu: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn(() => Promise.resolve(false)) }));
+vi.mock('@/ipc', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  aiGenerateCommit: vi.fn(() =>
+    Promise.resolve({ summary: 'Add parser', description: 'Covers fences.' }),
+  ),
+}));
 import '../i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { WorkingTree } from './WorkingTree';
@@ -71,6 +77,37 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
     </TooltipProvider>,
   );
 
+describe('кнопка генерации сообщения', () => {
+  it('без staged-файлов кнопка неактивна', () => {
+    localStorage.setItem('gitspy.ai.model', '"qwen2.5-coder"');
+    draw(treeWith(0), '', () => {});
+    const generate = screen.getByLabelText('Generate commit message') as HTMLButtonElement;
+    expect(generate.disabled, 'нечего описывать — нечего и генерировать').toBe(true);
+  });
+
+  it('без выбранной модели кнопка неактивна', () => {
+    draw(treeWith(1), '', () => {});
+    const generate = screen.getByLabelText('Generate commit message') as HTMLButtonElement;
+    expect(generate.disabled, 'без настроенной модели запрос отправлять некуда').toBe(true);
+  });
+
+  it('ответ модели заполняет оба поля черновика', async () => {
+    localStorage.setItem('gitspy.ai.model', '"qwen2.5-coder"');
+    const onMessage = vi.fn();
+    const onDescription = vi.fn();
+    draw(treeWith(1), '', () => {}, { onMessage, onDescription });
+
+    fireEvent.click(screen.getByLabelText('Generate commit message'));
+
+    await vi.waitFor(() =>
+      expect(onMessage, 'заголовок приходит из ответа модели').toHaveBeenCalledWith('Add parser'),
+    );
+    expect(onDescription, 'описание приходит тем же ответом').toHaveBeenCalledWith(
+      'Covers fences.',
+    );
+  });
+});
+
 describe('шапка панели рабочего дерева', () => {
   it('корзина не выбрасывает изменения сама, а просит подтверждения', () => {
     const asked: Operation[] = [];
@@ -130,13 +167,13 @@ describe('контекстное меню файла', () => {
 describe('коммит из панели рабочего дерева', () => {
   it('кнопка мертва, пока сообщение пустое', () => {
     const { getByRole } = draw(treeWith(2), '   ', () => {});
-    expect((getByRole('button', { name: /commit/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((getByRole('button', { name: /^commit$/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('с сообщением и стейджем клик создаёт коммит', () => {
     let committed = 0;
     const { getByRole } = draw(treeWith(2), 'fix: thing', () => (committed += 1));
-    const button = getByRole('button', { name: /commit/i }) as HTMLButtonElement;
+    const button = getByRole('button', { name: /^commit$/i }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     fireEvent.click(button);
     expect(committed).toBe(1);
@@ -144,7 +181,7 @@ describe('коммит из панели рабочего дерева', () => {
 
   it('без единого файла в индексе коммитить нечего', () => {
     const { getByRole } = draw(treeWith(0), 'fix: thing', () => {});
-    expect((getByRole('button', { name: /commit/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((getByRole('button', { name: /^commit$/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('Cmd+Enter в поле сообщения — тот же коммит, что и кнопка', () => {
@@ -169,7 +206,7 @@ describe('коммит из панели рабочего дерева', () => {
       previous: { subject: 'old', body: '' },
     });
     expect(
-      (getByRole('button', { name: /commit/i }) as HTMLButtonElement).disabled,
+      (getByRole('button', { name: /^commit$/i }) as HTMLButtonElement).disabled,
       'amend меняет сообщение прошлого коммита, индекс может быть пуст',
     ).toBe(false);
   });

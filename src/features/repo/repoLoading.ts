@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
-import { AvatarCache } from '@/avatarCache';
+import { AvatarCache, beacon } from '@/avatarCache';
 import { remoteAvatarKey } from '@/entities/graph';
 import type { SessionsAction } from '@/entities/repo';
 import type { RecentRepo, RemoteView, WorkingTreeView } from '@/types';
@@ -48,8 +48,17 @@ export function useRepoLoading({
     if (!active) return;
     ipc
       .avatarPaths(active)
-      .then((paths) => avatars.refill(paths))
-      .catch(() => undefined);
+      .then((paths) => {
+        const sample = Object.entries(paths)[0];
+        beacon(`paths n=${Object.keys(paths).length} sample=${sample ? sample.join(' -> ') : 'none'}`);
+        return avatars.refill(paths).then(() => {
+          const c = avatars.probeCounts();
+          beacon(`refilled images=${c.images} ready=${c.ready}`);
+        });
+      })
+      .catch((e) => {
+        beacon(`paths-err ${String(e).slice(0, 120)}`);
+      });
 
     const stop = ipc.onAvatarsChanged((path) => {
       if (path !== active) return;
