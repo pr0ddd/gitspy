@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Icon } from '@/icons';
 import { PanelBar, ViewBar } from '@/parts';
 import * as ipc from '@/ipc';
+import { runRepoWork, useRepoWork } from '@/features/repo';
 import { notifyError } from '@/toast';
 import type { PullCardView, PullView } from '@/types';
 import { Hint } from '@/components/ui/tooltip';
@@ -20,7 +21,6 @@ import { Hint } from '@/components/ui/tooltip';
 type Props = {
   repo: string;
   pull: PullView;
-  busy: boolean;
   onCheckedOut: () => void;
   onClose: () => void;
 };
@@ -35,10 +35,10 @@ function Body({ text }: { text: string }) {
   );
 }
 
-export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
+export function PullPanel({ repo, pull, onCheckedOut, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const [card, setCard] = useState<PullCardView | null>(null);
-  const [switching, setSwitching] = useState(false);
+  const work = useRepoWork(repo);
 
   useEffect(() => {
     let alive = true;
@@ -53,12 +53,9 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
   }, [repo, pull.number]);
 
   const checkout = () => {
-    setSwitching(true);
-    ipc
-      .checkoutPull(repo, pull.number, pull.headBranch, pull.fromFork)
-      .then(onCheckedOut)
-      .catch(notifyError)
-      .finally(() => setSwitching(false));
+    void runRepoWork(repo, { kind: 'checkout', target: pull.headBranch }, () =>
+      ipc.checkoutPull(repo, pull.number, pull.headBranch, pull.fromFork).then(onCheckedOut),
+    );
   };
 
   const relative = new Intl.RelativeTimeFormat(i18n.language, {
@@ -87,7 +84,7 @@ export function PullPanel({ repo, pull, busy, onCheckedOut, onClose }: Props) {
           {pull.draft ? t('pull.draft') : t('pull.open')}
         </Badge>
 
-        <Button size="xs" disabled={busy || switching} onClick={checkout} className="ml-auto shrink-0">
+        <Button size="xs" disabled={work !== null} onClick={checkout} className="ml-auto shrink-0">
           <Icon.branch className="size-3" />
           {t('pull.checkout')}
         </Button>
