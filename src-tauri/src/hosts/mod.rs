@@ -270,7 +270,7 @@ pub async fn start_connect(
     let url = authorize_url_for(kind, base_url, &verifier, &nonce)?;
 
     let seen = loopback::listen_once(nonce)
-        .map_err(|e| ErrorView::new("hosts.portBusy").detail(e.to_string()))?;
+        .map_err(|e| ErrorView::new("host.portBusy").detail(e.to_string()))?;
 
     hosts.browse_for(&host, url.clone());
     let _ = tauri_plugin_opener::OpenerExt::opener(&app).open_url(&url, None::<&str>);
