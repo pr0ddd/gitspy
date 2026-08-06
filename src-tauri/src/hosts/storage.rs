@@ -121,6 +121,7 @@ pub fn save_pulls(dir: &Path, host: &str, owner: &str, repo: &str, known: &Known
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     fn account() -> Account {
         Account {
@@ -197,9 +198,6 @@ mod tests {
         assert!(read(dir.path(), "github").account.is_none());
         assert!(read(dir.path(), "gitlab").account.is_some());
     }
-
-    use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn an_old_lone_github_account_reads_as_a_connection() {
