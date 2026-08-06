@@ -4,6 +4,8 @@ import { Hint } from '@/components/ui/tooltip';
 import { Icon, type IconName } from '@/icons';
 import { shortenDirectory, splitPath } from '@/paths';
 
+export const HOVER_FILL = 'hover:bg-fill-1 transition-colors';
+
 const INDENT = ['pl-0', 'pl-4', 'pl-8', 'pl-12', 'pl-16', 'pl-20'] as const;
 
 const indentAt = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];

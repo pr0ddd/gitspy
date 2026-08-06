@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { GIT } from '@/vocabulary';
 import { Icon } from '@/icons';
-import { NavItem } from '@/parts';
+import { HOVER_FILL, NavItem } from '@/parts';
 import * as ipc from '@/ipc';
 import { relativeTime } from '@/time';
 import { Hint } from '@/components/ui/tooltip';
@@ -244,7 +244,8 @@ export function StartPage({
                   <li key={entry.path} className="group">
                     <div
                       className={cn(
-                        'hover:bg-fill-1 flex h-16 items-center gap-3 rounded-lg px-2 transition-colors',
+                        HOVER_FILL,
+                        'flex h-16 items-center gap-3 rounded-lg px-2',
                         !entry.exists && 'opacity-40',
                       )}
                     >
@@ -296,7 +297,7 @@ export function StartPage({
               <ul>
                 {shownRepos.map((repo) => (
                   <li key={repo.fullName} className="group">
-                    <div className="hover:bg-fill-1 flex h-16 items-center gap-3 rounded-lg px-2 transition-colors">
+                    <div className={cn(HOVER_FILL, 'flex h-16 items-center gap-3 rounded-lg px-2')}>
                       <img
                         src={repo.ownerAvatarUrl}
                         alt=""
