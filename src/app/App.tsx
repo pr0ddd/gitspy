@@ -340,7 +340,6 @@ export default function App() {
           <StartPage
             recent={recent}
             onOpen={pickRepo}
-            account={account}
             onOpenPath={openPath}
             onForget={forget}
             onClone={setCloning}

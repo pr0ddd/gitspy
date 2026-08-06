@@ -5,7 +5,8 @@ import { EVENTS } from './generated/events';
 import type {
   AccountView,
   CloneStepView,
-  DeviceView,
+  ConnectStartView,
+  ConnectionView,
   PullCardView,
   PullListView,
   RepoListingView,
@@ -128,7 +129,10 @@ export const resolveConflict = (repo: string, path: string, content: string) =>
 export const commit = (repo: string, message: string, amend: boolean) =>
   invoke<WorkingTreeView>('commit', { repo, message, amend });
 
-export const startConnect = (host: string) => invoke<DeviceView>('start_connect', { host });
+export const startConnect = (host: string) =>
+  invoke<ConnectStartView>('start_connect', { host });
+
+export const connections = () => invoke<ConnectionView[]>('connections');
 
 export const onHostConnected = (handler: (account: AccountView) => void) =>
   listen<AccountView>(EVENTS.hostConnected, (event) => handler(event.payload));
