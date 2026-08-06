@@ -512,7 +512,16 @@ impl Git {
         self.read_raw(repo, &args)
     }
 
-    pub fn commit_diff_unified(&self, repo: &Path, hash: &str, path: &str) -> Result<String, Error> {
+    pub fn staged_diff(&self, repo: &Path) -> Result<String, Error> {
+        self.read_raw(repo, &["diff", "--cached", "--no-color", "--no-ext-diff"])
+    }
+
+    pub fn commit_diff_unified(
+        &self,
+        repo: &Path,
+        hash: &str,
+        path: &str,
+    ) -> Result<String, Error> {
         let range = format!("{hash}^!");
         let args = vec![
             "diff-tree",
@@ -680,8 +689,11 @@ impl Git {
     }
 
     pub fn rename_unborn_branch(&self, path: &Path, branch: &str) -> Result<(), Error> {
-        self.read(path, &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")])
-            .map(|_| ())
+        self.read(
+            path,
+            &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")],
+        )
+        .map(|_| ())
     }
 
     fn prepared(&self, credential: Option<&Credential>) -> Command {
@@ -697,7 +709,9 @@ impl Git {
 
         if let Some(credential) = credential {
             command.env(TOKEN_VARIABLE, credential.token);
-            command.arg("-c").arg(helper_for(credential.url, credential.username));
+            command
+                .arg("-c")
+                .arg(helper_for(credential.url, credential.username));
         }
         command
     }
