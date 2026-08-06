@@ -1582,6 +1582,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gitspy-ai"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "gitspy-app"
 version = "1.0.4"
 dependencies = [
