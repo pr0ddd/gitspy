@@ -77,6 +77,8 @@
   "graph.viewConflicts": "View Conflicts",
   "history.added": "Added as {{path}}",
   "history.authored": "Authored by {{author}} on {{when}}",
+  "boundary.crashed": "Rendering crashed",
+  "boundary.retry": "Try again",
   "history.blame": "Blame",
   "update.restart": "Restart to update to {{version}}",
   "zoom.in": "Zoom in",
