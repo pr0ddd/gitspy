@@ -9,13 +9,19 @@ import { notifyError } from '@/toast';
 import * as ipc from '@/ipc';
 import { readPref, usePref, writePref } from '@/prefs';
 import { EMPTY, sessionsReducer } from '@/entities/repo';
-import { useRepoData } from '@/entities/repo';
+
 import { useCommitSearch } from '@/features/search';
 import { panelFor } from '@/entities/repo';
 import { restartToUpdate, useReadyUpdate } from '@/features/updater';
-import { useSessionActions } from '@/features/repo';
-import { useRepoLoading } from '@/features/repo';
-import { copyText as copy, openExternalUrl as openUrl, useOperations } from '@/features/repo';
+import {
+  copyText as copy,
+  openExternalUrl as openUrl,
+  useOperations,
+  useCommitDraft,
+  useRepoData,
+  useRepoLoading,
+  useSessionActions,
+} from '@/features/repo';
 import { useZoom } from '@/zoom';
 import { BottomBar } from '@/widgets/BottomBar';
 import { DetailsPane } from '@/widgets/DetailsPane';
@@ -50,7 +56,6 @@ import { Settings } from '@/widgets/Settings';
 import { CloneDialog } from '@/widgets/CloneDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
-import { useCommitDraft } from '@/features/repo';
 import { viewForEntry } from '@/entities/diff';
 
 export default function App() {
@@ -246,7 +251,7 @@ export default function App() {
       if (!active) return;
       ipc.stage(active, operation).then(adoptTree).catch(notifyError);
     },
-    [active],
+    [active, adoptTree],
   );
 
 
@@ -265,7 +270,7 @@ export default function App() {
         at,
       });
     },
-    [active, runOperation],
+    [active, runOperation, t],
   );
 
   return (

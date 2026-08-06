@@ -1,5 +1,5 @@
 import type { Chip } from '@/entities/graph';
-import type { Ask } from '@/widgets/AskBar';
+import type { Ask } from './ask';
 import type { PathOperation, Operation, RefView } from '@/types';
 import type { HideableColumn } from '@/entities/graph';
 
