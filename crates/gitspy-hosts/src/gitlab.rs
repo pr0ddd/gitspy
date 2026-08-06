@@ -464,7 +464,8 @@ mod tests {
 
     #[test]
     fn parse_account_maps_username_and_avatar() {
-        let body = r#"{"username":"dev","name":"Dev Loper","avatar_url":"https://gitlab.com/a.png"}"#;
+        let body =
+            r#"{"username":"dev","name":"Dev Loper","avatar_url":"https://gitlab.com/a.png"}"#;
         let account = parse_account(body).expect("аккаунт читается");
         assert_eq!(account.login, "dev");
         assert_eq!(account.name.as_deref(), Some("Dev Loper"));
@@ -532,7 +533,10 @@ mod tests {
         let detail = parse_pull_detail(body).expect("деталь читается");
         assert_eq!(detail.body, "why and how");
         assert_eq!(detail.labels, vec!["bug".to_string()]);
-        assert_eq!(detail.changed_files, 3, "гитлабовский «3+» читается как число");
+        assert_eq!(
+            detail.changed_files, 3,
+            "гитлабовский «3+» читается как число"
+        );
     }
 
     #[test]

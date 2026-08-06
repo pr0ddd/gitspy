@@ -354,7 +354,7 @@ mod tests {
         assert_eq!(error, Error::NoToken);
     }
 
-                                #[test]
+    #[test]
     fn a_repository_keeps_both_addresses_because_the_person_chooses_how_to_clone() {
         let repos = parse_repos(
             r#"[{"full_name":"pr0ddd/gitspy","description":"клиент git","private":true,

@@ -65,12 +65,9 @@ impl Templates {
         if let Some(token) = token {
             request = request.bearer_auth(token);
         }
-        let response = request
-            .send()
-            .await
-            .map_err(|e| Error::Network {
-                detail: e.to_string(),
-            })?;
+        let response = request.send().await.map_err(|e| Error::Network {
+            detail: e.to_string(),
+        })?;
         let status = response.status().as_u16();
         let body = response.text().await.map_err(|e| Error::Network {
             detail: e.to_string(),

@@ -94,7 +94,9 @@ mod tests {
     #[test]
     fn the_relay_is_configured_with_our_worker() {
         assert!(
-            configured().expect("релей настроен").starts_with("https://"),
+            configured()
+                .expect("релей настроен")
+                .starts_with("https://"),
             "обмен кодов ходит только по https"
         );
     }
