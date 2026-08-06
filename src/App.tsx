@@ -10,11 +10,11 @@ import * as ipc from './ipc';
 import { readPref, usePref, writePref } from './prefs';
 import { EMPTY, sessionsReducer } from './session';
 import { useRepoData } from './repoData';
-import { AvatarCache } from './avatarCache';
 import { useCommitSearch } from './search';
 import { panelFor } from './panel';
 import { restartToUpdate, useReadyUpdate } from './updater';
 import { useSessionActions } from './sessionActions';
+import { useRepoLoading } from './repoLoading';
 import { copyText as copy, openExternalUrl as openUrl, useOperations } from './repoActions';
 import { clampPanel, PANEL_LIMITS } from './resize';
 import { useZoom } from './zoom';
@@ -27,7 +27,6 @@ import type {
   PullListView,
   PullView,
   RecentRepo,
-  RemoteView,
   WorkingTreeView,
 } from './types';
 
@@ -53,7 +52,6 @@ import { CloneDialog } from './shell/CloneDialog';
 import { AskBar, type Ask } from './shell/AskBar';
 import { PullPanel } from './shell/PullPanel';
 import { PanelNote } from './shell/parts';
-import { remoteAvatarKey } from './chips';
 import { composeCommitMessage } from './commitMessage';
 import { viewForEntry } from './conflict';
 
@@ -91,8 +89,6 @@ export default function App() {
   const [asking, setAsking] = useState<Ask | null>(null);
   const [compact, setCompact] = usePref('graph.compact', false);
   const data = useRepoData();
-  const avatarsRef = useRef(new AvatarCache(() => setAvatarTick((n) => n + 1)));
-  const [avatarTick, setAvatarTick] = useState(0);
   const { cacheFor, refill, refillFirstWindow, fetchChunks, drop, version: redraw } = data;
 
   const current = sessions.find((s) => s.path === active) ?? null;
@@ -150,170 +146,16 @@ export default function App() {
   }, [main]);
 
   const remotes = current?.repo?.remotes;
-  useEffect(() => {
-    if (!remotes) return;
-    const urls = Object.fromEntries(
-      remotes
-        .filter((r) => r.avatarUrl)
-        .map((r) => [remoteAvatarKey(r.avatarUrl as string), r.avatarUrl as string]),
-    );
-    avatarsRef.current.refillRemote(urls);
-  }, [remotes]);
-
-  useEffect(() => {
-    if (!active) return;
-    ipc
-      .avatarPaths(active)
-      .then((paths) => avatarsRef.current.refill(paths))
-      .catch(() => undefined);
-
-    const stop = ipc.onAvatarsChanged((path) => {
-      if (path !== active) return;
-      ipc
-        .avatarPaths(path)
-        .then((paths) => avatarsRef.current.refill(paths))
-        .catch(() => undefined);
-    });
-    return () => {
-      void stop.then((off) => off());
-    };
-  }, [active, redraw]);
-
-  useEffect(() => {
-    setMain({ kind: 'graph' });
-    setPulls(null);
-    setAmend(false);
-    if (!active) return;
-
-    let alive = true;
-    const stale = (view: PullListView) => Date.now() / 1000 - view.fetchedAt > 300;
-    ipc
-      .pullRequests(active, false, true)
-      .then((known) => {
-        if (!alive || !known) return;
-        setPulls(known);
-        if (!stale(known)) return;
-        return ipc.pullRequests(active, true, true).then((fresh) => {
-          if (alive && fresh) setPulls(fresh);
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [active]);
-
-  useEffect(() => {
-    if (!active) {
-      setTree(null);
-      return;
-    }
-    ipc.workingTree(active).then(adoptTree).catch(notifyError);
-  }, [active]);
-
-  const mergeSubject = tree?.merging?.subject ?? null;
-  useEffect(() => {
-    if (mergeSubject) setMessage((now) => (now.trim() ? now : mergeSubject));
-  }, [mergeSubject]);
-
-  const warmAvatars = useCallback(async (path: string, remotes: RemoteView[]) => {
-    const urls = Object.fromEntries(
-      remotes
-        .filter((r) => r.avatarUrl)
-        .map((r) => [remoteAvatarKey(r.avatarUrl as string), r.avatarUrl as string]),
-    );
-    const warmed = Promise.all([
-      ipc
-        .avatarPaths(path)
-        .then((paths) => avatarsRef.current.refill(paths))
-        .catch(() => undefined),
-      avatarsRef.current.refillRemote(urls),
-    ]);
-    await Promise.race([warmed, new Promise((idle) => window.setTimeout(idle, 400))]);
-  }, []);
-
-  const load = useCallback(
-    async (path: string) => {
-      try {
-        const repo = await ipc.openRepo(path);
-        await refill(path);
-        await warmAvatars(path, repo.remotes);
-        dispatch({ kind: 'loaded', path, repo });
-        void ipc.resolveAvatars(path).catch(() => undefined);
-
-        void ipc.recentRepos().then(setRecent);
-        void ipc
-          .worktrees(path)
-          .then((worktrees) => dispatch({ kind: 'worktrees', path, worktrees }));
-      } catch (e) {
-        notifyError(e);
-        dispatch({ kind: 'failed', path });
-      }
-    },
-    [refill, warmAvatars],
-  );
-
-  const activeRef = useRef(active);
-  activeRef.current = active;
-
-  const reloading = useRef(new Map<string, Promise<void>>());
-  const reload = useCallback(
-    (path: string) => {
-      const inFlight = reloading.current.get(path);
-      if (inFlight) return inFlight;
-
-      const run = (async () => {
-        try {
-          const repo = await ipc.openRepo(path);
-          await refill(path);
-          await warmAvatars(path, repo.remotes);
-          dispatch({ kind: 'loaded', path, repo });
-          if (activeRef.current === path) {
-            void ipc.workingTree(path).then(adoptTree).catch(notifyError);
-          }
-          void ipc
-            .worktrees(path)
-            .then((worktrees) => dispatch({ kind: 'worktrees', path, worktrees }))
-            .catch(() => undefined);
-        } catch (e) {
-          notifyError(e);
-        } finally {
-          reloading.current.delete(path);
-        }
-      })();
-      reloading.current.set(path, run);
-      return run;
-    },
-    [refill, warmAvatars],
-  );
-
-  useEffect(() => {
-    const stop = ipc.onRepoChanged((path) => {
-      void reload(path);
-    });
-    return () => {
-      void stop.then((off) => off());
-    };
-  }, [reload]);
-
-  useEffect(() => {
-    const stop = ipc.onWorktreeChanged(async (path) => {
-      try {
-        const tip = await ipc.refreshTip(path);
-        if (tip.structureChanged) {
-          await reload(path);
-        } else {
-          await refillFirstWindow(path);
-        }
-        if (path === active) ipc.workingTree(path).then(adoptTree).catch(notifyError);
-      } catch {
-        return;
-      }
-    });
-    return () => {
-      void stop.then((off) => off());
-    };
-  }, [active, reload, refillFirstWindow]);
+  const { avatars, avatarTick, load, reload } = useRepoLoading({
+    active,
+    dispatch,
+    refill,
+    refillFirstWindow,
+    redraw,
+    adoptTree,
+    setRecent,
+    remotes,
+  });
 
   const { running, busy, checkingOut, busyWhile, runOperation, checkoutRef } = useOperations(
     active,
@@ -516,7 +358,7 @@ export default function App() {
                     repo={current.path}
                     path={main.path}
                     from={main.from ?? null}
-                    avatars={avatarsRef.current}
+                    avatars={avatars}
                     onClose={() => setMain({ kind: 'graph' })}
                   />
                 ) : main.kind === 'conflict' && current.repo ? (
@@ -546,7 +388,7 @@ export default function App() {
                   <GraphView
                     key={current.path}
                     session={current}
-                    avatars={avatarsRef.current}
+                    avatars={avatars}
                     rows={cacheFor(current.path)}
                     redraw={redraw + avatarTick}
                     metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
