@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { GIT } from '@/vocabulary';
 import { Icon } from '@/icons';
 import { HOVER_FILL, NavItem } from '@/parts';
+import { clampPanel, PANEL_LIMITS } from '@/resize';
+import { usePref } from '@/prefs';
 import * as ipc from '@/ipc';
 import { relativeTime } from '@/time';
 import { Hint } from '@/components/ui/tooltip';
@@ -79,6 +81,7 @@ export function StartPage({
   onCreate,
   onConnect,
 }: Props) {
+  const [width] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
   const { t, i18n } = useTranslation();
   const [source, setSource] = useState<Source>('local');
   const [filter, setFilter] = useState('');
@@ -131,7 +134,10 @@ export function StartPage({
 
   return (
     <>
-      <aside className="flex w-56 shrink-0 flex-col gap-4 px-2.5 pt-1.5">
+      <aside
+        className="flex shrink-0 flex-col gap-4 px-2.5 pt-1.5"
+        style={{ width: clampPanel('sidebar', width) }}
+      >
         <div className="flex flex-col gap-px">
           <div className="text-faint flex h-6 items-center px-2.5 text-2xs tracking-wide uppercase">
             {t('start.library')}
