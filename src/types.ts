@@ -22,6 +22,7 @@ export type { BlameSpanView } from './generated/BlameSpanView';
 export type { OperationOutcome } from './generated/OperationOutcome';
 export type { Progress } from './generated/Progress';
 export type { RecentRepo } from './generated/RecentRepo';
+export type { RepoPassportView } from './generated/RepoPassportView';
 export type { RefKindView as RefKind } from './generated/RefKindView';
 export type { RefView } from './generated/RefView';
 export type { RemoteView } from './generated/RemoteView';

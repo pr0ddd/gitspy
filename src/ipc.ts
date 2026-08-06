@@ -23,6 +23,7 @@ import type {
   Progress,
   RecentRepo,
   RefKind,
+  RepoPassportView,
   RepoView,
   TipView,
   WindowView,
@@ -59,6 +60,9 @@ export const forgetRepo = (path: string) => invoke<RecentRepo[]>('forget_repo', 
 
 export const favoriteRepo = (path: string, on: boolean) =>
   invoke<RecentRepo[]>('favorite_repo', { path, on });
+
+export const repoPassports = (paths: string[]) =>
+  invoke<RepoPassportView[]>('repo_passports', { paths });
 
 export const runOperation = (
   repo: string,

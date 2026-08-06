@@ -202,6 +202,22 @@ impl Git {
             .map(|outcome| outcome.stdout)
     }
 
+    pub fn head_branch(&self, repo: &Path) -> Result<Option<String>, Error> {
+        match self.read(repo, &["symbolic-ref", "--short", "-q", "HEAD"]) {
+            Ok(raw) => Ok(Some(raw.trim().to_string()).filter(|s| !s.is_empty())),
+            Err(Error::Failed { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn origin_url(&self, repo: &Path) -> Result<Option<String>, Error> {
+        match self.read(repo, &["config", "--get", "remote.origin.url"]) {
+            Ok(raw) => Ok(Some(raw.trim().to_string()).filter(|s| !s.is_empty())),
+            Err(Error::Failed { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
     fn has_parent(&self, repo: &Path, commit: &str) -> bool {
         self.read(
             repo,
