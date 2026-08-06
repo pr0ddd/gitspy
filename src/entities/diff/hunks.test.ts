@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isGitlinkDiff, parseUnifiedDiff, patchFor } from './hunks';
+import { hiddenSpans, isGitlinkDiff, parseUnifiedDiff, patchFor } from './hunks';
 
 const DIFF = [
   'diff --git a/code.txt b/code.txt',
@@ -30,6 +30,54 @@ describe('разбор настоящего git diff на ханки', () => {
     expect(diff.hunks[1].heading).toBe('@@ -19,4 +19,4 @@ line 17');
     expect(diff.hunks[0].newStart, 'позиция нужна, чтобы поставить кнопки на строку').toBe(1);
     expect(diff.hunks[1].newStart).toBe(19);
+  });
+
+  it('обе стороны ханка несут начало и длину — этим держится скрытие вне ханков', () => {
+    const diff = parseUnifiedDiff(DIFF);
+    if (!diff) throw new Error('в этом диффе есть ханки');
+    expect(diff.hunks[0]).toMatchObject({ oldStart: 1, oldLines: 4, newStart: 1, newLines: 4 });
+    expect(diff.hunks[1]).toMatchObject({ oldStart: 19, oldLines: 4, newStart: 19, newLines: 4 });
+  });
+
+  it('длина в единицу опускается в заголовке, но не в разборе', () => {
+    const diff = parseUnifiedDiff('@@ -3 +5 @@\n-x\n+y\n');
+    if (!diff) throw new Error('в этом диффе есть ханк');
+    expect(diff.hunks[0]).toMatchObject({ oldStart: 3, oldLines: 1, newStart: 5, newLines: 1 });
+  });
+});
+
+describe('скрытие строк вне ханков', () => {
+  it('прячется всё до, между и после ханков, по обеим сторонам', () => {
+    const diff = parseUnifiedDiff(DIFF);
+    if (!diff) throw new Error('в этом диффе есть ханки');
+    expect(hiddenSpans(diff.hunks, 22, 22)).toEqual({
+      original: [{ from: 5, to: 18 }],
+      modified: [{ from: 5, to: 18 }],
+    });
+  });
+
+  it('ханк с первой строки не рождает пустой диапазон сверху', () => {
+    const diff = parseUnifiedDiff('@@ -1,2 +1,2 @@\n-a\n+b\n c\n');
+    if (!diff) throw new Error('в этом диффе есть ханк');
+    expect(hiddenSpans(diff.hunks, 10, 10)).toEqual({
+      original: [{ from: 3, to: 10 }],
+      modified: [{ from: 3, to: 10 }],
+    });
+  });
+
+  it('хвост после последнего ханка прячется до конца файла каждой стороны', () => {
+    const diff = parseUnifiedDiff('@@ -3,2 +3,3 @@\n x\n-a\n+b\n+c\n');
+    if (!diff) throw new Error('в этом диффе есть ханк');
+    expect(hiddenSpans(diff.hunks, 8, 9)).toEqual({
+      original: [
+        { from: 1, to: 2 },
+        { from: 5, to: 8 },
+      ],
+      modified: [
+        { from: 1, to: 2 },
+        { from: 6, to: 9 },
+      ],
+    });
   });
 
   it('пустой дифф — это отсутствие ханков, а не пустой список', () => {

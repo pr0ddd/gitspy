@@ -65,6 +65,9 @@ const row = (index: number): RowView => ({
   author: 'pr0d',
   email: 'p@example.com',
   time: 0,
+  committer: 'pr0d',
+  committerEmail: 'p@example.com',
+  committerTime: 0,
   subject: 's',
   body: '',
 });

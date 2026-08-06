@@ -12,6 +12,9 @@ const row = (index: number): RowView => ({
   author: 'pr0d',
   email: 'pr0d@example.com',
   time: 1_700_000_000 + index,
+  committer: 'pr0d',
+  committerEmail: 'pr0d@example.com',
+  committerTime: 1_700_000_000 + index,
   subject: `коммит ${index}`,
   body: '',
 });

@@ -1,25 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { identicon } from '@/avatar';
+import { hostBotOf } from '@/host';
 import type { AvatarCache } from '@/avatarCache';
-import type { Session } from '@/entities/repo';
+import { pullAtRefs, type Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
 import { Icon } from '@/icons';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import {
-  Chip,
-  FilePath,
-  ListRow,
-  PanelBanner,
-  PanelNote,
-  SectionHeader,
-  StatusBadge,
-} from '@/parts';
-import type { ChangedFileView, RefKind } from '@/types';
+import { FilePath, ListRow, PanelBanner, PanelNote, SectionHeader, StatusBadge } from '@/parts';
+import type { ChangedFileView, PullView } from '@/types';
 
 type Props = {
   avatars: AvatarCache | null;
@@ -28,22 +22,69 @@ type Props = {
   rows: RowCache;
   pending: number;
   conflicts: number;
+  pulls: PullView[];
   onCopy: (text: string) => void;
   onOpenWorkingTree: () => void;
   onOpenFile: (commit: string, file: ChangedFileView) => void;
   onHistory: (path: string, from: string) => void;
-};
-
-
-const REF_ICON: Record<RefKind, keyof typeof Icon> = {
-  localBranch: 'branch',
-  remoteBranch: 'remote',
-  tag: 'tag',
-  stash: 'stash',
+  onOpenPull: (pull: PullView) => void;
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
+}
+
+function Identity({
+  avatars,
+  name,
+  email,
+  time,
+  verb,
+}: {
+  avatars: AvatarCache | null;
+  name: string;
+  email: string;
+  time: number;
+  verb: 'details.authored' | 'details.committed';
+}) {
+  const { t, i18n } = useTranslation();
+  const bot = hostBotOf(email);
+  const Mark = bot ? Icon[bot] : null;
+  const when = new Date(time * 1000);
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2.5" title={email}>
+      {Mark ? (
+        <span className="bg-fill-1 flex size-9 shrink-0 items-center justify-center rounded-lg">
+          <Mark className="size-5" />
+        </span>
+      ) : (
+        <img
+          src={avatars?.srcOf(email) ?? identicon(email || name, 36).toDataURL()}
+          alt=""
+          className="size-9 shrink-0 rounded-lg"
+        />
+      )}
+      <div className="min-w-0">
+        <p className="text-foreground truncate text-sm font-semibold">{name}</p>
+        <p className="truncate text-xs">
+          <span className="text-faint">{t(verb)}</span>{' '}
+          <span className="text-muted-foreground tabular-nums">
+            {t('details.authoredAt', {
+              date: new Intl.DateTimeFormat(i18n.language, {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              }).format(when),
+              time: new Intl.DateTimeFormat(i18n.language, {
+                hour: '2-digit',
+                minute: '2-digit',
+              }).format(when),
+            })}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function Details({
@@ -53,12 +94,14 @@ export function Details({
   rows,
   pending,
   conflicts,
+  pulls,
   onCopy,
   onOpenWorkingTree,
   onOpenFile,
   onHistory,
+  onOpenPull,
 }: Props) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const openFileMenu = (commit: string, file: ChangedFileView) => {
     const repoPath = session?.path;
@@ -82,22 +125,21 @@ export function Details({
   const row = session ? rows.row(index) : null;
   const hash = row?.kind === 'commit' ? row.hash : null;
   const repo = session?.path ?? null;
-  const [files, setFiles] = useState<ChangedFileView[]>([]);
+  const [loaded, setLoaded] = useState<{ hash: string; files: ChangedFileView[] } | null>(null);
 
   useEffect(() => {
-    if (!repo || !hash) {
-      setFiles([]);
-      return;
-    }
+    if (!repo || !hash) return;
     let cancelled = false;
     ipc
       .commitFiles(repo, hash)
-      .then((found) => !cancelled && setFiles(found))
+      .then((found) => !cancelled && setLoaded({ hash, files: found }))
       .catch(notifyError);
     return () => {
       cancelled = true;
     };
   }, [repo, hash]);
+
+  const files = loaded?.hash === hash ? loaded.files : null;
 
   if (!session || !row || row.kind !== 'commit') {
     return (
@@ -108,10 +150,8 @@ export function Details({
   }
 
   void avatarTick;
-  const authorPortrait =
-    avatars?.srcOf(row.email) ?? identicon(row.email || row.author, 28).toDataURL();
-  const when = new Date(row.time * 1000);
-  const labels = session.refsByCommit.get(index) ?? [];
+  const foreignCommitter = row.committer !== row.author || row.committerEmail !== row.email;
+  const pull = pullAtRefs(session.refsByCommit.get(index) ?? [], pulls);
 
   return (
     <Shell>
@@ -132,40 +172,54 @@ export function Details({
 
       <div className="shrink-0">
         <div className="space-y-3 px-5 pt-4 pb-5">
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground hover:text-foreground -ml-2 text-sm font-normal"
+            title={t('details.copyHash')}
+            onClick={() => onCopy(row.hash)}
+          >
+            <Icon.hash className="size-3.5" />
+            {row.hash.slice(0, 8)}
+          </Button>
+
           <p className="text-subject text-base leading-snug font-semibold">{row.subject}</p>
 
-          <div className="flex flex-wrap gap-1.5">
-            <Chip title={row.email}>
-              <img src={authorPortrait} alt="" className="size-3.5 shrink-0 rounded-full" />
-              {row.author}
-            </Chip>
-            <Chip>
-              <Icon.clock className="size-3 shrink-0 opacity-70" />
-              <span className="tabular-nums">
-                {new Intl.DateTimeFormat(i18n.language, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                }).format(when)}
-              </span>
-            </Chip>
-            <Chip title={t('details.copyHash')} onClick={() => onCopy(row.hash)}>
-              <Icon.hash className="size-3 shrink-0 opacity-70" />
-              <span className="font-mono">{row.hash.slice(0, 8)}</span>
-              <Icon.copy className="size-2.5 opacity-60" />
-            </Chip>
-            {labels.map((ref) => {
-              const Glyph = Icon[REF_ICON[ref.kind]];
-              return (
-                <Chip key={`${ref.kind}:${ref.name}`} title={ref.name} head={ref.isHead}>
-                  <Glyph className="size-3 shrink-0" />
-                  <span className="min-w-0 truncate">{ref.name}</span>
-                </Chip>
-              );
-            })}
+          <div className="space-y-2">
+            <Identity
+              avatars={avatars}
+              name={row.author}
+              email={row.email}
+              time={row.time}
+              verb="details.authored"
+            />
+            {foreignCommitter ? (
+              <Identity
+                avatars={avatars}
+                name={row.committer}
+                email={row.committerEmail}
+                time={row.committerTime}
+                verb="details.committed"
+              />
+            ) : null}
           </div>
 
+          {pull ? (
+            <Button
+              variant="outline"
+              size="xs"
+              className="w-full min-w-0 justify-start"
+              title={pull.title}
+              onClick={() => onOpenPull(pull)}
+            >
+              <Icon.pullRequest className="size-3 shrink-0" />
+              <span className="text-muted-foreground shrink-0 tabular-nums">#{pull.number}</span>
+              <span className="min-w-0 truncate">{pull.title}</span>
+            </Button>
+          ) : null}
+
           {row.body ? (
-            <p className="text-subject max-h-40 overflow-y-auto text-xs leading-relaxed break-words whitespace-pre-wrap">
+            <p className="text-subject bg-fill-1 max-h-40 overflow-y-auto rounded-md px-3 py-2 text-xs leading-relaxed break-words whitespace-pre-wrap">
               {row.body}
             </p>
           ) : null}
@@ -174,14 +228,14 @@ export function Details({
 
       <Separator />
       <section className="flex min-h-0 flex-1 flex-col px-3 pt-2 pb-3">
-        {files.length ? (
+        {files?.length ? (
           <SectionHeader>
             <span>{t('details.changes')}</span>
             <span className="text-faint ml-auto tabular-nums">{files.length}</span>
           </SectionHeader>
         ) : null}
 
-        {files.length === 0 ? (
+        {files === null ? null : files.length === 0 ? (
           <p className="text-muted-foreground text-xs">{t('details.noChanges')}</p>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">

@@ -19,6 +19,44 @@ fn our_order(f: &Fixture) -> Vec<String> {
 }
 
 #[test]
+fn commit_meta_carries_both_identities_verbatim_from_git() {
+    let f = Fixture::new();
+    f.commit("своя работа");
+    f.commit_committed_by("слито веб-интерфейсом", "GitHub", "noreply@github.com");
+
+    let history = gitspy_repo::read(
+        f.path(),
+        None,
+        &seeds_at(f.path()),
+        head_at(f.path()).as_deref(),
+    )
+    .expect("репозиторий читается");
+    let ours: Vec<String> = history
+        .nodes
+        .iter()
+        .filter_map(gitspy_repo::Node::commit)
+        .map(|c| {
+            format!(
+                "{} {} {} {} {} {} {}",
+                c.hash, c.author, c.email, c.time, c.committer, c.committer_email, c.committer_time
+            )
+        })
+        .collect();
+    let gits: Vec<String> = f
+        .run(&[
+            "log",
+            "--all",
+            "--date-order",
+            "--format=%H %an %ae %at %cn %ce %ct",
+        ])
+        .lines()
+        .map(str::to_string)
+        .collect();
+
+    assert_eq!(ours, gits, "обе личности коммита совпадают с git log");
+}
+
+#[test]
 fn order_matches_git_date_order() {
     let f = Fixture::new();
     f.commit("a");

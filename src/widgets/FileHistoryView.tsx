@@ -4,11 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import * as ipc from '@/ipc';
-import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco, userEditorOptions } from '@/entities/diff';
+import {
+  DIFF_EDITOR_BASE,
+  EDITOR_BASE,
+  languageOf,
+  monaco,
+  setHiddenLineSpans,
+  setUpMonaco,
+  userEditorOptions,
+} from '@/entities/diff';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
 import { laneColour } from '@/theme';
-import { editorOptionsFor, type DiffMode } from '@/entities/diff';
+import {
+  editorOptionsFor,
+  hiddenSpans,
+  isGitlinkDiff,
+  parseUnifiedDiff,
+  type DiffMode,
+  type HiddenSpan,
+} from '@/entities/diff';
 import { usePref } from '@/prefs';
 import { DiffToolbar } from './DiffToolbar';
 import { InlineNote, ListRow, ViewBar } from '@/parts';
@@ -34,6 +49,14 @@ function CommitAvatar({ avatars, email }: { avatars: AvatarCache | null; email: 
 }
 
 const LINE_H = EDITOR_BASE.lineHeight;
+
+const hideOutsideHunks = (
+  editor: monaco.editor.IStandaloneDiffEditor,
+  spans: { original: HiddenSpan[]; modified: HiddenSpan[] } | null,
+): void => {
+  setHiddenLineSpans(editor.getOriginalEditor(), spans?.original ?? []);
+  setHiddenLineSpans(editor.getModifiedEditor(), spans?.modified ?? []);
+};
 
 const spanTint = (hash: string): string => laneColour(parseInt(hash.slice(0, 2), 16) % 12);
 
@@ -117,6 +140,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
   const diffHost = useRef<HTMLDivElement | null>(null);
   const editors = useRef<monaco.IDisposable[]>([]);
   const diffEditor = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const hunkSpans = useRef<{ original: HiddenSpan[]; modified: HiddenSpan[] } | null>(null);
   const diffLook = useRef({ mode, whitespace, wrap });
   diffLook.current = { mode, whitespace, wrap };
 
@@ -164,9 +188,11 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
 
     let cancelled = false;
     const at = entry.path;
-    ipc
-      .diffSides(repo, entry.hash, at, entry.oldPath ?? null)
-      .then((sides) => {
+    Promise.all([
+      ipc.diffSides(repo, entry.hash, at, entry.oldPath ?? null),
+      ipc.commitFileHunks(repo, entry.hash, at).catch(() => null),
+    ])
+      .then(([sides, raw]) => {
         if (cancelled) return;
         const language = languageOf(at);
         if (view === 'file' && fileHost.current) {
@@ -192,17 +218,24 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
             original: monaco.editor.createModel(sides.before, language),
             modified: monaco.editor.createModel(sides.after, language),
           });
-          const once = editor.onDidUpdateDiff(() => {
-            once.dispose();
-            const change = editor.getLineChanges()?.[0];
-            if (!change) return;
+          const parsed = raw && !isGitlinkDiff(raw) ? parseUnifiedDiff(raw) : null;
+          hunkSpans.current = parsed
+            ? hiddenSpans(
+                parsed.hunks,
+                sides.before.split('\n').length,
+                sides.after.split('\n').length,
+              )
+            : null;
+          hideOutsideHunks(editor, diffLook.current.mode === 'hunk' ? hunkSpans.current : null);
+          if (diffLook.current.mode === 'hunk') {
+            editor.getModifiedEditor().setScrollTop(0);
+          } else if (parsed) {
             editor
               .getModifiedEditor()
-              .revealLineNearTop(
-                Math.max(1, change.modifiedStartLineNumber),
-                monaco.editor.ScrollType.Immediate,
-              );
-          });
+              .revealLineNearTop(parsed.hunks[0].newStart, monaco.editor.ScrollType.Immediate);
+          } else {
+            editor.revealFirstDiff();
+          }
           diffEditor.current = editor;
           editors.current.push(editor);
         }
@@ -225,6 +258,9 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
     });
     diffEditor.current?.getModifiedEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
     diffEditor.current?.getOriginalEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+    if (diffEditor.current) {
+      hideOutsideHunks(diffEditor.current, mode === 'hunk' ? hunkSpans.current : null);
+    }
   }, [mode, whitespace, wrap]);
 
   const now = Date.now() / 1000;

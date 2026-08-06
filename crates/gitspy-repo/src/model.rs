@@ -6,6 +6,9 @@ pub struct CommitMeta {
     pub author: String,
     pub email: String,
     pub time: i64,
+    pub committer: String,
+    pub committer_email: String,
+    pub committer_time: i64,
     pub subject: String,
     pub body: String,
 }

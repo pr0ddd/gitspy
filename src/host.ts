@@ -16,3 +16,17 @@ export const hostOf = (remotes: readonly RemoteView[]): HostKind | null => {
   }
   return null;
 };
+
+const BOT_ADDRESSES: ReadonlyArray<readonly [HostKind, string]> = [
+  ['github', 'noreply@github.com'],
+  ['gitlab', 'noreply@gitlab.com'],
+  ['bitbucket', 'commits-noreply@bitbucket.org'],
+];
+
+export const hostBotOf = (email: string): HostKind | null => {
+  const address = email.toLowerCase();
+  const known = BOT_ADDRESSES.find(([, bot]) => address === bot);
+  if (known) return known[0];
+  if (address.endsWith('@users.noreply.github.com') && address.includes('[bot]')) return 'github';
+  return null;
+};
