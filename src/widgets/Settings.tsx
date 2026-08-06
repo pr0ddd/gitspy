@@ -8,6 +8,17 @@ import { clampPanel, PANEL_LIMITS } from '@/resize';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { usePref } from '@/prefs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { AUTOFETCH_LIMITS, clampAutofetch, SETTINGS } from '@/settingsModel';
+import { PULL_CHOICES, type PullMode } from '@/vocabulary';
 import type { AccountView, DeviceView } from '@/types';
 
 const HOST = 'github';
@@ -37,11 +48,15 @@ export function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[220px_1fr] items-start gap-x-6">
-      <span className="text-muted-foreground pt-1 text-right text-sm leading-snug">{label}</span>
-      <div className="min-w-0 space-y-1.5">
+    <div className="grid grid-cols-[240px_1fr] items-start gap-x-8">
+      <span className="flex min-h-8 items-center justify-end text-right text-sm leading-snug">
+        {label}
+      </span>
+      <div className="flex min-w-0 flex-col justify-center gap-2 self-stretch">
         {children}
-        {hint ? <p className="text-faint text-xs leading-relaxed">{hint}</p> : null}
+        {hint ? (
+          <p className="text-muted-foreground max-w-xl text-xs leading-relaxed">{hint}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -115,9 +130,12 @@ export function Settings({ open, account, collapsed, onToggle, onDisconnected }:
           </span>
         </ViewBar>
         <main className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-2xl space-y-6 px-8 py-10">
+          <div className="max-w-3xl space-y-8 px-10 py-8">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t(chosen.label as 'settings.general')}
+            </h1>
             {section === 'general' ? (
-              <p className="text-muted-foreground text-sm">{t('settings.nothingYet')}</p>
+              <GeneralSection />
             ) : (
               <GitHubSection account={account} onDisconnected={onDisconnected} />
             )}
@@ -125,6 +143,82 @@ export function Settings({ open, account, collapsed, onToggle, onDisconnected }:
         </main>
       </div>
     </>
+  );
+}
+
+function GeneralSection() {
+  const { t } = useTranslation();
+  const [minutes, setMinutes] = usePref<number>(
+    SETTINGS.autofetchMinutes,
+    AUTOFETCH_LIMITS.fallback,
+  );
+  const [remember, setRemember] = usePref<boolean>(SETTINGS.rememberTabs, true);
+  const [pull, setPull] = usePref<PullMode>(SETTINGS.pullDefault, 'pull');
+  const [branch, setBranch] = usePref<string>(SETTINGS.initBranch, '');
+
+  const applyMinutes = (raw: string) => {
+    const next = clampAutofetch(Number(raw));
+    setMinutes(next);
+    void ipc.setAutofetchMinutes(next).catch(notifyError);
+  };
+
+  const chosenPull = PULL_CHOICES.find((c) => c.mode === pull) ?? PULL_CHOICES[1];
+
+  return (
+    <div className="space-y-7">
+      <SettingRow label={t('settings.autofetch')} hint={t('settings.autofetchHint')}>
+        <Input
+          type="number"
+          min={AUTOFETCH_LIMITS.min}
+          max={AUTOFETCH_LIMITS.max}
+          value={minutes}
+          onChange={(e) => applyMinutes(e.target.value)}
+          className="h-8 w-72 text-sm"
+          aria-label={t('settings.autofetch')}
+        />
+      </SettingRow>
+
+      <SettingRow label={t('settings.rememberTabs')} hint={t('settings.rememberTabsHint')}>
+        <Checkbox
+          checked={remember}
+          onCheckedChange={(next) => setRemember(next === true)}
+          aria-label={t('settings.rememberTabs')}
+        />
+      </SettingRow>
+
+      <SettingRow label={t('settings.pullDefault')} hint={t('settings.pullDefaultHint')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="font-normal">
+              {t(chosenPull.label as 'pull.default')}
+              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuRadioGroup
+              value={pull}
+              onValueChange={(next) => setPull(next as PullMode)}
+            >
+              {PULL_CHOICES.map(({ mode, label }) => (
+                <DropdownMenuRadioItem key={mode} value={mode}>
+                  {t(label as 'pull.default')}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SettingRow>
+
+      <SettingRow label={t('settings.initBranch')} hint={t('settings.initBranchHint')}>
+        <Input
+          value={branch}
+          onChange={(e) => setBranch(e.target.value)}
+          placeholder={t('settings.initBranchDefault')}
+          className="h-8 w-72 text-sm"
+          aria-label={t('settings.initBranch')}
+        />
+      </SettingRow>
+    </div>
   );
 }
 

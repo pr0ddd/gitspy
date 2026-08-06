@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { usePref } from '@/prefs';
 import { HOVER_FILL } from '@/parts';
 import type { Operation, WorkingTreeView } from '@/types';
-import { TOOLBAR_ACTIONS } from '@/vocabulary';
+import { PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
 import { Icon } from '@/icons';
 
 type Props = {
@@ -39,15 +39,6 @@ export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
   if (!remote) return null;
   return { kind: 'pushSetUpstream', remote, branch: tree.branch };
 };
-
-type PullMode = 'fetch' | 'pull' | 'pullFfOnly' | 'pullRebase';
-
-const PULL_CHOICES: ReadonlyArray<{ mode: PullMode; label: string }> = [
-  { mode: 'fetch', label: 'pull.fetchAll' },
-  { mode: 'pull', label: 'pull.default' },
-  { mode: 'pullFfOnly', label: 'pull.ffOnly' },
-  { mode: 'pullRebase', label: 'pull.rebase' },
-];
 
 const pullOperation = (mode: PullMode): Operation =>
   mode === 'fetch' ? { kind: 'fetch' } : { kind: mode };

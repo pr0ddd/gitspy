@@ -69,10 +69,11 @@ fn main() {
             clone::init_repo,
             terminal::open_terminal,
             terminal::open_in_editor,
-            terminal::open_url
+            terminal::open_url,
+            state::set_autofetch_minutes
         ])
         .setup(|app| {
-            autofetch::start(app.handle().clone(), autofetch::DEFAULT_MINUTES);
+            autofetch::start(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {

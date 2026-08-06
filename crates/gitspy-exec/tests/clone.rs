@@ -95,11 +95,31 @@ fn init_makes_a_repository_where_there_was_none() {
 
     Git::discover()
         .expect("git найден")
-        .init(&at)
+        .init(&at, None)
         .expect("репозиторий создаётся");
 
     assert!(
         at.join(".git").exists(),
         "создание отдаётся git, а не выкладывается нами руками"
+    );
+}
+
+#[test]
+fn init_names_the_first_branch_when_the_user_chose_one() {
+    let dir = TempDir::new().expect("временный каталог");
+    let at = dir.path().join("named");
+    std::fs::create_dir_all(&at).expect("каталог");
+
+    let git = Git::discover().expect("git найден");
+    git.init(&at, Some("trunk")).expect("репозиторий создаётся");
+
+    let head = std::process::Command::new("git")
+        .args(["-C", at.to_str().expect("путь"), "symbolic-ref", "HEAD"])
+        .output()
+        .expect("git запускается");
+    assert_eq!(
+        String::from_utf8_lossy(&head.stdout).trim(),
+        "refs/heads/trunk",
+        "имя первой ветки из настройки обязано дойти до git init -b"
     );
 }

@@ -63,7 +63,11 @@ pub async fn clone_repo(
 }
 
 #[tauri::command]
-pub async fn init_repo(path: String, state: State<'_, AppState>) -> Result<String, ErrorView> {
+pub async fn init_repo(
+    path: String,
+    branch: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, ErrorView> {
     let git = state.git()?;
     let at = PathBuf::from(&path);
 
@@ -71,7 +75,7 @@ pub async fn init_repo(path: String, state: State<'_, AppState>) -> Result<Strin
         return Err(ErrorView::new("init.taken").param("path", &path));
     }
 
-    tauri::async_runtime::spawn_blocking(move || git.init(&at).map_err(exec_error))
+    tauri::async_runtime::spawn_blocking(move || git.init(&at, branch.as_deref()).map_err(exec_error))
         .await
         .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))??;
 

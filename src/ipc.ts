@@ -156,9 +156,13 @@ export const cloneRepo = (
   return invoke<string>('clone_repo', { url, parent, name, progress });
 };
 
-export const initRepo = (path: string) => invoke<string>('init_repo', { path });
+export const initRepo = (path: string, branch: string | null) =>
+  invoke<string>('init_repo', { path, branch });
 
 export const openTerminal = (repo: string) => invoke<void>('open_terminal', { repo });
+
+export const setAutofetchMinutes = (minutes: number) =>
+  invoke<void>('set_autofetch_minutes', { minutes });
 
 export const openUrl = (url: string) => invoke<void>('open_url', { url });
 

@@ -666,8 +666,11 @@ impl Git {
             .unwrap_or_default()
     }
 
-    pub fn init(&self, path: &Path) -> Result<(), Error> {
-        self.read(path, &["init"]).map(|_| ())
+    pub fn init(&self, path: &Path, branch: Option<&str>) -> Result<(), Error> {
+        match branch {
+            Some(name) => self.read(path, &["init", "-b", name]).map(|_| ()),
+            None => self.read(path, &["init"]).map(|_| ()),
+        }
     }
 
     fn prepared(&self, credential: Option<&Credential>) -> Command {
