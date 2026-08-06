@@ -57,11 +57,15 @@ impl Templates {
         Ok(Self { client })
     }
 
-    async fn fetch(&self, url: &str) -> Result<String, Error> {
-        let response = self
+    async fn fetch(&self, url: &str, token: Option<&str>) -> Result<String, Error> {
+        let mut request = self
             .client
             .get(url)
-            .header("Accept", "application/vnd.github+json")
+            .header("Accept", "application/vnd.github+json");
+        if let Some(token) = token {
+            request = request.bearer_auth(token);
+        }
+        let response = request
             .send()
             .await
             .map_err(|e| Error::Network {
@@ -77,24 +81,39 @@ impl Templates {
         Ok(body)
     }
 
-    pub async fn gitignore_names(&self) -> Result<Vec<String>, Error> {
-        parse_gitignore_names(&self.fetch("https://api.github.com/gitignore/templates").await?)
-    }
-
-    pub async fn gitignore_source(&self, name: &str) -> Result<String, Error> {
-        parse_gitignore_source(
+    pub async fn gitignore_names(&self, token: Option<&str>) -> Result<Vec<String>, Error> {
+        parse_gitignore_names(
             &self
-                .fetch(&format!("https://api.github.com/gitignore/templates/{name}"))
+                .fetch("https://api.github.com/gitignore/templates", token)
                 .await?,
         )
     }
 
-    pub async fn licenses(&self) -> Result<Vec<License>, Error> {
-        parse_licenses(&self.fetch("https://api.github.com/licenses?per_page=50").await?)
+    pub async fn gitignore_source(&self, name: &str, token: Option<&str>) -> Result<String, Error> {
+        parse_gitignore_source(
+            &self
+                .fetch(
+                    &format!("https://api.github.com/gitignore/templates/{name}"),
+                    token,
+                )
+                .await?,
+        )
     }
 
-    pub async fn license_body(&self, key: &str) -> Result<String, Error> {
-        parse_license_body(&self.fetch(&format!("https://api.github.com/licenses/{key}")).await?)
+    pub async fn licenses(&self, token: Option<&str>) -> Result<Vec<License>, Error> {
+        parse_licenses(
+            &self
+                .fetch("https://api.github.com/licenses?per_page=50", token)
+                .await?,
+        )
+    }
+
+    pub async fn license_body(&self, key: &str, token: Option<&str>) -> Result<String, Error> {
+        parse_license_body(
+            &self
+                .fetch(&format!("https://api.github.com/licenses/{key}"), token)
+                .await?,
+        )
     }
 }
 

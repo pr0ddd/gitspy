@@ -67,6 +67,7 @@ pub async fn init_repo(
     branch: Option<String>,
     gitignore: Option<String>,
     license: Option<String>,
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, ErrorView> {
     let git = state.git()?;
@@ -79,11 +80,12 @@ pub async fn init_repo(
     let mut seeds: Vec<(&str, String)> = Vec::new();
     if gitignore.is_some() || license.is_some() {
         let templates = gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
+        let token = crate::hosts::token(&app, "github");
         if let Some(name) = gitignore.as_deref() {
             seeds.push((
                 ".gitignore",
                 templates
-                    .gitignore_source(name)
+                    .gitignore_source(name, token.as_deref())
                     .await
                     .map_err(crate::hosts::host_error)?,
             ));
@@ -92,7 +94,7 @@ pub async fn init_repo(
             seeds.push((
                 "LICENSE",
                 templates
-                    .license_body(key)
+                    .license_body(key, token.as_deref())
                     .await
                     .map_err(crate::hosts::host_error)?,
             ));
@@ -116,7 +118,7 @@ pub async fn init_repo(
     Ok(path)
 }
 
-#[derive(serde::Serialize, ts_rs::TS)]
+#[derive(serde::Serialize, Clone, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/generated/")]
 pub struct TemplateCatalogView {
@@ -124,7 +126,7 @@ pub struct TemplateCatalogView {
     pub licenses: Vec<LicenseView>,
 }
 
-#[derive(serde::Serialize, ts_rs::TS)]
+#[derive(serde::Serialize, Clone, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/generated/")]
 pub struct LicenseView {
@@ -133,14 +135,23 @@ pub struct LicenseView {
 }
 
 #[tauri::command]
-pub async fn template_catalog() -> Result<TemplateCatalogView, ErrorView> {
+pub async fn template_catalog(
+    app: tauri::AppHandle,
+) -> Result<TemplateCatalogView, ErrorView> {
+    {
+        let known = KNOWN_CATALOG.lock().expect("каталог не отравлен");
+        if let Some(found) = known.as_ref() {
+            return Ok(found.clone());
+        }
+    }
+    let token = crate::hosts::token(&app, "github");
     let templates = gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
     let gitignores = templates
-        .gitignore_names()
+        .gitignore_names(token.as_deref())
         .await
         .map_err(crate::hosts::host_error)?;
-    let licenses = templates
-        .licenses()
+    let licenses: Vec<LicenseView> = templates
+        .licenses(token.as_deref())
         .await
         .map_err(crate::hosts::host_error)?
         .into_iter()
@@ -149,11 +160,15 @@ pub async fn template_catalog() -> Result<TemplateCatalogView, ErrorView> {
             name: l.name,
         })
         .collect();
-    Ok(TemplateCatalogView {
+    let catalog = TemplateCatalogView {
         gitignores,
         licenses,
-    })
+    };
+    *KNOWN_CATALOG.lock().expect("каталог не отравлен") = Some(catalog.clone());
+    Ok(catalog)
 }
+
+static KNOWN_CATALOG: std::sync::Mutex<Option<TemplateCatalogView>> = std::sync::Mutex::new(None);
 
 #[tauri::command]
 pub async fn seed_repo(
@@ -172,11 +187,12 @@ pub async fn seed_repo(
     if gitignore.is_some() || license.is_some() {
         let templates =
             gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
+        let token = crate::hosts::token(&app, "github");
         if let Some(name) = gitignore.as_deref() {
             seeds.push((
                 ".gitignore",
                 templates
-                    .gitignore_source(name)
+                    .gitignore_source(name, token.as_deref())
                     .await
                     .map_err(crate::hosts::host_error)?,
             ));
@@ -185,7 +201,7 @@ pub async fn seed_repo(
             seeds.push((
                 "LICENSE",
                 templates
-                    .license_body(key)
+                    .license_body(key, token.as_deref())
                     .await
                     .map_err(crate::hosts::host_error)?,
             ));
