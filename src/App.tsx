@@ -50,7 +50,7 @@ import { Settings } from './shell/Settings';
 import { CloneDialog } from './shell/CloneDialog';
 import { AskBar, type Ask } from './shell/AskBar';
 import { PullPanel } from './shell/PullPanel';
-import { composeCommitMessage } from './commitMessage';
+import { useCommitDraft } from './commitMessage';
 import { viewForEntry } from './conflict';
 
 export default function App() {
@@ -66,9 +66,6 @@ export default function App() {
   const adoptTree = useCallback((next: WorkingTreeView) => {
     setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
-  const [message, setMessage] = useState('');
-  const [description, setDescription] = useState('');
-  const [amend, setAmend] = useState(false);
   const [settings, setSettings] = useState<'closed' | 'open' | 'active'>('closed');
   const [cloning, setCloning] = useState<string | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
@@ -156,7 +153,6 @@ export default function App() {
   useEffect(() => {
     setMain({ kind: 'graph' });
     setPulls(null);
-    setAmend(false);
     if (!active) return;
 
     let alive = true;
@@ -185,15 +181,19 @@ export default function App() {
     ipc.workingTree(active).then(adoptTree).catch(notifyError);
   }, [active, adoptTree]);
 
-  const mergeSubject = tree?.merging?.subject ?? null;
-  useEffect(() => {
-    if (mergeSubject) setMessage((now) => (now.trim() ? now : mergeSubject));
-  }, [mergeSubject]);
-
   const { running, busy, checkingOut, busyWhile, runOperation, checkoutRef } = useOperations(
     active,
     reload,
   );
+
+  const { message, setMessage, description, setDescription, amend, setAmend, commit } =
+    useCommitDraft({
+      active,
+      mergeSubject: tree?.merging?.subject ?? null,
+      busyWhile,
+      reload,
+      adoptTree,
+    });
 
   const { openPath, pickRepo, createRepo, closeRepo, forget } = useSessionActions({
     sessions,
@@ -248,22 +248,6 @@ export default function App() {
     },
     [active],
   );
-
-  const commit = useCallback(() => {
-    if (!active || !message.trim()) return;
-    void busyWhile({ kind: 'commit' }, () =>
-      ipc
-        .commit(active, composeCommitMessage(message, description), amend)
-        .then((updated) => {
-          setTree(updated);
-          setMessage('');
-          setDescription('');
-          setAmend(false);
-          return reload(active);
-        })
-        .catch(notifyError),
-    );
-  }, [active, message, description, amend, reload, busyWhile]);
 
 
   const addWorktree = useCallback(
