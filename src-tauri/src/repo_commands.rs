@@ -722,6 +722,15 @@ pub fn forget_repo(
 }
 
 #[tauri::command]
+pub fn favorite_repo(
+    path: String,
+    on: bool,
+    app: tauri::AppHandle,
+) -> Result<Vec<recent::RecentRepo>, ErrorView> {
+    Ok(recent::favorite(&data_dir(&app)?, &path, on))
+}
+
+#[tauri::command]
 pub fn close_repo(repo: String, state: State<'_, AppState>) -> Result<(), ErrorView> {
     let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
     guard.remove(&repo);

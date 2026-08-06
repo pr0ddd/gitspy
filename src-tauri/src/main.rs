@@ -34,6 +34,7 @@ fn main() {
             repo_commands::worktrees,
             repo_commands::recent_repos,
             repo_commands::forget_repo,
+            repo_commands::favorite_repo,
             repo_commands::run_operation,
             repo_commands::commit_files,
             repo_commands::diff_sides,

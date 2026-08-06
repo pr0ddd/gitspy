@@ -57,6 +57,9 @@ export const recentRepos = () => invoke<RecentRepo[]>('recent_repos');
 
 export const forgetRepo = (path: string) => invoke<RecentRepo[]>('forget_repo', { path });
 
+export const favoriteRepo = (path: string, on: boolean) =>
+  invoke<RecentRepo[]>('favorite_repo', { path, on });
+
 export const runOperation = (
   repo: string,
   operation: Operation,
