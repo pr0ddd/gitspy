@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import type { Operation } from '@/types';
-
 
 type Props = {
   ask: Ask | null;
@@ -28,12 +28,7 @@ const WORDING = {
   },
 } as const;
 
-const operationOf = (
-  ask: Ask,
-  name: string,
-  message: string,
-  checkout: boolean,
-): Operation => {
+const operationOf = (ask: Ask, name: string, message: string, checkout: boolean): Operation => {
   switch (ask.kind) {
     case 'branch':
       return { kind: 'branch', name, checkout };
@@ -60,9 +55,7 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
 
   useEffect(() => {
     if (!ask) return;
-    setName(
-      ask.kind === 'renameBranch' ? ask.from : ask.kind === 'editMessage' ? ask.full : '',
-    );
+    setName(ask.kind === 'renameBranch' ? ask.from : ask.kind === 'editMessage' ? ask.full : '');
     setMessage('');
   }, [ask]);
 
@@ -90,8 +83,12 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
   };
 
   return (
-    <div className="bg-card animate-in fade-in slide-in-from-top-2 absolute inset-x-0 top-0 z-30 duration-150">
-      <div className="bg-primary/15 min-h-bar flex items-center justify-center gap-3 border-b px-4 py-2">
+    <div
+      className={cn(
+        'bg-primary/15 animate-in fade-in flex shrink-0 items-center justify-center gap-3 px-4 duration-150',
+        multiline ? 'min-h-10 py-1' : 'h-10',
+      )}
+    >
       <span className="shrink-0 text-sm">{t(wording.title as 'branch.title')}</span>
 
       {multiline ? (
@@ -105,7 +102,7 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
         />
       ) : (
         <Input
-          size="xs"
+          size="sm"
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -117,7 +114,7 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
 
       {needsMessage ? (
         <Input
-          size="xs"
+          size="sm"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={submitKeys}
@@ -133,13 +130,12 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
         </label>
       ) : null}
 
-      <Button size="xs" disabled={!ready} onClick={run}>
+      <Button size="sm" disabled={!ready} onClick={run}>
         {t(wording.confirm as 'branch.create')}
       </Button>
-      <Button size="xs" variant="secondary" onClick={cancel}>
+      <Button size="sm" variant="secondary" onClick={cancel}>
         {t('ask.cancel')}
       </Button>
-      </div>
     </div>
   );
 }

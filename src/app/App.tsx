@@ -16,6 +16,7 @@ import {
   copyText as copy,
   openExternalUrl as openUrl,
   useOperations,
+  useRepoWork,
   useCommitDraft,
   useRepoData,
   useRepoLoading,
@@ -95,8 +96,7 @@ export default function App() {
   const previousCommit =
     headRow?.kind === 'commit' ? { subject: headRow.subject, body: headRow.body } : null;
   const pullHeads = useMemo(
-    () =>
-      new Set((pulls?.pulls ?? []).filter((p) => !p.fromFork).map((p) => p.headBranch)),
+    () => new Set((pulls?.pulls ?? []).filter((p) => !p.fromFork).map((p) => p.headBranch)),
     [pulls],
   );
   const panel = panelFor(
@@ -194,16 +194,15 @@ export default function App() {
     ipc.workingTree(active).then(adoptTree).catch(notifyError);
   }, [active, adoptTree]);
 
-  const { running, busy, checkingOut, busyWhile, runOperation, checkoutRef } = useOperations(
-    active,
-    reload,
-  );
+  const { runOperation, checkoutRef } = useOperations(active, reload);
+  const work = useRepoWork(active);
+  const busy = work !== null;
+  const checkingOut = work?.kind === 'checkout' ? (work.target ?? null) : null;
 
   const { message, setMessage, description, setDescription, amend, setAmend, commit } =
     useCommitDraft({
       active,
       mergeSubject: tree?.merging?.subject ?? null,
-      busyWhile,
       reload,
       adoptTree,
       onCommitted: () => {
@@ -265,7 +264,6 @@ export default function App() {
     [active, adoptTree],
   );
 
-
   const addWorktree = useCallback(
     async (at: string) => {
       if (!active) return;
@@ -305,7 +303,7 @@ export default function App() {
         />
 
         {current === null || settings === 'active' ? (
-          <div className="h-11 shrink-0" />
+          <div className="h-10 shrink-0" />
         ) : confirming ? (
           <ConfirmBar
             operation={confirming}
@@ -314,6 +312,12 @@ export default function App() {
               runOperation(operation);
             }}
             onCancel={() => setConfirming(null)}
+          />
+        ) : asking ? (
+          <AskBar
+            ask={asking}
+            onOpenChange={(next) => !next && setAsking(null)}
+            onRun={runOperation}
           />
         ) : (
           <Toolbar
@@ -327,35 +331,35 @@ export default function App() {
             onSearch={search.setQuery}
             onStep={search.step}
             busy={busy}
-            running={running?.kind ?? null}
+            running={work?.kind ?? null}
           />
         )}
 
-        <div className="flex min-h-0 flex-1 pr-2">
-        {settings === 'active' ? (
-          <Settings
-            open
-            account={account}
-            collapsed={railed}
-            zoom={zoom}
-            onZoom={setZoom}
-            compact={compact}
-            onCompact={setCompact}
-            onToggle={toggleRail}
-            onDisconnected={() => setAccount(null)}
-          />
-        ) : current === null ? (
-          <StartPage
-            recent={recent}
-            onOpen={pickRepo}
-            onOpenPath={openPath}
-            onForget={forget}
-            onClone={(url) => setAdding({ mode: 'clone', url })}
-            onCreate={() => setAdding({ mode: 'init', url: '' })}
-            onConnect={() => setSettings('active')}
-          />
-        ) : (
-          <>
+        <div className="flex min-h-0 flex-1 pt-1.5 pr-2">
+          {settings === 'active' ? (
+            <Settings
+              open
+              account={account}
+              collapsed={railed}
+              zoom={zoom}
+              onZoom={setZoom}
+              compact={compact}
+              onCompact={setCompact}
+              onToggle={toggleRail}
+              onDisconnected={() => setAccount(null)}
+            />
+          ) : current === null ? (
+            <StartPage
+              recent={recent}
+              onOpen={pickRepo}
+              onOpenPath={openPath}
+              onForget={forget}
+              onClone={(url) => setAdding({ mode: 'clone', url })}
+              onCreate={() => setAdding({ mode: 'init', url: '' })}
+              onConnect={() => setSettings('active')}
+            />
+          ) : (
+            <>
               <Sidebar
                 collapsed={railed}
                 onToggle={toggleRail}
@@ -374,137 +378,135 @@ export default function App() {
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
               <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
-              <AskBar
-                ask={asking}
-                onOpenChange={(next) => !next && setAsking(null)}
-                onRun={runOperation}
-              />
-              <div className="flex min-h-0 flex-1">
-              <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-                {main.kind === 'diff' && current.repo ? (
-                  <DiffView
-                    repo={current.path}
-                    target={main.target}
-                    onClose={() => setMain({ kind: 'graph' })}
-                    onTree={adoptTree}
-                    onRun={runPathOperation}
-                    onTarget={(target) => setMain({ kind: 'diff', target })}
-                    onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                  />
-                ) : main.kind === 'history' && current.repo ? (
-                  <FileHistoryView
-                    repo={current.path}
-                    path={main.path}
-                    from={main.from ?? null}
-                    avatars={avatars}
-                    onClose={() => setMain({ kind: 'graph' })}
-                  />
-                ) : main.kind === 'conflict' && current.repo ? (
-                  <ConflictView
-                    repo={current.path}
-                    path={main.path}
-                    from={tree?.merging?.from ?? null}
-                    into={tree?.branch ?? null}
-                    onClose={() => setMain({ kind: 'graph' })}
-                    onResolved={(next) => {
-                      adoptTree(next);
-                      setMain({ kind: 'graph' });
-                    }}
-                  />
-                ) : main.kind === 'pull' && current.repo ? (
-                  <PullPanel
-                    repo={current.path}
-                    pull={main.pull}
-                    busy={busy}
-                    onCheckedOut={() => {
-                      setMain({ kind: 'graph' });
-                      void reload(current.path);
-                    }}
-                    onClose={() => setMain({ kind: 'graph' })}
-                  />
-                ) : (
-                  <GraphView
-                    key={current.path}
-                    session={current}
-                    avatars={avatars}
-                    rows={cacheFor(current.path)}
-                    redraw={redraw + avatarTick}
-                    metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
-                    pullHeads={pullHeads}
-                    currentBranch={tree?.branch ?? null}
-                    onSelect={select}
-                    onCheckoutRef={checkoutRef}
-                    onRun={runOperation}
-                    onCopy={copy}
-                    onAsk={setAsking}
-                    onWorktree={addWorktree}
-                    onOpenUrl={openUrl}
-                    onNeed={onNeed}
-                    message={message}
-                    onMessage={setMessage}
-                    onCommit={commit}
-                    compact={compact}
-                    onCompact={setCompact}
-                  />
-                )}
-              </main>
-              <DetailsPane
-                note={
-                  panel === 'workingTree' && !(tree && tree.entries.length > 0)
-                    ? 'workingTreeClean'
-                    : panel === 'noCommits'
-                      ? 'noCommits'
-                      : null
-                }
-              >
-                {panel === 'workingTree' && tree ? (
-                  <WorkingTree
-                      repo={current.path}
-                      tree={tree}
-                      busy={busy}
-                      committing={running?.kind === 'commit'}
-                      message={message}
-                      description={description}
-                      amend={amend}
-                      previous={previousCommit}
-                      onMessage={setMessage}
-                      onDescription={setDescription}
-                      onAmend={setAmend}
-                      onCommit={commit}
-                      onRun={runPathOperation}
-                      onOperation={runOperation}
-                      onConfirm={setConfirming}
-                      onCopy={copy}
-                      onHistory={(path) => setMain({ kind: 'history', path })}
-                      onOpen={(path, status, staged) =>
-                        setMain(
-                          viewForEntry(status, staged) === 'conflict'
-                            ? { kind: 'conflict', path }
-                            : { kind: 'diff', target: { kind: 'workingTree', path, status, staged } },
-                        )
-                      }
-                    />
-                ) : (
-                  <Details
-                    session={current}
-                    avatars={avatars}
-                    avatarTick={avatarTick}
-                    onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                    rows={cacheFor(current.path)}
-                    pending={tree ? tree.staged + tree.unstaged : 0}
-                    conflicts={tree?.conflicts ?? 0}
-                    onCopy={copy}
-                    onOpenWorkingTree={() => select(0)}
-                    onOpenFile={(commit, file) =>
-                      setMain({ kind: 'diff', target: { kind: 'commit', commit, file } })
+                <div className="flex min-h-0 flex-1">
+                  <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    {main.kind === 'diff' && current.repo ? (
+                      <DiffView
+                        repo={current.path}
+                        target={main.target}
+                        onClose={() => setMain({ kind: 'graph' })}
+                        onTree={adoptTree}
+                        onRun={runPathOperation}
+                        onTarget={(target) => setMain({ kind: 'diff', target })}
+                        onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                      />
+                    ) : main.kind === 'history' && current.repo ? (
+                      <FileHistoryView
+                        repo={current.path}
+                        path={main.path}
+                        from={main.from ?? null}
+                        avatars={avatars}
+                        onClose={() => setMain({ kind: 'graph' })}
+                      />
+                    ) : main.kind === 'conflict' && current.repo ? (
+                      <ConflictView
+                        repo={current.path}
+                        path={main.path}
+                        from={tree?.merging?.from ?? null}
+                        into={tree?.branch ?? null}
+                        onClose={() => setMain({ kind: 'graph' })}
+                        onResolved={(next) => {
+                          adoptTree(next);
+                          setMain({ kind: 'graph' });
+                        }}
+                      />
+                    ) : main.kind === 'pull' && current.repo ? (
+                      <PullPanel
+                        repo={current.path}
+                        pull={main.pull}
+                        busy={busy}
+                        onCheckedOut={() => {
+                          setMain({ kind: 'graph' });
+                          void reload(current.path);
+                        }}
+                        onClose={() => setMain({ kind: 'graph' })}
+                      />
+                    ) : (
+                      <GraphView
+                        key={current.path}
+                        session={current}
+                        avatars={avatars}
+                        rows={cacheFor(current.path)}
+                        redraw={redraw + avatarTick}
+                        metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
+                        pullHeads={pullHeads}
+                        currentBranch={tree?.branch ?? null}
+                        onSelect={select}
+                        onCheckoutRef={checkoutRef}
+                        onRun={runOperation}
+                        onCopy={copy}
+                        onAsk={setAsking}
+                        onWorktree={addWorktree}
+                        onOpenUrl={openUrl}
+                        onNeed={onNeed}
+                        message={message}
+                        onMessage={setMessage}
+                        onCommit={commit}
+                        compact={compact}
+                        onCompact={setCompact}
+                      />
+                    )}
+                  </main>
+                  <DetailsPane
+                    note={
+                      panel === 'workingTree' && !(tree && tree.entries.length > 0)
+                        ? 'workingTreeClean'
+                        : panel === 'noCommits'
+                          ? 'noCommits'
+                          : null
                     }
-                  />
-                )}
-              </DetailsPane>
+                  >
+                    {panel === 'workingTree' && tree ? (
+                      <WorkingTree
+                        repo={current.path}
+                        tree={tree}
+                        busy={busy}
+                        committing={work?.kind === 'commit'}
+                        message={message}
+                        description={description}
+                        amend={amend}
+                        previous={previousCommit}
+                        onMessage={setMessage}
+                        onDescription={setDescription}
+                        onAmend={setAmend}
+                        onCommit={commit}
+                        onRun={runPathOperation}
+                        onOperation={runOperation}
+                        onConfirm={setConfirming}
+                        onCopy={copy}
+                        onHistory={(path) => setMain({ kind: 'history', path })}
+                        onOpen={(path, status, staged) =>
+                          setMain(
+                            viewForEntry(status, staged) === 'conflict'
+                              ? { kind: 'conflict', path }
+                              : {
+                                  kind: 'diff',
+                                  target: { kind: 'workingTree', path, status, staged },
+                                },
+                          )
+                        }
+                      />
+                    ) : (
+                      <Details
+                        session={current}
+                        avatars={avatars}
+                        avatarTick={avatarTick}
+                        onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                        rows={cacheFor(current.path)}
+                        pending={tree ? tree.staged + tree.unstaged : 0}
+                        conflicts={tree?.conflicts ?? 0}
+                        onCopy={copy}
+                        onOpenWorkingTree={() => select(0)}
+                        onOpenFile={(commit, file) =>
+                          setMain({ kind: 'diff', target: { kind: 'commit', commit, file } })
+                        }
+                      />
+                    )}
+                  </DetailsPane>
+                </div>
               </div>
-              </div>
-          </>
-        )}
+            </>
+          )}
         </div>
 
         <BottomBar
@@ -522,7 +524,11 @@ export default function App() {
           onCloned={openPath}
         />
 
-        <Toaster position="bottom-right" offset={16} style={{ '--width': '430px' } as React.CSSProperties} />
+        <Toaster
+          position="bottom-right"
+          offset={16}
+          style={{ '--width': '430px' } as React.CSSProperties}
+        />
       </div>
     </TooltipProvider>
   );
