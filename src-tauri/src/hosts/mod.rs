@@ -129,10 +129,7 @@ pub fn token(app: &tauri::AppHandle, host: &str) -> Option<String> {
 pub async fn fresh_access(app: &tauri::AppHandle, host: &str) -> Option<String> {
     let dir = data_dir(app).ok()?;
     let set = storage::read_tokens(&dir, host)?;
-    let stale = set
-        .expires_at
-        .map(|at| at <= now_unix())
-        .unwrap_or(false);
+    let stale = set.expires_at.map(|at| at <= now_unix()).unwrap_or(false);
     if !stale {
         return Some(set.access);
     }
@@ -190,10 +187,14 @@ async fn finish_browser_connect(
                 expires_at: None,
             }
         }
-        HostKind::GitHub => stored_tokens_of(&relay::exchange("github", &code).await.map_err(host_error)?),
-        HostKind::Bitbucket => {
-            stored_tokens_of(&relay::exchange("bitbucket", &code).await.map_err(host_error)?)
+        HostKind::GitHub => {
+            stored_tokens_of(&relay::exchange("github", &code).await.map_err(host_error)?)
         }
+        HostKind::Bitbucket => stored_tokens_of(
+            &relay::exchange("bitbucket", &code)
+                .await
+                .map_err(host_error)?,
+        ),
     };
 
     let client = Host::for_connection(kind, base_url).map_err(host_error)?;
@@ -639,7 +640,7 @@ pub async fn pull_card(
 mod tests {
     use super::*;
 
-            #[test]
+    #[test]
     fn a_second_press_reuses_the_same_browser_url() {
         let hosts = Hosts::default();
         hosts.browse_for("gitlab", "https://gitlab.com/oauth/x".into());
@@ -652,7 +653,7 @@ mod tests {
         assert_eq!(hosts.already_browsing("gitlab"), None);
     }
 
-        #[test]
+    #[test]
     fn disconnecting_forgets_the_account_and_the_listing_together() {
         let hosts = Hosts::default();
         hosts.keep_account(

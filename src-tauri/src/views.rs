@@ -201,6 +201,13 @@ mod ref_view_tests {
 
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
+pub struct CommitDraftView {
+    pub summary: String,
+    pub description: String,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeView {
     pub name: String,
@@ -212,7 +219,11 @@ pub struct WorktreeView {
 
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum RowView {
     #[serde(rename_all = "camelCase")]
     Commit {
@@ -447,12 +458,14 @@ pub struct AccountView {
 }
 
 #[derive(Serialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "../../src/generated/")]
 pub enum ConnectStartView {
-    BrowserAuth {
-        url: String,
-    },
+    BrowserAuth { url: String },
 }
 
 #[derive(Serialize, TS)]

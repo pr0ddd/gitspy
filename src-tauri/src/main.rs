@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
+mod ai;
 mod autofetch;
 mod avatars;
 mod clone;
@@ -75,7 +76,9 @@ fn main() {
             terminal::open_terminal,
             terminal::open_in_editor,
             terminal::open_url,
-            state::set_autofetch_minutes
+            state::set_autofetch_minutes,
+            ai::ai_list_models,
+            ai::ai_generate_commit
         ])
         .setup(|app| {
             autofetch::start(app.handle().clone());

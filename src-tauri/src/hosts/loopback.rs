@@ -10,7 +10,9 @@ pub const PORT: u16 = 53682;
 static ACTIVE: Mutex<Option<Arc<AtomicBool>>> = Mutex::new(None);
 
 fn abandon_the_previous_listener() {
-    let Ok(mut active) = ACTIVE.lock() else { return };
+    let Ok(mut active) = ACTIVE.lock() else {
+        return;
+    };
     if let Some(cancelled) = active.take() {
         cancelled.store(true, Ordering::SeqCst);
         let _ = TcpStream::connect(("127.0.0.1", PORT));
@@ -120,8 +122,8 @@ mod tests {
     #[test]
     fn a_new_sign_in_replaces_the_stale_listener_instead_of_dying_on_the_port() {
         let _stale = listen_once("gone".into()).expect("первый слушатель поднимается");
-        let fresh = listen_once("wanted".into())
-            .expect("брошенный вход не должен навсегда занимать порт");
+        let fresh =
+            listen_once("wanted".into()).expect("брошенный вход не должен навсегда занимать порт");
 
         let mut stream = TcpStream::connect(("127.0.0.1", PORT)).expect("порт слушается");
         stream

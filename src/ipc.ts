@@ -28,6 +28,8 @@ import type {
   WindowView,
   WorkingTreeView,
   WorktreeView,
+  AiProviderId,
+  CommitDraftView,
 } from '@/types';
 
 export const openRepo = (path: string) => invoke<RepoView>('open_repo', { path });
@@ -228,3 +230,13 @@ export const resolveAvatars = (repo: string) => invoke<void>('resolve_avatars', 
 
 export const onAvatarsChanged = (handler: (repo: string) => void) =>
   listen<string>(EVENTS.avatarsChanged, (event) => handler(event.payload));
+
+export const aiListModels = (provider: AiProviderId, baseUrl: string) =>
+  invoke<string[]>('ai_list_models', { provider, baseUrl });
+
+export const aiGenerateCommit = (
+  repo: string,
+  provider: AiProviderId,
+  baseUrl: string,
+  model: string,
+) => invoke<CommitDraftView>('ai_generate_commit', { repo, provider, baseUrl, model });

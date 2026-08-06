@@ -1,7 +1,7 @@
 use gitspy_hosts::github::Repo;
+use gitspy_hosts::host::HostKind;
 use gitspy_hosts::pulls::PullSummary;
 use gitspy_hosts::secrets::{Files, Secrets};
-use gitspy_hosts::host::HostKind;
 use gitspy_hosts::Account;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -76,7 +76,11 @@ pub fn read_tokens(dir: &Path, host: &str) -> Option<StoredTokens> {
     }
 }
 
-pub fn save_tokens(dir: &Path, host: &str, tokens: &StoredTokens) -> Result<(), gitspy_hosts::Error> {
+pub fn save_tokens(
+    dir: &Path,
+    host: &str,
+    tokens: &StoredTokens,
+) -> Result<(), gitspy_hosts::Error> {
     let text = serde_json::to_string(tokens).unwrap_or_else(|_| tokens.access.clone());
     secrets(dir).write(host, &text)
 }
@@ -229,7 +233,9 @@ mod tests {
     #[test]
     fn a_plain_old_token_reads_as_an_access_only_set() {
         let dir = TempDir::new().expect("временный каталог");
-        secrets(dir.path()).write("github", "gho_plain").expect("пишется");
+        secrets(dir.path())
+            .write("github", "gho_plain")
+            .expect("пишется");
         assert_eq!(
             read_tokens(dir.path(), "github"),
             Some(StoredTokens {
@@ -295,5 +301,4 @@ mod tests {
         save_connections(dir.path(), &wanted);
         assert_eq!(load_connections(dir.path()), wanted);
     }
-
 }
