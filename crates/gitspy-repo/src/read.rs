@@ -336,6 +336,9 @@ fn walk(
             author: author.name.to_string(),
             email: author.email.to_string(),
             time: author.time().map(|t| t.seconds).unwrap_or(0),
+            committer: committer.name.to_string(),
+            committer_email: committer.email.to_string(),
+            committer_time: committer.time().map(|t| t.seconds).unwrap_or(0),
             subject: message.summary().to_string(),
             body: message
                 .body()

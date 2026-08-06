@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
 import { toHex } from '@/colour';
+import type { HiddenSpan } from './hunks';
 import { readPref } from '@/prefs';
 import {
   clampFontSize,
@@ -84,6 +85,7 @@ export const EDITOR_BASE = {
   fontSize: 13,
   lineHeight: 20,
   minimap: { enabled: true },
+  stickyScroll: { defaultModel: 'indentationModel' },
   scrollBeyondLastLine: false,
   lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
 } as const;
@@ -91,6 +93,8 @@ export const EDITOR_BASE = {
 export const DIFF_EDITOR_BASE = {
   ...EDITOR_BASE,
   renderOverviewRuler: true,
+  stickyScroll: { enabled: false },
+  hideUnchangedRegions: { enabled: false },
 } as const;
 
 export function userEditorOptions() {
@@ -135,5 +139,15 @@ const languageOfPath = (path: string): string => {
 
 export const languageOf = (path: string): string =>
   readPref<boolean>(SETTINGS.editorSyntax, true) ? languageOfPath(path) : 'plaintext';
+
+export function setHiddenLineSpans(
+  editor: monaco.editor.ICodeEditor,
+  spans: readonly HiddenSpan[],
+): void {
+  const hiding = editor as monaco.editor.ICodeEditor & {
+    setHiddenAreas(ranges: monaco.IRange[]): void;
+  };
+  hiding.setHiddenAreas(spans.map((span) => new monaco.Range(span.from, 1, span.to, 1)));
+}
 
 export { monaco };

@@ -12,6 +12,9 @@ const commit = {
   author: 'pr0d',
   email: 'p@e',
   time: 0,
+  committer: 'pr0d',
+  committerEmail: 'p@e',
+  committerTime: 0,
   subject: 'тема',
   body: '',
 } satisfies RowView;

@@ -48,7 +48,7 @@ import { Sidebar } from '@/widgets/Sidebar';
 import { Details } from '@/widgets/Details';
 import { GraphView } from '@/widgets/GraphView';
 import { StartPage } from '@/widgets/StartPage';
-import { DiffView, type DiffTarget } from '@/widgets/DiffView';
+import { DiffView, sameDiffTarget, type DiffTarget } from '@/widgets/DiffView';
 import { ConflictView } from '@/widgets/ConflictView';
 import { FileHistoryView } from '@/widgets/FileHistoryView';
 import { WorkingTree } from '@/widgets/WorkingTree';
@@ -66,6 +66,12 @@ export default function App() {
   const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
   const [main, setMain] = useState<Main>({ kind: 'graph' });
+  const toggleDiff = (target: DiffTarget) =>
+    setMain((shown) =>
+      shown.kind === 'diff' && sameDiffTarget(shown.target, target)
+        ? { kind: 'graph' }
+        : { kind: 'diff', target },
+    );
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
   const [confirming, setConfirming] = useState<Operation | null>(null);
@@ -468,14 +474,9 @@ export default function App() {
                         onCopy={copy}
                         onHistory={(path) => setMain({ kind: 'history', path })}
                         onOpen={(path, status, staged) =>
-                          setMain(
-                            viewForEntry(status, staged) === 'conflict'
-                              ? { kind: 'conflict', path }
-                              : {
-                                  kind: 'diff',
-                                  target: { kind: 'workingTree', path, status, staged },
-                                },
-                          )
+                          viewForEntry(status, staged) === 'conflict'
+                            ? setMain({ kind: 'conflict', path })
+                            : toggleDiff({ kind: 'workingTree', path, status, staged })
                         }
                       />
                     ) : (
@@ -487,10 +488,12 @@ export default function App() {
                         rows={cacheFor(current.path)}
                         pending={tree ? tree.staged + tree.unstaged : 0}
                         conflicts={tree?.conflicts ?? 0}
+                        pulls={pulls?.pulls ?? []}
                         onCopy={copy}
                         onOpenWorkingTree={() => select(0)}
+                        onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
                         onOpenFile={(commit, file) =>
-                          setMain({ kind: 'diff', target: { kind: 'commit', commit, file } })
+                          toggleDiff({ kind: 'commit', commit, file })
                         }
                       />
                     )}

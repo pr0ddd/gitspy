@@ -1,8 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import * as ipc from '@/ipc';
-import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco, userEditorOptions } from '@/entities/diff';
+import {
+  DIFF_EDITOR_BASE,
+  EDITOR_BASE,
+  languageOf,
+  monaco,
+  setHiddenLineSpans,
+  setUpMonaco,
+  userEditorOptions,
+} from '@/entities/diff';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
 import { DiffToolbar } from './DiffToolbar';
@@ -11,10 +20,16 @@ import { shortenDirectory, splitPath } from '@/paths';
 import { cn } from '@/lib/utils';
 import { editorOptionsFor, type DiffMode } from '@/entities/diff';
 import { usePref } from '@/prefs';
-import { isGitlinkDiff, parseUnifiedDiff, patchFor, type Hunk } from '@/entities/diff';
+import {
+  hiddenSpans,
+  isGitlinkDiff,
+  parseUnifiedDiff,
+  patchFor,
+  type Hunk,
+  type UnifiedDiff,
+} from '@/entities/diff';
 import type { ChangedFileView, PathOperation, WorkingTreeView } from '@/types';
 import { Hint } from '@/components/ui/tooltip';
-import { createRoot, type Root } from 'react-dom/client';
 
 const STATUS_STYLE: Record<string, string> = {
   A: 'text-added',
@@ -29,6 +44,18 @@ const STATUS_STYLE: Record<string, string> = {
 export type DiffTarget =
   | { kind: 'commit'; commit: string; file: ChangedFileView }
   | { kind: 'workingTree'; path: string; status: string; staged: boolean };
+
+const lineTally = (text: string): number => text.split('\n').length;
+
+export const sameDiffTarget = (left: DiffTarget, right: DiffTarget): boolean => {
+  if (left.kind === 'commit' && right.kind === 'commit') {
+    return left.commit === right.commit && left.file.path === right.file.path;
+  }
+  if (left.kind === 'workingTree' && right.kind === 'workingTree') {
+    return left.path === right.path && left.staged === right.staged;
+  }
+  return false;
+};
 
 type Props = {
   repo: string;
@@ -112,8 +139,10 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const [mode, setMode] = usePref<DiffMode>('diff.mode', 'split');
   const [whitespace, setWhitespace] = usePref('diff.whitespace', false);
   const [wrap, setWrap] = usePref('diff.wrap', false);
-  const [sides, setSides] = useState<{ before: string; after: string } | null>(null);
-  const [hunksRaw, setHunksRaw] = useState<string | null>(null);
+  const [sides, setSides] = useState<{ for: DiffTarget; before: string; after: string } | null>(
+    null,
+  );
+  const [patch, setPatch] = useState<{ for: DiffTarget; raw: string | null } | null>(null);
   const [applied, setApplied] = useState(0);
   const [view, setView] = useState<'diff' | 'file'>('diff');
   const [editing, setEditing] = useState(false);
@@ -146,7 +175,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     editor.current?.getOriginalEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
   }, [mode, whitespace, wrap]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (view !== 'file' || !plain.current || !sides) return;
 
     const created = monaco.editor.create(plain.current, {
@@ -178,100 +207,93 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   useEffect(() => {
     let cancelled = false;
 
-    const reading =
+    const readingSides =
       target.kind === 'commit'
         ? ipc.diffSides(repo, target.commit, target.file.path, target.file.oldPath ?? null)
         : ipc.workingTreeDiff(repo, target.path, target.staged);
+    const readingHunks =
+      target.kind === 'commit'
+        ? ipc.commitFileHunks(repo, target.commit, target.file.path)
+        : ipc.workingTreeHunks(repo, target.path, target.staged);
 
-    reading
-      .then((sides) => {
-        if (cancelled || !editor.current) return;
-        setSides(sides);
-        const language = languageOf(path);
-        const previous = editor.current.getModel();
-        editor.current.setModel({
-          original: monaco.editor.createModel(sides.before, language),
-          modified: monaco.editor.createModel(sides.after, language),
-        });
-        previous?.original.dispose();
-        previous?.modified.dispose();
-        if (jumpedRef.current !== target) {
-          jumpedRef.current = target;
-          const once = editor.current.onDidUpdateDiff(() => {
-            once.dispose();
-            const change = editor.current?.getLineChanges()?.[0];
-            if (!change) return;
-            editor.current
-              ?.getModifiedEditor()
-              .revealLineNearTop(
-                Math.max(1, change.modifiedStartLineNumber),
-                monaco.editor.ScrollType.Immediate,
-              );
-          });
-        }
+    Promise.all([readingSides, readingHunks.catch(() => null)])
+      .then(([loaded, raw]) => {
+        if (cancelled) return;
+        setSides({ for: target, before: loaded.before, after: loaded.after });
+        setPatch({ for: target, raw });
       })
       .catch(notifyError);
-
-    if (target.kind === 'workingTree') {
-      ipc
-        .workingTreeHunks(repo, target.path, target.staged)
-        .then((raw) => {
-          if (!cancelled) setHunksRaw(raw);
-        })
-        .catch(() => setHunksRaw(null));
-    } else {
-      ipc
-        .commitFileHunks(repo, target.commit, target.file.path)
-        .then((raw) => {
-          if (!cancelled) setHunksRaw(raw);
-        })
-        .catch(() => setHunksRaw(null));
-    }
 
     return () => {
       cancelled = true;
     };
   }, [repo, target, path, applied]);
 
-  useEffect(() => {
-    const diffEditor = editor.current;
-    if (!diffEditor || view !== 'diff' || mode !== 'hunk') return;
-    if (!hunksRaw || isGitlinkDiff(hunksRaw)) return;
-    const parsed = parseUnifiedDiff(hunksRaw);
-    if (!parsed) return;
+  const hunkView = useMemo(() => {
+    if (!patch?.raw || isGitlinkDiff(patch.raw)) return null;
+    const diff = parseUnifiedDiff(patch.raw);
+    if (!diff) return null;
+    return {
+      for: patch.for,
+      diff,
+      bars: diff.hunks.map(() => document.createElement('div')),
+    };
+  }, [patch]);
 
-    const apply = (hunk: Hunk, cached: boolean, reverse: boolean) =>
-      ipc
-        .applyHunk(repo, patchFor(parsed, hunk), cached, reverse)
-        .then((tree) => {
-          onTree(tree);
-          setApplied((n) => n + 1);
-        })
-        .catch(notifyError);
+  useLayoutEffect(() => {
+    const diffEditor = editor.current;
+    if (!diffEditor || !sides || sides.for !== target) return;
+    const language = languageOf(path);
+    const previous = diffEditor.getModel();
+    const modified = diffEditor.getModifiedEditor();
+    const keptScroll = jumpedRef.current === target ? modified.getScrollTop() : null;
+    diffEditor.setModel({
+      original: monaco.editor.createModel(sides.before, language),
+      modified: monaco.editor.createModel(sides.after, language),
+    });
+    previous?.original.dispose();
+    previous?.modified.dispose();
+    if (keptScroll !== null) {
+      modified.setScrollTop(keptScroll);
+    }
+  }, [sides, target, path]);
+
+  useLayoutEffect(() => {
+    const diffEditor = editor.current;
+    if (!diffEditor || !sides || sides.for !== target) return;
+    const patchReady = hunkView && hunkView.for === sides.for ? hunkView : null;
+    const spans =
+      mode === 'hunk' && patchReady
+        ? hiddenSpans(patchReady.diff.hunks, lineTally(sides.before), lineTally(sides.after))
+        : { original: [], modified: [] };
+    setHiddenLineSpans(diffEditor.getOriginalEditor(), spans.original);
+    setHiddenLineSpans(diffEditor.getModifiedEditor(), spans.modified);
+    if (jumpedRef.current === target) return;
+    jumpedRef.current = target;
+    const modified = diffEditor.getModifiedEditor();
+    if (mode === 'hunk') {
+      modified.setScrollTop(0);
+    } else if (patchReady) {
+      modified.revealLineNearTop(
+        patchReady.diff.hunks[0].newStart,
+        monaco.editor.ScrollType.Immediate,
+      );
+    } else {
+      diffEditor.revealFirstDiff();
+    }
+  }, [sides, hunkView, target, mode]);
+
+  useLayoutEffect(() => {
+    const diffEditor = editor.current;
+    if (!diffEditor || view !== 'diff' || mode !== 'hunk' || !hunkView) return;
 
     const modified = diffEditor.getModifiedEditor();
     const zones: string[] = [];
-    const roots: Root[] = [];
-    const nodes: HTMLDivElement[] = [];
     modified.changeViewZones((accessor) => {
-      for (const hunk of parsed.hunks) {
-        const domNode = document.createElement('div');
+      hunkView.diff.hunks.forEach((hunk, index) => {
+        const domNode = hunkView.bars[index];
         domNode.style.pointerEvents = 'auto';
         domNode.style.zIndex = '10';
-        nodes.push(domNode);
-        const root = createRoot(domNode);
-        root.render(
-          target.kind === 'workingTree' ? (
-            <HunkBar
-              heading={hunk.heading}
-              staged={target.staged}
-              onApply={(cached, reverse) => apply(hunk, cached, reverse)}
-            />
-          ) : (
-            <CommitHunkBar heading={hunk.heading} onRevert={() => apply(hunk, false, true)} />
-          ),
-        );
-        roots.push(root);
         zones.push(
           accessor.addZone({
             afterLineNumber: hunk.newStart - 1,
@@ -279,13 +301,13 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
             domNode,
           }),
         );
-      }
+      });
     });
 
     const pin = () => {
       const width = modified.getLayoutInfo().contentWidth;
       const left = modified.getScrollLeft();
-      for (const node of nodes) {
+      for (const node of hunkView.bars) {
         node.style.width = `${Math.max(0, width - 12)}px`;
         node.style.transform = `translateX(${left}px)`;
       }
@@ -298,9 +320,17 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
       onScroll.dispose();
       onLayout.dispose();
       modified.changeViewZones((accessor) => zones.forEach((zone) => accessor.removeZone(zone)));
-      queueMicrotask(() => roots.forEach((root) => root.unmount()));
     };
-  }, [hunksRaw, view, mode, repo, target, onTree]);
+  }, [hunkView, view, mode]);
+
+  const applyHunk = (source: UnifiedDiff, hunk: Hunk, cached: boolean, reverse: boolean) =>
+    ipc
+      .applyHunk(repo, patchFor(source, hunk), cached, reverse)
+      .then((tree) => {
+        onTree(tree);
+        setApplied((n) => n + 1);
+      })
+      .catch(notifyError);
 
   useEffect(() => {
     setEditing(false);
@@ -394,6 +424,26 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
         <>
           <div ref={host} className={cn('min-h-0 flex-1', view === 'file' && 'hidden')} />
           <div ref={plain} className={cn('min-h-0 flex-1', view === 'diff' && 'hidden')} />
+          {view === 'diff' && mode === 'hunk' && hunkView
+            ? hunkView.diff.hunks.map((hunk, index) =>
+                createPortal(
+                  hunkView.for.kind === 'workingTree' ? (
+                    <HunkBar
+                      heading={hunk.heading}
+                      staged={hunkView.for.staged}
+                      onApply={(cached, reverse) => applyHunk(hunkView.diff, hunk, cached, reverse)}
+                    />
+                  ) : (
+                    <CommitHunkBar
+                      heading={hunk.heading}
+                      onRevert={() => applyHunk(hunkView.diff, hunk, false, true)}
+                    />
+                  ),
+                  hunkView.bars[index],
+                  `${index}:${hunk.heading}`,
+                ),
+              )
+            : null}
         </>
       )}
     </div>

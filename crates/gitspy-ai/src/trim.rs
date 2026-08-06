@@ -91,7 +91,14 @@ fn cut_at_line_boundary(chunk: &str, limit: usize) -> &str {
     if chunk.len() <= limit {
         return chunk;
     }
-    let cut = chunk[..limit].rfind('\n').map(|at| at + 1).unwrap_or(limit);
+    let mut boundary = limit;
+    while !chunk.is_char_boundary(boundary) {
+        boundary -= 1;
+    }
+    let cut = chunk[..boundary]
+        .rfind('\n')
+        .map(|at| at + 1)
+        .unwrap_or(boundary);
     &chunk[..cut]
 }
 
@@ -145,6 +152,22 @@ mod tests {
             trimmed.len() <= FILE_LIMIT + 200,
             "хвост за лимитом не протекает"
         );
+    }
+
+    #[test]
+    fn cyrillic_body_is_cut_at_a_char_boundary_not_at_a_byte() {
+        for pad in 0..4 {
+            let mut chunk = format!("diff --git a/d.md b/d.md\n{}\n", "x".repeat(pad));
+            let line = format!("+{}\n", "е".repeat(400));
+            while chunk.len() <= FILE_LIMIT {
+                chunk.push_str(&line);
+            }
+            let trimmed = trim_diff(&chunk);
+            assert!(
+                trimmed.contains("[truncated]"),
+                "кириллический дифф ужимается без паники при сдвиге {pad}"
+            );
+        }
     }
 
     #[test]

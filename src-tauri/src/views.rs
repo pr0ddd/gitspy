@@ -243,6 +243,10 @@ pub enum RowView {
         email: String,
         #[ts(type = "number")]
         time: i64,
+        committer: String,
+        committer_email: String,
+        #[ts(type = "number")]
+        committer_time: i64,
         subject: String,
         body: String,
     },
@@ -705,6 +709,9 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                     author: meta.author.clone(),
                     email: meta.email.clone(),
                     time: meta.time,
+                    committer: meta.committer.clone(),
+                    committer_email: meta.committer_email.clone(),
+                    committer_time: meta.committer_time,
                     subject: meta.subject.clone(),
                     body: meta.body.clone(),
                 },
