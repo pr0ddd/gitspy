@@ -441,10 +441,13 @@ impl Bitbucket {
         owner: &str,
         name: &str,
         hash: &str,
-    ) -> Option<(String, String)> {
+    ) -> Result<Option<(String, String)>, Error> {
         let url = format!("{API}/repositories/{owner}/{name}/commit/{hash}");
-        let body = self.fetch(&url, token).await.ok()?;
-        parse_commit_avatar(&body)
+        match self.fetch(&url, token).await {
+            Ok(body) => Ok(parse_commit_avatar(&body)),
+            Err(Error::Unexpected { status: 404, .. }) => Ok(None),
+            Err(other) => Err(other),
+        }
     }
 
     pub async fn commit_avatars(

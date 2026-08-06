@@ -126,7 +126,7 @@ impl Host {
         owner: &str,
         name: &str,
         hash: &str,
-    ) -> Option<(String, String)> {
+    ) -> Result<Option<(String, String)>, Error> {
         match self {
             Host::GitHub(github) => github.commit_author(token, owner, name, hash).await,
             Host::GitLab(gitlab) => gitlab.commit_author(token, owner, name, hash).await,
