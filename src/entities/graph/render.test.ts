@@ -131,7 +131,7 @@ const window_ = (): WindowView => ({
     email: 'p@example.com',
     time: 0,
     subject: 'тема',
-    body: '',
+    body: 'body first line\nrest',
   })),
   segOffsets: [0, 0, 0, 0],
   segKind: [],
@@ -524,5 +524,23 @@ describe('строка WIP во время конфликтного слияни
 
     expect(painted.texts).toContain('29');
     expect(painted.texts).not.toContain('два конфликта на пути в main');
+  });
+});
+
+describe('описание коммита в графе', () => {
+  it('по умолчанию серая строка тела рисуется, режим never её прячет', () => {
+    const shown = paint([]);
+    expect(
+      shown.texts.some((text) => text.includes('body first line')),
+      'умолчание сохраняет прежнее поведение — описание видно',
+    ).toBe(true);
+
+    localStorage.setItem('gitspy.graph.description', JSON.stringify('never'));
+    const hidden = paint([]);
+    expect(
+      hidden.texts.some((text) => text.includes('body first line')),
+      'выключенное описание не рисуется даже при свободном месте',
+    ).toBe(false);
+    localStorage.removeItem('gitspy.graph.description');
   });
 });

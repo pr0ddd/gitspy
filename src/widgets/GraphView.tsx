@@ -526,6 +526,7 @@ export const GraphView = memo(function GraphView({
 
       switch (target.kind) {
         case 'minimap':
+        case 'vscroll':
           dragRef.current = 'minimap';
           jumpFromMinimap(y);
           return;
