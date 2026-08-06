@@ -28,6 +28,7 @@ import {
   TAB_SIZE_LIMITS,
 } from '@/settingsModel';
 import { PULL_CHOICES, type PullMode } from '@/vocabulary';
+import { APPEARANCES, useAppearance } from '@/appearance';
 import { ZOOM_STEPS, zoomLabel } from '@/zoom';
 import {
   DEFAULT_HIDDEN,
@@ -277,6 +278,7 @@ function InterfaceSection({
   onCompact: (compact: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const [appearance, setAppearance] = useAppearance();
   const [minimap, setMinimap] = usePref<boolean>('graph.minimap', true);
   const [description, setDescription] = usePref<DescriptionMode>('graph.description', 'always');
   const [hidden, setHidden] = useState<ReadonlySet<HideableColumn>>(loadHidden);
@@ -298,6 +300,29 @@ function InterfaceSection({
 
   return (
     <div className="space-y-7">
+      <SettingRow label={t('settings.theme')} hint={t('settings.themeHint')}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-72 justify-between font-normal">
+              {t(
+                (APPEARANCES.find((entry) => entry.key === appearance)?.label ??
+                  'appearance.gitspy') as 'appearance.gitspy',
+              )}
+              <Icon.chevron className="size-3 rotate-90 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuRadioGroup value={appearance} onValueChange={setAppearance}>
+              {APPEARANCES.map((entry) => (
+                <DropdownMenuRadioItem key={entry.key} value={entry.key}>
+                  {t(entry.label as 'appearance.gitspy')}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SettingRow>
+
       <SettingRow label={t('settings.zoom')} hint={t('settings.zoomHint')}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

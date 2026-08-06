@@ -29,13 +29,18 @@ const hex = (probe: HTMLElement, value: string): string => {
   return toHex(r, g, b);
 };
 
-let ready = false;
+let workerReady = false;
+let paintedFor = '';
 
 export function setUpMonaco(): void {
-  if (ready) return;
-  ready = true;
+  const appearance = document.documentElement.dataset.theme ?? '';
+  if (paintedFor === appearance && workerReady) return;
+  paintedFor = appearance;
+  workerReady = true;
 
-  self.MonacoEnvironment = { getWorker: () => new EditorWorker() };
+  if (!self.MonacoEnvironment) {
+    self.MonacoEnvironment = { getWorker: () => new EditorWorker() };
+  }
 
   const probe = document.createElement('span');
   probe.style.display = 'none';
