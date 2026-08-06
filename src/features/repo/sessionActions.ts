@@ -64,17 +64,6 @@ export function useSessionActions({ sessions, active, dispatch, load, drop, setR
     if (typeof picked === 'string') openPath(picked);
   }, [t, openPath]);
 
-  const createRepo = useCallback(async () => {
-    const picked = await openDialog({
-      directory: true,
-      multiple: false,
-      title: t('start.createTitle'),
-    });
-    if (typeof picked !== 'string') return;
-    const branch = readPref<string>(SETTINGS.initBranch, '').trim();
-    ipc.initRepo(picked, branch || null).then(openPath).catch(notifyError);
-  }, [t, openPath]);
-
   const closeRepo = useCallback(
     (path: string) => {
       void ipc.closeRepo(path);
@@ -91,5 +80,5 @@ export function useSessionActions({ sessions, active, dispatch, load, drop, setR
     [setRecent],
   );
 
-  return { openPath, pickRepo, createRepo, closeRepo, forget };
+  return { openPath, pickRepo, closeRepo, forget };
 }

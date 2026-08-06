@@ -12,6 +12,7 @@ pub mod pulls;
 pub mod relay;
 pub mod remote;
 pub mod secrets;
+pub mod templates;
 
 use serde::{Deserialize, Serialize};
 

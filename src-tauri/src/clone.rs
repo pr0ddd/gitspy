@@ -65,6 +65,8 @@ pub async fn clone_repo(
 pub async fn init_repo(
     path: String,
     branch: Option<String>,
+    gitignore: Option<String>,
+    license: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<String, ErrorView> {
     let git = state.git()?;
@@ -74,9 +76,81 @@ pub async fn init_repo(
         return Err(ErrorView::new("init.taken").param("path", &path));
     }
 
-    tauri::async_runtime::spawn_blocking(move || git.init(&at, branch.as_deref()).map_err(exec_error))
+    let mut seeds: Vec<(&str, String)> = Vec::new();
+    if gitignore.is_some() || license.is_some() {
+        let templates = gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
+        if let Some(name) = gitignore.as_deref() {
+            seeds.push((
+                ".gitignore",
+                templates
+                    .gitignore_source(name)
+                    .await
+                    .map_err(crate::hosts::host_error)?,
+            ));
+        }
+        if let Some(key) = license.as_deref() {
+            seeds.push((
+                "LICENSE",
+                templates
+                    .license_body(key)
+                    .await
+                    .map_err(crate::hosts::host_error)?,
+            ));
+        }
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        git.init(&at, branch.as_deref()).map_err(exec_error)?;
+        if seeds.is_empty() {
+            return Ok(());
+        }
+        for (file, content) in &seeds {
+            std::fs::write(at.join(file), content)
+                .map_err(|e| ErrorView::new("init.seed").detail(e.to_string()))?;
+        }
+        git.first_commit(&at, "Initial commit").map_err(exec_error)
+    })
         .await
         .map_err(|e| ErrorView::new("app.readerThread").detail(e.to_string()))??;
 
     Ok(path)
+}
+
+#[derive(serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/generated/")]
+pub struct TemplateCatalogView {
+    pub gitignores: Vec<String>,
+    pub licenses: Vec<LicenseView>,
+}
+
+#[derive(serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/generated/")]
+pub struct LicenseView {
+    pub key: String,
+    pub name: String,
+}
+
+#[tauri::command]
+pub async fn template_catalog() -> Result<TemplateCatalogView, ErrorView> {
+    let templates = gitspy_hosts::templates::Templates::new().map_err(crate::hosts::host_error)?;
+    let gitignores = templates
+        .gitignore_names()
+        .await
+        .map_err(crate::hosts::host_error)?;
+    let licenses = templates
+        .licenses()
+        .await
+        .map_err(crate::hosts::host_error)?
+        .into_iter()
+        .map(|l| LicenseView {
+            key: l.key,
+            name: l.name,
+        })
+        .collect();
+    Ok(TemplateCatalogView {
+        gitignores,
+        licenses,
+    })
 }

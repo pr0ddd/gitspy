@@ -6,6 +6,8 @@ export type { PullListView } from './generated/PullListView';
 export type { PullCardView } from './generated/PullCardView';
 export type { ConnectStartView } from './generated/ConnectStartView';
 export type { ConnectionView } from './generated/ConnectionView';
+export type { TemplateCatalogView } from './generated/TemplateCatalogView';
+export type { LicenseView } from './generated/LicenseView';
 export type { RepoListingView } from './generated/RepoListingView';
 export type { ChangedFileView } from './generated/ChangedFileView';
 export type { DiffSides } from './generated/DiffSides';
