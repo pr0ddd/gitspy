@@ -5,8 +5,8 @@ pub const LOOPBACK_REDIRECT: &str = "http://127.0.0.1:53682/callback";
 
 pub mod bitbucket;
 pub mod github;
-pub mod host;
 pub mod gitlab;
+pub mod host;
 pub mod pkce;
 pub mod pulls;
 pub mod relay;

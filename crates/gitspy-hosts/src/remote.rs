@@ -40,10 +40,7 @@ pub fn split_remote(url: &str) -> Option<(String, String, String)> {
     Some((host, owner, repo))
 }
 
-pub fn matches_remote(
-    remotes: &[(String, String)],
-    base_url: &str,
-) -> Option<(String, String)> {
+pub fn matches_remote(remotes: &[(String, String)], base_url: &str) -> Option<(String, String)> {
     let wanted = host_of_url(base_url)?;
     let fits = |url: &str| host_of_url(url).as_deref() == Some(wanted.as_str());
 
@@ -62,8 +59,14 @@ mod tests {
     #[test]
     fn matches_remote_pairs_a_connection_host_with_its_remotes() {
         let remotes = vec![
-            ("upstream".to_string(), "git@gitlab.com:group/tool.git".to_string()),
-            ("origin".to_string(), "https://gitlab.com/me/tool.git".to_string()),
+            (
+                "upstream".to_string(),
+                "git@gitlab.com:group/tool.git".to_string(),
+            ),
+            (
+                "origin".to_string(),
+                "https://gitlab.com/me/tool.git".to_string(),
+            ),
         ];
         assert_eq!(
             matches_remote(&remotes, "https://gitlab.com"),
@@ -77,7 +80,10 @@ mod tests {
         );
         assert_eq!(
             matches_remote(
-                &[("origin".into(), "ssh://git@git.corp.dev:2222/team/app.git".into())],
+                &[(
+                    "origin".into(),
+                    "ssh://git@git.corp.dev:2222/team/app.git".into()
+                )],
                 "https://git.corp.dev",
             ),
             Some(("team".to_string(), "app".to_string())),
@@ -119,7 +125,11 @@ mod tests {
     fn split_remote_names_host_owner_and_repo() {
         assert_eq!(
             split_remote("git@gitlab.com:group/tool.git"),
-            Some(("gitlab.com".to_string(), "group".to_string(), "tool".to_string())),
+            Some((
+                "gitlab.com".to_string(),
+                "group".to_string(),
+                "tool".to_string()
+            )),
             "по хосту из remote строятся веб-ссылки для любого провайдера"
         );
     }
@@ -127,8 +137,14 @@ mod tests {
     #[test]
     fn origin_wins_even_when_it_is_listed_last() {
         let remotes = vec![
-            ("backup".to_string(), "git@github.com:someone/fork.git".to_string()),
-            ("origin".to_string(), "git@github.com:pr0ddd/gitspy.git".to_string()),
+            (
+                "backup".to_string(),
+                "git@github.com:someone/fork.git".to_string(),
+            ),
+            (
+                "origin".to_string(),
+                "git@github.com:pr0ddd/gitspy.git".to_string(),
+            ),
         ];
         assert_eq!(
             matches_remote(&remotes, "https://github.com"),

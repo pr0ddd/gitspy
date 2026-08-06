@@ -128,7 +128,13 @@ pub fn slug_of(name: &str) -> String {
     name.trim()
         .to_lowercase()
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -201,8 +207,16 @@ fn summary_of(pull: WirePull) -> PullSummary {
         number: pull.id,
         title: pull.title,
         draft: pull.draft,
-        author: pull.author.as_ref().map(WireUser::login).unwrap_or_default(),
-        author_avatar_url: pull.author.as_ref().map(WireUser::avatar).unwrap_or_default(),
+        author: pull
+            .author
+            .as_ref()
+            .map(WireUser::login)
+            .unwrap_or_default(),
+        author_avatar_url: pull
+            .author
+            .as_ref()
+            .map(WireUser::avatar)
+            .unwrap_or_default(),
         head_branch: branch_of(&pull.source),
         base_branch: branch_of(&pull.destination),
         from_fork,
@@ -388,8 +402,7 @@ impl Bitbucket {
     pub async fn repos(&self, token: &str, pages: u32) -> Result<Vec<Repo>, Error> {
         let mut all = Vec::new();
         for workspace in self.workspaces(token).await? {
-            let mut url =
-                format!("{API}/repositories/{workspace}?sort=-updated_on&pagelen=100");
+            let mut url = format!("{API}/repositories/{workspace}?sort=-updated_on&pagelen=100");
             for _ in 0..pages {
                 let (found, next) = parse_repos(&self.fetch(&url, token).await?)?;
                 all.extend(found);
@@ -463,7 +476,9 @@ impl Bitbucket {
             let body = self.fetch(&url, token).await?;
             let page: WirePage<WireCommit> = serde_json::from_str(&body).map_err(unexpected)?;
             for commit in page.values {
-                let Some(author) = commit.author else { continue };
+                let Some(author) = commit.author else {
+                    continue;
+                };
                 let Some(email) = author.raw.as_deref().and_then(email_of_raw) else {
                     continue;
                 };
@@ -519,7 +534,10 @@ mod tests {
         assert_eq!(repos[0].description, None, "пустое описание — отсутствие");
         assert_eq!(repos[0].clone_url, "https://bitbucket.org/team/tool.git");
         assert_eq!(repos[0].ssh_url, "git@bitbucket.org:team/tool.git");
-        assert!(next.is_some(), "битбакет листается по next-ссылке, а не номеру страницы");
+        assert!(
+            next.is_some(),
+            "битбакет листается по next-ссылке, а не номеру страницы"
+        );
     }
 
     #[test]
@@ -553,7 +571,10 @@ mod tests {
         let pull = &pulls[0];
         assert_eq!(pull.number, 5);
         assert_eq!(pull.head_branch, "fix");
-        assert!(pull.from_fork, "разные full_name источника и цели — это форк");
+        assert!(
+            pull.from_fork,
+            "разные full_name источника и цели — это форк"
+        );
         assert_eq!(pull.requested_reviewers, vec!["boss".to_string()]);
     }
 
@@ -593,7 +614,8 @@ mod tests {
 
     #[test]
     fn parse_commit_avatar_needs_both_email_and_picture() {
-        let body = r#"{"author": {"raw": "D <d@e.com>", "user": {"links": {"avatar": {"href": "u"}}}}}"#;
+        let body =
+            r#"{"author": {"raw": "D <d@e.com>", "user": {"links": {"avatar": {"href": "u"}}}}}"#;
         assert_eq!(
             parse_commit_avatar(body),
             Some(("d@e.com".to_string(), "u".to_string()))

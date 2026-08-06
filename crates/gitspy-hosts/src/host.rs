@@ -84,7 +84,10 @@ impl Host {
     ) -> Result<(Vec<PullSummary>, bool), Error> {
         match self {
             Host::GitHub(github) => github.pulls(token, owner, name).await,
-            Host::GitLab(gitlab) => gitlab.pulls(token, owner, name).await.map(|found| (found, false)),
+            Host::GitLab(gitlab) => gitlab
+                .pulls(token, owner, name)
+                .await
+                .map(|found| (found, false)),
             Host::Bitbucket(bitbucket) => bitbucket
                 .pulls(token, owner, name)
                 .await
@@ -182,8 +185,8 @@ mod tests {
 
     #[test]
     fn every_kind_builds_its_provider_and_credential() {
-        let github = Host::for_connection(HostKind::GitHub, "https://github.com")
-            .expect("github строится");
+        let github =
+            Host::for_connection(HostKind::GitHub, "https://github.com").expect("github строится");
         let cred = github.credential();
         assert_eq!(cred.username, "x-access-token");
         assert_eq!(cred.url, "https://github.com");
