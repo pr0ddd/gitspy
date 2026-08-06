@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -472,13 +473,14 @@ export function Sidebar({
           />
         </div>
         <Hint text={t('sidebar.collapse')}>
-          <button
+          <Button
+            variant="field"
+            size="icon-sm"
             aria-label={t('sidebar.collapse')}
             onClick={onToggle}
-            className="bg-fill-1 hover:bg-fill-2 text-faint hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
           >
             <Icon.collapse className="size-4" />
-          </button>
+          </Button>
         </Hint>
       </div>
 
