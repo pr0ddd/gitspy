@@ -696,15 +696,18 @@ impl Git {
         &self,
         url: &str,
         into: &Path,
+        shallow: bool,
         credential: Option<Credential<'_>>,
         cancel: &Cancel,
         steps: &mut dyn FnMut(progress::Step),
     ) -> Result<(), Error> {
         let mut command = self.prepared(credential.as_ref());
+        command.arg("clone").arg("--progress");
+        if shallow {
+            command.arg("--depth").arg("1");
+        }
 
         let mut child = command
-            .arg("clone")
-            .arg("--progress")
             .arg(url)
             .arg(into)
             .stdin(Stdio::null())

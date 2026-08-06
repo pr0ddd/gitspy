@@ -153,11 +153,12 @@ export const cloneRepo = (
   url: string,
   parent: string,
   name: string,
+  shallow: boolean,
   onStep: (step: CloneStepView) => void,
 ) => {
   const progress = new Channel<CloneStepView>();
   progress.onmessage = onStep;
-  return invoke<string>('clone_repo', { url, parent, name, progress });
+  return invoke<string>('clone_repo', { url, parent, name, shallow, progress });
 };
 
 export const initRepo = (path: string, branch: string | null) =>

@@ -53,7 +53,7 @@ import { ConflictView } from '@/widgets/ConflictView';
 import { FileHistoryView } from '@/widgets/FileHistoryView';
 import { WorkingTree } from '@/widgets/WorkingTree';
 import { Settings } from '@/widgets/Settings';
-import { CloneDialog } from '@/widgets/CloneDialog';
+import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
 import { viewForEntry } from '@/entities/diff';
@@ -504,7 +504,7 @@ export default function App() {
           onRestart={() => void restartToUpdate()}
         />
 
-        <CloneDialog
+        <RepoDialog
           open={cloning !== null}
           url={cloning ?? ''}
           onOpenChange={(next) => !next && setCloning(null)}

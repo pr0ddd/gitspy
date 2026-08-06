@@ -21,6 +21,7 @@ pub async fn clone_repo(
     url: String,
     parent: String,
     name: String,
+    shallow: bool,
     progress: Channel<CloneStepView>,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
@@ -45,6 +46,7 @@ pub async fn clone_repo(
         git.clone_into(
             &url,
             &destination,
+            shallow,
             credential,
             &Cancel::new(),
             &mut |step| {
