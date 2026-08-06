@@ -1,5 +1,9 @@
 {
   "ai.badResponse": "The model reply did not contain a commit message",
+  "ai.badServer": "The server at {{url}} does not answer like Ollama or LM Studio",
+  "ai.modelMissing": "The server no longer offers {{model}} — load models again in Settings",
+  "ai.noModels": "The server at {{url}} has no models installed yet",
+  "ai.refused": "The AI server rejected the request",
   "ai.nothingStaged": "Stage changes to generate a commit message",
   "ai.unknownProvider": "Unknown AI provider: {{provider}}",
   "ai.unreachable": "Could not reach the AI server at {{url}}",

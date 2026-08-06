@@ -536,13 +536,22 @@ export function WorkingTree(props: Props) {
   };
   const [view, setView] = usePref<FileView>('workingTree.view', 'path');
   const [descending, setDescending] = usePref('workingTree.sortDescending', false);
-
-  if (tree.merging && tree.conflicts > 0) return <MergingPanel {...props} />;
+  const [pushAfter, setPushAfter] = usePref<boolean>('commit.push', false);
 
   const staged = tree.entries.filter((e) => e.staged);
   const unstaged = tree.entries.filter((e) => !e.staged);
   const committable = message.trim().length > 0 && (staged.length > 0 || amend);
-  const [pushAfter, setPushAfter] = usePref<boolean>('commit.push', false);
+
+  const ai = useGenerateCommit({
+    repo,
+    hasStaged: staged.length > 0,
+    onDraft: (summary, body) => {
+      onMessage(summary);
+      onDescription(body);
+    },
+  });
+
+  if (tree.merging && tree.conflicts > 0) return <MergingPanel {...props} />;
 
   const toggleAmend = (next: boolean) => {
     if (next && previous) {
@@ -556,14 +565,6 @@ export function WorkingTree(props: Props) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && committable) onCommit();
   };
 
-  const ai = useGenerateCommit({
-    repo,
-    hasStaged: staged.length > 0,
-    onDraft: (summary, body) => {
-      onMessage(summary);
-      onDescription(body);
-    },
-  });
   const generateHint =
     ai.readiness === 'needsStaged'
       ? t('workingTree.generateNeedsStaged')

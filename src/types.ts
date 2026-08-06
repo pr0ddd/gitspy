@@ -30,6 +30,7 @@ export type { RowView } from './generated/RowView';
 export type { WindowView } from './generated/WindowView';
 export type { WorktreeView } from './generated/WorktreeView';
 export type { CommitDraftView } from './generated/CommitDraftView';
+export type { AiServerView } from './generated/AiServerView';
 
 export type AiProviderId = 'ollama' | 'lmstudio';
 

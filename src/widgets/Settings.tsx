@@ -41,7 +41,7 @@ import {
   type DescriptionMode,
   type HideableColumn,
 } from '@/entities/graph';
-import type { AccountView, AiProviderId } from '@/types';
+import type { AccountView, AiProviderId, AiServerView } from '@/types';
 import { HOSTS, HostCard } from '@/widgets/HostConnect';
 
 type Props = {
@@ -426,58 +426,55 @@ function AiSection() {
   const [model, setModel] = usePref<string>(SETTINGS.aiModel, '');
   const [models, setModels] = useState<string[]>([]);
   const [checking, setChecking] = useState(false);
+  const [detected, setDetected] = useState(false);
 
-  const url = baseUrl.trim() || AI_DEFAULT_URLS[provider];
   const chosen = AI_PROVIDERS.find((p) => p.key === provider) ?? AI_PROVIDERS[0];
 
-  const pickProvider = (next: string) => {
-    setProvider(next as AiProviderId);
-    setModels([]);
-    setModel('');
+  const adopt = (server: AiServerView) => {
+    setProvider(server.provider as AiProviderId);
+    setModels(server.models);
+    setDetected(true);
+    if (!server.models.includes(model)) setModel(server.models[0] ?? '');
   };
 
-  const check = () => {
+  const check = async () => {
+    const candidates = baseUrl.trim()
+      ? [baseUrl.trim()]
+      : [AI_DEFAULT_URLS.ollama, AI_DEFAULT_URLS.lmstudio];
     setChecking(true);
-    ipc
-      .aiListModels(provider, url)
-      .then((found) => {
-        setModels(found);
-        if (!found.includes(model)) setModel(found[0] ?? '');
-      })
-      .catch(notifyError)
-      .finally(() => setChecking(false));
+    try {
+      for (let at = 0; at < candidates.length; at += 1) {
+        try {
+          adopt(await ipc.aiDetectServer(candidates[at]));
+          return;
+        } catch (error) {
+          if (at === candidates.length - 1) throw error;
+        }
+      }
+    } catch (error) {
+      notifyError(error);
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
     <div className="space-y-7">
-      <SettingRow label={t('settings.aiProvider')} hint={t('settings.aiProviderHint')}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="w-72 justify-between font-normal">
-              {t(chosen.label as 'settings.aiOllama')}
-              <Icon.chevron className="size-3 rotate-90 opacity-60" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-72">
-            <DropdownMenuRadioGroup value={provider} onValueChange={pickProvider}>
-              {AI_PROVIDERS.map((entry) => (
-                <DropdownMenuRadioItem key={entry.key} value={entry.key}>
-                  {t(entry.label as 'settings.aiOllama')}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SettingRow>
-
-      <SettingRow label={t('settings.aiServer')} hint={t('settings.aiServerHint')}>
+      <SettingRow
+        label={t('settings.aiServer')}
+        hint={
+          detected
+            ? t('settings.aiDetected', { provider: t(chosen.label as 'settings.aiOllama') })
+            : t('settings.aiServerHint')
+        }
+      >
         <div className="flex w-72 items-center gap-2">
           <Input
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={AI_DEFAULT_URLS[provider]}
+            placeholder={AI_DEFAULT_URLS.ollama}
           />
-          <Button variant="outline" size="sm" disabled={checking} onClick={check}>
+          <Button variant="outline" size="sm" disabled={checking} onClick={() => void check()}>
             {checking ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
             {t('settings.aiCheck')}
           </Button>

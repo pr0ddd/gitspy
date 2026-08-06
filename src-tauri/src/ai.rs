@@ -1,5 +1,5 @@
 use crate::state::{exec_error, on_reader, AppState};
-use crate::views::{CommitDraftView, ErrorView};
+use crate::views::{AiServerView, CommitDraftView, ErrorView};
 use gitspy_ai::{AiError, AiProvider};
 use std::path::PathBuf;
 use tauri::State;
@@ -10,17 +10,26 @@ fn provider_of(id: &str) -> Result<AiProvider, ErrorView> {
 }
 
 fn ai_error(base_url: &str, error: AiError) -> ErrorView {
-    ErrorView::new(error.code())
-        .param("url", base_url)
-        .detail(error.detail())
+    let view = ErrorView::new(error.code()).param("url", base_url);
+    let view = match &error {
+        AiError::ModelMissing { model, .. } => view.param("model", model),
+        _ => view,
+    };
+    view.detail(error.detail())
 }
 
 #[tauri::command]
-pub async fn ai_list_models(provider: String, base_url: String) -> Result<Vec<String>, ErrorView> {
-    let provider = provider_of(&provider)?;
-    gitspy_ai::list_models(provider, &base_url)
+pub async fn ai_detect_server(base_url: String) -> Result<AiServerView, ErrorView> {
+    let server = gitspy_ai::detect_server(&base_url)
         .await
-        .map_err(|e| ai_error(&base_url, e))
+        .map_err(|e| ai_error(&base_url, e))?;
+    if server.models.is_empty() {
+        return Err(ErrorView::new("ai.noModels").param("url", &base_url));
+    }
+    Ok(AiServerView {
+        provider: server.provider.id().to_string(),
+        models: server.models,
+    })
 }
 
 #[tauri::command]
