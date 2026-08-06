@@ -2,6 +2,7 @@
 
 pub mod avatars;
 pub mod github;
+pub mod pkce;
 pub mod pulls;
 pub mod remote;
 pub mod secrets;
