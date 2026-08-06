@@ -71,11 +71,9 @@ describe('страница настроек', () => {
 describe('секция AI', () => {
   beforeEach(() => localStorage.clear());
 
-  it('проверка адреса сама определяет провайдера и выбирает первую модель', async () => {
+  it('открытие секции само грузит список, определяет провайдера и выбирает модель', async () => {
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Load models' }));
 
     expect(
       await screen.findByRole('button', { name: 'qwen2.5-coder' }),
@@ -102,8 +100,6 @@ describe('секция AI', () => {
       .mockResolvedValueOnce({ provider: 'lmstudio', models: ['llama3.1'] });
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Load models' }));
 
     expect(
       await screen.findByRole('button', { name: 'llama3.1' }),
