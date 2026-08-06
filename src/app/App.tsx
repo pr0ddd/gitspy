@@ -16,7 +16,6 @@ import {
   copyText as copy,
   openExternalUrl as openUrl,
   useOperations,
-  useRepoWork,
   useCommitDraft,
   useRepoData,
   useRepoLoading,
@@ -195,8 +194,6 @@ export default function App() {
   }, [active, adoptTree]);
 
   const { runOperation, checkoutRef } = useOperations(active, reload);
-  const work = useRepoWork(active);
-  const busy = work !== null;
 
   const { message, setMessage, description, setDescription, amend, setAmend, commit } =
     useCommitDraft({
@@ -411,7 +408,6 @@ export default function App() {
                       <PullPanel
                         repo={current.path}
                         pull={main.pull}
-                        busy={busy}
                         onCheckedOut={() => {
                           setMain({ kind: 'graph' });
                           void reload(current.path);
