@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { usePref } from './prefs';
 
 export const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const;
 
@@ -27,3 +29,27 @@ export const applyZoom = async (zoom: number): Promise<void> => {
 };
 
 export const canvasDensity = (): number => (window.devicePixelRatio || 1) * level;
+
+export function useZoom(): { zoom: number; setZoom: (zoom: number) => void } {
+  const [zoom, setZoom] = usePref<number>('ui.zoom', 1);
+
+  useEffect(() => {
+    void applyZoom(zoom).catch(() => {});
+  }, [zoom]);
+
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      const next = zoomForKey(event.key, zoomRef.current);
+      if (next === null) return;
+      event.preventDefault();
+      setZoom(next);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setZoom]);
+
+  return { zoom, setZoom };
+}
