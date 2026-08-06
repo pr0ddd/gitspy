@@ -71,7 +71,6 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
         pulls={null}
         collapsed={false}
         onToggle={() => {}}
-        checkingOut={null}
         currentBranch="main"
         onPick={handlers.onPick ?? (() => {})}
         onCheckout={handlers.onCheckout ?? (() => {})}
@@ -137,7 +136,6 @@ describe('свёрнутый сайдбар', () => {
           pulls={null}
           collapsed
           onToggle={onToggle}
-          checkingOut={null}
           currentBranch="main"
           onPick={() => {}}
           onCheckout={() => {}}

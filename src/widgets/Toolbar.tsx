@@ -11,12 +11,14 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePref } from '@/prefs';
+import { useRepoWork } from '@/features/repo';
 import { SearchField } from '@/parts';
 import type { Operation, WorkingTreeView } from '@/types';
 import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
 import { Icon } from '@/icons';
 
 type Props = {
+  repo: string;
   tree: WorkingTreeView | null;
   onRun: (operation: Operation) => void;
   onAsk: (ask: 'branch' | 'stash') => void;
@@ -26,8 +28,6 @@ type Props = {
   at: number;
   onSearch: (query: string) => void;
   onStep: (delta: number) => void;
-  busy: boolean;
-  running: string | null;
 };
 
 export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
@@ -153,6 +153,7 @@ function ExchangeDeck({
 }
 
 export function Toolbar({
+  repo,
   tree,
   onRun,
   onAsk,
@@ -162,10 +163,11 @@ export function Toolbar({
   at,
   onSearch,
   onStep,
-  busy,
-  running,
 }: Props) {
   const { t } = useTranslation();
+  const work = useRepoWork(repo);
+  const busy = work !== null;
+  const running = work?.kind ?? null;
   const push = pushFor(tree);
   const [pullMode, setPullMode] = usePref<PullMode>('toolbar.pull', 'pull');
 
