@@ -17,7 +17,7 @@ export function DetailsPane({ children, note }: Props) {
 
   return (
     <aside
-      className="relative flex shrink-0 flex-col border-l"
+      className="bg-fill-1 relative flex shrink-0 flex-col border-l"
       style={{ width: clampPanel('details', width) }}
     >
       <ResizeGrip
