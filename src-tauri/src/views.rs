@@ -510,6 +510,15 @@ pub fn build_repo_listing(repo: &gitspy_hosts::github::Repo) -> RepoListingView 
     }
 }
 
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct RepoPassportView {
+    pub path: String,
+    pub branch: Option<String>,
+    pub host: Option<String>,
+}
+
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]

@@ -1,4 +1,4 @@
-fn host_of_url(url: &str) -> Option<String> {
+pub fn host_of_url(url: &str) -> Option<String> {
     let trimmed = url.trim();
     if let Some(rest) = trimmed
         .strip_prefix("https://")
@@ -55,6 +55,19 @@ pub fn matches_remote(remotes: &[(String, String)], base_url: &str) -> Option<(S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_of_url_reads_every_remote_syntax() {
+        assert_eq!(
+            host_of_url("git@github.com:me/tool.git").as_deref(),
+            Some("github.com")
+        );
+        assert_eq!(
+            host_of_url("https://gitlab.corp.dev/me/tool.git").as_deref(),
+            Some("gitlab.corp.dev")
+        );
+        assert_eq!(host_of_url("/local/path"), None);
+    }
 
     #[test]
     fn matches_remote_pairs_a_connection_host_with_its_remotes() {

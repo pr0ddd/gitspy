@@ -6,7 +6,7 @@ use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
     BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
-    RepoView, TipView, WindowView, WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
+    RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
@@ -719,6 +719,31 @@ pub fn forget_repo(
     app: tauri::AppHandle,
 ) -> Result<Vec<recent::RecentRepo>, ErrorView> {
     Ok(recent::forget(&data_dir(&app)?, &path))
+}
+
+#[tauri::command]
+pub async fn repo_passports(
+    paths: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<RepoPassportView>, ErrorView> {
+    let git = state.git()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .into_iter()
+            .map(|path| {
+                let at = Path::new(&path);
+                let branch = git.head_branch(at).ok().flatten();
+                let host = git
+                    .origin_url(at)
+                    .ok()
+                    .flatten()
+                    .and_then(|url| gitspy_hosts::remote::host_of_url(&url));
+                RepoPassportView { path, branch, host }
+            })
+            .collect()
+    })
+    .await
+    .map_err(|_| state_lock_failed())
 }
 
 #[tauri::command]
