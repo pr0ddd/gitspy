@@ -1,5 +1,13 @@
 import * as monaco from 'monaco-editor';
 import { toHex } from '@/colour';
+import { readPref } from '@/prefs';
+import {
+  clampFontSize,
+  clampTabSize,
+  FONT_SIZE_LIMITS,
+  SETTINGS,
+  TAB_SIZE_LIMITS,
+} from '@/settingsModel';
 import EditorWorker from './monaco.worker?worker';
 
 export const THEME = 'gitspy';
@@ -80,6 +88,22 @@ export const DIFF_EDITOR_BASE = {
   renderOverviewRuler: true,
 } as const;
 
+export function userEditorOptions() {
+  const family = readPref<string>(SETTINGS.editorFont, '').trim();
+  const size = clampFontSize(readPref<number>(SETTINGS.editorFontSize, FONT_SIZE_LIMITS.fallback));
+  return {
+    fontFamily: family
+      ? `'${family}', ui-monospace, Menlo, monospace`
+      : EDITOR_BASE.fontFamily,
+    fontSize: size,
+    lineHeight: Math.round(size * 1.55),
+    lineNumbers: (readPref<boolean>(SETTINGS.editorLineNumbers, true)
+      ? 'on'
+      : 'off') as monaco.editor.LineNumbersType,
+    tabSize: clampTabSize(readPref<number>(SETTINGS.editorTabSize, TAB_SIZE_LIMITS.fallback)),
+  };
+}
+
 const BY_EXTENSION: Record<string, string> = {
   ts: 'typescript',
   tsx: 'typescript',
@@ -99,9 +123,12 @@ const BY_EXTENSION: Record<string, string> = {
   sql: 'sql',
 };
 
-export const languageOf = (path: string): string => {
+const languageOfPath = (path: string): string => {
   const extension = path.split('.').pop()?.toLowerCase() ?? '';
   return BY_EXTENSION[extension] ?? 'plaintext';
 };
+
+export const languageOf = (path: string): string =>
+  readPref<boolean>(SETTINGS.editorSyntax, true) ? languageOfPath(path) : 'plaintext';
 
 export { monaco };

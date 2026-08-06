@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import * as ipc from '@/ipc';
-import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco } from '@/entities/diff';
+import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco, userEditorOptions } from '@/entities/diff';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
 import { laneColour } from '@/theme';
@@ -172,6 +172,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
         if (view === 'file' && fileHost.current) {
           const editor = monaco.editor.create(fileHost.current, {
             ...EDITOR_BASE,
+            ...userEditorOptions(),
             wordWrap: diffLook.current.wrap ? 'on' : 'off',
             value: sides.after,
             language,
@@ -182,6 +183,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
         if (view === 'diff' && diffHost.current) {
           const editor = monaco.editor.createDiffEditor(diffHost.current, {
             ...DIFF_EDITOR_BASE,
+            ...userEditorOptions(),
             ...editorOptionsFor(diffLook.current.mode),
             ignoreTrimWhitespace: diffLook.current.whitespace,
             diffWordWrap: diffLook.current.wrap ? 'on' : 'off',

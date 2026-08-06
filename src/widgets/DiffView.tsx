@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import * as ipc from '@/ipc';
-import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco } from '@/entities/diff';
+import { DIFF_EDITOR_BASE, EDITOR_BASE, languageOf, monaco, setUpMonaco, userEditorOptions } from '@/entities/diff';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
 import { DiffToolbar } from './DiffToolbar';
@@ -125,7 +125,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     const element = host.current;
     if (!element) return;
 
-    const created = monaco.editor.createDiffEditor(element, { ...DIFF_EDITOR_BASE });
+    const created = monaco.editor.createDiffEditor(element, { ...DIFF_EDITOR_BASE, ...userEditorOptions() });
     editor.current = created;
 
     return () => {
@@ -151,6 +151,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
 
     const created = monaco.editor.create(plain.current, {
       ...EDITOR_BASE,
+            ...userEditorOptions(),
       readOnly: !editing,
       wordWrap: wrap ? 'on' : 'off',
       value: sides.after,
