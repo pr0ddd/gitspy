@@ -15,9 +15,10 @@ type Wiring = {
   busyWhile: (marker: { kind: string }, work: () => Promise<unknown>) => Promise<void>;
   reload: (path: string) => Promise<void>;
   adoptTree: (tree: WorkingTreeView) => void;
+  onCommitted?: () => void;
 };
 
-export function useCommitDraft({ active, mergeSubject, busyWhile, reload, adoptTree }: Wiring) {
+export function useCommitDraft({ active, mergeSubject, busyWhile, reload, adoptTree, onCommitted }: Wiring) {
   const [message, setMessage] = useState('');
   const [description, setDescription] = useState('');
   const [amend, setAmend] = useState(false);
@@ -40,6 +41,7 @@ export function useCommitDraft({ active, mergeSubject, busyWhile, reload, adoptT
           setMessage('');
           setDescription('');
           setAmend(false);
+          onCommitted?.();
           return reload(active);
         })
         .catch(notifyError),

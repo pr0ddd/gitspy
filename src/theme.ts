@@ -12,6 +12,7 @@ export type Theme = {
   surface: string;
   surfaceRaised: string;
   headerLine: string;
+  shade: string;
   panel: string;
   primary: string;
   primarySoft: string;
@@ -69,7 +70,8 @@ const build = (): Theme => ({
   border: token('--border'),
   surface: token('--surface'),
   surfaceRaised: token('--surface-raised'),
-  headerLine: token('--header-line'),
+  headerLine: token('--border'),
+  shade: token('--graph-shade'),
   panel: token('--card'),
   primary: token('--primary'),
   primarySoft: mix('--primary', 25),

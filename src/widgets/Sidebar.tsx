@@ -122,7 +122,7 @@ const FolderRow = memo(function FolderRow({
   return (
     <ListRow depth={item.depth} gutter={null} title={item.path} onClick={() => onFlip(item.path)}>
       <Glyph className="text-faint size-3.5 shrink-0" />
-      <span className="text-muted-foreground min-w-0 flex-1 truncate">{item.name}</span>
+      <span className="min-w-0 flex-1 truncate">{item.name}</span>
     </ListRow>
   );
 });

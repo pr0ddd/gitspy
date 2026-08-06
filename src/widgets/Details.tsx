@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { Session } from '@/entities/repo';
@@ -12,9 +10,8 @@ import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import { FilePath, ListRow, PanelBanner, PanelBar, PanelNote } from '@/parts';
+import { FilePath, HOVER_FILL, ListRow, PanelBanner, PanelBar, PanelNote, SectionHeader, StatusBadge } from '@/parts';
 import type { ChangedFileView, RefKind } from '@/types';
-import { Hint } from '@/components/ui/tooltip';
 
 type Props = {
   session: Session | null;
@@ -27,18 +24,6 @@ type Props = {
   onHistory: (path: string, from: string) => void;
 };
 
-const countOf = (files: ChangedFileView[], statuses: string[]): number =>
-  files.filter((file) => statuses.includes(file.status)).length;
-
-const STATUS_STYLE: Record<string, string> = {
-  A: 'text-added',
-  M: 'text-modified',
-  D: 'text-deleted',
-  R: 'text-renamed',
-  C: 'text-renamed',
-  T: 'text-modified',
-  U: 'text-conflict',
-};
 
 const REF_ICON: Record<RefKind, keyof typeof Icon> = {
   localBranch: 'branch',
@@ -49,6 +34,33 @@ const REF_ICON: Record<RefKind, keyof typeof Icon> = {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
+}
+
+function MetaPill({
+  head,
+  title,
+  onClick,
+  children,
+}: {
+  head?: boolean;
+  title?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  const Tag = onClick ? 'button' : 'span';
+  return (
+    <Tag
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'text-2xs inline-flex h-5 max-w-full items-center gap-1 rounded-md border px-1.5',
+        head ? 'border-primary/40 text-foreground' : 'text-muted-foreground',
+        onClick && HOVER_FILL,
+      )}
+    >
+      {children}
+    </Tag>
+  );
 }
 
 export function Details({
@@ -133,90 +145,52 @@ export function Details({
       <PanelBar className="border-t-0">
         <Icon.commit className="text-muted-foreground size-3.5" />
         <span className="text-muted-foreground">{GIT.commit}</span>
-        <Hint text={t('details.copyHash')}>
-          <Button
-            variant="secondary"
-            size="2xs"
-            onClick={() => onCopy(row.hash)}
-            className="ml-auto font-mono"
-          >
-            <Icon.copy className="size-3" />
-            {row.hash.slice(0, 8)}
-          </Button>
-        </Hint>
       </PanelBar>
 
       <div className="shrink-0">
-        <div className="space-y-4 px-5 pt-2 pb-5">
-          <p className="text-base leading-snug">{row.subject}</p>
+        <div className="space-y-3 px-5 pt-2 pb-5">
+          <p className="text-foreground text-sm leading-snug font-semibold">{row.subject}</p>
 
-          {row.body ? (
-            <pre className="text-faint max-h-28 overflow-y-auto font-mono text-2xs leading-loose break-words whitespace-pre-wrap">
-              {row.body}
-            </pre>
-          ) : null}
-
-          <dl className="space-y-1.5 text-xs">
-            <div className="flex gap-3.5">
-              <dt className="text-faint w-14 shrink-0">{t('details.author')}</dt>
-              <dd className="min-w-0 truncate">
-                {row.author} <span className="text-faint">{row.email}</span>
-              </dd>
-            </div>
-            <div className="flex gap-3.5">
-              <dt className="text-faint w-14 shrink-0">{t('details.date')}</dt>
-              <dd className="tabular-nums">
+          <div className="flex flex-wrap gap-1.5">
+            <MetaPill title={row.email}>{row.author}</MetaPill>
+            <MetaPill>
+              <span className="tabular-nums">
                 {new Intl.DateTimeFormat(i18n.language, {
                   dateStyle: 'medium',
                   timeStyle: 'short',
                 }).format(when)}
-              </dd>
-            </div>
-          </dl>
+              </span>
+            </MetaPill>
+            <MetaPill title={t('details.copyHash')} onClick={() => onCopy(row.hash)}>
+              <span className="font-mono">{row.hash.slice(0, 8)}</span>
+              <Icon.copy className="size-2.5 opacity-60" />
+            </MetaPill>
+            {labels.map((ref) => {
+              const Glyph = Icon[REF_ICON[ref.kind]];
+              return (
+                <MetaPill key={`${ref.kind}:${ref.name}`} title={ref.name} head={ref.isHead}>
+                  <Glyph className="size-3 shrink-0" />
+                  <span className="min-w-0 truncate">{ref.name}</span>
+                </MetaPill>
+              );
+            })}
+          </div>
 
-          {labels.length ? (
-            <div className="flex flex-wrap gap-2">
-              {labels.map((ref) => {
-                const Glyph = Icon[REF_ICON[ref.kind]];
-                return (
-                  <Badge
-                    key={`${ref.kind}:${ref.name}`}
-                    title={ref.name}
-                    className={cn(
-                      'text-2xs max-w-full gap-1.5 rounded-md px-2 py-1',
-                      ref.isHead
-                        ? 'bg-primary/25 text-foreground'
-                        : 'bg-fill-2 text-muted-foreground',
-                    )}
-                  >
-                    <Glyph className="size-3 shrink-0" />
-                    <span className="min-w-0 truncate">{ref.name}</span>
-                  </Badge>
-                );
-              })}
-            </div>
+          {row.body ? (
+            <p className="text-muted-foreground max-h-40 overflow-y-auto text-xs leading-relaxed break-words whitespace-pre-wrap">
+              {row.body}
+            </p>
           ) : null}
         </div>
       </div>
 
       <Separator />
-      <section className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-3">
+      <section className="flex min-h-0 flex-1 flex-col px-3 pt-2 pb-3">
         {files.length ? (
-          <div className="flex items-center gap-4 px-2 pb-3 text-xs">
-            {(
-              [
-                ['details.modified', countOf(files, ['M', 'T']), 'text-modified'],
-                ['details.added', countOf(files, ['A', 'C']), 'text-added'],
-                ['details.deleted', countOf(files, ['D']), 'text-deleted'],
-              ] as const
-            ).map(([key, count, colour]) =>
-              count === 0 ? null : (
-                <span key={key} className={cn('tabular-nums', colour)}>
-                  {t(key, { count })}
-                </span>
-              ),
-            )}
-          </div>
+          <SectionHeader>
+            <span>{t('details.changes')}</span>
+            <span className="text-faint ml-auto tabular-nums">{files.length}</span>
+          </SectionHeader>
         ) : null}
 
         {files.length === 0 ? (
@@ -231,9 +205,7 @@ export function Details({
                     onClick={() => onOpenFile(row.hash, file)}
                     onContextMenu={() => openFileMenu(row.hash, file)}
                   >
-                    <span className={cn('w-3 shrink-0 text-center', STATUS_STYLE[file.status])}>
-                      {file.status}
-                    </span>
+                    <StatusBadge letter={file.status} />
                     <FilePath path={file.path} />
                     {file.binary ? null : (
                       <span className="text-2xs ml-auto shrink-0 tabular-nums">

@@ -56,10 +56,10 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-md px-2 text-left text-xs transition-colors',
+        'text-subject flex w-full items-center gap-2.5 rounded-md px-2 text-left text-xs transition-colors',
         tall ? 'h-11' : 'h-8',
         as === 'div' && 'group cursor-pointer',
-        current ? 'bg-fill-2 font-medium' : 'hover:bg-fill-1',
+        current ? 'text-foreground bg-fill-2 font-medium' : 'hover:bg-fill-1',
         className,
       )}
     >
@@ -102,6 +102,8 @@ export function SectionHeader({ onClick, className, children }: SectionHeaderPro
   );
 }
 
+const BAR = 'border-border flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs';
+
 export function ViewBar({
   className,
   children,
@@ -109,16 +111,7 @@ export function ViewBar({
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <header
-      className={cn(
-        'border-header-line bg-surface-raised flex h-8 shrink-0 items-center gap-2 border-b px-3 text-xs',
-        className,
-      )}
-    >
-      {children}
-    </header>
-  );
+  return <header className={cn(BAR, 'bg-surface-raised', className)}>{children}</header>;
 }
 
 export function PanelBar({
@@ -131,12 +124,36 @@ export function PanelBar({
   return (
     <div
       className={cn(
-        'first:border-b-header-line flex h-8 shrink-0 items-center gap-2 border-t px-3 text-xs first:border-t-0 first:border-b first:bg-surface-raised',
+        'first:border-b-border flex h-8 shrink-0 items-center gap-2 border-t px-3 text-xs first:border-t-0 first:border-b first:bg-surface-raised',
         className,
       )}
     >
       {children}
     </div>
+  );
+}
+
+const STATUS_TONE: Record<string, string> = {
+  A: 'bg-added/15 text-added',
+  C: 'bg-renamed/15 text-renamed',
+  M: 'bg-modified/15 text-modified',
+  T: 'bg-modified/15 text-modified',
+  D: 'bg-deleted/15 text-deleted',
+  R: 'bg-renamed/15 text-renamed',
+  U: 'bg-conflict/15 text-conflict',
+  '?': 'bg-added/15 text-added',
+};
+
+export function StatusBadge({ letter }: { letter: string }) {
+  return (
+    <span
+      className={cn(
+        'text-2xs flex size-3.5 shrink-0 items-center justify-center rounded-sm font-semibold',
+        STATUS_TONE[letter] ?? 'bg-fill-2 text-muted-foreground',
+      )}
+    >
+      {letter}
+    </span>
   );
 }
 
@@ -158,20 +175,23 @@ export function PanelBanner({
   onClick: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'border-header-line flex h-8 shrink-0 items-center gap-2 border-y px-3 text-left transition-colors',
-        tone === 'conflict'
-          ? 'bg-conflict text-destructive-foreground hover:bg-conflict/90'
-          : 'bg-primary text-primary-foreground hover:bg-primary-hover',
-      )}
-    >
-      <span className="flex-1 truncate text-xs">{label}</span>
-      <span className="text-2xs shrink-0 rounded-md border border-current px-2 py-0.5 font-medium">
-        {action}
+    <ViewBar className={tone === 'conflict' ? 'bg-banner-conflict' : 'bg-banner'}>
+      <span
+        className={cn(
+          'flex-1 truncate',
+          tone === 'conflict' ? 'text-destructive' : 'text-foreground',
+        )}
+      >
+        {label}
       </span>
-    </button>
+      <Button
+        variant={tone === 'conflict' ? 'destructiveSoft' : 'default'}
+        size="2xs"
+        onClick={onClick}
+      >
+        {action}
+      </Button>
+    </ViewBar>
   );
 }
 
