@@ -1,4 +1,6 @@
 import { Component, type ReactNode } from 'react';
+import { t } from 'i18next';
+import { Button } from '@/components/ui/button';
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -11,7 +13,7 @@ export class Boundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
-    console.error('gitspy: отрисовка сорвалась', error, info.componentStack);
+    console.error('gitspy: render crashed', error, info.componentStack);
   }
 
   render() {
@@ -20,16 +22,13 @@ export class Boundary extends Component<Props, State> {
 
     return (
       <div className="bg-surface text-foreground flex h-full flex-col items-center justify-center gap-4 p-8">
-        <h1 className="text-lg font-semibold tracking-tight">Отрисовка сорвалась</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t('boundary.crashed')}</h1>
         <pre className="bg-fill-1 text-destructive max-w-2xl overflow-auto rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
           {error.message}
         </pre>
-        <button
-          className="bg-primary text-primary-foreground h-8 rounded-md px-3 text-sm font-medium"
-          onClick={() => this.setState({ error: null })}
-        >
-          Попробовать снова
-        </button>
+        <Button size="sm" onClick={() => this.setState({ error: null })}>
+          {t('boundary.retry')}
+        </Button>
       </div>
     );
   }

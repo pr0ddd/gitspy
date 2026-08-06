@@ -1,7 +1,7 @@
 import { fireEvent, render as bare, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { NavItem, Tab } from './parts';
+import { ListRow, NavItem, Tab } from './parts';
 
 const render = (ui: React.ReactElement) =>
   bare(<TooltipProvider>{ui}</TooltipProvider>);
@@ -33,6 +33,19 @@ describe('таб верхней полосы', () => {
     );
     const close = screen.getByRole('button', { name: 'Close' });
     expect(close.className).toContain('opacity-100');
+  });
+});
+
+describe('высокая строка списка', () => {
+  it('tall двухстрочная, обычная нет', () => {
+    const { rerender } = bare(<ListRow onClick={() => {}}>x</ListRow>);
+    expect(screen.getByRole('button').className).toContain('h-8');
+    rerender(
+      <ListRow tall onClick={() => {}}>
+        x
+      </ListRow>,
+    );
+    expect(screen.getByRole('button').className).toContain('h-11');
   });
 });
 

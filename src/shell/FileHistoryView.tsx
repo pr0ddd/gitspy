@@ -11,7 +11,7 @@ import { laneColour } from '../theme';
 import { editorOptionsFor, type DiffMode } from '../diff';
 import { usePref } from '../prefs';
 import { DiffToolbar } from './DiffToolbar';
-import { InlineNote, ViewBar } from './parts';
+import { InlineNote, ListRow, ViewBar } from './parts';
 import { shortenDirectory, splitPath } from '../paths';
 import { relativeTime } from '../time';
 import type { AvatarCache } from '../avatarCache';
@@ -278,27 +278,23 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
           <ul>
             {commits.map((commit) => (
               <li key={commit.hash}>
-                <button
-                  onClick={() => setChosen(commit.hash)}
-                  className={cn(
-                    'hover:bg-fill-1 flex h-11 w-full items-center gap-2 rounded-md px-2 text-left transition-colors',
-                    commit.hash === entry?.hash && 'bg-fill-2',
-                  )}
-                >
+                <ListRow tall current={commit.hash === entry?.hash} onClick={() => setChosen(commit.hash)}>
                   <CommitAvatar avatars={avatars} email={commit.email} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm leading-tight">{commit.subject}</span>
-                    <span className="text-muted-foreground block truncate pt-0.5 text-2xs leading-tight">
+                    <span className="block truncate text-sm leading-tight font-normal">
+                      {commit.subject}
+                    </span>
+                    <span className="text-muted-foreground block truncate pt-0.5 text-2xs leading-tight font-normal">
                       {t('history.when', {
                         when: relativeTime(commit.time, now, i18n.language),
                         author: commit.author,
                       })}
                     </span>
                   </span>
-                  <span className="text-muted-foreground shrink-0 font-mono text-2xs">
+                  <span className="text-muted-foreground shrink-0 font-mono text-2xs font-normal">
                     {commit.hash.slice(0, 7)}
                   </span>
-                </button>
+                </ListRow>
               </li>
             ))}
           </ul>

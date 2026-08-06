@@ -10,6 +10,7 @@ const indentAt = (depth: number) => INDENT[Math.min(depth, INDENT.length - 1)];
 
 type ListRowProps = {
   as?: 'button' | 'div';
+  tall?: boolean;
   depth?: number;
   gutter?: React.ReactNode;
   current?: boolean;
@@ -25,6 +26,7 @@ type ListRowProps = {
 
 export function ListRow({
   as = 'button',
+  tall,
   depth = 0,
   gutter,
   current,
@@ -52,7 +54,8 @@ export function ListRow({
           : undefined
       }
       className={cn(
-        'flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left text-xs transition-colors',
+        'flex w-full items-center gap-2.5 rounded-md px-2 text-left text-xs transition-colors',
+        tall ? 'h-11' : 'h-8',
         as === 'div' && 'group cursor-pointer',
         current ? 'bg-fill-2 font-medium' : 'hover:bg-fill-1',
         className,
