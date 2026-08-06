@@ -14,6 +14,7 @@ import { AvatarCache } from './avatarCache';
 import { useCommitSearch } from './search';
 import { panelFor } from './panel';
 import { restartToUpdate, useReadyUpdate } from './updater';
+import { useSessionActions } from './sessionActions';
 import { clampPanel, PANEL_LIMITS } from './resize';
 import { useZoom } from './zoom';
 import { BottomBar } from './shell/BottomBar';
@@ -363,66 +364,14 @@ export default function App() {
   );
 
 
-  const openPath = useCallback(
-    (path: string) => {
-      dispatch({ kind: 'open', path });
-      void load(path);
-    },
-    [load],
-  );
-
-  const restoredRef = useRef(false);
-  useEffect(() => {
-    if (restoredRef.current) return;
-    restoredRef.current = true;
-    const stored = readPref<string[]>('session.open', []);
-    stored.forEach((path) => openPath(path));
-    const lastActive = readPref<string | null>('session.active', null);
-    if (lastActive && stored.includes(lastActive)) {
-      dispatch({ kind: 'activate', path: lastActive });
-    }
-  }, [openPath]);
-
-  useEffect(() => {
-    if (!restoredRef.current) return;
-    writePref(
-      'session.open',
-      sessions.map((s) => s.path),
-    );
-    writePref('session.active', active);
-  }, [sessions, active]);
-
-  const pickRepo = useCallback(async () => {
-    const picked = await openDialog({
-      directory: true,
-      multiple: false,
-      title: t('repo.pickTitle'),
-    });
-    if (typeof picked === 'string') openPath(picked);
-  }, [t, openPath]);
-
-  const createRepo = useCallback(async () => {
-    const picked = await openDialog({
-      directory: true,
-      multiple: false,
-      title: t('start.createTitle'),
-    });
-    if (typeof picked !== 'string') return;
-    ipc.initRepo(picked).then(openPath).catch(notifyError);
-  }, [t, openPath]);
-
-  const closeRepo = useCallback(
-    (path: string) => {
-      void ipc.closeRepo(path);
-      drop(path);
-      dispatch({ kind: 'close', path });
-    },
-    [drop],
-  );
-
-  const forget = useCallback((path: string) => {
-    ipc.forgetRepo(path).then(setRecent).catch(notifyError);
-  }, []);
+  const { openPath, pickRepo, createRepo, closeRepo, forget } = useSessionActions({
+    sessions,
+    active,
+    dispatch,
+    load,
+    drop,
+    setRecent,
+  });
 
   const select = useCallback(
     (index: number) => {
