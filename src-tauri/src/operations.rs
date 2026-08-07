@@ -23,6 +23,8 @@ pub enum Operation {
     FetchDryRun,
     Fetch,
     Pull,
+    PullFfOnly,
+    PullRebase,
     Push,
     PushSetUpstream {
         remote: String,
@@ -104,6 +106,10 @@ pub enum Operation {
         message: String,
     },
     StashPop,
+    StashFile {
+        path: String,
+    },
+    DiscardAll,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, PartialEq, Eq)]
@@ -156,6 +162,8 @@ impl Operation {
             Operation::FetchDryRun => owned(&["fetch", "--dry-run", "--all"]),
             Operation::Fetch => owned(&["fetch", "--all", "--progress"]),
             Operation::Pull => owned(&["pull", "--no-edit", "--progress"]),
+            Operation::PullFfOnly => owned(&["pull", "--ff-only", "--progress"]),
+            Operation::PullRebase => owned(&["pull", "--rebase", "--progress"]),
             Operation::Push => owned(&["push", "--progress"]),
             Operation::PushSetUpstream { remote, branch } => {
                 let mut args = owned(&["push", "--progress", "--set-upstream"]);
@@ -294,6 +302,20 @@ impl Operation {
                 args
             }
             Operation::StashPop => owned(&["stash", "pop"]),
+            Operation::StashFile { path } => {
+                let mut args = owned(&["stash", "push", "--"]);
+                args.push(path.clone());
+                args
+            }
+            Operation::DiscardAll => owned(&["reset", "--hard", "HEAD"]),
+        }
+    }
+
+    pub fn commands(&self) -> Vec<Vec<String>> {
+        let owned = |parts: &[&str]| parts.iter().map(|p| (*p).to_string()).collect::<Vec<_>>();
+        match self {
+            Operation::DiscardAll => vec![self.args(), owned(&["clean", "-fd"])],
+            other => vec![other.args()],
         }
     }
 
@@ -302,7 +324,7 @@ impl Operation {
             Operation::WriteCommitGraph => "operation.writeCommitGraph",
             Operation::FetchDryRun => "operation.fetchDryRun",
             Operation::Fetch => "operation.fetch",
-            Operation::Pull => "operation.pull",
+            Operation::Pull | Operation::PullFfOnly | Operation::PullRebase => "operation.pull",
             Operation::Push | Operation::PushSetUpstream { .. } => "operation.push",
             Operation::Checkout { .. } | Operation::CheckoutTracking { .. } => "operation.checkout",
             Operation::Branch { .. } | Operation::BranchAt { .. } => "operation.branch",
@@ -325,6 +347,8 @@ impl Operation {
             Operation::PushDelete { .. } => "operation.pushDelete",
             Operation::Stash { .. } => "operation.stash",
             Operation::StashPop => "operation.stashPop",
+            Operation::StashFile { .. } => "operation.stashFile",
+            Operation::DiscardAll => "operation.discardAll",
         }
     }
 
@@ -333,6 +357,8 @@ impl Operation {
             Operation::FetchDryRun
             | Operation::Fetch
             | Operation::Pull
+            | Operation::PullFfOnly
+            | Operation::PullRebase
             | Operation::Push
             | Operation::PushSetUpstream { .. }
             | Operation::PushBranch { .. }
@@ -434,20 +460,28 @@ pub fn run(
         label: operation.label().to_string(),
     });
 
-    let owned = operation.args();
-    let args: Vec<&str> = owned.iter().map(String::as_str).collect();
+    let mut last = None;
+    for owned in operation.commands() {
+        let args: Vec<&str> = owned.iter().map(String::as_str).collect();
 
-    let outcome = git.run_as(repo, &args, credential, cancel, &mut |event| match event {
-        Event::Line { stderr, text } => progress(Progress::Line { stderr, text }),
-        Event::Finished { code } => progress(Progress::Finished { code }),
-        Event::Started { .. } => {}
-    })?;
+        let outcome = git.run_as(repo, &args, credential, cancel, &mut |event| match event {
+            Event::Line { stderr, text } => progress(Progress::Line { stderr, text }),
+            Event::Finished { code } => progress(Progress::Finished { code }),
+            Event::Started { .. } => {}
+        })?;
 
-    Ok(OperationOutcome {
-        code: outcome.code,
-        stdout: outcome.stdout,
-        stderr: outcome.stderr,
-    })
+        let failed = outcome.code != 0;
+        last = Some(OperationOutcome {
+            code: outcome.code,
+            stdout: outcome.stdout,
+            stderr: outcome.stderr,
+        });
+        if failed {
+            break;
+        }
+    }
+
+    Ok(last.expect("у операции есть хотя бы одна команда"))
 }
 
 pub fn commit_args(message: &str, amend: bool) -> Vec<String> {
@@ -469,6 +503,39 @@ mod tests {
         assert_eq!(
             commit_args("fix: thing", false),
             ["commit", "-m", "fix: thing"]
+        );
+    }
+
+    #[test]
+    fn pull_variants_ask_git_for_exactly_that_merge_strategy() {
+        assert_eq!(
+            Operation::PullFfOnly.args(),
+            ["pull", "--ff-only", "--progress"],
+            "ff-only не создаёт merge-коммита, --no-edit ему не нужен"
+        );
+        assert_eq!(
+            Operation::PullRebase.args(),
+            ["pull", "--rebase", "--progress"]
+        );
+        assert!(Operation::PullFfOnly.reaches_the_network());
+        assert!(Operation::PullRebase.reaches_the_network());
+    }
+
+    #[test]
+    fn discarding_everything_also_sweeps_untracked_files_the_reset_would_leave_behind() {
+        assert_eq!(
+            Operation::DiscardAll.commands(),
+            vec![vec!["reset", "--hard", "HEAD"], vec!["clean", "-fd"]],
+            "reset вернёт отслеживаемые файлы, но новые останутся лежать без clean"
+        );
+    }
+
+    #[test]
+    fn an_ordinary_operation_stays_one_command() {
+        assert_eq!(
+            Operation::Fetch.commands(),
+            vec![Operation::Fetch.args()],
+            "команд у операции столько, сколько она правда запускает"
         );
     }
 

@@ -1,3 +1,5 @@
+import { canvasDensity } from '@/zoom';
+
 const cache = new Map<string, HTMLCanvasElement>();
 
 function hash(text: string): number {
@@ -14,7 +16,7 @@ export function identicon(key: string, size: number): HTMLCanvasElement {
   const hit = cache.get(cacheKey);
   if (hit) return hit;
 
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDensity();
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(size * dpr);
   canvas.height = Math.round(size * dpr);

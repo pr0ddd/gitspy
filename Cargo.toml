@@ -1,3 +1,3 @@
 [workspace]
-members = ["crates/gitspy-core", "crates/gitspy-exec", "crates/gitspy-hosts", "crates/gitspy-repo", "src-tauri"]
+members = ["crates/gitspy-ai", "crates/gitspy-core", "crates/gitspy-exec", "crates/gitspy-hosts", "crates/gitspy-repo", "src-tauri"]
 resolver = "2"

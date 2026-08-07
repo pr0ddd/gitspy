@@ -20,12 +20,13 @@ const TOKEN_VARIABLE: &str = "GITSPY_HOST_TOKEN";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Credential<'a> {
     pub url: &'a str,
+    pub username: &'a str,
     pub token: &'a str,
 }
 
-pub fn helper_for(url: &str) -> String {
+pub fn helper_for(url: &str, username: &str) -> String {
     format!(
-        "credential.{url}.helper=!f() {{ echo username=x-access-token; echo password=${TOKEN_VARIABLE}; }}; f"
+        "credential.{url}.helper=!f() {{ echo username={username}; echo password=${TOKEN_VARIABLE}; }}; f"
     )
 }
 
@@ -116,6 +117,26 @@ impl Cancel {
     }
 }
 
+fn the_path_is_simply_absent(stderr: &str) -> bool {
+    stderr.contains("does not exist")
+        || stderr.contains("exists on disk, but not in")
+        || stderr.contains("unknown revision or path not in the working tree")
+}
+
+fn shown_or_absent(read: Result<String, Error>) -> Result<String, Error> {
+    match read {
+        Ok(text) => Ok(text),
+        Err(Error::Failed { code, stderr }) => {
+            if the_path_is_simply_absent(&stderr) {
+                Ok(String::new())
+            } else {
+                Err(Error::Failed { code, stderr })
+            }
+        }
+        Err(other) => Err(other),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Git {
     program: PathBuf,
@@ -124,7 +145,29 @@ pub struct Git {
 
 impl Git {
     pub fn discover() -> Result<Self, Error> {
+        if let Some(shell) = std::env::var_os("SHELL") {
+            if let Some(found) = Self::found_by_the_login_shell(Path::new(&shell)) {
+                return Ok(found);
+            }
+        }
         Self::at(Path::new("git"))
+    }
+
+    pub fn found_by_the_login_shell(shell: &Path) -> Option<Self> {
+        let out = Command::new(shell)
+            .args(["-lc", "command -v git"])
+            .stdin(Stdio::null())
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let named = String::from_utf8_lossy(&out.stdout);
+        let program = named.trim();
+        if program.is_empty() {
+            return None;
+        }
+        Self::at(Path::new(program)).ok()
     }
 
     pub fn at(program: &Path) -> Result<Self, Error> {
@@ -157,6 +200,22 @@ impl Git {
     fn read(&self, repo: &Path, args: &[&str]) -> Result<String, Error> {
         self.run(repo, args, &Cancel::new(), &mut |_| {})
             .map(|outcome| outcome.stdout)
+    }
+
+    pub fn head_branch(&self, repo: &Path) -> Result<Option<String>, Error> {
+        match self.read(repo, &["symbolic-ref", "--short", "-q", "HEAD"]) {
+            Ok(raw) => Ok(Some(raw.trim().to_string()).filter(|s| !s.is_empty())),
+            Err(Error::Failed { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn origin_url(&self, repo: &Path) -> Result<Option<String>, Error> {
+        match self.read(repo, &["config", "--get", "remote.origin.url"]) {
+            Ok(raw) => Ok(Some(raw.trim().to_string()).filter(|s| !s.is_empty())),
+            Err(Error::Failed { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     fn has_parent(&self, repo: &Path, commit: &str) -> bool {
@@ -325,11 +384,7 @@ impl Git {
     }
 
     fn stage_content(&self, repo: &Path, stage: u8, path: &str) -> Result<String, Error> {
-        match self.read_raw(repo, &["show", &format!(":{stage}:{path}")]) {
-            Ok(text) => Ok(text),
-            Err(Error::Failed { .. }) => Ok(String::new()),
-            Err(other) => Err(other),
-        }
+        shown_or_absent(self.read_raw(repo, &["show", &format!(":{stage}:{path}")]))
     }
 
     pub fn conflict_merged(&self, repo: &Path, path: &str) -> Result<String, Error> {
@@ -371,10 +426,11 @@ impl Git {
         &self,
         repo: &Path,
         path: &str,
+        start: Option<&str>,
     ) -> Result<Vec<filehistory::FileCommit>, Error> {
         let format = format!("--format={}", filehistory::FORMAT);
         let mut collected = Vec::new();
-        let mut from = String::from("HEAD");
+        let mut from = start.unwrap_or("HEAD").to_string();
         let mut at_path = path.to_string();
 
         loop {
@@ -469,6 +525,31 @@ impl Git {
             args.push("--cached");
         }
         args.extend(["--", path]);
+        self.read_raw(repo, &args)
+    }
+
+    pub fn staged_diff(&self, repo: &Path) -> Result<String, Error> {
+        self.read_raw(repo, &["diff", "--cached", "--no-color", "--no-ext-diff"])
+    }
+
+    pub fn commit_diff_unified(
+        &self,
+        repo: &Path,
+        hash: &str,
+        path: &str,
+    ) -> Result<String, Error> {
+        let range = format!("{hash}^!");
+        let args = vec![
+            "diff-tree",
+            "--no-color",
+            "--no-ext-diff",
+            "--root",
+            "-p",
+            "--unified=3",
+            &range,
+            "--",
+            path,
+        ];
         self.read_raw(repo, &args)
     }
 
@@ -579,11 +660,7 @@ impl Git {
     }
 
     pub fn file_at(&self, repo: &Path, reference: &str, path: &str) -> Result<String, Error> {
-        match self.read(repo, &["show", &format!("{reference}:{path}")]) {
-            Ok(text) => Ok(text),
-            Err(Error::Failed { .. }) => Ok(String::new()),
-            Err(other) => Err(other),
-        }
+        shown_or_absent(self.read(repo, &["show", &format!("{reference}:{path}")]))
     }
 
     pub fn remotes(&self, repo: &Path) -> Vec<String> {
@@ -615,8 +692,24 @@ impl Git {
             .unwrap_or_default()
     }
 
-    pub fn init(&self, path: &Path) -> Result<(), Error> {
-        self.read(path, &["init"]).map(|_| ())
+    pub fn init(&self, path: &Path, branch: Option<&str>) -> Result<(), Error> {
+        match branch {
+            Some(name) => self.read(path, &["init", "-b", name]).map(|_| ()),
+            None => self.read(path, &["init"]).map(|_| ()),
+        }
+    }
+
+    pub fn first_commit(&self, path: &Path, message: &str) -> Result<(), Error> {
+        self.read(path, &["add", "-A"])?;
+        self.read(path, &["commit", "-m", message]).map(|_| ())
+    }
+
+    pub fn rename_unborn_branch(&self, path: &Path, branch: &str) -> Result<(), Error> {
+        self.read(
+            path,
+            &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")],
+        )
+        .map(|_| ())
     }
 
     fn prepared(&self, credential: Option<&Credential>) -> Command {
@@ -632,7 +725,9 @@ impl Git {
 
         if let Some(credential) = credential {
             command.env(TOKEN_VARIABLE, credential.token);
-            command.arg("-c").arg(helper_for(credential.url));
+            command
+                .arg("-c")
+                .arg(helper_for(credential.url, credential.username));
         }
         command
     }
@@ -641,15 +736,18 @@ impl Git {
         &self,
         url: &str,
         into: &Path,
+        shallow: bool,
         credential: Option<Credential<'_>>,
         cancel: &Cancel,
         steps: &mut dyn FnMut(progress::Step),
     ) -> Result<(), Error> {
         let mut command = self.prepared(credential.as_ref());
+        command.arg("clone").arg("--progress");
+        if shallow {
+            command.arg("--depth").arg("1");
+        }
 
         let mut child = command
-            .arg("clone")
-            .arg("--progress")
             .arg(url)
             .arg(into)
             .stdin(Stdio::null())
@@ -808,7 +906,7 @@ mod tests {
 
     #[test]
     fn the_helper_is_bound_to_one_host_so_the_token_never_goes_elsewhere() {
-        let helper = helper_for("https://github.com");
+        let helper = helper_for("https://github.com", "x-access-token");
         assert!(
             helper.starts_with("credential.https://github.com.helper="),
             "без привязки к адресу токен github ушёл бы и на чужой https-хост"
@@ -817,7 +915,7 @@ mod tests {
 
     #[test]
     fn the_token_itself_never_appears_in_the_command_line() {
-        let helper = helper_for("https://github.com");
+        let helper = helper_for("https://github.com", "x-access-token");
         assert!(
             helper.contains("$GITSPY_HOST_TOKEN") && !helper.contains("gho_"),
             "командную строку видит любой ps, поэтому секрет идёт окружением"

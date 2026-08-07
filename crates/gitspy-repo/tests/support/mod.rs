@@ -169,6 +169,32 @@ impl Fixture {
         self.run(&["rev-parse", "HEAD"])
     }
 
+    pub fn commit_committed_by(&self, message: &str, name: &str, email: &str) -> String {
+        let n = self.seq.get();
+        self.seq.set(n + 1);
+        let author_date = format!("{} +0000", EPOCH + n * 60);
+        let committer_date = format!("{} +0000", EPOCH + n * 60 + 30);
+        let mut cmd = Command::new("git");
+        cmd.arg("-C")
+            .arg(self.dir.path())
+            .args(["commit", "--allow-empty", "-m", message])
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_SYSTEM", "/dev/null")
+            .env("GIT_AUTHOR_NAME", NAME)
+            .env("GIT_AUTHOR_EMAIL", EMAIL)
+            .env("GIT_COMMITTER_NAME", name)
+            .env("GIT_COMMITTER_EMAIL", email)
+            .env("GIT_AUTHOR_DATE", &author_date)
+            .env("GIT_COMMITTER_DATE", &committer_date);
+        let out = cmd.output().expect("git commit запускается");
+        assert!(
+            out.status.success(),
+            "git commit не отработал: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        self.run(&["rev-parse", "HEAD"])
+    }
+
     pub fn merge(&self, branch: &str, message: &str) -> String {
         let n = self.seq.get();
         self.seq.set(n + 1);

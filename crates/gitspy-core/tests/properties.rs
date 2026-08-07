@@ -43,6 +43,7 @@ fn lanes_entering(layout: &Layout, row: usize) -> Vec<u16> {
             Segment::Through { lane, .. } => lanes.push(*lane),
             Segment::Merge { from, .. } => lanes.push(*from),
             Segment::Branch { .. } => {}
+            Segment::StemUp { .. } | Segment::StemDown { .. } => {}
         }
     }
     lanes
@@ -89,6 +90,7 @@ fn side_lane_violation(layout: &Layout) -> Option<String> {
                 Segment::Merge { from, .. } => merging_in.push(*from),
                 Segment::Through { lane, .. } => passing_through.push(*lane),
                 Segment::Branch { to, .. } => branch_targets.push(*to),
+                Segment::StemUp { .. } | Segment::StemDown { .. } => {}
             }
         }
 
@@ -178,6 +180,9 @@ proptest! {
                     Segment::Through { lane, colour } => (*lane, *colour),
                     Segment::Branch { to, colour, .. } => (*to, *colour),
                     Segment::Merge { from, colour, .. } => (*from, *colour),
+                    Segment::StemUp { lane, colour } | Segment::StemDown { lane, colour } => {
+                        (*lane, *colour)
+                    }
                 };
                 prop_assert_eq!(
                     colour,
@@ -216,6 +221,9 @@ proptest! {
                     }
                     Segment::Through { lane, .. } => {
                         prop_assert_ne!(*lane, node_lane);
+                    }
+                    Segment::StemUp { lane, .. } | Segment::StemDown { lane, .. } => {
+                        prop_assert_eq!(*lane, node_lane);
                     }
                 }
             }

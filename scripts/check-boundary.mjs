@@ -23,7 +23,17 @@ for (const path of sources) {
   }
 }
 
-execFileSync('cargo', ['test', '-q', '-p', 'gitspy-app'], { cwd: root, stdio: 'ignore' });
+for (const path of sources) {
+  if (!path.startsWith('src/widgets/') && !path.startsWith('src/app/')) continue;
+  const text = readFileSync(join(root, path), 'utf8');
+  if (/hover:bg-fill-/.test(text)) {
+    problems.push(
+      `${path}: собирает вид наведения классами мимо словаря — возьми NavItem/ListRow/Tab/Button или HOVER_FILL из src/parts.tsx`,
+    );
+  }
+}
+
+execFileSync('cargo', ['test', '-q', '-p', 'gitspy-app'], { cwd: root, stdio: 'inherit' });
 
 const changed = execFileSync('git', ['diff', '--name-only', '--', 'src/generated'], {
   cwd: root,

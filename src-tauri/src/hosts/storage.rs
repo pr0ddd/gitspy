@@ -1,6 +1,7 @@
 use gitspy_hosts::github::Repo;
+use gitspy_hosts::host::HostKind;
 use gitspy_hosts::pulls::PullSummary;
-use gitspy_hosts::secrets::Files;
+use gitspy_hosts::secrets::{Files, Secrets};
 use gitspy_hosts::Account;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -11,6 +12,77 @@ pub struct Known {
     pub account: Option<Account>,
     #[serde(default)]
     pub repos: Vec<Repo>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Connection {
+    pub id: String,
+    pub kind: HostKind,
+    pub base_url: String,
+    pub login: String,
+}
+
+fn connections_file(dir: &Path) -> PathBuf {
+    dir.join("connections.json")
+}
+
+pub fn load_connections(dir: &Path) -> Vec<Connection> {
+    if let Ok(text) = std::fs::read_to_string(connections_file(dir)) {
+        if let Ok(found) = serde_json::from_str::<Vec<Connection>>(&text) {
+            return found;
+        }
+    }
+    let orphan = read(dir, "github");
+    match orphan.account {
+        Some(account) => vec![Connection {
+            id: "github".into(),
+            kind: HostKind::GitHub,
+            base_url: "https://github.com".into(),
+            login: account.login,
+        }],
+        None => Vec::new(),
+    }
+}
+
+pub fn save_connections(dir: &Path, connections: &[Connection]) {
+    if std::fs::create_dir_all(dir).is_err() {
+        return;
+    }
+    if let Ok(text) = serde_json::to_string_pretty(connections) {
+        let _ = std::fs::write(connections_file(dir), text);
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredTokens {
+    pub access: String,
+    #[serde(default)]
+    pub refresh: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<i64>,
+}
+
+pub fn read_tokens(dir: &Path, host: &str) -> Option<StoredTokens> {
+    let raw = secrets(dir).read(host).ok().flatten()?;
+    match serde_json::from_str::<StoredTokens>(&raw) {
+        Ok(parsed) => Some(parsed),
+        Err(_) => Some(StoredTokens {
+            access: raw,
+            refresh: None,
+            expires_at: None,
+        }),
+    }
+}
+
+pub fn save_tokens(
+    dir: &Path,
+    host: &str,
+    tokens: &StoredTokens,
+) -> Result<(), gitspy_hosts::Error> {
+    let text = serde_json::to_string(tokens).unwrap_or_else(|_| tokens.access.clone());
+    secrets(dir).write(host, &text)
 }
 
 pub fn secrets(dir: &Path) -> Files {
@@ -80,6 +152,7 @@ pub fn save_pulls(dir: &Path, host: &str, owner: &str, repo: &str, known: &Known
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     fn account() -> Account {
         Account {
@@ -155,5 +228,77 @@ mod tests {
         forget(dir.path(), "github");
         assert!(read(dir.path(), "github").account.is_none());
         assert!(read(dir.path(), "gitlab").account.is_some());
+    }
+
+    #[test]
+    fn a_plain_old_token_reads_as_an_access_only_set() {
+        let dir = TempDir::new().expect("временный каталог");
+        secrets(dir.path())
+            .write("github", "gho_plain")
+            .expect("пишется");
+        assert_eq!(
+            read_tokens(dir.path(), "github"),
+            Some(StoredTokens {
+                access: "gho_plain".into(),
+                refresh: None,
+                expires_at: None,
+            }),
+            "старый токен-строка не должен пропасть при переходе на токен-сеты"
+        );
+    }
+
+    #[test]
+    fn a_token_set_round_trips_with_refresh_and_expiry() {
+        let dir = TempDir::new().expect("временный каталог");
+        let wanted = StoredTokens {
+            access: "bb".into(),
+            refresh: Some("bbr".into()),
+            expires_at: Some(1234567),
+        };
+        save_tokens(dir.path(), "bitbucket", &wanted).expect("пишется");
+        assert_eq!(read_tokens(dir.path(), "bitbucket"), Some(wanted));
+    }
+
+    #[test]
+    fn an_old_lone_github_account_reads_as_a_connection() {
+        let dir = TempDir::new().expect("временный каталог");
+        save(
+            dir.path(),
+            "github",
+            &Known {
+                account: Some(Account {
+                    host: "github".into(),
+                    login: "pr0ddd".into(),
+                    name: None,
+                    avatar_url: String::new(),
+                }),
+                repos: Vec::new(),
+            },
+        );
+
+        let found = load_connections(dir.path());
+        assert_eq!(
+            found,
+            vec![Connection {
+                id: "github".into(),
+                kind: HostKind::GitHub,
+                base_url: "https://github.com".into(),
+                login: "pr0ddd".into(),
+            }],
+            "старый одиночный аккаунт не должен пропасть при обновлении приложения"
+        );
+    }
+
+    #[test]
+    fn the_connection_list_round_trips() {
+        let dir = TempDir::new().expect("временный каталог");
+        let wanted = vec![Connection {
+            id: "gitlab".into(),
+            kind: HostKind::GitLab,
+            base_url: "https://gitlab.com".into(),
+            login: "dev".into(),
+        }];
+        save_connections(dir.path(), &wanted);
+        assert_eq!(load_connections(dir.path()), wanted);
     }
 }

@@ -44,6 +44,12 @@ export class AvatarCache {
     return Promise.all(settling).then(() => undefined);
   }
 
+  srcOf(email: string): string | null {
+    const key = email.toLowerCase();
+    const image = this.images.get(key);
+    return image && this.ready.has(key) ? image.src : null;
+  }
+
   lookOf(email: string): AvatarLook {
     const key = email.toLowerCase();
     const image = this.images.get(key);

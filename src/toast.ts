@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
-import i18next from './i18n';
-import { describeError } from './errors';
-import type { Operation } from './types';
+import i18next from '@/i18n';
+import { describeError } from '@/errors';
+import type { Operation } from '@/types';
 
 const t = i18next.t.bind(i18next);
 

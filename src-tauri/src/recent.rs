@@ -16,6 +16,8 @@ pub struct RecentRepo {
     pub opened_at: i64,
     #[serde(default)]
     pub exists: bool,
+    #[serde(default)]
+    pub favorite: bool,
 }
 
 pub fn name_of(path: &str) -> String {
@@ -71,6 +73,10 @@ pub fn list(dir: &Path) -> Vec<RecentRepo> {
 
 pub fn remember(dir: &Path, path: &str) -> Vec<RecentRepo> {
     let mut entries = stored(dir);
+    let starred = entries
+        .iter()
+        .find(|e| e.path == path)
+        .is_some_and(|e| e.favorite);
     entries.retain(|e| e.path != path);
     entries.insert(
         0,
@@ -79,9 +85,31 @@ pub fn remember(dir: &Path, path: &str) -> Vec<RecentRepo> {
             name: name_of(path),
             opened_at: now(),
             exists: true,
+            favorite: starred,
         },
     );
-    entries.truncate(LIMIT);
+    let mut spare = LIMIT;
+    entries.retain(|e| {
+        if e.favorite {
+            return true;
+        }
+        if spare == 0 {
+            return false;
+        }
+        spare -= 1;
+        true
+    });
+    save(dir, &entries);
+    with_existence(entries)
+}
+
+pub fn favorite(dir: &Path, path: &str, on: bool) -> Vec<RecentRepo> {
+    let mut entries = stored(dir);
+    for entry in &mut entries {
+        if entry.path == path {
+            entry.favorite = on;
+        }
+    }
     save(dir, &entries);
     with_existence(entries)
 }
@@ -120,6 +148,40 @@ mod tests {
             "остаток прежней записи делает список нечитаемым, и вся история пропадает молча"
         );
         assert_eq!(list(dir.path()).len(), 1);
+    }
+
+    #[test]
+    fn favorite_survives_reopening_the_repository() {
+        let dir = tempfile::tempdir().expect("временный каталог");
+        remember(dir.path(), "/one");
+        favorite(dir.path(), "/one", true);
+        remember(dir.path(), "/one");
+        assert!(
+            list(dir.path())[0].favorite,
+            "повторное открытие не должно снимать звезду"
+        );
+    }
+
+    #[test]
+    fn favorite_toggles_both_ways() {
+        let dir = tempfile::tempdir().expect("временный каталог");
+        remember(dir.path(), "/one");
+        assert!(favorite(dir.path(), "/one", true)[0].favorite);
+        assert!(!favorite(dir.path(), "/one", false)[0].favorite);
+    }
+
+    #[test]
+    fn favorites_are_not_evicted_by_the_limit() {
+        let dir = tempfile::tempdir().expect("временный каталог");
+        remember(dir.path(), "/keep");
+        favorite(dir.path(), "/keep", true);
+        for i in 0..30 {
+            remember(dir.path(), &format!("/r{i}"));
+        }
+        assert!(
+            list(dir.path()).iter().any(|e| e.path == "/keep"),
+            "звезда обязана защищать запись от вытеснения из хвоста"
+        );
     }
 
     #[test]
