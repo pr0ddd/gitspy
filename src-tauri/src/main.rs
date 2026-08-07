@@ -94,12 +94,18 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("приложение запускается")
-        .run(|app, event| {
-            if let tauri::RunEvent::Reopen { .. } = event {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-        })
+        .run(show_window_on_reopen)
 }
+
+#[cfg(target_os = "macos")]
+fn show_window_on_reopen(app: &tauri::AppHandle, event: tauri::RunEvent) {
+    if let tauri::RunEvent::Reopen { .. } = event {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn show_window_on_reopen(_app: &tauri::AppHandle, _event: tauri::RunEvent) {}
