@@ -19,6 +19,8 @@ mod segment_kind {
     pub const THROUGH: u8 = 0;
     pub const BRANCH: u8 = 1;
     pub const MERGE: u8 = 2;
+    pub const STEM_UP: u8 = 3;
+    pub const STEM_DOWN: u8 = 4;
 }
 
 #[derive(Serialize, Clone, TS)]
@@ -113,15 +115,16 @@ pub struct RemoteView {
 pub fn build_remote_views(urls: Vec<(String, String)>) -> Vec<RemoteView> {
     urls.into_iter()
         .map(|(name, url)| {
-            let github = gitspy_hosts::remote::github_repo(&url);
+            let split = gitspy_hosts::remote::split_remote(&url);
             RemoteView {
                 name,
-                avatar_url: github
+                avatar_url: split.as_ref().and_then(|(host, owner, _)| {
+                    (host == "github.com")
+                        .then(|| format!("https://github.com/{owner}.png?size=64"))
+                }),
+                web_url: split
                     .as_ref()
-                    .map(|(owner, _)| format!("https://github.com/{owner}.png?size=64")),
-                web_url: github
-                    .as_ref()
-                    .map(|(owner, repo)| format!("https://github.com/{owner}/{repo}")),
+                    .map(|(host, owner, repo)| format!("https://{host}/{owner}/{repo}")),
             }
         })
         .collect()
@@ -198,6 +201,20 @@ mod ref_view_tests {
 
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
+pub struct AiServerView {
+    pub provider: String,
+    pub models: Vec<String>,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+pub struct CommitDraftView {
+    pub summary: String,
+    pub description: String,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeView {
     pub name: String,
@@ -209,7 +226,11 @@ pub struct WorktreeView {
 
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum RowView {
     #[serde(rename_all = "camelCase")]
     Commit {
@@ -222,6 +243,10 @@ pub enum RowView {
         email: String,
         #[ts(type = "number")]
         time: i64,
+        committer: String,
+        committer_email: String,
+        #[ts(type = "number")]
+        committer_time: i64,
         subject: String,
         body: String,
     },
@@ -444,24 +469,24 @@ pub struct AccountView {
 }
 
 #[derive(Serialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "../../src/generated/")]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceView {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    pub interval: u32,
-    pub expires_in: u32,
+pub enum ConnectStartView {
+    BrowserAuth { url: String },
 }
 
-pub fn build_device(device: gitspy_hosts::github::Device) -> DeviceView {
-    DeviceView {
-        device_code: device.device_code,
-        user_code: device.user_code,
-        verification_uri: device.verification_uri,
-        interval: device.interval as u32,
-        expires_in: device.expires_in as u32,
-    }
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/generated/")]
+pub struct ConnectionView {
+    pub id: String,
+    pub kind: String,
+    pub base_url: String,
+    pub login: String,
 }
 
 #[derive(Serialize, TS)]
@@ -487,6 +512,15 @@ pub fn build_repo_listing(repo: &gitspy_hosts::github::Repo) -> RepoListingView 
         pushed_at: repo.pushed_at.clone(),
         owner_avatar_url: repo.owner_avatar_url.clone(),
     }
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
+pub struct RepoPassportView {
+    pub path: String,
+    pub branch: Option<String>,
+    pub host: Option<String>,
 }
 
 #[derive(Serialize, TS)]
@@ -629,6 +663,10 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                 Segment::Through { lane, colour } => (segment_kind::THROUGH, *lane, *lane, *colour),
                 Segment::Branch { from, to, colour } => (segment_kind::BRANCH, *from, *to, *colour),
                 Segment::Merge { from, to, colour } => (segment_kind::MERGE, *from, *to, *colour),
+                Segment::StemUp { lane, colour } => (segment_kind::STEM_UP, *lane, *lane, *colour),
+                Segment::StemDown { lane, colour } => {
+                    (segment_kind::STEM_DOWN, *lane, *lane, *colour)
+                }
             };
             seg_kind.push(kind);
             seg_from.push(from);
@@ -671,6 +709,9 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                     author: meta.author.clone(),
                     email: meta.email.clone(),
                     time: meta.time,
+                    committer: meta.committer.clone(),
+                    committer_email: meta.committer_email.clone(),
+                    committer_time: meta.committer_time,
                     subject: meta.subject.clone(),
                     body: meta.body.clone(),
                 },

@@ -82,6 +82,13 @@ impl LayoutState {
         let colour = colour_of_lane(own_lane);
         self.max_lane = self.max_lane.max(own_lane);
 
+        if !waiting.is_empty() {
+            segments.push(Segment::StemUp {
+                lane: own_lane,
+                colour,
+            });
+        }
+
         for (idx, state) in self.lanes.iter().enumerate() {
             let lane = idx as LaneIdx;
             if lane == own_lane || *state == LaneState::Free {
@@ -176,6 +183,13 @@ impl LayoutState {
             }
         }
 
+        if kind != NodeKind::Root {
+            segments.push(Segment::StemDown {
+                lane: own_lane,
+                colour,
+            });
+        }
+
         Row {
             commit,
             lane: own_lane,
@@ -221,6 +235,18 @@ mod tests {
     use super::*;
     use crate::fixture;
 
+    fn crossings(segments: &[Vec<Segment>]) -> Vec<Vec<Segment>> {
+        segments
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .copied()
+                    .filter(|s| !matches!(s, Segment::StemUp { .. } | Segment::StemDown { .. }))
+                    .collect()
+            })
+            .collect()
+    }
+
     fn run(src: &str) -> (Vec<Row>, Vec<Vec<Segment>>) {
         let parsed = fixture::parse(src).unwrap();
         let mut state = LayoutState::new();
@@ -246,7 +272,34 @@ mod tests {
             vec![0, 0, 0]
         );
         assert_eq!(rows[2].kind, NodeKind::Root);
-        assert!(segs.iter().all(|s| s.is_empty()));
+        assert!(
+            crossings(&segs).iter().all(|s| s.is_empty()),
+            "в линейной истории дорожки не пересекаются: только связь по своей"
+        );
+    }
+
+    #[test]
+    fn own_lane_is_drawn_through_the_node_or_the_line_breaks_at_every_commit() {
+        let (_, segs) = run("a: b\nb: c\nc\n");
+
+        assert_eq!(
+            segs[0],
+            vec![Segment::StemDown { lane: 0, colour: 0 }],
+            "над верхушкой дорожки линии нет, а к родителю вниз — есть"
+        );
+        assert_eq!(
+            segs[1],
+            vec![
+                Segment::StemUp { lane: 0, colour: 0 },
+                Segment::StemDown { lane: 0, colour: 0 }
+            ],
+            "коммит в середине цепочки связан с соседями в обе стороны"
+        );
+        assert_eq!(
+            segs[2],
+            vec![Segment::StemUp { lane: 0, colour: 0 }],
+            "корню некуда идти вниз"
+        );
     }
 
     #[test]
@@ -267,7 +320,7 @@ mod tests {
         assert_eq!(rows[0].lane, 0);
         assert_eq!(rows[0].kind, NodeKind::Merge);
         assert_eq!(
-            segs[0],
+            crossings(&segs)[0],
             vec![Segment::Branch {
                 from: 0,
                 to: 1,
@@ -285,7 +338,7 @@ mod tests {
 
         assert_eq!(rows[3].lane, 0);
         assert_eq!(
-            segs[3],
+            crossings(&segs)[3],
             vec![Segment::Merge {
                 from: 1,
                 to: 0,
@@ -298,7 +351,10 @@ mod tests {
     fn passing_lane_emits_through() {
         let (_, segs) = run("m: a, b\na: r\nb: r\nr\n");
 
-        assert_eq!(segs[2], vec![Segment::Through { lane: 0, colour: 0 }]);
+        assert_eq!(
+            crossings(&segs)[2],
+            vec![Segment::Through { lane: 0, colour: 0 }]
+        );
     }
 
     #[test]
@@ -322,7 +378,7 @@ mod tests {
         let (rows, segs) = run("m: a, b, c\na: r\nb: r\nc: r\nr\n");
         assert_eq!(rows[0].kind, NodeKind::Merge);
         assert_eq!(
-            segs[0],
+            crossings(&segs)[0],
             vec![
                 Segment::Branch {
                     from: 0,
@@ -344,7 +400,7 @@ mod tests {
         assert_eq!(rows[1].lane, 1);
         assert_eq!(rows[1].colour, 1);
         assert_eq!(
-            segs[1],
+            crossings(&segs)[1],
             vec![
                 Segment::Through { lane: 0, colour: 0 },
                 Segment::Branch {
@@ -361,7 +417,7 @@ mod tests {
         let (rows, segs) = run("a: w, s\nw: s\ns\n");
         assert_eq!(rows[0].lane, 0, "мерж на магистрали");
         assert_eq!(
-            segs[0],
+            crossings(&segs)[0],
             vec![Segment::Branch {
                 from: 0,
                 to: 1,
@@ -374,7 +430,7 @@ mod tests {
             "s приземляется в боковой дорожке, а не в нулевой"
         );
         assert_eq!(
-            segs[2],
+            crossings(&segs)[2],
             vec![Segment::Merge {
                 from: 0,
                 to: 1,
@@ -399,7 +455,7 @@ mod tests {
         let (rows, segs) = run("m: a, ?\na\n");
         assert_eq!(rows[0].kind, NodeKind::Merge);
         assert_eq!(
-            segs[0],
+            crossings(&segs)[0],
             vec![Segment::Branch {
                 from: 0,
                 to: 1,
@@ -408,7 +464,10 @@ mod tests {
         );
 
         assert_eq!(rows[1].kind, NodeKind::Root);
-        assert_eq!(segs[1], vec![Segment::Through { lane: 1, colour: 1 }]);
+        assert_eq!(
+            crossings(&segs)[1],
+            vec![Segment::Through { lane: 1, colour: 1 }]
+        );
     }
 
     #[test]

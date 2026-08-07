@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AvatarCache } from './avatarCache';
+import { AvatarCache } from '@/avatarCache';
 
 class FakeImage {
   src = '';

@@ -6,10 +6,10 @@ use gitspy_exec::Git;
 use gitspy_repo::History;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri::State;
 
-#[derive(Default)]
 pub struct AppState {
     pub repos: Mutex<HashMap<String, OpenRepo>>,
     pub queue: Queue,
@@ -17,6 +17,21 @@ pub struct AppState {
     git: Mutex<Option<Git>>,
     stale: Mutex<HashMap<String, bool>>,
     autofetch: Mutex<HashMap<String, gitspy_exec::Cancel>>,
+    autofetch_minutes: AtomicU64,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            repos: Mutex::default(),
+            queue: Queue::default(),
+            watchers: watcher::Watchers::default(),
+            git: Mutex::default(),
+            stale: Mutex::default(),
+            autofetch: Mutex::default(),
+            autofetch_minutes: AtomicU64::new(crate::autofetch::DEFAULT_MINUTES),
+        }
+    }
 }
 
 pub struct OpenRepo {
@@ -27,6 +42,15 @@ pub struct OpenRepo {
 }
 
 impl AppState {
+    pub fn autofetch_minutes(&self) -> u64 {
+        self.autofetch_minutes.load(Ordering::Relaxed)
+    }
+
+    pub fn set_autofetch_minutes(&self, minutes: u64) {
+        self.autofetch_minutes
+            .store(minutes.min(60), Ordering::Relaxed);
+    }
+
     pub fn needs_reading(&self, repo: &str) -> bool {
         match self.stale.lock() {
             Ok(known) => known.get(repo).copied().unwrap_or(true),
@@ -135,4 +159,9 @@ mod tests {
         assert!(state.needs_reading("/one"));
         assert!(state.needs_reading("/two"), "о втором мы ничего не знаем");
     }
+}
+
+#[tauri::command]
+pub fn set_autofetch_minutes(minutes: u64, state: State<'_, AppState>) {
+    state.set_autofetch_minutes(minutes);
 }

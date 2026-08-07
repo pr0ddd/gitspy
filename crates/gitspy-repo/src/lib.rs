@@ -19,6 +19,9 @@ mod node_tests {
             author: author.to_string(),
             email: "p@example.com".to_string(),
             time: 0,
+            committer: author.to_string(),
+            committer_email: "p@example.com".to_string(),
+            committer_time: 0,
             subject: subject.to_string(),
             body: String::new(),
         })

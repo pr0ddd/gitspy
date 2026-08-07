@@ -40,6 +40,16 @@ pub enum Segment {
         to: LaneIdx,
         colour: ColourIdx,
     },
+
+    StemUp {
+        lane: LaneIdx,
+        colour: ColourIdx,
+    },
+
+    StemDown {
+        lane: LaneIdx,
+        colour: ColourIdx,
+    },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

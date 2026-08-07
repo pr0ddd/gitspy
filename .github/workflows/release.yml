@@ -1,0 +1,164 @@
+# Release: checks gate the build; then build, sign, notarize, upload to R2 (manifest strictly last), GH release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Системные зависимости Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Форматирование
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Тесты
+        run: cargo test --all-targets
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Системные зависимости Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Полнота переводов
+        run: npm run i18n:check
+
+      - name: Граница Rust и TypeScript
+        run: npm run boundary:check
+
+      - name: Типы
+        run: npx tsc --noEmit
+
+      - name: Тесты фронтенда
+        run: npx vitest run
+
+  mac:
+    needs: [rust, frontend]
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+
+      - name: Install
+        run: npm ci
+
+      - name: Versions agree
+        run: node scripts/check-release-version.mjs "$GITHUB_REF_NAME"
+
+      - name: Updates base url present
+        run: test -n "${{ vars.UPDATES_BASE_URL }}"
+
+      - name: Build, sign, notarize
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build
+
+      - name: Collect artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir out
+          cp target/release/bundle/dmg/gitspy_${VERSION}_aarch64.dmg out/
+          cp target/release/bundle/macos/gitspy.app.tar.gz "out/gitspy_${VERSION}_aarch64.app.tar.gz"
+          cp target/release/bundle/macos/gitspy.app.tar.gz.sig "out/gitspy_${VERSION}_aarch64.app.tar.gz.sig"
+          node scripts/release-manifest.mjs "$GITHUB_REF_NAME" "${{ vars.UPDATES_BASE_URL }}" \
+            "gitspy_${VERSION}_aarch64.app.tar.gz" "out/gitspy_${VERSION}_aarch64.app.tar.gz.sig" > out/latest.json
+
+      - name: Upload artifacts to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 cp out "s3://${{ secrets.R2_BUCKET }}/" --recursive --exclude latest.json \
+            --endpoint-url "${{ secrets.R2_ENDPOINT }}" --only-show-errors
+
+      - name: Publish manifest last
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 cp out/latest.json "s3://${{ secrets.R2_BUCKET }}/latest.json" \
+            --endpoint-url "${{ secrets.R2_ENDPOINT }}" --content-type application/json --only-show-errors
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --generate-notes ||
+            gh release upload "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --clobber

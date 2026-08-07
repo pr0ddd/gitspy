@@ -1,11 +1,13 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { isNotOpen } from './errors';
+import { isNotOpen } from '@/errors';
 import { EVENTS } from './generated/events';
 import type {
   AccountView,
   CloneStepView,
-  DeviceView,
+  ConnectStartView,
+  ConnectionView,
+  TemplateCatalogView,
   PullCardView,
   PullListView,
   RepoListingView,
@@ -21,12 +23,15 @@ import type {
   Progress,
   RecentRepo,
   RefKind,
+  RepoPassportView,
   RepoView,
   TipView,
   WindowView,
   WorkingTreeView,
   WorktreeView,
-} from './types';
+  AiServerView,
+  CommitDraftView,
+} from '@/types';
 
 export const openRepo = (path: string) => invoke<RepoView>('open_repo', { path });
 
@@ -52,6 +57,12 @@ export const worktrees = (repo: string) => invoke<WorktreeView[]>('worktrees', {
 export const recentRepos = () => invoke<RecentRepo[]>('recent_repos');
 
 export const forgetRepo = (path: string) => invoke<RecentRepo[]>('forget_repo', { path });
+
+export const favoriteRepo = (path: string, on: boolean) =>
+  invoke<RecentRepo[]>('favorite_repo', { path, on });
+
+export const repoPassports = (paths: string[]) =>
+  invoke<RepoPassportView[]>('repo_passports', { paths });
 
 export const runOperation = (
   repo: string,
@@ -93,11 +104,25 @@ export const workingTreeDiff = (repo: string, path: string, staged: boolean) =>
 export const workingTreeHunks = (repo: string, path: string, staged: boolean) =>
   invoke<string>('working_tree_hunks', { repo, path, staged });
 
+export const commitFileHunks = (repo: string, hash: string, path: string) =>
+  invoke<string>('commit_file_hunks', { repo, hash, path });
+
+export const appendIgnore = (repo: string, pattern: string) =>
+  invoke<void>('append_ignore', { repo, pattern });
+
+export const openPath = (repo: string, path: string) => invoke<void>('open_path', { repo, path });
+
+export const revealPath = (repo: string, path: string) =>
+  invoke<void>('reveal_path', { repo, path });
+
+export const removePath = (repo: string, path: string) =>
+  invoke<void>('remove_path', { repo, path });
+
 export const applyHunk = (repo: string, patch: string, cached: boolean, reverse: boolean) =>
   invoke<WorkingTreeView>('apply_hunk', { repo, patch, cached, reverse });
 
-export const fileHistory = (repo: string, path: string) =>
-  invoke<FileCommitView[]>('file_history', { repo, path });
+export const fileHistory = (repo: string, path: string, from: string | null) =>
+  invoke<FileCommitView[]>('file_history', { repo, path, from });
 
 export const blameFile = (repo: string, path: string, at: string | null) =>
   invoke<BlameSpanView[]>('blame_file', { repo, path, at });
@@ -114,7 +139,10 @@ export const resolveConflict = (repo: string, path: string, content: string) =>
 export const commit = (repo: string, message: string, amend: boolean) =>
   invoke<WorkingTreeView>('commit', { repo, message, amend });
 
-export const startConnect = (host: string) => invoke<DeviceView>('start_connect', { host });
+export const startConnect = (host: string) =>
+  invoke<ConnectStartView>('start_connect', { host });
+
+export const connections = () => invoke<ConnectionView[]>('connections');
 
 export const onHostConnected = (handler: (account: AccountView) => void) =>
   listen<AccountView>(EVENTS.hostConnected, (event) => handler(event.payload));
@@ -135,16 +163,53 @@ export const cloneRepo = (
   url: string,
   parent: string,
   name: string,
+  shallow: boolean,
   onStep: (step: CloneStepView) => void,
 ) => {
   const progress = new Channel<CloneStepView>();
   progress.onmessage = onStep;
-  return invoke<string>('clone_repo', { url, parent, name, progress });
+  return invoke<string>('clone_repo', { url, parent, name, shallow, progress });
 };
 
-export const initRepo = (path: string) => invoke<string>('init_repo', { path });
+export const hostNamespaces = (host: string) => invoke<string[]>('host_namespaces', { host });
+
+export const hostCreateRepo = (
+  host: string,
+  namespace: string,
+  name: string,
+  description: string,
+  isPrivate: boolean,
+) =>
+  invoke<RepoListingView>('host_create_repo', {
+    host,
+    namespace,
+    name,
+    description,
+    private: isPrivate,
+  });
+
+export const seedRepo = (
+  path: string,
+  branch: string | null,
+  gitignore: string | null,
+  license: string | null,
+  push: boolean,
+) => invoke<void>('seed_repo', { path, branch, gitignore, license, push });
+
+export const templateCatalog = () => invoke<TemplateCatalogView>('template_catalog');
+
+export const initRepo = (
+  path: string,
+  branch: string | null,
+  gitignore: string | null,
+  license: string | null,
+) =>
+  invoke<string>('init_repo', { path, branch, gitignore, license });
 
 export const openTerminal = (repo: string) => invoke<void>('open_terminal', { repo });
+
+export const setAutofetchMinutes = (minutes: number) =>
+  invoke<void>('set_autofetch_minutes', { minutes });
 
 export const openUrl = (url: string) => invoke<void>('open_url', { url });
 
@@ -172,3 +237,9 @@ export const resolveAvatars = (repo: string) => invoke<void>('resolve_avatars', 
 
 export const onAvatarsChanged = (handler: (repo: string) => void) =>
   listen<string>(EVENTS.avatarsChanged, (event) => handler(event.payload));
+
+export const aiDetectServer = (baseUrl: string) =>
+  invoke<AiServerView>('ai_detect_server', { baseUrl });
+
+export const aiGenerateCommit = (repo: string, baseUrl: string, model: string) =>
+  invoke<CommitDraftView>('ai_generate_commit', { repo, baseUrl, model });

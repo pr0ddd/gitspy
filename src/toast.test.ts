@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
-import i18next from './i18n';
-import { notifyOperation, notifyOperationFailed } from './toast';
-import type { Operation } from './types';
+import i18next from '@/i18n';
+import { notifyOperation, notifyOperationFailed } from '@/toast';
+import type { Operation } from '@/types';
 
 vi.mock('sonner', () => {
   const base = vi.fn();
@@ -21,6 +21,8 @@ const EVERY_KIND: Record<Operation['kind'], null> = {
   fetchDryRun: null,
   fetch: null,
   pull: null,
+  pullFfOnly: null,
+  pullRebase: null,
   push: null,
   pushSetUpstream: null,
   checkout: null,
@@ -46,6 +48,8 @@ const EVERY_KIND: Record<Operation['kind'], null> = {
   pushDelete: null,
   stash: null,
   stashPop: null,
+  stashFile: null,
+  discardAll: null,
 };
 
 describe('тосты — только исход действия, словами человека', () => {

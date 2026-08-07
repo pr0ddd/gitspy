@@ -1,3 +1,3 @@
-0  a  lane 0  colour 0  Normal
-1  b  lane 0  colour 0  Normal
-2  c  lane 0  colour 0  Root
+0  a  lane 0  colour 0  Normal  stem-down 0 c0
+1  b  lane 0  colour 0  Normal  stem-up 0 c0 | stem-down 0 c0
+2  c  lane 0  colour 0  Root  stem-up 0 c0

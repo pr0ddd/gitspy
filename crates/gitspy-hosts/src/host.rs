@@ -1,0 +1,214 @@
+use crate::pulls::{Comment, PullDetail, PullSummary};
+use crate::{bitbucket, github, gitlab, Account, Error};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HostKind {
+    GitHub,
+    GitLab,
+    Bitbucket,
+}
+
+pub struct HostCredential {
+    pub url: String,
+    pub username: &'static str,
+}
+
+pub enum ConnectStart {
+    DeviceCode {
+        user_code: String,
+        verification_uri: String,
+    },
+    BrowserAuth {
+        url: String,
+    },
+    TokenForm {
+        needs_base_url: bool,
+    },
+}
+
+pub enum Host {
+    GitHub(github::GitHub),
+    GitLab(gitlab::GitLab),
+    Bitbucket(bitbucket::Bitbucket),
+}
+
+impl Host {
+    pub fn for_connection(kind: HostKind, base_url: &str) -> Result<Host, Error> {
+        match kind {
+            HostKind::GitHub => Ok(Host::GitHub(github::GitHub::new()?)),
+            HostKind::GitLab => Ok(Host::GitLab(gitlab::GitLab::new(base_url)?)),
+            HostKind::Bitbucket => Ok(Host::Bitbucket(bitbucket::Bitbucket::new()?)),
+        }
+    }
+
+    pub fn credential(&self) -> HostCredential {
+        match self {
+            Host::GitHub(_) => HostCredential {
+                url: "https://github.com".to_string(),
+                username: "x-access-token",
+            },
+            Host::GitLab(gitlab) => HostCredential {
+                url: gitlab.base_url().to_string(),
+                username: "oauth2",
+            },
+            Host::Bitbucket(_) => HostCredential {
+                url: bitbucket::BASE_URL.to_string(),
+                username: "x-token-auth",
+            },
+        }
+    }
+
+    pub async fn account(&self, token: &str) -> Result<Account, Error> {
+        match self {
+            Host::GitHub(github) => github.account(token).await,
+            Host::GitLab(gitlab) => gitlab.account(token).await,
+            Host::Bitbucket(bitbucket) => bitbucket.account(token).await,
+        }
+    }
+
+    pub async fn repos(&self, token: &str, pages: u32) -> Result<Vec<github::Repo>, Error> {
+        match self {
+            Host::GitHub(github) => github.repos(token, pages).await,
+            Host::GitLab(gitlab) => gitlab.repos(token, pages).await,
+            Host::Bitbucket(bitbucket) => bitbucket.repos(token, pages).await,
+        }
+    }
+
+    pub async fn pulls(
+        &self,
+        token: &str,
+        owner: &str,
+        name: &str,
+    ) -> Result<(Vec<PullSummary>, bool), Error> {
+        match self {
+            Host::GitHub(github) => github.pulls(token, owner, name).await,
+            Host::GitLab(gitlab) => gitlab
+                .pulls(token, owner, name)
+                .await
+                .map(|found| (found, false)),
+            Host::Bitbucket(bitbucket) => bitbucket
+                .pulls(token, owner, name)
+                .await
+                .map(|found| (found, false)),
+        }
+    }
+
+    pub async fn pull_detail(
+        &self,
+        token: &str,
+        owner: &str,
+        name: &str,
+        number: u64,
+    ) -> Result<PullDetail, Error> {
+        match self {
+            Host::GitHub(github) => github.pull_detail(token, owner, name, number).await,
+            Host::GitLab(gitlab) => gitlab.pull_detail(token, owner, name, number).await,
+            Host::Bitbucket(bitbucket) => bitbucket.pull_detail(token, owner, name, number).await,
+        }
+    }
+
+    pub async fn pull_comments(
+        &self,
+        token: &str,
+        owner: &str,
+        name: &str,
+        number: u64,
+    ) -> Result<Vec<Comment>, Error> {
+        match self {
+            Host::GitHub(github) => github.pull_comments(token, owner, name, number).await,
+            Host::GitLab(gitlab) => gitlab.pull_comments(token, owner, name, number).await,
+            Host::Bitbucket(bitbucket) => bitbucket.pull_comments(token, owner, name, number).await,
+        }
+    }
+
+    pub async fn commit_author(
+        &self,
+        token: &str,
+        owner: &str,
+        name: &str,
+        hash: &str,
+    ) -> Result<Option<(String, String)>, Error> {
+        match self {
+            Host::GitHub(github) => github.commit_author(token, owner, name, hash).await,
+            Host::GitLab(gitlab) => gitlab.commit_author(token, owner, name, hash).await,
+            Host::Bitbucket(bitbucket) => bitbucket.commit_author(token, owner, name, hash).await,
+        }
+    }
+
+    pub async fn create_repo(
+        &self,
+        token: &str,
+        namespace: &str,
+        name: &str,
+        description: &str,
+        private: bool,
+    ) -> Result<github::Repo, Error> {
+        match self {
+            Host::GitHub(github) => github.create_repo(token, name, description, private).await,
+            Host::GitLab(gitlab) => gitlab.create_repo(token, name, description, private).await,
+            Host::Bitbucket(bitbucket) => {
+                bitbucket
+                    .create_repo(token, namespace, name, description, private)
+                    .await
+            }
+        }
+    }
+
+    pub async fn namespaces(&self, token: &str) -> Result<Vec<String>, Error> {
+        match self {
+            Host::GitHub(github) => Ok(vec![github.account(token).await?.login]),
+            Host::GitLab(gitlab) => Ok(vec![gitlab.account(token).await?.login]),
+            Host::Bitbucket(bitbucket) => bitbucket.workspaces(token).await,
+        }
+    }
+
+    pub async fn commit_avatars(
+        &self,
+        token: &str,
+        owner: &str,
+        name: &str,
+        pages: u32,
+    ) -> Result<Vec<(String, String)>, Error> {
+        match self {
+            Host::GitHub(github) => github.commit_avatars(token, owner, name, pages).await,
+            Host::GitLab(gitlab) => gitlab.commit_avatars(token, owner, name, pages).await,
+            Host::Bitbucket(bitbucket) => bitbucket.commit_avatars(token, owner, name, pages).await,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_kind_builds_its_provider_and_credential() {
+        let github =
+            Host::for_connection(HostKind::GitHub, "https://github.com").expect("github строится");
+        let cred = github.credential();
+        assert_eq!(cred.username, "x-access-token");
+        assert_eq!(cred.url, "https://github.com");
+
+        let bitbucket = Host::for_connection(HostKind::Bitbucket, "https://bitbucket.org")
+            .expect("bitbucket строится");
+        assert_eq!(
+            bitbucket.credential().username,
+            "x-token-auth",
+            "битбакет пускает oauth-токен только под этим именем"
+        );
+
+        let gitlab = Host::for_connection(HostKind::GitLab, "https://git.corp.dev/")
+            .expect("gitlab строится");
+        let cred = gitlab.credential();
+        assert_eq!(
+            cred.username, "oauth2",
+            "у каждого провайдера своё имя пользователя для https-операций"
+        );
+        assert_eq!(
+            cred.url, "https://git.corp.dev",
+            "self-hosted несёт свой base_url в кред-хелпер"
+        );
+    }
+}

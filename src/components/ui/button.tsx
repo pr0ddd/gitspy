@@ -9,23 +9,33 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        default: 'bg-primary text-primary-foreground hover:bg-primary-hover',
         destructive:
-          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
-        outline:
-          'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        muted:
-          'text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent/50',
+          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20',
+        destructiveSoft:
+          'bg-destructive/15 text-destructive hover:bg-destructive/25 focus-visible:ring-destructive/20',
+        outline: 'border-button-border border hover:bg-hover-fill hover:text-foreground',
+        secondary: 'bg-fill-2 text-secondary-foreground hover:bg-fill-3',
+        ghost: 'hover:bg-hover-fill hover:text-foreground',
+        muted: 'text-muted-foreground hover:bg-hover-fill hover:text-foreground',
+        field:
+          'bg-control-fill hover:bg-control-fill-hover text-muted-foreground hover:text-foreground',
+        action:
+          'text-muted-foreground font-normal [&_svg]:opacity-75 hover:bg-hover-fill hover:text-foreground hover:[&_svg]:opacity-100',
+        split:
+          'text-muted-foreground font-normal [&_svg]:opacity-75 group-hover/split:text-foreground group-hover/split:[&_svg]:opacity-100',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        '3xs':
+          "h-5 gap-1 rounded-sm px-1.5 text-2xs has-[>svg]:px-1 [&_svg:not([class*='size-'])]:size-3",
         '2xs':
-          "h-5 gap-1 rounded-md px-1.5 text-2xs has-[>svg]:px-1 [&_svg:not([class*='size-'])]:size-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+          "h-6.5 gap-1 rounded-md px-2 text-2xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        xs: "h-7 gap-1.5 rounded-md px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3",
         sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
+        'sm-lead': 'h-8 gap-1.5 rounded-md pr-1 pl-2.5',
+        'sm-tail': 'h-8 rounded-md px-1',
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
         'icon-2xs': "size-5 rounded-md [&_svg:not([class*='size-'])]:size-3",
