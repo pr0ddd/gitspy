@@ -16,6 +16,7 @@ mod terminal;
 mod views;
 mod watcher;
 
+#[cfg(target_os = "macos")]
 use tauri::Manager;
 
 fn main() {

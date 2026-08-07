@@ -213,6 +213,7 @@ mod tests {
         assert_ne!(Change::Git.event(), Change::WorkingTree.event());
     }
 
+    #[cfg(target_os = "macos")]
     fn waited_for(seen: &std::sync::mpsc::Receiver<Change>) -> Option<Change> {
         seen.recv_timeout(Duration::from_secs(5)).ok()
     }
@@ -221,6 +222,7 @@ mod tests {
         while seen.recv_timeout(Duration::from_millis(500)).is_ok() {}
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn an_edited_file_reaches_the_application_without_reopening_the_repository() {
         let dir = tempfile::TempDir::new().expect("временный каталог");
@@ -241,6 +243,7 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn subscribing_does_not_walk_the_tree_no_matter_how_many_files_it_holds() {
         let empty = tempfile::TempDir::new().expect("временный каталог");
