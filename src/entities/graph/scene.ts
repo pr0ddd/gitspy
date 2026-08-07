@@ -49,6 +49,8 @@ export const rowBandInset = (m: Metrics): number => Math.round((m.rowH * ROW_GAP
 
 export const rowBandHeight = (m: Metrics): number => m.rowH - 2 * rowBandInset(m);
 
+export const listTopInset = (m: Metrics): number => rowBandInset(m);
+
 export const listWidth = (width: number, minimap = true): number =>
   width - (minimap ? MINIMAP_W : VSCROLL_W);
 
@@ -68,7 +70,7 @@ export const maxScrollX = (m: Metrics, maxLane: number, graphW: number): number 
 };
 
 export const maxScroll = (m: Metrics, count: number, viewportH: number): number =>
-  Math.max(0, count * m.rowH - contentHeight(viewportH));
+  Math.max(0, listTopInset(m) + count * m.rowH - contentHeight(viewportH));
 
 export function scrollToReveal(
   m: Metrics,
@@ -78,8 +80,8 @@ export function scrollToReveal(
   count: number,
 ): number {
   const band = contentHeight(height);
-  const top = index * m.rowH;
-  const bottom = top + m.rowH;
+  const top = index === 0 ? 0 : listTopInset(m) + index * m.rowH;
+  const bottom = listTopInset(m) + (index + 1) * m.rowH;
   const limit = maxScroll(m, count, height);
 
   if (top < scrollY) return Math.max(0, Math.min(top, limit));
@@ -94,7 +96,7 @@ export function scrollToCenter(
   viewportH: number,
   count: number,
 ): number {
-  const top = index * m.rowH;
+  const top = listTopInset(m) + index * m.rowH;
   const view = contentHeight(viewportH);
   if (top >= current && top + m.rowH <= current + view) return current;
   const centred = top - (view - m.rowH) / 2;
@@ -103,7 +105,7 @@ export function scrollToCenter(
 
 export function rowAtY(m: Metrics, y: number, scrollY: number, count: number): number | null {
   if (y < HEADER_H) return null;
-  const index = Math.floor((y - HEADER_H + scrollY) / m.rowH);
+  const index = Math.floor((y - HEADER_H - listTopInset(m) + scrollY) / m.rowH);
   return index >= 0 && index < count ? index : null;
 }
 
@@ -120,8 +122,8 @@ export function visibleRange(
   count: number,
   dpr = 1,
 ): VisibleRange {
-  const first = Math.max(0, Math.floor(scrollY / m.rowH));
-  const shift = Math.round((HEADER_H - (scrollY - first * m.rowH)) * dpr) / dpr;
+  const first = Math.max(0, Math.floor((scrollY - listTopInset(m)) / m.rowH));
+  const shift = Math.round((HEADER_H + listTopInset(m) + first * m.rowH - scrollY) * dpr) / dpr;
   const last = Math.min(count, first + Math.ceil(contentHeight(height) / m.rowH) + 1);
   return { first, last, shift };
 }
@@ -183,13 +185,14 @@ export type Anchor = {
   readonly offset: number;
 };
 
-export const anchorAt = (m: Metrics, scrollY: number): Anchor => ({
-  index: Math.floor(scrollY / m.rowH),
-  offset: scrollY - Math.floor(scrollY / m.rowH) * m.rowH,
-});
+export const anchorAt = (m: Metrics, scrollY: number): Anchor => {
+  const at = scrollY - listTopInset(m);
+  const index = Math.floor(at / m.rowH);
+  return { index, offset: at - index * m.rowH };
+};
 
 export const scrollForAnchor = (m: Metrics, anchor: Anchor): number =>
-  anchor.index * m.rowH + anchor.offset;
+  listTopInset(m) + anchor.index * m.rowH + anchor.offset;
 
 export function vScrollThumb(
   m: Metrics,
@@ -200,7 +203,7 @@ export function vScrollThumb(
   const limit = maxScroll(m, count, height);
   if (limit <= 0) return null;
   const band = contentHeight(height);
-  const thumbH = Math.max(30, band * (band / (count * m.rowH)));
+  const thumbH = Math.max(30, band * (band / (listTopInset(m) + count * m.rowH)));
   const top = HEADER_H + (Math.min(scrollY, limit) / limit) * (band - thumbH);
   return { top, height: thumbH };
 }
@@ -215,4 +218,4 @@ export const minimapFraction = (y: number, height: number): number => {
 };
 
 export const rowTop = (m: Metrics, index: number, scrollY: number): number =>
-  HEADER_H + index * m.rowH - scrollY;
+  HEADER_H + listTopInset(m) + index * m.rowH - scrollY;

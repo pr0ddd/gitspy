@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   scrollToReveal,
   HEADER_H,
+  listTopInset,
   METRICS_AVATARS,
   METRICS_COMPACT,
   MINIMAP_TOP,
@@ -55,6 +56,16 @@ describe('зазор между строками графа', () => {
       ).toBe(true);
     }
   });
+
+  it('первая полоса отделена от шапки тем же зазором, что и соседние коммиты', () => {
+    for (const m of [M, METRICS_COMPACT]) {
+      const firstBandTop = rowTop(m, 0, 0) + rowBandInset(m);
+      expect(
+        firstBandTop - HEADER_H,
+        'от низа шапки до первой карточки — межкоммитный зазор',
+      ).toBe(m.rowH - rowBandHeight(m));
+    }
+  });
 });
 
 describe('видимый диапазон', () => {
@@ -70,7 +81,7 @@ describe('видимый диапазон', () => {
   });
 
   it('сдвиг компенсирует часть строки, ушедшую под шапку', () => {
-    const { shift } = visibleRange(M, M.rowH * 3 + 7, HEIGHT, 1000);
+    const { shift } = visibleRange(M, listTopInset(M) + M.rowH * 3 + 7, HEIGHT, 1000);
     expect(shift).toBe(HEADER_H - 7);
   });
 });
@@ -102,7 +113,7 @@ describe('центрирование выделенной строки', () => {
   it('строка вне окна встаёт в середину окна', () => {
     const got = scrollToCenter(M, 500, 0, H, 1000);
     const view = H - HEADER_H;
-    expect(got).toBe(500 * M.rowH - (view - M.rowH) / 2);
+    expect(got).toBe(listTopInset(M) + 500 * M.rowH - (view - M.rowH) / 2);
   });
 
   it('у краёв истории прижимается к пределам, а не уходит за них', () => {
@@ -116,8 +127,12 @@ describe('строка под курсором', () => {
     expect(rowAtY(M, HEADER_H - 1, 0, 100)).toBeNull();
   });
 
-  it('первая строка начинается сразу под шапкой', () => {
-    expect(rowAtY(M, HEADER_H + 1, 0, 100)).toBe(0);
+  it('первая строка начинается после верхнего отступа', () => {
+    expect(
+      rowAtY(M, HEADER_H + 1, 0, 100),
+      'в зазоре между шапкой и первой строкой клика нет',
+    ).toBeNull();
+    expect(rowAtY(M, HEADER_H + listTopInset(M) + 1, 0, 100)).toBe(0);
   });
 
   it('за концом истории строки нет', () => {
@@ -130,8 +145,10 @@ describe('предел прокрутки', () => {
     expect(maxScroll(M, 3, HEIGHT)).toBe(0);
   });
 
-  it('длинная упирается в последнюю строку', () => {
-    expect(maxScroll(M, 1000, HEIGHT)).toBe(1000 * M.rowH - contentHeight(HEIGHT));
+  it('длинная упирается в последнюю строку вместе с верхним отступом', () => {
+    expect(maxScroll(M, 1000, HEIGHT)).toBe(
+      listTopInset(M) + 1000 * M.rowH - contentHeight(HEIGHT),
+    );
   });
 });
 
@@ -169,9 +186,9 @@ describe('геометрия графа', () => {
 
 describe('место поля ввода в строке', () => {
   it('верх строки уезжает вверх ровно на прокрутку', () => {
-    expect(rowTop(M, 0, 0)).toBe(HEADER_H);
-    expect(rowTop(M, 0, 40)).toBe(HEADER_H - 40);
-    expect(rowTop(M, 3, 0)).toBe(HEADER_H + 3 * M.rowH);
+    expect(rowTop(M, 0, 0)).toBe(HEADER_H + listTopInset(M));
+    expect(rowTop(M, 0, 40)).toBe(HEADER_H + listTopInset(M) - 40);
+    expect(rowTop(M, 3, 0)).toBe(HEADER_H + listTopInset(M) + 3 * M.rowH);
   });
 });
 
@@ -268,12 +285,12 @@ describe('проматывание к выделенной строке', () => 
   });
 
   it('строку выше окна подводит к его верхнему краю', () => {
-    expect(scrollToReveal(M, 3, M.rowH * 100, H, COUNT)).toBe(M.rowH * 3);
+    expect(scrollToReveal(M, 3, M.rowH * 100, H, COUNT)).toBe(listTopInset(M) + M.rowH * 3);
   });
 
   it('строку ниже окна подводит к нижнему краю, а не к верхнему', () => {
     const got = scrollToReveal(M, 200, 0, H, COUNT);
-    expect(got).toBe(M.rowH * 201 - M.rowH * 10);
+    expect(got).toBe(listTopInset(M) + M.rowH * 201 - M.rowH * 10);
     expect(got).toBeLessThan(M.rowH * 200);
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layoutColumns } from './columns';
 import { pointerTarget, type PointerScene } from './graphInput';
-import { HEADER_H, listWidth, METRICS_AVATARS } from './scene';
+import { HEADER_H, listTopInset, listWidth, METRICS_AVATARS } from './scene';
 
 const WIDTH = 1400;
 const HEIGHT = 800;
@@ -43,7 +43,11 @@ describe('маршрутизация указателя', () => {
   });
 
   it('середина строки — выделение с её индексом', () => {
-    const hit = pointerTarget(600, HEADER_H + scene.metrics.rowH * 2 + 1, scene);
+    const hit = pointerTarget(
+      600,
+      HEADER_H + listTopInset(scene.metrics) + scene.metrics.rowH * 2 + 1,
+      scene,
+    );
     expect(hit).toEqual({ kind: 'row', index: 2 });
   });
 
