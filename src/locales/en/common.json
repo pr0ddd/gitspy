@@ -467,5 +467,13 @@
   "term.fullscreen": "Fullscreen",
   "term.windowed": "Leave fullscreen",
   "pane.graph": "Graph",
-  "pane.changes": "Changes"
+  "pane.changes": "Changes",
+  "review.title": "{{branch}} → working tree",
+  "review.detached": "detached",
+  "review.collapsed": "Files are collapsed. Select a file to expand it.",
+  "review.hidden_one": "{{count}} unmodified line",
+  "review.hidden_other": "{{count}} unmodified lines",
+  "review.reading": "Reading the diff…",
+  "review.noText": "No text changes",
+  "review.openFile": "Open in the diff view"
 }
