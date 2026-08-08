@@ -443,7 +443,7 @@ export default function App() {
                 >
                   {dockOpen && dockFull ? (
                     <RightPaneSwitch
-                      pane={rightPane}
+                      pane={main.kind === 'graph' ? rightPane : 'changes'}
                       changes={tree ? tree.staged + tree.unstaged : 0}
                       onPane={(next) => {
                         setRightPane(next);
@@ -452,7 +452,7 @@ export default function App() {
                     />
                   ) : null}
                   <div className="flex min-h-0 min-w-0 flex-1">
-                    {dockOpen && dockFull && rightPane === 'changes' ? null : (
+                    {dockOpen && dockFull && rightPane === 'changes' && main.kind === 'graph' ? null : (
                       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                         {main.kind === 'diff' && current.repo ? (
                           <DiffView
@@ -521,7 +521,7 @@ export default function App() {
                         )}
                       </main>
                     )}
-                    {dockOpen && dockFull && rightPane !== 'changes' ? null : (
+                    {dockOpen && dockFull && (rightPane !== 'changes' || main.kind !== 'graph') ? null : (
                       <DetailsPane
                         fill={dockOpen && dockFull && rightPane === 'changes'}
                         note={
