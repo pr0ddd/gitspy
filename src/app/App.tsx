@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion, MotionConfig } from 'motion/react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -63,8 +62,6 @@ import { RightPaneSwitch, type RightPane } from '@/widgets/RightPaneSwitch';
 import { ReviewView } from '@/widgets/ReviewView';
 import { viewForEntry } from '@/entities/diff';
 import { cn } from '@/lib/utils';
-
-const PANE_MOVE = { duration: 0.18, ease: [0.2, 0, 0, 1] } as const;
 
 export default function App() {
   const { t } = useTranslation();
@@ -336,314 +333,311 @@ export default function App() {
   );
 
   return (
-    <MotionConfig reducedMotion="user">
-      <TooltipProvider delayDuration={600} skipDelayDuration={0}>
-        <div className="flex h-full flex-col">
-          <RepoTabs
-            sessions={sessions}
-            active={settings === 'active' ? '' : active}
-            settings={settings}
-            onActivate={(path) => {
-              setSettings((now) => (now === 'closed' ? now : 'open'));
-              dispatch({ kind: 'activate', path });
-            }}
-            onClose={closeRepo}
-            onStart={() => {
-              setSettings((now) => (now === 'closed' ? now : 'open'));
-              dispatch({ kind: 'activate', path: null });
-            }}
-            onSettings={() => setSettings('active')}
-            onCloseSettings={() => setSettings('closed')}
-          />
+    <TooltipProvider delayDuration={600} skipDelayDuration={0}>
+      <div className="flex h-full flex-col">
+        <RepoTabs
+          sessions={sessions}
+          active={settings === 'active' ? '' : active}
+          settings={settings}
+          onActivate={(path) => {
+            setSettings((now) => (now === 'closed' ? now : 'open'));
+            dispatch({ kind: 'activate', path });
+          }}
+          onClose={closeRepo}
+          onStart={() => {
+            setSettings((now) => (now === 'closed' ? now : 'open'));
+            dispatch({ kind: 'activate', path: null });
+          }}
+          onSettings={() => setSettings('active')}
+          onCloseSettings={() => setSettings('closed')}
+        />
 
-          {current === null || settings === 'active' ? (
-            <div className="h-10 shrink-0" />
-          ) : confirming ? (
-            <ConfirmBar
-              operation={confirming}
-              onConfirm={(operation) => {
-                setConfirming(null);
-                runOperation(operation);
-              }}
-              onCancel={() => setConfirming(null)}
+        {current === null || settings === 'active' ? (
+          <div className="h-10 shrink-0" />
+        ) : confirming ? (
+          <ConfirmBar
+            operation={confirming}
+            onConfirm={(operation) => {
+              setConfirming(null);
+              runOperation(operation);
+            }}
+            onCancel={() => setConfirming(null)}
+          />
+        ) : asking ? (
+          <AskBar
+            ask={asking}
+            onOpenChange={(next) => !next && setAsking(null)}
+            onRun={runOperation}
+          />
+        ) : (
+          <Toolbar
+            repo={current.path}
+            tree={tree}
+            onRun={runOperation}
+            onAsk={(kind) => setAsking({ kind })}
+            onTerminal={() => setDockOpen(!dockOpen)}
+            search={search.query}
+            found={search.found}
+            at={search.at}
+            onSearch={search.setQuery}
+            onStep={search.step}
+          />
+        )}
+
+        <div className="flex min-h-0 flex-1 pt-1.5 pr-2">
+          {settings === 'active' ? (
+            <Settings
+              open
+              account={account}
+              collapsed={railed}
+              zoom={zoom}
+              onZoom={setZoom}
+              compact={compact}
+              onCompact={setCompact}
+              onToggle={toggleRail}
+              onDisconnected={() => setAccount(null)}
             />
-          ) : asking ? (
-            <AskBar
-              ask={asking}
-              onOpenChange={(next) => !next && setAsking(null)}
-              onRun={runOperation}
+          ) : current === null ? (
+            <StartPage
+              recent={recent}
+              onOpen={pickRepo}
+              onOpenPath={openPath}
+              onForget={forget}
+              onFavorite={favorite}
+              onClone={(url) => setAdding({ mode: 'clone', url })}
+              onCreate={() => setAdding({ mode: 'init', url: '' })}
+              onConnect={() => setSettings('active')}
             />
           ) : (
-            <Toolbar
-              repo={current.path}
-              tree={tree}
-              onRun={runOperation}
-              onAsk={(kind) => setAsking({ kind })}
-              onTerminal={() => setDockOpen(!dockOpen)}
-              search={search.query}
-              found={search.found}
-              at={search.at}
-              onSearch={search.setQuery}
-              onStep={search.step}
-            />
-          )}
-
-          <div className="flex min-h-0 flex-1 pt-1.5 pr-2">
-            {settings === 'active' ? (
-              <Settings
-                open
-                account={account}
+            <>
+              <Sidebar
                 collapsed={railed}
-                zoom={zoom}
-                onZoom={setZoom}
-                compact={compact}
-                onCompact={setCompact}
                 onToggle={toggleRail}
-                onDisconnected={() => setAccount(null)}
+                session={current}
+                pulls={pulls}
+                currentBranch={tree?.branch ?? null}
+                onPick={revealCommit}
+                onCheckout={checkoutRef}
+                onRun={runOperation}
+                onCopy={copy}
+                onAsk={setAsking}
+                onWorktree={addWorktree}
+                onOpenUrl={openUrl}
+                onPullsExpanded={() => loadPulls(pulls !== null)}
+                onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-            ) : current === null ? (
-              <StartPage
-                recent={recent}
-                onOpen={pickRepo}
-                onOpenPath={openPath}
-                onForget={forget}
-                onFavorite={favorite}
-                onClone={(url) => setAdding({ mode: 'clone', url })}
-                onCreate={() => setAdding({ mode: 'init', url: '' })}
-                onConnect={() => setSettings('active')}
-              />
-            ) : (
-              <>
-                <Sidebar
-                  collapsed={railed}
-                  onToggle={toggleRail}
-                  session={current}
-                  pulls={pulls}
-                  currentBranch={tree?.branch ?? null}
-                  onPick={revealCommit}
-                  onCheckout={checkoutRef}
-                  onRun={runOperation}
-                  onCopy={copy}
-                  onAsk={setAsking}
-                  onWorktree={addWorktree}
-                  onOpenUrl={openUrl}
-                  onPullsExpanded={() => loadPulls(pulls !== null)}
-                  onPickPull={(pull) => setMain({ kind: 'pull', pull })}
-                />
+              <div
+                className={cn(
+                  'relative flex min-h-0 min-w-0 flex-1',
+                  dockOpen && dockFull
+                    ? 'gap-2'
+                    : 'bg-card flex-col overflow-hidden rounded-xl border',
+                )}
+              >
                 <div
+                  key={dockOpen && dockFull ? 'full' : 'windowed'}
                   className={cn(
-                    'relative flex min-h-0 min-w-0 flex-1',
+                    'animate-in fade-in flex min-h-0 min-w-0 flex-1 duration-150',
                     dockOpen && dockFull
-                      ? 'gap-2'
-                      : 'bg-card flex-col overflow-hidden rounded-xl border',
+                      ? 'bg-card order-2 w-[46%] flex-none flex-col overflow-hidden rounded-xl border'
+                      : '',
                   )}
                 >
-                  <motion.div
-                    layout
-                    transition={PANE_MOVE}
-                    className={cn(
-                      'flex min-h-0 min-w-0 flex-1',
-                      dockOpen && dockFull
-                        ? 'bg-card order-2 w-[46%] flex-none flex-col overflow-hidden rounded-xl border'
-                        : '',
-                    )}
-                  >
-                    {dockOpen && dockFull ? (
-                      <RightPaneSwitch
-                        pane={main.kind === 'graph' ? rightPane : 'changes'}
-                        changes={tree ? tree.staged + tree.unstaged : 0}
-                        context={
-                          main.kind === 'graph' && rightPane === 'changes'
-                            ? t('review.title', { branch: tree?.branch ?? t('review.detached') })
-                            : null
-                        }
-                        onPane={(next) => {
-                          setRightPane(next);
-                          if (next === 'changes') select(0);
-                        }}
-                      />
-                    ) : null}
-                    {dockOpen && dockFull && rightPane === 'changes' && main.kind === 'graph' ? (
-                      tree ? (
-                        <ReviewView
-                          repo={current.path}
-                          tree={tree}
-                          onOpenFile={(entry) =>
-                            toggleDiff({
-                              kind: 'workingTree',
-                              path: entry.path,
-                              status: entry.letter,
-                              staged: entry.staged,
-                            })
-                          }
-                        />
-                      ) : null
-                    ) : null}
-                    <div className="flex min-h-0 min-w-0 flex-1">
-                      {dockOpen &&
-                      dockFull &&
-                      rightPane === 'changes' &&
-                      main.kind === 'graph' ? null : (
-                        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-                          {main.kind === 'diff' && current.repo ? (
-                            <DiffView
-                              repo={current.path}
-                              target={main.target}
-                              onClose={() => setMain({ kind: 'graph' })}
-                              onTree={adoptTree}
-                              onRun={runPathOperation}
-                              onTarget={(target) => setMain({ kind: 'diff', target })}
-                              onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                            />
-                          ) : main.kind === 'history' && current.repo ? (
-                            <FileHistoryView
-                              repo={current.path}
-                              path={main.path}
-                              from={main.from ?? null}
-                              avatars={avatars}
-                              onClose={() => setMain({ kind: 'graph' })}
-                            />
-                          ) : main.kind === 'conflict' && current.repo ? (
-                            <ConflictView
-                              repo={current.path}
-                              path={main.path}
-                              from={tree?.merging?.from ?? null}
-                              into={tree?.branch ?? null}
-                              onClose={() => setMain({ kind: 'graph' })}
-                              onResolved={(next) => {
-                                adoptTree(next);
-                                setMain({ kind: 'graph' });
-                              }}
-                            />
-                          ) : main.kind === 'pull' && current.repo ? (
-                            <PullPanel
-                              repo={current.path}
-                              pull={main.pull}
-                              onCheckedOut={() => {
-                                setMain({ kind: 'graph' });
-                                void reload(current.path);
-                              }}
-                              onClose={() => setMain({ kind: 'graph' })}
-                            />
-                          ) : (
-                            <GraphView
-                              key={current.path}
-                              session={current}
-                              avatars={avatars}
-                              rows={cacheFor(current.path)}
-                              redraw={redraw + avatarTick}
-                              metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
-                              pullHeads={pullHeads}
-                              currentBranch={tree?.branch ?? null}
-                              onSelect={select}
-                              onCheckoutRef={checkoutRef}
-                              onRun={runOperation}
-                              onCopy={copy}
-                              onAsk={setAsking}
-                              onWorktree={addWorktree}
-                              onOpenUrl={openUrl}
-                              onNeed={onNeed}
-                              message={message}
-                              onMessage={setMessage}
-                              onCommit={commit}
-                              compact={compact}
-                              onCompact={setCompact}
-                            />
-                          )}
-                        </main>
-                      )}
-                      {dockOpen && dockFull ? null : (
-                        <DetailsPane
-                          fill={dockOpen && dockFull && rightPane === 'changes'}
-                          note={
-                            panel === 'workingTree' && !(tree && tree.entries.length > 0)
-                              ? 'workingTreeClean'
-                              : panel === 'noCommits'
-                                ? 'noCommits'
-                                : null
-                          }
-                        >
-                          {panel === 'workingTree' && tree ? (
-                            <WorkingTree
-                              repo={current.path}
-                              tree={tree}
-                              message={message}
-                              description={description}
-                              amend={amend}
-                              previous={previousCommit}
-                              onMessage={setMessage}
-                              onDescription={setDescription}
-                              onAmend={setAmend}
-                              onCommit={commit}
-                              onRun={runPathOperation}
-                              onOperation={runOperation}
-                              onConfirm={setConfirming}
-                              onCopy={copy}
-                              onHistory={(path) => setMain({ kind: 'history', path })}
-                              onOpen={(path, status, staged) =>
-                                viewForEntry(status, staged) === 'conflict'
-                                  ? setMain({ kind: 'conflict', path })
-                                  : toggleDiff({ kind: 'workingTree', path, status, staged })
-                              }
-                            />
-                          ) : (
-                            <Details
-                              session={current}
-                              avatars={avatars}
-                              avatarTick={avatarTick}
-                              onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                              rows={cacheFor(current.path)}
-                              pending={tree ? tree.staged + tree.unstaged : 0}
-                              conflicts={tree?.conflicts ?? 0}
-                              pulls={pulls?.pulls ?? []}
-                              onCopy={copy}
-                              onOpenWorkingTree={() => select(0)}
-                              onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
-                              onOpenFile={(commit, file) =>
-                                toggleDiff({ kind: 'commit', commit, file })
-                              }
-                            />
-                          )}
-                        </DetailsPane>
-                      )}
-                    </div>
-                  </motion.div>
-                  {dockOpen ? (
-                    <TerminalDock
-                      repo={current.path}
-                      onFileLink={openFileFromTerminal}
-                      onHashLink={revealCommitByHash}
-                      fullscreen={dockFull}
-                      onFullscreen={() => setDockFull(!dockFull)}
+                  {dockOpen && dockFull ? (
+                    <RightPaneSwitch
+                      pane={main.kind === 'graph' ? rightPane : 'changes'}
+                      changes={tree ? tree.staged + tree.unstaged : 0}
+                      context={
+                        main.kind === 'graph' && rightPane === 'changes'
+                          ? t('review.title', { branch: tree?.branch ?? t('review.detached') })
+                          : null
+                      }
+                      onPane={(next) => {
+                        setRightPane(next);
+                        if (next === 'changes') select(0);
+                      }}
                     />
                   ) : null}
+                  {dockOpen && dockFull && rightPane === 'changes' && main.kind === 'graph' ? (
+                    tree ? (
+                      <ReviewView
+                        repo={current.path}
+                        tree={tree}
+                        onOpenFile={(entry) =>
+                          toggleDiff({
+                            kind: 'workingTree',
+                            path: entry.path,
+                            status: entry.letter,
+                            staged: entry.staged,
+                          })
+                        }
+                      />
+                    ) : null
+                  ) : null}
+                  <div className="flex min-h-0 min-w-0 flex-1">
+                    {dockOpen &&
+                    dockFull &&
+                    rightPane === 'changes' &&
+                    main.kind === 'graph' ? null : (
+                      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        {main.kind === 'diff' && current.repo ? (
+                          <DiffView
+                            repo={current.path}
+                            target={main.target}
+                            onClose={() => setMain({ kind: 'graph' })}
+                            onTree={adoptTree}
+                            onRun={runPathOperation}
+                            onTarget={(target) => setMain({ kind: 'diff', target })}
+                            onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                          />
+                        ) : main.kind === 'history' && current.repo ? (
+                          <FileHistoryView
+                            repo={current.path}
+                            path={main.path}
+                            from={main.from ?? null}
+                            avatars={avatars}
+                            onClose={() => setMain({ kind: 'graph' })}
+                          />
+                        ) : main.kind === 'conflict' && current.repo ? (
+                          <ConflictView
+                            repo={current.path}
+                            path={main.path}
+                            from={tree?.merging?.from ?? null}
+                            into={tree?.branch ?? null}
+                            onClose={() => setMain({ kind: 'graph' })}
+                            onResolved={(next) => {
+                              adoptTree(next);
+                              setMain({ kind: 'graph' });
+                            }}
+                          />
+                        ) : main.kind === 'pull' && current.repo ? (
+                          <PullPanel
+                            repo={current.path}
+                            pull={main.pull}
+                            onCheckedOut={() => {
+                              setMain({ kind: 'graph' });
+                              void reload(current.path);
+                            }}
+                            onClose={() => setMain({ kind: 'graph' })}
+                          />
+                        ) : (
+                          <GraphView
+                            key={current.path}
+                            session={current}
+                            avatars={avatars}
+                            rows={cacheFor(current.path)}
+                            redraw={redraw + avatarTick}
+                            metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
+                            pullHeads={pullHeads}
+                            currentBranch={tree?.branch ?? null}
+                            onSelect={select}
+                            onCheckoutRef={checkoutRef}
+                            onRun={runOperation}
+                            onCopy={copy}
+                            onAsk={setAsking}
+                            onWorktree={addWorktree}
+                            onOpenUrl={openUrl}
+                            onNeed={onNeed}
+                            message={message}
+                            onMessage={setMessage}
+                            onCommit={commit}
+                            compact={compact}
+                            onCompact={setCompact}
+                          />
+                        )}
+                      </main>
+                    )}
+                    {dockOpen && dockFull ? null : (
+                      <DetailsPane
+                        fill={dockOpen && dockFull && rightPane === 'changes'}
+                        note={
+                          panel === 'workingTree' && !(tree && tree.entries.length > 0)
+                            ? 'workingTreeClean'
+                            : panel === 'noCommits'
+                              ? 'noCommits'
+                              : null
+                        }
+                      >
+                        {panel === 'workingTree' && tree ? (
+                          <WorkingTree
+                            repo={current.path}
+                            tree={tree}
+                            message={message}
+                            description={description}
+                            amend={amend}
+                            previous={previousCommit}
+                            onMessage={setMessage}
+                            onDescription={setDescription}
+                            onAmend={setAmend}
+                            onCommit={commit}
+                            onRun={runPathOperation}
+                            onOperation={runOperation}
+                            onConfirm={setConfirming}
+                            onCopy={copy}
+                            onHistory={(path) => setMain({ kind: 'history', path })}
+                            onOpen={(path, status, staged) =>
+                              viewForEntry(status, staged) === 'conflict'
+                                ? setMain({ kind: 'conflict', path })
+                                : toggleDiff({ kind: 'workingTree', path, status, staged })
+                            }
+                          />
+                        ) : (
+                          <Details
+                            session={current}
+                            avatars={avatars}
+                            avatarTick={avatarTick}
+                            onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                            rows={cacheFor(current.path)}
+                            pending={tree ? tree.staged + tree.unstaged : 0}
+                            conflicts={tree?.conflicts ?? 0}
+                            pulls={pulls?.pulls ?? []}
+                            onCopy={copy}
+                            onOpenWorkingTree={() => select(0)}
+                            onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
+                            onOpenFile={(commit, file) =>
+                              toggleDiff({ kind: 'commit', commit, file })
+                            }
+                          />
+                        )}
+                      </DetailsPane>
+                    )}
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
-
-          <BottomBar
-            zoom={zoom}
-            onZoom={setZoom}
-            ready={readyUpdate}
-            onRestart={() => void restartToUpdate()}
-          />
-
-          <RepoDialog
-            open={adding !== null}
-            mode={adding?.mode ?? 'clone'}
-            url={adding?.url ?? ''}
-            onOpenChange={(next) => !next && setAdding(null)}
-            onCloned={openPath}
-          />
-
-          <Toaster
-            position="bottom-right"
-            offset={16}
-            style={{ '--width': '430px' } as React.CSSProperties}
-          />
+                {dockOpen ? (
+                  <TerminalDock
+                    repo={current.path}
+                    onFileLink={openFileFromTerminal}
+                    onHashLink={revealCommitByHash}
+                    fullscreen={dockFull}
+                    onFullscreen={() => setDockFull(!dockFull)}
+                  />
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
-      </TooltipProvider>
-    </MotionConfig>
+
+        <BottomBar
+          zoom={zoom}
+          onZoom={setZoom}
+          ready={readyUpdate}
+          onRestart={() => void restartToUpdate()}
+        />
+
+        <RepoDialog
+          open={adding !== null}
+          mode={adding?.mode ?? 'clone'}
+          url={adding?.url ?? ''}
+          onOpenChange={(next) => !next && setAdding(null)}
+          onCloned={openPath}
+        />
+
+        <Toaster
+          position="bottom-right"
+          offset={16}
+          style={{ '--width': '430px' } as React.CSSProperties}
+        />
+      </div>
+    </TooltipProvider>
   );
 }
