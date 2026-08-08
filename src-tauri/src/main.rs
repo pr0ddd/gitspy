@@ -1,6 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
+mod acp;
+mod acp_adapter;
+mod acp_attach;
+mod acp_terminal;
 mod ai;
 mod autofetch;
 mod avatars;
@@ -12,6 +16,8 @@ mod paths;
 mod recent;
 mod repo_commands;
 mod state;
+mod term;
+mod term_batch;
 mod terminal;
 mod views;
 mod watcher;
@@ -81,7 +87,19 @@ fn main() {
             terminal::open_url,
             state::set_autofetch_minutes,
             ai::ai_detect_server,
-            ai::ai_generate_commit
+            ai::ai_generate_commit,
+            term::term_open,
+            term::term_input,
+            term::term_resize,
+            term::term_ack,
+            term::term_kill,
+            acp::acp_open,
+            acp::acp_prompt,
+            acp::acp_permission,
+            acp::acp_set_config,
+            acp::acp_cancel,
+            acp::acp_kill,
+            acp::acp_rollback
         ])
         .setup(|app| {
             autofetch::start(app.handle().clone());
