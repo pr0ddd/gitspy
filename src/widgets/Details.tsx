@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { identicon } from '@/avatar';
 import { hostBotOf } from '@/host';
 import type { AvatarCache } from '@/avatarCache';
+import { mentionOfFile } from '@/entities/agent';
 import { pullAtRefs, type Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
 import { Icon } from '@/icons';
@@ -13,6 +14,7 @@ import { notifyError } from '@/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { FilePath, ListRow, PanelBanner, PanelNote, SectionHeader, StatusBadge } from '@/parts';
+import { AskAgentButton } from './agent/AskAgentButton';
 import type { ChangedFileView, PullView } from '@/types';
 
 type Props = {
@@ -243,6 +245,7 @@ export function Details({
               {files.map((file) => (
                 <li key={file.path}>
                   <ListRow
+                    as="div"
                     title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
                     onClick={() => onOpenFile(row.hash, file)}
                     onContextMenu={() => openFileMenu(row.hash, file)}
@@ -254,6 +257,14 @@ export function Details({
                         <span className="text-added">+{file.added ?? 0}</span>{' '}
                         <span className="text-deleted">−{file.deleted ?? 0}</span>
                       </span>
+                    )}
+                    {repo === null ? null : (
+                      <AskAgentButton
+                        repo={repo}
+                        mention={mentionOfFile(file.path)}
+                        reveal
+                        className={file.binary ? 'ml-auto' : undefined}
+                      />
                     )}
                   </ListRow>
                 </li>

@@ -14,7 +14,9 @@ import {
 } from '@/entities/diff';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
+import { mentionOfLines } from '@/entities/agent';
 import { DiffToolbar } from './DiffToolbar';
+import { AskAgentButton } from './agent/AskAgentButton';
 import { ViewBar } from '@/parts';
 import { shortenDirectory, splitPath } from '@/paths';
 import { cn } from '@/lib/utils';
@@ -22,6 +24,7 @@ import { editorOptionsFor, type DiffMode } from '@/entities/diff';
 import { usePref } from '@/prefs';
 import {
   hiddenSpans,
+  hunkLineRange,
   isGitlinkDiff,
   parseUnifiedDiff,
   patchFor,
@@ -46,6 +49,11 @@ export type DiffTarget =
   | { kind: 'workingTree'; path: string; status: string; staged: boolean };
 
 const lineTally = (text: string): number => text.split('\n').length;
+
+const mentionOfHunk = (path: string, hunk: Hunk): string => {
+  const { from, to } = hunkLineRange(hunk);
+  return mentionOfLines(path, from, to);
+};
 
 export const sameDiffTarget = (left: DiffTarget, right: DiffTarget): boolean => {
   if (left.kind === 'commit' && right.kind === 'commit') {
@@ -88,10 +96,14 @@ function CommitHunkBar({ heading, onRevert }: { heading: string; onRevert: () =>
 
 function HunkBar({
   heading,
+  repo,
+  mention,
   staged,
   onApply,
 }: {
   heading: string;
+  repo: string;
+  mention: string;
   staged: boolean;
   onApply: (cached: boolean, reverse: boolean) => void;
 }) {
@@ -101,6 +113,7 @@ function HunkBar({
       <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
         {heading}
       </span>
+      <AskAgentButton repo={repo} mention={mention} />
       {staged ? (
         <Button variant="outline" size="2xs" onClick={() => onApply(true, true)}>
           {t('diff.unstageHunk')}
@@ -430,6 +443,8 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
                   hunkView.for.kind === 'workingTree' ? (
                     <HunkBar
                       heading={hunk.heading}
+                      repo={repo}
+                      mention={mentionOfHunk(path, hunk)}
                       staged={hunkView.for.staged}
                       onApply={(cached, reverse) => applyHunk(hunkView.diff, hunk, cached, reverse)}
                     />

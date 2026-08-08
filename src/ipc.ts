@@ -31,6 +31,7 @@ import type {
   WorktreeView,
   AiServerView,
   CommitDraftView,
+  AcpEventView,
 } from '@/types';
 
 export const openRepo = (path: string) => invoke<RepoView>('open_repo', { path });
@@ -207,6 +208,53 @@ export const initRepo = (
   invoke<string>('init_repo', { path, branch, gitignore, license });
 
 export const openTerminal = (repo: string) => invoke<void>('open_terminal', { repo });
+
+const bytesOfFrame = (frame: ArrayBuffer | ArrayBufferView): Uint8Array =>
+  ArrayBuffer.isView(frame)
+    ? new Uint8Array(frame.buffer, frame.byteOffset, frame.byteLength)
+    : new Uint8Array(frame);
+
+export const termOpen = (
+  cwd: string,
+  command: string | null,
+  integration: boolean,
+  onData: (bytes: Uint8Array) => void,
+) => {
+  const channel = new Channel<ArrayBuffer | ArrayBufferView>();
+  channel.onmessage = (frame) => onData(bytesOfFrame(frame));
+  return invoke<number>('term_open', { cwd, command, integration, onData: channel });
+};
+
+export const termInput = (id: number, data: string) => invoke<void>('term_input', { id, data });
+
+export const termResize = (id: number, cols: number, rows: number) =>
+  invoke<void>('term_resize', { id, cols, rows });
+
+export const termAck = (id: number, bytes: number) => invoke<void>('term_ack', { id, bytes });
+
+export const termKill = (id: number) => invoke<void>('term_kill', { id });
+
+export const acpOpen = (repo: string, onEvent: (event: AcpEventView) => void) => {
+  const channel = new Channel<AcpEventView>();
+  channel.onmessage = onEvent;
+  return invoke<number>('acp_open', { repo, onEvent: channel });
+};
+
+export const acpPrompt = (id: number, text: string, paths: string[] = []) =>
+  invoke<void>('acp_prompt', { id, text, paths });
+
+export const acpPermission = (id: number, requestId: number, optionId: string) =>
+  invoke<void>('acp_permission', { id, requestId, optionId });
+
+export const acpSetConfig = (id: number, configId: string, value: string) =>
+  invoke<void>('acp_set_config', { id, configId, value });
+
+export const acpCancel = (id: number) => invoke<void>('acp_cancel', { id });
+
+export const acpKill = (id: number) => invoke<void>('acp_kill', { id });
+
+export const acpRollback = (repo: string, oid: string | null, paths: string[]) =>
+  invoke<void>('acp_rollback', { repo, oid, paths });
 
 export const setAutofetchMinutes = (minutes: number) =>
   invoke<void>('set_autofetch_minutes', { minutes });

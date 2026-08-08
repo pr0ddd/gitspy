@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hiddenSpans, isGitlinkDiff, parseUnifiedDiff, patchFor } from './hunks';
+import { hiddenSpans, hunkLineRange, isGitlinkDiff, parseUnifiedDiff, patchFor } from './hunks';
 
 const DIFF = [
   'diff --git a/code.txt b/code.txt',
@@ -43,6 +43,23 @@ describe('разбор настоящего git diff на ханки', () => {
     const diff = parseUnifiedDiff('@@ -3 +5 @@\n-x\n+y\n');
     if (!diff) throw new Error('в этом диффе есть ханк');
     expect(diff.hunks[0]).toMatchObject({ oldStart: 3, oldLines: 1, newStart: 5, newLines: 1 });
+  });
+});
+
+describe('строки ханка в новой стороне файла', () => {
+  it('диапазон считается по уже разобранному ханку, а не по тексту заново', () => {
+    const diff = parseUnifiedDiff(DIFF);
+    if (!diff) throw new Error('в этом диффе есть ханки');
+    expect(hunkLineRange(diff.hunks[1])).toEqual({ from: 19, to: 22 });
+  });
+
+  it('ханк чистого удаления не выворачивает диапазон наизнанку', () => {
+    const diff = parseUnifiedDiff('@@ -3,2 +2,0 @@\n-a\n-b\n');
+    if (!diff) throw new Error('в этом диффе есть ханк');
+    expect(
+      hunkLineRange(diff.hunks[0]),
+      'конец раньше начала — это адрес, по которому агент ничего не найдёт',
+    ).toEqual({ from: 2, to: 2 });
   });
 });
 
