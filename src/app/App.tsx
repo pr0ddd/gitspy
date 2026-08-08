@@ -106,6 +106,8 @@ export default function App() {
   const [rightPane, setRightPane] = usePref<RightPane>('term.dock.rightPane', 'graph');
   const [fullShare, setFullShare] = usePref<number>('term.dock.fullShare', 0.46);
   const shareAtDrag = useRef(fullShare);
+  const draggedShare = useRef(fullShare);
+  const rightColumn = useRef<HTMLDivElement | null>(null);
   const data = useRepoData();
   const { cacheFor, refill, refillFirstWindow, fetchChunks, drop, version: redraw } = data;
 
@@ -441,6 +443,7 @@ export default function App() {
                 )}
               >
                 <div
+                  ref={rightColumn}
                   key={dockOpen && dockFull ? 'full' : 'windowed'}
                   className={cn(
                     'animate-in fade-in relative flex min-h-0 min-w-0 flex-1 duration-150',
@@ -459,12 +462,16 @@ export default function App() {
                       edge="left"
                       onStart={() => {
                         shareAtDrag.current = clampShare(fullShare);
+                        draggedShare.current = shareAtDrag.current;
                       }}
                       onMove={(delta) => {
                         const span = window.innerWidth;
-                        if (span > 0) setFullShare(clampShare(shareAtDrag.current - delta / span));
+                        if (span <= 0) return;
+                        draggedShare.current = clampShare(shareAtDrag.current - delta / span);
+                        const column = rightColumn.current;
+                        if (column) column.style.flexBasis = `${draggedShare.current * 100}%`;
                       }}
-                      onEnd={() => {}}
+                      onEnd={() => setFullShare(draggedShare.current)}
                     />
                   ) : null}
                   {dockOpen && dockFull ? (
