@@ -32,7 +32,13 @@ import {
 import { Icon } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { buildMinimap } from '@/entities/graph';
-import { buildChipMenu, buildColumnsMenu, buildCommitMenu, type MenuAction, type MenuContext } from '@/features/menus';
+import {
+  buildChipMenu,
+  buildColumnsMenu,
+  buildCommitMenu,
+  type MenuAction,
+  type MenuContext,
+} from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { readPref } from '@/prefs';
 import type { Session } from '@/entities/repo';
@@ -199,7 +205,11 @@ export const GraphView = memo(function GraphView({
     const f = frameRef.current;
     frameRef.current = {
       ...f,
-      cols: layoutColumns(listWidth(f.width, minimapRef.current), storedRef.current, hiddenRef.current),
+      cols: layoutColumns(
+        listWidth(f.width, minimapRef.current),
+        storedRef.current,
+        hiddenRef.current,
+      ),
     };
     patch({ scrollX: clampScrollX(frameRef.current.scrollX) });
   }, [patch, clampScrollX]);
@@ -238,12 +248,20 @@ export const GraphView = memo(function GraphView({
       const f = frameRef.current;
       const height = Math.max(0, Math.round(rect.height));
       const width = Math.max(0, Math.round(rect.width));
+      const sameHeight = height === f.height;
       frameRef.current = {
         ...f,
         width,
         height,
-        cols: layoutColumns(listWidth(width, minimapRef.current), storedRef.current, hiddenRef.current),
-        minimap: minimapRef.current ? buildMinimap(f.repo, height) : null,
+        cols: layoutColumns(
+          listWidth(width, minimapRef.current),
+          storedRef.current,
+          hiddenRef.current,
+        ),
+        minimap:
+          minimapRef.current && !(sameHeight && f.minimap)
+            ? buildMinimap(f.repo, height)
+            : f.minimap,
       };
       frameRef.current = { ...frameRef.current, scrollY: clampScroll(frameRef.current.scrollY) };
       needRows();
@@ -256,9 +274,19 @@ export const GraphView = memo(function GraphView({
       placeMessageInput();
     };
     measure();
-    const observer = new ResizeObserver(measure);
+    let pending = 0;
+    const observer = new ResizeObserver(() => {
+      if (pending !== 0) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        measure();
+      });
+    });
     observer.observe(host);
-    return () => observer.disconnect();
+    return () => {
+      if (pending !== 0) cancelAnimationFrame(pending);
+      observer.disconnect();
+    };
   }, [needRows, clampScroll, placeMessageInput]);
 
   const chosen = session?.selected ?? 0;
@@ -416,7 +444,11 @@ export const GraphView = memo(function GraphView({
             const now = frameRef.current;
             frameRef.current = {
               ...now,
-              cols: layoutColumns(listWidth(now.width, minimapRef.current), storedRef.current, hiddenRef.current),
+              cols: layoutColumns(
+                listWidth(now.width, minimapRef.current),
+                storedRef.current,
+                hiddenRef.current,
+              ),
             };
             patch({});
           },
@@ -596,41 +628,41 @@ export const GraphView = memo(function GraphView({
     >
       <canvas ref={canvasRef} className="absolute inset-0 block size-full" />
 
+      <div
+        ref={inputRef}
+        className="absolute top-0 left-0 hidden"
+        style={{ willChange: 'transform' }}
+      >
+        <Input
+          value={message}
+          onChange={(e) => onMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit();
+            e.stopPropagation();
+          }}
+          onWheel={(e) => e.stopPropagation()}
+          placeholder={t('workingTree.messagePlaceholder')}
+          className="h-full text-sm"
+        />
+      </div>
+      {session?.loading ? (
         <div
-          ref={inputRef}
-          className="absolute top-0 left-0 hidden"
-          style={{ willChange: 'transform' }}
+          className="text-muted-foreground pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
+          style={{ right: minimapRef.current ? MINIMAP_W : VSCROLL_W }}
         >
-          <Input
-            value={message}
-            onChange={(e) => onMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) onCommit();
-              e.stopPropagation();
-            }}
-            onWheel={(e) => e.stopPropagation()}
-            placeholder={t('workingTree.messagePlaceholder')}
-            className="h-full text-sm"
-          />
+          <Icon.waiting className="size-5 animate-spin" />
+          <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
         </div>
-        {session?.loading ? (
-          <div
-            className="text-muted-foreground pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
-            style={{ right: minimapRef.current ? MINIMAP_W : VSCROLL_W }}
-          >
-            <Icon.waiting className="size-5 animate-spin" />
-            <span className="text-sm">{t('repo.reading', { name: session.name })}</span>
-          </div>
-        ) : null}
+      ) : null}
 
-        {!session || (!session.repo && !session.loading) ? (
-          <div
-            className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
-            style={{ right: minimapRef.current ? MINIMAP_W : VSCROLL_W }}
-          >
-            {t('repo.emptyHint')}
-          </div>
-        ) : null}
+      {!session || (!session.repo && !session.loading) ? (
+        <div
+          className="text-muted-foreground pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{ right: minimapRef.current ? MINIMAP_W : VSCROLL_W }}
+        >
+          {t('repo.emptyHint')}
+        </div>
+      ) : null}
     </div>
   );
 });
