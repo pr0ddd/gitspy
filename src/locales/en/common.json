@@ -463,5 +463,9 @@
   "agent.limit.five_hour": "5-hour limit",
   "agent.limitStatus.allowed": "Allowed",
   "agent.resets": "resets {{when}}",
-  "agent.moreOptions": "More session options"
+  "agent.moreOptions": "More session options",
+  "term.fullscreen": "Fullscreen",
+  "term.windowed": "Leave fullscreen",
+  "pane.graph": "Graph",
+  "pane.changes": "Changes"
 }
