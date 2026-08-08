@@ -12,7 +12,7 @@ import {
 import { Icon } from '@/icons';
 import { workingTreeHunks } from '@/ipc';
 import { cn } from '@/lib/utils';
-import { FilePath, InlineNote, ListRow, StatusBadge, ViewBar } from '@/parts';
+import { FilePath, InlineNote, ListRow, StatusBadge } from '@/parts';
 import { notifyError } from '@/toast';
 import type { StatusEntryView, WorkingTreeView } from '@/types';
 
@@ -101,14 +101,12 @@ export function ReviewView({ repo, tree, onOpenFile }: Props) {
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <ViewBar>
-        <Icon.branch className="size-3.5 shrink-0 opacity-75" />
-        <span className="min-w-0 truncate">
-          {t('review.title', { branch: tree.branch ?? t('review.detached') })}
-        </span>
-      </ViewBar>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <InlineNote>{t('review.collapsed')}</InlineNote>
+        {tree.entries.length === 0 ? (
+          <InlineNote>{t('review.clean')}</InlineNote>
+        ) : (
+          <InlineNote>{t('review.collapsed')}</InlineNote>
+        )}
         {tree.entries.map((entry) => {
           const key = keyOf(entry);
           const read = reads[key];

@@ -446,6 +446,11 @@ export default function App() {
                     <RightPaneSwitch
                       pane={main.kind === 'graph' ? rightPane : 'changes'}
                       changes={tree ? tree.staged + tree.unstaged : 0}
+                      context={
+                        main.kind === 'graph' && rightPane === 'changes'
+                          ? t('review.title', { branch: tree?.branch ?? t('review.detached') })
+                          : null
+                      }
                       onPane={(next) => {
                         setRightPane(next);
                         if (next === 'changes') select(0);

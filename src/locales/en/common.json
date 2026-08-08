@@ -475,5 +475,6 @@
   "review.hidden_other": "{{count}} unmodified lines",
   "review.reading": "Reading the diff…",
   "review.noText": "No text changes",
-  "review.openFile": "Open in the diff view"
+  "review.openFile": "Open in the diff view",
+  "review.clean": "Nothing changed yet"
 }
