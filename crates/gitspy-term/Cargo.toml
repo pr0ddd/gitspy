@@ -1,0 +1,10 @@
+[package]
+name = "gitspy-term"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+portable-pty = "0.9"
+
+[dev-dependencies]
+tempfile = "3.27.0"
