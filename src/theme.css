@@ -80,6 +80,24 @@
   --graph-11: oklch(0.68 0.17 350);
   --graph-12: oklch(0.64 0.15 245);
 
+  --term-selection: oklch(0.575 0.16 277 / 0.3);
+  --term-ansi-0: oklch(0.25 0.005 265);
+  --term-ansi-1: var(--status-deleted);
+  --term-ansi-2: var(--status-added);
+  --term-ansi-3: var(--status-modified);
+  --term-ansi-4: var(--graph-1);
+  --term-ansi-5: var(--graph-2);
+  --term-ansi-6: var(--graph-3);
+  --term-ansi-7: oklch(0.85 0.002 265);
+  --term-ansi-8: oklch(0.45 0.005 265);
+  --term-ansi-9: oklch(0.72 0.19 25);
+  --term-ansi-10: oklch(0.8 0.16 150);
+  --term-ansi-11: oklch(0.85 0.14 82);
+  --term-ansi-12: oklch(0.72 0.17 268);
+  --term-ansi-13: oklch(0.7 0.19 325);
+  --term-ansi-14: oklch(0.78 0.14 195);
+  --term-ansi-15: oklch(0.97 0.002 265);
+
   --row-height: 28px;
   --row-height-graph: 30px;
   --bar-height: 52px;

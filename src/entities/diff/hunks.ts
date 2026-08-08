@@ -35,6 +35,11 @@ export function parseUnifiedDiff(text: string): UnifiedDiff | null {
 
 export const patchFor = (diff: UnifiedDiff, hunk: Hunk): string => diff.header + hunk.raw;
 
+export const hunkLineRange = (hunk: Hunk): { from: number; to: number } => {
+  const from = Math.max(1, hunk.newStart);
+  return { from, to: from + Math.max(1, hunk.newLines) - 1 };
+};
+
 export const isGitlinkDiff = (raw: string): boolean =>
   /(^|\n)[-+]Subproject commit /.test(raw);
 

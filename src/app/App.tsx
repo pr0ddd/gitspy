@@ -57,6 +57,7 @@ import { applyStoredAppearance } from '@/appearance';
 import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
+import { TerminalDock } from '@/widgets/TerminalDock';
 import { viewForEntry } from '@/entities/diff';
 
 export default function App() {
@@ -93,6 +94,7 @@ export default function App() {
   }, []);
   const [asking, setAsking] = useState<Ask | null>(null);
   const [compact, setCompact] = usePref('graph.compact', false);
+  const [dockOpen, setDockOpen] = usePref('term.dock.open', false);
   const data = useRepoData();
   const { cacheFor, refill, refillFirstWindow, fetchChunks, drop, version: redraw } = data;
 
@@ -129,6 +131,16 @@ export default function App() {
     window.addEventListener('keydown', toggleSidebar);
     return () => window.removeEventListener('keydown', toggleSidebar);
   }, [toggleRail]);
+
+  useEffect(() => {
+    const toggleDock = (e: KeyboardEvent) => {
+      if (e.key !== '`' || !(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+      setDockOpen(!dockOpen);
+    };
+    window.addEventListener('keydown', toggleDock);
+    return () => window.removeEventListener('keydown', toggleDock);
+  }, [dockOpen, setDockOpen]);
 
   useEffect(() => {
     const suppressWebviewMenu = (e: MouseEvent) => {
@@ -239,6 +251,37 @@ export default function App() {
 
   const search = useCommitSearch(active, redraw, select);
 
+  const openFileFromTerminal = useCallback(
+    (path: string) => {
+      const changed = tree?.entries.find((entry) => entry.path === path);
+      if (!changed) {
+        setMain({ kind: 'history', path });
+        return;
+      }
+      setMain({
+        kind: 'diff',
+        target: {
+          kind: 'workingTree',
+          path,
+          status: changed.letter,
+          staged: changed.staged,
+        },
+      });
+    },
+    [tree],
+  );
+
+  const revealCommitByHash = useCallback(
+    (oid: string) => {
+      if (!active) return;
+      ipc
+        .searchCommits(active, oid)
+        .then((hits) => hits.length > 0 && revealCommit(hits[0]))
+        .catch(notifyError);
+    },
+    [active, revealCommit],
+  );
+
   const loadPulls = useCallback(
     (refresh: boolean) => {
       if (!active) return;
@@ -327,7 +370,7 @@ export default function App() {
             tree={tree}
             onRun={runOperation}
             onAsk={(kind) => setAsking({ kind })}
-            onTerminal={() => ipc.openTerminal(current.path).catch(notifyError)}
+            onTerminal={() => setDockOpen(!dockOpen)}
             search={search.query}
             found={search.found}
             at={search.at}
@@ -379,7 +422,7 @@ export default function App() {
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
               <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
-                <div className="flex min-h-0 flex-1">
+                <div className="flex min-h-0 min-w-0 flex-1">
                   <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                     {main.kind === 'diff' && current.repo ? (
                       <DiffView
@@ -499,6 +542,13 @@ export default function App() {
                     )}
                   </DetailsPane>
                 </div>
+                {dockOpen ? (
+                  <TerminalDock
+                    repo={current.path}
+                    onFileLink={openFileFromTerminal}
+                    onHashLink={revealCommitByHash}
+                  />
+                ) : null}
               </div>
             </>
           )}

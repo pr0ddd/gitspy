@@ -15,3 +15,12 @@ export function relativeTime(time: number, now: number, locale: string): string 
   }
   return format.format(0, 'second');
 }
+
+export function timeUntil(time: number, now: number, locale: string): string {
+  const left = Math.max(0, time - now);
+  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  for (const [unit, span] of SPANS) {
+    if (left >= span) return format.format(Math.floor(left / span), unit);
+  }
+  return format.format(0, 'second');
+}

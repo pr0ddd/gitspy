@@ -358,26 +358,33 @@ export function Tab({ icon, label, current, title, closeLabel, onSelect, onClose
 }
 
 type ResizeGripProps = {
-  edge: 'left' | 'right';
+  edge: 'left' | 'right' | 'top';
   onStart: () => void;
-  onMove: (dx: number) => void;
+  onMove: (delta: number) => void;
   onEnd: () => void;
 };
 
+const GRIP_EDGE = {
+  left: 'inset-y-0 left-0 w-1 cursor-col-resize',
+  right: 'inset-y-0 right-0 w-1 cursor-col-resize',
+  top: 'inset-x-0 top-0 h-1 cursor-row-resize',
+} as const;
+
 export function ResizeGrip({ edge, onStart, onMove, onEnd }: ResizeGripProps) {
+  const alongY = edge === 'top';
   return (
     <div
       className={cn(
-        'hover:bg-fill-2 active:bg-fill-3 absolute inset-y-0 z-10 w-1 cursor-col-resize transition-colors',
-        edge === 'left' ? 'left-0' : 'right-0',
+        'hover:bg-fill-2 active:bg-fill-3 absolute z-10 transition-colors',
+        GRIP_EDGE[edge],
       )}
       onPointerDown={(event) => {
         event.preventDefault();
         const grip = event.currentTarget;
-        const from = event.clientX;
+        const from = alongY ? event.clientY : event.clientX;
         grip.setPointerCapture(event.pointerId);
         onStart();
-        const moved = (raw: PointerEvent) => onMove(raw.clientX - from);
+        const moved = (raw: PointerEvent) => onMove((alongY ? raw.clientY : raw.clientX) - from);
         const done = () => {
           grip.removeEventListener('pointermove', moved);
           onEnd();
