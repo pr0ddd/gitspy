@@ -39,6 +39,7 @@ type Props = {
   onHashLink: (oid: string) => void;
   fullscreen?: boolean;
   onFullscreen?: () => void;
+  onClose?: () => void;
 };
 
 const OSC_CWD = 7;
@@ -108,7 +109,14 @@ function RailButton({
   );
 }
 
-export function TerminalDock({ repo, onFileLink, onHashLink, fullscreen, onFullscreen }: Props) {
+export function TerminalDock({
+  repo,
+  onFileLink,
+  onHashLink,
+  fullscreen,
+  onFullscreen,
+  onClose,
+}: Props) {
   const { t } = useTranslation();
   const allSessions = useTermSessions((state) => state.sessions);
   const allAgents = useAgentSessions((state) => state.sessions);
@@ -337,11 +345,7 @@ export function TerminalDock({ repo, onFileLink, onHashLink, fullscreen, onFulls
           {listOpen ? (
             <>
               <PanelBar>
-                <span className="min-w-0 flex-1 truncate">{t('term.sessions')}</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {sessions.length + agents.length + starting}
-                </span>
-                <span className="group/split flex items-center rounded-md">
+                <span className="group/split ml-auto flex items-center rounded-md">
                   <Button
                     variant="split"
                     size="icon-xs"
@@ -387,6 +391,16 @@ export function TerminalDock({ repo, onFileLink, onHashLink, fullscreen, onFulls
                 >
                   <Icon.expand />
                 </Button>
+                {onClose ? (
+                  <Button
+                    variant="muted"
+                    size="icon-xs"
+                    aria-label={t('term.closePanel')}
+                    onClick={onClose}
+                  >
+                    <Icon.close />
+                  </Button>
+                ) : null}
               </PanelBar>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-1">

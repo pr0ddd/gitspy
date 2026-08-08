@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseUnifiedDiff } from './hunks';
-import { reviewPieces, type ReviewGap, type ReviewLine } from './review';
+import { reviewLines } from './review';
 
 const TWO_HUNKS = `@@ -10,3 +10,4 @@ fn one()
  kept one
@@ -13,27 +13,15 @@ const TWO_HUNKS = `@@ -10,3 +10,4 @@ fn one()
 +new tail
 `;
 
-const FROM_FIRST_LINE = `@@ -1,2 +1,2 @@
--was
-+is
- rest
-`;
-
 const parsed = (text: string) => {
   const diff = parseUnifiedDiff(text);
   if (!diff) throw new Error('фикстура обязана разбираться');
   return diff;
 };
 
-const lines = (pieces: ReturnType<typeof reviewPieces>): ReviewLine[] =>
-  pieces.filter((piece): piece is ReviewLine => piece.kind !== 'gap');
-
-const gaps = (pieces: ReturnType<typeof reviewPieces>): ReviewGap[] =>
-  pieces.filter((piece): piece is ReviewGap => piece.kind === 'gap');
-
-describe('свиток изменений', () => {
+describe('строки свитка изменений', () => {
   it('номера идут по обеим сторонам и не сбиваются на правках', () => {
-    const seen = lines(reviewPieces(parsed(TWO_HUNKS), [])).map((line) => [
+    const seen = reviewLines(parsed(TWO_HUNKS)).map((line) => [
       line.before,
       line.after,
       line.kind,
@@ -48,34 +36,18 @@ describe('свиток изменений', () => {
     );
   });
 
-  it('скрытое начало файла и промежуток между ханками сворачиваются', () => {
-    const holes = gaps(reviewPieces(parsed(TWO_HUNKS), []));
+  it('нумерация второго ханка начинается с его собственных чисел', () => {
+    const second = reviewLines(parsed(TWO_HUNKS))[4];
     expect(
-      holes.map((hole) => [hole.from, hole.to, hole.hidden]),
-      'свёрнуто и начало файла до первой правки, и промежуток между ханками',
-    ).toEqual([
-      [1, 9, 9],
-      [13, 39, 27],
-    ]);
-  });
-
-  it('ханк от первой строки файла разрыва перед собой не заводит', () => {
-    expect(
-      gaps(reviewPieces(parsed(FROM_FIRST_LINE), [])),
-      'скрывать нечего, когда файл начинается прямо с правки',
-    ).toEqual([]);
-  });
-
-  it('раскрытый промежуток перестаёт быть разрывом, соседний остаётся', () => {
-    const holes = gaps(reviewPieces(parsed(TWO_HUNKS), [{ from: 13, to: 39 }]));
-    expect(
-      holes.map((hole) => hole.from),
-      'раскрытое человеком не сворачивается обратно, чужие промежутки не трогаются',
-    ).toEqual([1]);
+      [second.before, second.after],
+      'между ханками ничего не показывается, поэтому счёт продолжается с заголовка',
+    ).toEqual([40, 41]);
   });
 
   it('текст строки идёт без служебного знака', () => {
-    const first = lines(reviewPieces(parsed(TWO_HUNKS), []))[0];
-    expect(first.text, 'плюс и минус рисует интерфейс, в тексте им не место').toBe('kept one');
+    expect(
+      reviewLines(parsed(TWO_HUNKS))[0].text,
+      'плюс и минус рисует интерфейс, в тексте им не место',
+    ).toBe('kept one');
   });
 });
