@@ -43,8 +43,6 @@ type Props = {
   onClose?: () => void;
 };
 
-const REFIT_CALM_MS = 90;
-
 const OSC_CWD = 7;
 const OSC_PROMPT = 133;
 
@@ -275,17 +273,17 @@ export function TerminalDock({
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    let calm = 0;
+    let pending = 0;
     const watch = new ResizeObserver(() => {
-      if (stagedTermId === null) return;
-      window.clearTimeout(calm);
-      calm = window.setTimeout(() => {
+      if (stagedTermId === null || pending !== 0) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
         if (!terminalIsFrozen()) livePanes.get(stagedTermId)?.host.fit();
-      }, REFIT_CALM_MS);
+      });
     });
     watch.observe(stage);
     return () => {
-      window.clearTimeout(calm);
+      if (pending !== 0) cancelAnimationFrame(pending);
       watch.disconnect();
     };
   }, [stagedTermId]);
