@@ -59,6 +59,7 @@ import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
 import { TerminalDock } from '@/widgets/TerminalDock';
 import { RightPaneSwitch, type RightPane } from '@/widgets/RightPaneSwitch';
+import { ReviewView } from '@/widgets/ReviewView';
 import { viewForEntry } from '@/entities/diff';
 import { cn } from '@/lib/utils';
 
@@ -451,8 +452,27 @@ export default function App() {
                       }}
                     />
                   ) : null}
+                  {dockOpen && dockFull && rightPane === 'changes' && main.kind === 'graph' ? (
+                    tree ? (
+                      <ReviewView
+                        repo={current.path}
+                        tree={tree}
+                        onOpenFile={(entry) =>
+                          toggleDiff({
+                            kind: 'workingTree',
+                            path: entry.path,
+                            status: entry.letter,
+                            staged: entry.staged,
+                          })
+                        }
+                      />
+                    ) : null
+                  ) : null}
                   <div className="flex min-h-0 min-w-0 flex-1">
-                    {dockOpen && dockFull && rightPane === 'changes' && main.kind === 'graph' ? null : (
+                    {dockOpen &&
+                    dockFull &&
+                    rightPane === 'changes' &&
+                    main.kind === 'graph' ? null : (
                       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                         {main.kind === 'diff' && current.repo ? (
                           <DiffView
@@ -521,7 +541,7 @@ export default function App() {
                         )}
                       </main>
                     )}
-                    {dockOpen && dockFull && (rightPane !== 'changes' || main.kind !== 'graph') ? null : (
+                    {dockOpen && dockFull ? null : (
                       <DetailsPane
                         fill={dockOpen && dockFull && rightPane === 'changes'}
                         note={
