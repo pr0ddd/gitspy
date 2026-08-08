@@ -29,6 +29,7 @@ import {
   type Divider,
   type StoredWidths,
 } from '@/entities/graph';
+import { graphIsFrozen } from '@/dev/dragProbe';
 import { Icon } from '@/icons';
 import { Input } from '@/components/ui/input';
 import { buildMinimap } from '@/entities/graph';
@@ -158,7 +159,7 @@ export const GraphView = memo(function GraphView({
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       const canvas = canvasRef.current;
-      if (canvas) drawFrame(canvas, frameRef.current);
+      if (canvas && !graphIsFrozen()) drawFrame(canvas, frameRef.current);
       placeMessageInput();
     });
   }, [needRows]);

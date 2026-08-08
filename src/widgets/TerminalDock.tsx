@@ -25,6 +25,7 @@ import {
   type Osc133,
   type TermProfile,
 } from '@/features/terminal';
+import { terminalIsFrozen } from '@/dev/dragProbe';
 import { Icon } from '@/icons';
 import { cn } from '@/lib/utils';
 import { ListRow, PanelBar, PanelNote, ResizeGrip } from '@/parts';
@@ -279,7 +280,7 @@ export function TerminalDock({
       if (stagedTermId === null) return;
       window.clearTimeout(calm);
       calm = window.setTimeout(() => {
-        livePanes.get(stagedTermId)?.host.fit();
+        if (!terminalIsFrozen()) livePanes.get(stagedTermId)?.host.fit();
       }, REFIT_CALM_MS);
     });
     watch.observe(stage);

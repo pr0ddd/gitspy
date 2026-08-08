@@ -12,6 +12,9 @@ if (import.meta.env.VITE_SPIKE === 'term') {
 } else if (import.meta.env.VITE_SPIKE === 'csp') {
   void import('@/dev/cspProbe').then((probe) => probe.mountProbe());
 } else {
+  if (import.meta.env.DEV) {
+    void import('@/dev/dragProbe').then((probe) => probe.startDragProbe());
+  }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <Boundary>
