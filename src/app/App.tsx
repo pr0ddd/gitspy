@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
@@ -61,7 +61,11 @@ import { TerminalDock } from '@/widgets/TerminalDock';
 import { RightPaneSwitch, type RightPane } from '@/widgets/RightPaneSwitch';
 import { ReviewView } from '@/widgets/ReviewView';
 import { viewForEntry } from '@/entities/diff';
+import { ResizeGrip } from '@/parts';
 import { cn } from '@/lib/utils';
+
+const clampShare = (share: number): number =>
+  Number.isFinite(share) ? Math.min(0.8, Math.max(0.2, share)) : 0.46;
 
 export default function App() {
   const { t } = useTranslation();
@@ -100,6 +104,8 @@ export default function App() {
   const [dockOpen, setDockOpen] = usePref('term.dock.open', false);
   const [dockFull, setDockFull] = usePref('term.dock.fullscreen', false);
   const [rightPane, setRightPane] = usePref<RightPane>('term.dock.rightPane', 'graph');
+  const [fullShare, setFullShare] = usePref<number>('term.dock.fullShare', 0.46);
+  const shareAtDrag = useRef(fullShare);
   const data = useRepoData();
   const { cacheFor, refill, refillFirstWindow, fetchChunks, drop, version: redraw } = data;
 
@@ -437,12 +443,30 @@ export default function App() {
                 <div
                   key={dockOpen && dockFull ? 'full' : 'windowed'}
                   className={cn(
-                    'animate-in fade-in flex min-h-0 min-w-0 flex-1 duration-150',
+                    'animate-in fade-in relative flex min-h-0 min-w-0 flex-1 duration-150',
                     dockOpen && dockFull
-                      ? 'bg-card order-2 w-[46%] flex-none flex-col overflow-hidden rounded-xl border'
+                      ? 'bg-card order-2 flex-none flex-col overflow-hidden rounded-xl border'
                       : '',
                   )}
+                  style={
+                    dockOpen && dockFull
+                      ? { flexBasis: `${clampShare(fullShare) * 100}%` }
+                      : undefined
+                  }
                 >
+                  {dockOpen && dockFull ? (
+                    <ResizeGrip
+                      edge="left"
+                      onStart={() => {
+                        shareAtDrag.current = clampShare(fullShare);
+                      }}
+                      onMove={(delta) => {
+                        const span = window.innerWidth;
+                        if (span > 0) setFullShare(clampShare(shareAtDrag.current - delta / span));
+                      }}
+                      onEnd={() => {}}
+                    />
+                  ) : null}
                   {dockOpen && dockFull ? (
                     <RightPaneSwitch
                       pane={main.kind === 'graph' ? rightPane : 'changes'}
@@ -610,6 +634,7 @@ export default function App() {
                     onHashLink={revealCommitByHash}
                     fullscreen={dockFull}
                     onFullscreen={() => setDockFull(!dockFull)}
+                    onClose={() => setDockOpen(false)}
                   />
                 ) : null}
               </div>

@@ -453,7 +453,6 @@
   "term.expand": "Expand",
   "term.new": "New terminal",
   "term.profiles": "Start from a profile",
-  "term.sessions": "Sessions",
   "term.sessionsCollapse": "Collapse sessions",
   "term.sessionsExpand": "Expand sessions",
   "agent.starting": "Starting…",
@@ -471,10 +470,9 @@
   "review.title": "{{branch}} → working tree",
   "review.detached": "detached",
   "review.collapsed": "Files are collapsed. Select a file to expand it.",
-  "review.hidden_one": "{{count}} unmodified line",
-  "review.hidden_other": "{{count}} unmodified lines",
   "review.reading": "Reading the diff…",
   "review.noText": "No text changes",
   "review.openFile": "Open in the diff view",
-  "review.clean": "Nothing changed yet"
+  "review.clean": "Nothing changed yet",
+  "term.closePanel": "Close terminal panel"
 }

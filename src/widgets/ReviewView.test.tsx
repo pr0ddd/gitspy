@@ -52,6 +52,16 @@ describe('свиток изменений', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('между ханками ничего не сворачивается: лишних строк в свитке нет', async () => {
+    shown();
+    fireEvent.click(screen.getByRole('button', { name: /a\.ts/ }));
+    expect(await screen.findByText('came too')).toBeTruthy();
+    expect(
+      screen.queryByText(/unmodified/),
+      'разделитель, который ничего не раскрывает, только занимает место',
+    ).toBeNull();
+  });
+
   it('раскрытие читает дифф один раз и показывает строки', async () => {
     shown();
     fireEvent.click(screen.getByRole('button', { name: /a\.ts/ }));
@@ -63,19 +73,6 @@ describe('свиток изменений', () => {
         vi.mocked(workingTreeHunks),
         'повторное раскрытие того же файла лезет в уже прочитанное',
       ).toHaveBeenCalledTimes(1),
-    );
-  });
-
-  it('свёрнутый промежуток называет число скрытых строк и раскрывается', async () => {
-    shown();
-    fireEvent.click(screen.getByRole('button', { name: /a\.ts/ }));
-    const gap = await screen.findByRole('button', { name: /27/ });
-    fireEvent.click(gap);
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('button', { name: /27/ }),
-        'раскрытый промежуток не остаётся кнопкой с тем же числом',
-      ).toBeNull(),
     );
   });
 
@@ -100,5 +97,25 @@ describe('пустое рабочее дерево', () => {
       'подсказка «выберите файл» над пустотой читается как поломка',
     ).toBeTruthy();
     expect(screen.queryByText('Files are collapsed. Select a file to expand it.')).toBeNull();
+  });
+});
+
+describe('раскрытый файл не съедает список', () => {
+  it('после раскрытия одного файла остальные остаются в свитке', async () => {
+    const many = {
+      ...TREE,
+      entries: [
+        { staged: false, letter: 'M', path: 'src/a.ts', oldPath: null },
+        { staged: false, letter: 'M', path: 'src/b.ts', oldPath: null },
+        { staged: false, letter: 'M', path: 'src/c.ts', oldPath: null },
+      ],
+    } as WorkingTreeView;
+    render(<ReviewView repo="/r" tree={many} onOpenFile={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /a\.ts/ }));
+    expect(await screen.findByText('came too')).toBeTruthy();
+    expect(
+      [/a\.ts/, /b\.ts/, /c\.ts/].map((name) => screen.queryAllByRole('button', { name }).length),
+      'раскрытие одного файла не должно прятать соседей',
+    ).toEqual([1, 1, 1]);
   });
 });

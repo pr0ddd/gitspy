@@ -259,3 +259,31 @@ describe('полноэкранный режим дока', () => {
     expect(screen.getByLabelText('Leave fullscreen')).toBeTruthy();
   });
 });
+
+describe('шапка списка сессий', () => {
+  it('не тратит строку на слово «Sessions» и счётчик', () => {
+    useTermSessions.setState({
+      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
+      activeByRepo: { '/a': 1 },
+    });
+    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
+    render(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
+    expect(
+      screen.queryByText('Sessions'),
+      'заголовок повторяет то, что и так видно из содержимого',
+    ).toBeNull();
+  });
+
+  it('закрывает терминал целиком по своей кнопке', () => {
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
+    const closed = vi.fn();
+    render(
+      <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} onClose={closed} />,
+    );
+    fireEvent.click(screen.getByLabelText('Close terminal panel'));
+    expect(closed, 'уйти из терминала можно тем же местом, где его открывали').toHaveBeenCalledTimes(
+      1,
+    );
+  });
+});
