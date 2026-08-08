@@ -271,12 +271,19 @@ export function TerminalDock({
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
+    let pending = 0;
     const watch = new ResizeObserver(() => {
-      if (stagedTermId === null) return;
-      livePanes.get(stagedTermId)?.host.fit();
+      if (stagedTermId === null || pending !== 0) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        livePanes.get(stagedTermId)?.host.fit();
+      });
     });
     watch.observe(stage);
-    return () => watch.disconnect();
+    return () => {
+      if (pending !== 0) cancelAnimationFrame(pending);
+      watch.disconnect();
+    };
   }, [stagedTermId]);
 
   const spanOfDockParent = (): number => {
