@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,8 +45,6 @@ const OSC_CWD = 7;
 const OSC_PROMPT = 133;
 
 const SHARE = { min: 0.15, max: 0.85, fallback: 0.35 };
-
-const DOCK_MOVE = { duration: 0.18, ease: [0.2, 0, 0, 1] } as const;
 
 const clampShare = (share: number): number =>
   Number.isFinite(share) ? Math.min(SHARE.max, Math.max(SHARE.min, share)) : SHARE.fallback;
@@ -281,9 +278,7 @@ export function TerminalDock({ repo, onFileLink, onHashLink, fullscreen, onFulls
   };
 
   return (
-    <motion.section
-      layout
-      transition={DOCK_MOVE}
+    <section
       ref={rootRef}
       className={cn(
         'border-border bg-card flex min-h-0 min-w-0 flex-col overflow-hidden',
@@ -495,6 +490,6 @@ export function TerminalDock({ repo, onFileLink, onHashLink, fullscreen, onFulls
           )}
         </aside>
       </div>
-    </motion.section>
+    </section>
   );
 }
