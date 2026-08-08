@@ -89,3 +89,16 @@ describe('свиток изменений', () => {
     ).toBeTruthy();
   });
 });
+
+describe('пустое рабочее дерево', () => {
+  it('говорит, что менять нечего, вместо подсказки про раскрытие файлов', () => {
+    render(
+      <ReviewView repo="/r" tree={{ ...TREE, entries: [] }} onOpenFile={() => {}} />,
+    );
+    expect(
+      screen.getByText('Nothing changed yet'),
+      'подсказка «выберите файл» над пустотой читается как поломка',
+    ).toBeTruthy();
+    expect(screen.queryByText('Files are collapsed. Select a file to expand it.')).toBeNull();
+  });
+});
