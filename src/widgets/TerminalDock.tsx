@@ -42,6 +42,8 @@ type Props = {
   onClose?: () => void;
 };
 
+const REFIT_CALM_MS = 90;
+
 const OSC_CWD = 7;
 const OSC_PROMPT = 133;
 
@@ -137,6 +139,7 @@ export function TerminalDock({
   const rootRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const shareAtDragStart = useRef(share);
+  const draggedShare = useRef(share);
   const profiles = readProfiles();
 
   const sessions = useMemo(
@@ -271,17 +274,17 @@ export function TerminalDock({
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
-    let pending = 0;
+    let calm = 0;
     const watch = new ResizeObserver(() => {
-      if (stagedTermId === null || pending !== 0) return;
-      pending = requestAnimationFrame(() => {
-        pending = 0;
+      if (stagedTermId === null) return;
+      window.clearTimeout(calm);
+      calm = window.setTimeout(() => {
         livePanes.get(stagedTermId)?.host.fit();
-      });
+      }, REFIT_CALM_MS);
     });
     watch.observe(stage);
     return () => {
-      if (pending !== 0) cancelAnimationFrame(pending);
+      window.clearTimeout(calm);
       watch.disconnect();
     };
   }, [stagedTermId]);
@@ -319,9 +322,14 @@ export function TerminalDock({
         }}
         onMove={(delta) => {
           const span = spanOfDockParent();
-          if (span > 0) setShare(clampShare(shareAtDragStart.current - delta / span));
+          if (span <= 0) return;
+          draggedShare.current = clampShare(shareAtDragStart.current - delta / span);
+          const root = rootRef.current;
+          if (!root) return;
+          if (side === 'bottom') root.style.height = `${draggedShare.current * 100}%`;
+          else root.style.width = `${draggedShare.current * 100}%`;
         }}
-        onEnd={() => {}}
+        onEnd={() => setShare(draggedShare.current)}
       />
 
       <div className="flex min-h-0 flex-1">
