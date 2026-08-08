@@ -11,6 +11,9 @@ export const terminalIsFrozen = (): boolean => frozen.terminal;
 const GESTURE_MIN_MS = 250;
 
 let gaps: number[] = [];
+let latencies: number[] = [];
+let moves = 0;
+let pendingMoveAt = 0;
 let sampling = false;
 
 const median = (values: number[]): number => {
@@ -26,16 +29,25 @@ const shown = (): string => {
   const frozenNow = [frozen.graph ? 'graph' : null, frozen.terminal ? 'terminal' : null]
     .filter(Boolean)
     .join('+');
-  return `${gaps.length} кадров · медиана ${median(gaps).toFixed(0)} мс · худшие ${worst(gaps, 5)
-    .map((gap) => gap.toFixed(0))
-    .join(', ')} мс${frozenNow ? ` · заморожено: ${frozenNow}` : ''}`;
+  const perSecond = gaps.length > 0 ? (moves / (gaps.length * median(gaps))) * 1000 : 0;
+  return `кадры ${gaps.length} медиана ${median(gaps).toFixed(0)} мс · движений ${moves} (${perSecond.toFixed(
+    0,
+  )}/с) · отклик медиана ${median(latencies).toFixed(0)} мс худший ${worst(latencies, 1)
+    .map((one) => one.toFixed(0))
+    .join('')} мс${frozenNow ? ` · заморожено: ${frozenNow}` : ''}`;
 };
 
 export const startDragProbe = (): void => {
   let last = performance.now();
   const tick = () => {
     const now = performance.now();
-    if (sampling) gaps.push(now - last);
+    if (sampling) {
+      gaps.push(now - last);
+      if (pendingMoveAt !== 0) {
+        latencies.push(now - pendingMoveAt);
+        pendingMoveAt = 0;
+      }
+    }
     last = now;
     requestAnimationFrame(tick);
   };
@@ -46,8 +58,21 @@ export const startDragProbe = (): void => {
     'pointerdown',
     () => {
       gaps = [];
+      latencies = [];
+      moves = 0;
+      pendingMoveAt = 0;
       sampling = true;
       startedAt = performance.now();
+    },
+    true,
+  );
+
+  window.addEventListener(
+    'pointermove',
+    () => {
+      if (!sampling) return;
+      moves += 1;
+      if (pendingMoveAt === 0) pendingMoveAt = performance.now();
     },
     true,
   );
