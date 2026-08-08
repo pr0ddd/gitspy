@@ -223,3 +223,39 @@ describe('отклик на запуск агента', () => {
     release(9);
   });
 });
+
+describe('полноэкранный режим дока', () => {
+  it('кнопка разворота зовёт хозяина раскладки, а не двигает док сама', () => {
+    useTermSessions.setState({
+      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
+      activeByRepo: { '/a': 1 },
+    });
+    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
+    const asked = vi.fn();
+    render(
+      <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} onFullscreen={asked} />,
+    );
+    fireEvent.click(screen.getByLabelText('Fullscreen'));
+    expect(asked, 'раскладкой владеет приложение: док только просит').toHaveBeenCalledTimes(1);
+  });
+
+  it('в полноэкранном режиме док не висит поверх, а занимает свою колонку', () => {
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
+    const { container } = render(
+      <TerminalDock
+        repo="/a"
+        onFileLink={() => {}}
+        onHashLink={() => {}}
+        fullscreen
+        onFullscreen={() => {}}
+      />,
+    );
+    const root = container.querySelector('section');
+    expect(
+      root?.className.includes('absolute'),
+      'наложение поверх графа осмысленно только в оконном режиме',
+    ).toBe(false);
+    expect(screen.getByLabelText('Leave fullscreen')).toBeTruthy();
+  });
+});

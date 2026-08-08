@@ -37,6 +37,8 @@ type Props = {
   repo: string;
   onFileLink: (path: string, line?: number) => void;
   onHashLink: (oid: string) => void;
+  fullscreen?: boolean;
+  onFullscreen?: () => void;
 };
 
 const OSC_CWD = 7;
@@ -106,7 +108,7 @@ function RailButton({
   );
 }
 
-export function TerminalDock({ repo, onFileLink, onHashLink }: Props) {
+export function TerminalDock({ repo, onFileLink, onHashLink, fullscreen, onFullscreen }: Props) {
   const { t } = useTranslation();
   const allSessions = useTermSessions((state) => state.sessions);
   const allAgents = useAgentSessions((state) => state.sessions);
@@ -279,13 +281,20 @@ export function TerminalDock({ repo, onFileLink, onHashLink }: Props) {
     <section
       ref={rootRef}
       className={cn(
-        'border-border bg-card absolute z-30 flex min-h-0 min-w-0 flex-col overflow-hidden shadow-2xl',
-        side === 'bottom' ? 'inset-x-0 bottom-0 border-t' : 'inset-y-0 right-0 border-l',
+        'border-border bg-card flex min-h-0 min-w-0 flex-col overflow-hidden',
+        fullscreen
+          ? 'flex-1 rounded-xl border'
+          : cn(
+              'absolute z-30 shadow-2xl',
+              side === 'bottom' ? 'inset-x-0 bottom-0 border-t' : 'inset-y-0 right-0 border-l',
+            ),
       )}
       style={
-        side === 'bottom'
-          ? { height: `${clampShare(share) * 100}%` }
-          : { width: `${clampShare(share) * 100}%` }
+        fullscreen
+          ? undefined
+          : side === 'bottom'
+            ? { height: `${clampShare(share) * 100}%` }
+            : { width: `${clampShare(share) * 100}%` }
       }
     >
       <ResizeGrip
@@ -360,6 +369,16 @@ export function TerminalDock({ repo, onFileLink, onHashLink }: Props) {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </span>
+                {onFullscreen ? (
+                  <Button
+                    variant="muted"
+                    size="icon-xs"
+                    aria-label={fullscreen ? t('term.windowed') : t('term.fullscreen')}
+                    onClick={onFullscreen}
+                  >
+                    {fullscreen ? <Icon.windowed /> : <Icon.fullscreen />}
+                  </Button>
+                ) : null}
                 <Button
                   variant="muted"
                   size="icon-xs"

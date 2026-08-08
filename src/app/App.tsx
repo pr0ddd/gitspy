@@ -58,7 +58,9 @@ import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
 import { TerminalDock } from '@/widgets/TerminalDock';
+import { RightPaneSwitch, type RightPane } from '@/widgets/RightPaneSwitch';
 import { viewForEntry } from '@/entities/diff';
+import { cn } from '@/lib/utils';
 
 export default function App() {
   const { t } = useTranslation();
@@ -95,6 +97,8 @@ export default function App() {
   const [asking, setAsking] = useState<Ask | null>(null);
   const [compact, setCompact] = usePref('graph.compact', false);
   const [dockOpen, setDockOpen] = usePref('term.dock.open', false);
+  const [dockFull, setDockFull] = usePref('term.dock.fullscreen', false);
+  const [rightPane, setRightPane] = usePref<RightPane>('term.dock.rightPane', 'graph');
   const data = useRepoData();
   const { cacheFor, refill, refillFirstWindow, fetchChunks, drop, version: redraw } = data;
 
@@ -421,8 +425,34 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
-                <div className="flex min-h-0 min-w-0 flex-1">
+              <div
+                className={cn(
+                  'relative flex min-h-0 min-w-0 flex-1',
+                  dockOpen && dockFull
+                    ? 'gap-2'
+                    : 'bg-card flex-col overflow-hidden rounded-xl border',
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex min-h-0 min-w-0 flex-1',
+                    dockOpen && dockFull
+                      ? 'bg-card order-2 w-[46%] flex-none flex-col overflow-hidden rounded-xl border'
+                      : '',
+                  )}
+                >
+                  {dockOpen && dockFull ? (
+                    <RightPaneSwitch
+                      pane={rightPane}
+                      changes={tree ? tree.staged + tree.unstaged : 0}
+                      onPane={(next) => {
+                        setRightPane(next);
+                        if (next === 'changes') select(0);
+                      }}
+                    />
+                  ) : null}
+                  <div className="flex min-h-0 min-w-0 flex-1">
+                  {dockOpen && dockFull && rightPane === 'changes' ? null : (
                   <main className="flex min-h-0 min-w-0 flex-1 flex-col">
                     {main.kind === 'diff' && current.repo ? (
                       <DiffView
@@ -490,6 +520,8 @@ export default function App() {
                       />
                     )}
                   </main>
+                  )}
+                  {dockOpen && dockFull && rightPane !== 'changes' ? null : (
                   <DetailsPane
                     note={
                       panel === 'workingTree' && !(tree && tree.entries.length > 0)
@@ -541,14 +573,18 @@ export default function App() {
                       />
                     )}
                   </DetailsPane>
+                  )}
                 </div>
                 {dockOpen ? (
                   <TerminalDock
                     repo={current.path}
                     onFileLink={openFileFromTerminal}
                     onHashLink={revealCommitByHash}
+                    fullscreen={dockFull}
+                    onFullscreen={() => setDockFull(!dockFull)}
                   />
                 ) : null}
+                </div>
               </div>
             </>
           )}
