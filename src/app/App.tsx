@@ -452,128 +452,130 @@ export default function App() {
                     />
                   ) : null}
                   <div className="flex min-h-0 min-w-0 flex-1">
-                  {dockOpen && dockFull && rightPane === 'changes' ? null : (
-                  <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-                    {main.kind === 'diff' && current.repo ? (
-                      <DiffView
-                        repo={current.path}
-                        target={main.target}
-                        onClose={() => setMain({ kind: 'graph' })}
-                        onTree={adoptTree}
-                        onRun={runPathOperation}
-                        onTarget={(target) => setMain({ kind: 'diff', target })}
-                        onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                      />
-                    ) : main.kind === 'history' && current.repo ? (
-                      <FileHistoryView
-                        repo={current.path}
-                        path={main.path}
-                        from={main.from ?? null}
-                        avatars={avatars}
-                        onClose={() => setMain({ kind: 'graph' })}
-                      />
-                    ) : main.kind === 'conflict' && current.repo ? (
-                      <ConflictView
-                        repo={current.path}
-                        path={main.path}
-                        from={tree?.merging?.from ?? null}
-                        into={tree?.branch ?? null}
-                        onClose={() => setMain({ kind: 'graph' })}
-                        onResolved={(next) => {
-                          adoptTree(next);
-                          setMain({ kind: 'graph' });
-                        }}
-                      />
-                    ) : main.kind === 'pull' && current.repo ? (
-                      <PullPanel
-                        repo={current.path}
-                        pull={main.pull}
-                        onCheckedOut={() => {
-                          setMain({ kind: 'graph' });
-                          void reload(current.path);
-                        }}
-                        onClose={() => setMain({ kind: 'graph' })}
-                      />
-                    ) : (
-                      <GraphView
-                        key={current.path}
-                        session={current}
-                        avatars={avatars}
-                        rows={cacheFor(current.path)}
-                        redraw={redraw + avatarTick}
-                        metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
-                        pullHeads={pullHeads}
-                        currentBranch={tree?.branch ?? null}
-                        onSelect={select}
-                        onCheckoutRef={checkoutRef}
-                        onRun={runOperation}
-                        onCopy={copy}
-                        onAsk={setAsking}
-                        onWorktree={addWorktree}
-                        onOpenUrl={openUrl}
-                        onNeed={onNeed}
-                        message={message}
-                        onMessage={setMessage}
-                        onCommit={commit}
-                        compact={compact}
-                        onCompact={setCompact}
-                      />
+                    {dockOpen && dockFull && rightPane === 'changes' ? null : (
+                      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        {main.kind === 'diff' && current.repo ? (
+                          <DiffView
+                            repo={current.path}
+                            target={main.target}
+                            onClose={() => setMain({ kind: 'graph' })}
+                            onTree={adoptTree}
+                            onRun={runPathOperation}
+                            onTarget={(target) => setMain({ kind: 'diff', target })}
+                            onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                          />
+                        ) : main.kind === 'history' && current.repo ? (
+                          <FileHistoryView
+                            repo={current.path}
+                            path={main.path}
+                            from={main.from ?? null}
+                            avatars={avatars}
+                            onClose={() => setMain({ kind: 'graph' })}
+                          />
+                        ) : main.kind === 'conflict' && current.repo ? (
+                          <ConflictView
+                            repo={current.path}
+                            path={main.path}
+                            from={tree?.merging?.from ?? null}
+                            into={tree?.branch ?? null}
+                            onClose={() => setMain({ kind: 'graph' })}
+                            onResolved={(next) => {
+                              adoptTree(next);
+                              setMain({ kind: 'graph' });
+                            }}
+                          />
+                        ) : main.kind === 'pull' && current.repo ? (
+                          <PullPanel
+                            repo={current.path}
+                            pull={main.pull}
+                            onCheckedOut={() => {
+                              setMain({ kind: 'graph' });
+                              void reload(current.path);
+                            }}
+                            onClose={() => setMain({ kind: 'graph' })}
+                          />
+                        ) : (
+                          <GraphView
+                            key={current.path}
+                            session={current}
+                            avatars={avatars}
+                            rows={cacheFor(current.path)}
+                            redraw={redraw + avatarTick}
+                            metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
+                            pullHeads={pullHeads}
+                            currentBranch={tree?.branch ?? null}
+                            onSelect={select}
+                            onCheckoutRef={checkoutRef}
+                            onRun={runOperation}
+                            onCopy={copy}
+                            onAsk={setAsking}
+                            onWorktree={addWorktree}
+                            onOpenUrl={openUrl}
+                            onNeed={onNeed}
+                            message={message}
+                            onMessage={setMessage}
+                            onCommit={commit}
+                            compact={compact}
+                            onCompact={setCompact}
+                          />
+                        )}
+                      </main>
                     )}
-                  </main>
-                  )}
-                  {dockOpen && dockFull && rightPane !== 'changes' ? null : (
-                  <DetailsPane
-                    note={
-                      panel === 'workingTree' && !(tree && tree.entries.length > 0)
-                        ? 'workingTreeClean'
-                        : panel === 'noCommits'
-                          ? 'noCommits'
-                          : null
-                    }
-                  >
-                    {panel === 'workingTree' && tree ? (
-                      <WorkingTree
-                        repo={current.path}
-                        tree={tree}
-                        message={message}
-                        description={description}
-                        amend={amend}
-                        previous={previousCommit}
-                        onMessage={setMessage}
-                        onDescription={setDescription}
-                        onAmend={setAmend}
-                        onCommit={commit}
-                        onRun={runPathOperation}
-                        onOperation={runOperation}
-                        onConfirm={setConfirming}
-                        onCopy={copy}
-                        onHistory={(path) => setMain({ kind: 'history', path })}
-                        onOpen={(path, status, staged) =>
-                          viewForEntry(status, staged) === 'conflict'
-                            ? setMain({ kind: 'conflict', path })
-                            : toggleDiff({ kind: 'workingTree', path, status, staged })
+                    {dockOpen && dockFull && rightPane !== 'changes' ? null : (
+                      <DetailsPane
+                        fill={dockOpen && dockFull && rightPane === 'changes'}
+                        note={
+                          panel === 'workingTree' && !(tree && tree.entries.length > 0)
+                            ? 'workingTreeClean'
+                            : panel === 'noCommits'
+                              ? 'noCommits'
+                              : null
                         }
-                      />
-                    ) : (
-                      <Details
-                        session={current}
-                        avatars={avatars}
-                        avatarTick={avatarTick}
-                        onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                        rows={cacheFor(current.path)}
-                        pending={tree ? tree.staged + tree.unstaged : 0}
-                        conflicts={tree?.conflicts ?? 0}
-                        pulls={pulls?.pulls ?? []}
-                        onCopy={copy}
-                        onOpenWorkingTree={() => select(0)}
-                        onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
-                        onOpenFile={(commit, file) =>
-                          toggleDiff({ kind: 'commit', commit, file })
-                        }
-                      />
+                      >
+                        {panel === 'workingTree' && tree ? (
+                          <WorkingTree
+                            repo={current.path}
+                            tree={tree}
+                            message={message}
+                            description={description}
+                            amend={amend}
+                            previous={previousCommit}
+                            onMessage={setMessage}
+                            onDescription={setDescription}
+                            onAmend={setAmend}
+                            onCommit={commit}
+                            onRun={runPathOperation}
+                            onOperation={runOperation}
+                            onConfirm={setConfirming}
+                            onCopy={copy}
+                            onHistory={(path) => setMain({ kind: 'history', path })}
+                            onOpen={(path, status, staged) =>
+                              viewForEntry(status, staged) === 'conflict'
+                                ? setMain({ kind: 'conflict', path })
+                                : toggleDiff({ kind: 'workingTree', path, status, staged })
+                            }
+                          />
+                        ) : (
+                          <Details
+                            session={current}
+                            avatars={avatars}
+                            avatarTick={avatarTick}
+                            onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                            rows={cacheFor(current.path)}
+                            pending={tree ? tree.staged + tree.unstaged : 0}
+                            conflicts={tree?.conflicts ?? 0}
+                            pulls={pulls?.pulls ?? []}
+                            onCopy={copy}
+                            onOpenWorkingTree={() => select(0)}
+                            onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
+                            onOpenFile={(commit, file) =>
+                              toggleDiff({ kind: 'commit', commit, file })
+                            }
+                          />
+                        )}
+                      </DetailsPane>
                     )}
-                  </DetailsPane>
-                  )}
+                  </div>
                 </div>
                 {dockOpen ? (
                   <TerminalDock
@@ -584,7 +586,6 @@ export default function App() {
                     onFullscreen={() => setDockFull(!dockFull)}
                   />
                 ) : null}
-                </div>
               </div>
             </>
           )}
