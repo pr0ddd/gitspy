@@ -369,6 +369,8 @@
   "term.profiles": "Start from a profile",
   "term.resize": "Resize terminal",
   "toast.copied": "Copied",
+  "toast.dropNotRepo": "That folder is not a git repository",
+  "toast.dropNotRepoHint": "Drop a folder that contains a .git directory, or clone one first",
   "toast.done.amendMessage": "Message amended",
   "toast.done.annotatedTagAt": "Tag created",
   "toast.done.branch": "Branch created",

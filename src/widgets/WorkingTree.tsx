@@ -24,7 +24,7 @@ import {
   type FileNode,
 } from '@/features/fileTree';
 import { subjectLeft, useGenerateCommit, useRepoWork } from '@/features/repo';
-import { pickNext, samePick, type Picked } from '@/entities/repo';
+import { pickAfterMove, samePick, type Picked } from '@/entities/repo';
 import { useCommands } from '@/features/keyboard';
 import { rovingTabIndex, stepped } from '@/roving';
 import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
@@ -45,7 +45,7 @@ type Props = {
   onDescription: (text: string) => void;
   onAmend: (next: boolean) => void;
   onCommit: () => void;
-  onRun: (operation: PathOperation) => void;
+  onRun: (operation: PathOperation) => Promise<WorkingTreeView | null>;
   onOperation: (operation: Operation) => void;
   onConfirm: (operation: Operation) => void;
   onOpen: (path: string, status: string, staged: boolean) => void;
@@ -816,27 +816,32 @@ export function WorkingTree(props: Props) {
     onOpen(entry.path, entry.letter, entry.staged);
   };
 
-  const afterRun = (leaving: string, from: readonly StatusEntryView[], staged: boolean) => {
-    const next = pickNext(
-      from.map((entry) => entry.path),
-      leaving,
-    );
-    const seat: Picked =
-      next === null ? { path: leaving, staged } : { path: next, staged: !staged };
-    onPick(seat);
-    const shown = from.find((entry) => entry.path === seat.path);
-    if (diffOpen && shown) onOpen(seat.path, shown.letter, seat.staged);
+  const moveAcross = (
+    path: string,
+    fromStaged: boolean,
+    from: readonly StatusEntryView[],
+    operation: PathOperation,
+  ) => {
+    void onRun(operation).then((fresh) => {
+      if (!fresh) return;
+      const seat = pickAfterMove(
+        from.map((entry) => entry.path),
+        path,
+        fromStaged,
+        fresh.entries,
+      );
+      onPick(seat);
+      if (!diffOpen || !seat) return;
+      const shown = fresh.entries.find((entry) => samePick(entry, seat));
+      if (shown) onOpen(shown.path, shown.letter, shown.staged);
+    });
   };
 
-  const stageAt = (path: string) => {
-    onRun({ kind: 'stage', paths: [path] });
-    afterRun(path, unstagedOrder, true);
-  };
+  const stageAt = (path: string) =>
+    moveAcross(path, false, unstagedOrder, { kind: 'stage', paths: [path] });
 
-  const unstageAt = (path: string) => {
-    onRun({ kind: 'unstage', paths: [path] });
-    afterRun(path, stagedOrder, false);
-  };
+  const unstageAt = (path: string) =>
+    moveAcross(path, true, stagedOrder, { kind: 'unstage', paths: [path] });
 
   const openPicked = () => {
     const entry =

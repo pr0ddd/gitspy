@@ -65,6 +65,8 @@ export const favoriteRepo = (path: string, on: boolean) =>
 export const repoPassports = (paths: string[]) =>
   invoke<RepoPassportView[]>('repo_passports', { paths });
 
+export const repositoryRoot = (path: string) => invoke<string | null>('repository_root', { path });
+
 export const runOperation = (
   repo: string,
   operation: Operation,

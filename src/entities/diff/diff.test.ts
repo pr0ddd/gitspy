@@ -11,6 +11,12 @@ describe('режимы просмотра диффа', () => {
     ).toBe(false);
   });
 
+  it('обзорная полоса справа гаснет в hunk: там и так одни изменения, отмечать нечего', () => {
+    expect(editorOptionsFor('hunk').renderOverviewRuler).toBe(false);
+    expect(editorOptionsFor('split').renderOverviewRuler).toBe(true);
+    expect(editorOptionsFor('inline').renderOverviewRuler).toBe(true);
+  });
+
   it('список режимов закрыт', () => {
     expect(DIFF_MODES).toEqual(['hunk', 'split', 'inline']);
   });

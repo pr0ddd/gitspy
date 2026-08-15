@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RELEASES } from '@/entities/changelog';
 import { ChangelogView } from './ChangelogView';
@@ -30,8 +30,9 @@ describe('вкладка заметок', () => {
     ).toBeTruthy();
 
     const heading = current?.body.split('\n').find((line) => line.startsWith('### ')) ?? '';
+    const installed = screen.getByText('installed').closest('section') as HTMLElement;
     expect(
-      screen.getByText(heading.replace(/^### /, '')),
+      within(installed).getByRole('heading', { name: heading.replace(/^### /, '') }),
       'рубрики внутри версии остаются заголовками, а не решёткой в тексте',
     ).toBeTruthy();
   });

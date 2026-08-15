@@ -128,3 +128,31 @@ describe('очередь операций над путями', () => {
     expect(perform).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('очередь помнит последний ответ git', () => {
+  it('третье нажатие судится по дереву из ответа, а не по устаревшему пропсу: React мог не успеть', async () => {
+    const before = treeOf([
+      { path: 'a.ts', staged: false },
+      { path: 'b.ts', staged: false },
+      { path: 'c.ts', staged: false },
+    ]);
+    const stale = before;
+    const perform = vi.fn((operation: PathOperation) => {
+      const paths = 'paths' in operation ? operation.paths : [];
+      return Promise.resolve(
+        treeOf(
+          before.entries.map((entry) => ({
+            path: entry.path,
+            staged: entry.staged || paths.includes(entry.path),
+          })),
+        ),
+      );
+    });
+
+    await queuePathOperation('/repo9', { kind: 'stage', paths: ['a.ts'] }, stale, perform);
+    await queuePathOperation('/repo9', { kind: 'stage', paths: ['b.ts'] }, stale, perform);
+    await queuePathOperation('/repo9', { kind: 'stage', paths: ['c.ts'] }, stale, perform);
+
+    expect(perform, 'все три файла ушли в git, хотя вызывающий трижды передал одно старое дерево').toHaveBeenCalledTimes(3);
+  });
+});

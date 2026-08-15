@@ -39,6 +39,7 @@ fn main() {
             repo_commands::forget_repo,
             repo_commands::favorite_repo,
             repo_commands::repo_passports,
+            repo_commands::repository_root,
             repo_commands::run_operation,
             repo_commands::commit_files,
             repo_commands::diff_sides,

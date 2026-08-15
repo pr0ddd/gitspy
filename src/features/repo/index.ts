@@ -6,3 +6,4 @@ export * from './sessionActions';
 export * from './commitMessage';
 export * from './repoData';
 export * from './staging';
+export * from './dropRepo';

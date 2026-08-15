@@ -4,7 +4,7 @@ import { Toggle as TogglePrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const toggleVariants = cva(
-  "text-muted-foreground inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors outline-none hover:bg-hover-fill hover:text-foreground focus-visible:bg-hover-fill focus-visible:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-control-fill data-[state=on]:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "text-muted-foreground inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-colors outline-none hover:bg-hover-fill hover:text-foreground focus-visible:bg-hover-fill focus-visible:text-foreground disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-control-fill aria-pressed:text-foreground aria-checked:bg-control-fill aria-checked:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
