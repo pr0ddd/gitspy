@@ -1,5 +1,4 @@
 use gitspy_term::{PtySession, SpawnSpec};
-use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -11,7 +10,7 @@ fn collect(spec: SpawnSpec) -> String {
             let _ = tx.send(bytes.to_vec());
         }),
     )
-    .expect("сессия должна запускаться");
+    .expect("the session must spawn");
     let mut out = Vec::new();
     while let Ok(chunk) = rx.recv_timeout(Duration::from_secs(5)) {
         out.extend(chunk);
@@ -27,43 +26,51 @@ fn collect(spec: SpawnSpec) -> String {
 fn shell_gets_real_tty() {
     let out = collect(SpawnSpec {
         command: Some("test -t 1 && echo MARK_TTY || echo MARK_NO".into()),
-        cwd: PathBuf::from("/tmp"),
+        cwd: std::env::temp_dir(),
         cols: 80,
         rows: 24,
         shell_integration: false,
     });
     assert!(
         out.contains("MARK_TTY"),
-        "шелл обязан получить настоящий TTY, вывод: {out}"
+        "the shell must get a real TTY, output: {out}"
     );
 }
 
 #[test]
 fn session_starts_in_requested_cwd() {
+    let wanted = std::env::temp_dir()
+        .canonicalize()
+        .expect("temp dir resolves");
     let out = collect(SpawnSpec {
-        command: Some("echo MARK_$(pwd)".into()),
-        cwd: PathBuf::from("/private/tmp"),
+        command: Some("echo MARK_$(pwd -P)".into()),
+        cwd: wanted.clone(),
         cols: 80,
         rows: 24,
         shell_integration: false,
     });
     assert!(
-        out.contains("MARK_/private/tmp"),
-        "cwd сессии обязан быть запрошенным, вывод: {out}"
+        out.contains(&format!("MARK_{}", wanted.display())),
+        "the session must start in the requested cwd, output: {out}"
     );
 }
 
 #[test]
 fn shell_integration_emits_prompt_marks() {
+    let shell = std::env::var("SHELL").unwrap_or_default();
+    if !shell.ends_with("/zsh") || !std::path::Path::new(&shell).exists() {
+        eprintln!("shell integration is zsh-only for now; SHELL={shell}, skipping");
+        return;
+    }
     let out = collect(SpawnSpec {
         command: Some("echo MARK_DONE".into()),
-        cwd: PathBuf::from("/tmp"),
+        cwd: std::env::temp_dir(),
         cols: 80,
         rows: 24,
         shell_integration: true,
     });
     assert!(
         out.contains("\u{1b}]133;"),
-        "интеграция обязана слать OSC 133, вывод: {out:?}"
+        "the integration must emit OSC 133 prompt marks, output: {out:?}"
     );
 }
