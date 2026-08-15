@@ -20,6 +20,19 @@ pub struct PtySession {
     child: Box<dyn portable_pty::Child + Send + Sync>,
 }
 
+pub fn login_shell(env_shell: Option<&str>, exists: impl Fn(&str) -> bool) -> String {
+    env_shell
+        .filter(|shell| !shell.is_empty() && exists(shell))
+        .map(str::to_string)
+        .unwrap_or_else(|| "/bin/sh".to_string())
+}
+
+fn shell_is_zsh(shell: &str) -> bool {
+    std::path::Path::new(shell)
+        .file_name()
+        .is_some_and(|name| name == "zsh")
+}
+
 impl PtySession {
     pub fn spawn(spec: SpawnSpec, mut on_bytes: OnBytes) -> Result<PtySession, String> {
         let pty = native_pty_system();
@@ -31,13 +44,16 @@ impl PtySession {
                 pixel_height: 0,
             })
             .map_err(|e| e.to_string())?;
-        let mut cmd = CommandBuilder::new("/bin/zsh");
+        let shell = login_shell(std::env::var("SHELL").ok().as_deref(), |path| {
+            std::path::Path::new(path).exists()
+        });
+        let mut cmd = CommandBuilder::new(&shell);
         match &spec.command {
             Some(line) => cmd.args(["-ilc", line]),
             None => cmd.args(["-il"]),
         };
         cmd.cwd(&spec.cwd);
-        if spec.shell_integration {
+        if spec.shell_integration && shell_is_zsh(&shell) {
             if let Some(user) = std::env::var_os("ZDOTDIR") {
                 cmd.env("GITSPY_USER_ZDOTDIR", user);
             }
@@ -80,5 +96,25 @@ impl PtySession {
 
     pub fn kill(&mut self) {
         let _ = self.child.kill();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::login_shell;
+
+    #[test]
+    fn the_users_shell_wins_when_it_exists() {
+        assert_eq!(
+            login_shell(Some("/usr/bin/fish"), |_| true),
+            "/usr/bin/fish"
+        );
+    }
+
+    #[test]
+    fn a_missing_or_empty_shell_falls_back_to_sh() {
+        assert_eq!(login_shell(Some("/bin/zsh"), |_| false), "/bin/sh");
+        assert_eq!(login_shell(Some(""), |_| true), "/bin/sh");
+        assert_eq!(login_shell(None, |_| true), "/bin/sh");
     }
 }
