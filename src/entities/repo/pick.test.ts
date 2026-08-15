@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickNext, samePick } from './pick';
+import { pickAfterMove, pickNext, samePick } from './pick';
 
 const files = ['a.ts', 'b.ts', 'c.ts'];
 
@@ -34,5 +34,42 @@ describe('сравнение выбора', () => {
   it('пустой выбор равен пустому, иначе повторное нажатие перерисовывало бы панель', () => {
     expect(samePick(null, null)).toBe(true);
     expect(samePick(null, { path: 'a.ts', staged: false })).toBe(false);
+  });
+});
+
+describe('выбор после переноса файла в другую секцию', () => {
+  const unstaged = ['a.ts', 'b.ts', 'c.ts'];
+  const treeAfter = (moved: string) => [
+    ...unstaged.filter((p) => p !== moved).map((path) => ({ path, staged: false })),
+    { path: moved, staged: true },
+  ];
+
+  it('переносится на следующий файл той же секции — стейдж подряд без мыши', () => {
+    expect(pickAfterMove(unstaged, 'a.ts', false, treeAfter('a.ts'))).toEqual({
+      path: 'b.ts',
+      staged: false,
+    });
+  });
+
+  it('следующий берётся из свежего дерева: если git его уже унёс, выбор не повисает на призраке', () => {
+    const after = [
+      { path: 'c.ts', staged: false },
+      { path: 'a.ts', staged: true },
+    ];
+    expect(
+      pickAfterMove(unstaged, 'a.ts', false, after),
+      'b.ts исчез между командой и ответом — выбор уходит к самому файлу в новой секции',
+    ).toEqual({ path: 'a.ts', staged: true });
+  });
+
+  it('последний файл секции догоняет себя в соседней секции', () => {
+    expect(pickAfterMove(['a.ts'], 'a.ts', false, [{ path: 'a.ts', staged: true }])).toEqual({
+      path: 'a.ts',
+      staged: true,
+    });
+  });
+
+  it('файл, которого после операции нет нигде, выбор снимает', () => {
+    expect(pickAfterMove(['a.ts'], 'a.ts', false, [])).toBe(null);
   });
 });

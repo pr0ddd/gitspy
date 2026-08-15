@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 beforeEach(() => localStorage.clear());
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { showNativeMenu } from '@/features/menus';
@@ -44,7 +45,7 @@ const treeWith = (staged: number): WorkingTreeView => ({
 
 type Extra = Partial<{
   onConfirm: (operation: Operation) => void;
-  onRun: (operation: PathOperation) => void;
+  onRun: (operation: PathOperation) => Promise<WorkingTreeView | null> | void;
   description: string;
   amend: boolean;
   onAmend: (next: boolean) => void;
@@ -74,7 +75,7 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
         onDescription={extra.onDescription ?? (() => {})}
         onAmend={extra.onAmend ?? (() => {})}
         onCommit={onCommit}
-        onRun={extra.onRun ?? (() => {})}
+        onRun={(operation) => Promise.resolve(extra.onRun?.(operation) ?? null)}
         onOperation={() => {}}
         onConfirm={extra.onConfirm ?? (() => {})}
         onOpen={extra.onOpen ?? (() => {})}
@@ -121,7 +122,9 @@ describe('шапка панели рабочего дерева', () => {
     let ranStraightAway = 0;
     const { getByRole } = draw(treeWith(2), '', () => {}, {
       onConfirm: (operation) => asked.push(operation),
-      onRun: () => (ranStraightAway += 1),
+      onRun: () => {
+        ranStraightAway += 1;
+      },
     });
 
     fireEvent.click(getByRole('button', { name: /discard all changes/i }));
@@ -312,7 +315,7 @@ describe('панель во время слияния', () => {
           onDescription={() => {}}
           onAmend={() => {}}
           onCommit={over.onCommit ?? (() => {})}
-          onRun={(operation) => over.onRun?.(operation)}
+          onRun={(operation) => Promise.resolve(over.onRun?.(operation) ?? null)}
           onOperation={(operation) => over.onOperation?.(operation)}
           onConfirm={() => {}}
           onOpen={() => {}}
@@ -412,6 +415,19 @@ const unstagedTree = (paths: string[]): WorkingTreeView => ({
   entries: paths.map((path) => ({ staged: false, letter: 'M', path, oldPath: null })),
 });
 
+const gitThatMoves =
+  (tree: WorkingTreeView) =>
+  (operation: PathOperation): Promise<WorkingTreeView | null> => {
+    if (!('paths' in operation)) return Promise.resolve(tree);
+    const staged = operation.kind === 'stage';
+    return Promise.resolve({
+      ...tree,
+      entries: tree.entries.map((entry) =>
+        operation.paths.includes(entry.path) ? { ...entry, staged } : entry,
+      ),
+    });
+  };
+
 function Keyboard({ children }: { children: React.ReactNode }) {
   useKeyboard('files');
   return <>{children}</>;
@@ -435,7 +451,7 @@ const drawWithKeys = (tree: WorkingTreeView, extra: Extra = {}) =>
           onDescription={() => {}}
           onAmend={() => {}}
           onCommit={() => {}}
-          onRun={extra.onRun ?? (() => {})}
+          onRun={(operation) => Promise.resolve(extra.onRun?.(operation) ?? null)}
           onOperation={() => {}}
           onConfirm={() => {}}
           onOpen={extra.onOpen ?? (() => {})}
@@ -487,14 +503,11 @@ describe('выбранный файл', () => {
     });
   });
 
-  it('буква S стейджит выбранный файл и переводит выбор на следующий', () => {
-    const onRun = vi.fn();
+  it('буква S стейджит выбранный файл, а выбор переставляется только после ответа git', async () => {
+    const tree = unstagedTree(['a.ts', 'b.ts', 'c.ts']);
+    const onRun = vi.fn(gitThatMoves(tree));
     const onPick = vi.fn();
-    drawWithKeys(unstagedTree(['a.ts', 'b.ts', 'c.ts']), {
-      picked: { path: 'b.ts', staged: false },
-      onRun,
-      onPick,
-    });
+    drawWithKeys(tree, { picked: { path: 'b.ts', staged: false }, onRun, onPick });
 
     press('s');
 
@@ -502,39 +515,88 @@ describe('выбранный файл', () => {
       kind: 'stage',
       paths: ['b.ts'],
     });
-    expect(onPick, 'после стейджа выбор едет дальше, чтобы жать S подряд').toHaveBeenLastCalledWith(
-      {
+    expect(
+      onPick,
+      'до ответа git выбор не трогается — иначе строка мигает дважды',
+    ).not.toHaveBeenCalled();
+
+    await vi.waitFor(() =>
+      expect(
+        onPick,
+        'после ответа выбор едет на следующий файл секции: S жмут подряд',
+      ).toHaveBeenLastCalledWith({
         path: 'c.ts',
         staged: false,
-      },
+      }),
     );
   });
 
-  it('последний незастейдженный файл оставляет выбор на нём же в соседнем списке', () => {
-    const onPick = vi.fn();
-    drawWithKeys(unstagedTree(['a.ts']), { picked: { path: 'a.ts', staged: false }, onPick });
+  it('при открытом диффе следующий файл ещё и открывается', async () => {
+    const tree = unstagedTree(['a.ts', 'b.ts', 'c.ts']);
+    const onOpen = vi.fn();
+    drawWithKeys(tree, {
+      picked: { path: 'b.ts', staged: false },
+      diffOpen: true,
+      onRun: gitThatMoves(tree),
+      onOpen,
+    });
 
     press('s');
 
-    expect(onPick, 'выбор не должен пропадать, когда список опустел').toHaveBeenLastCalledWith({
-      path: 'a.ts',
-      staged: true,
-    });
+    await vi.waitFor(() =>
+      expect(onOpen, 'дифф показывает уже следующий файл').toHaveBeenLastCalledWith(
+        'c.ts',
+        'M',
+        false,
+      ),
+    );
   });
 
-  it('кнопка Stage в строке ведёт себя так же, как клавиша', () => {
+  it('последний файл секции догоняет себя в соседней: выбор не пропадает', async () => {
+    const tree = unstagedTree(['a.ts']);
+    const onPick = vi.fn();
+    drawWithKeys(tree, {
+      picked: { path: 'a.ts', staged: false },
+      onRun: gitThatMoves(tree),
+      onPick,
+    });
+
+    press('s');
+
+    await vi.waitFor(() => expect(onPick).toHaveBeenLastCalledWith({ path: 'a.ts', staged: true }));
+  });
+
+  it('если git ответил ошибкой, выбор остаётся где был', async () => {
     const onPick = vi.fn();
     drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
       picked: { path: 'a.ts', staged: false },
+      onRun: () => Promise.resolve(null),
+      onPick,
+    });
+
+    press('s');
+    await Promise.resolve();
+
+    expect(onPick, 'нет свежего дерева — нечего и переставлять').not.toHaveBeenCalled();
+  });
+
+  it('кнопка Stage в строке ведёт себя так же, как клавиша', async () => {
+    const tree = unstagedTree(['a.ts', 'b.ts']);
+    const onPick = vi.fn();
+    drawWithKeys(tree, {
+      picked: { path: 'a.ts', staged: false },
+      onRun: gitThatMoves(tree),
       onPick,
     });
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Stage file' })[0]);
 
-    expect(onPick, 'мышь и клавиатура двигают выбор одинаково').toHaveBeenLastCalledWith({
-      path: 'b.ts',
-      staged: false,
-    });
+    await vi.waitFor(() =>
+      expect(onPick, 'мышь и клавиатура двигают выбор одинаково').toHaveBeenLastCalledWith({
+        path: 'b.ts',
+        staged: false,
+      }),
+    );
   });
 
   it('пока дифф закрыт, стрелка не открывает его сама', () => {
@@ -558,5 +620,67 @@ describe('выбранный файл', () => {
 
     press('ArrowDown');
     expect(onOpen, 'дифф следует за выбором').toHaveBeenCalledWith('b.ts', 'M', false);
+  });
+});
+
+describe('S подряд', () => {
+  it('три нажатия стейджат три файла: выбор и дерево идут по кругу через ответ git', async () => {
+    let tree = unstagedTree(['a.ts', 'b.ts', 'c.ts', 'd.ts']);
+    let picked: Picked | null = { path: 'a.ts', staged: false };
+    const staged: string[] = [];
+
+    function Harness() {
+      const [shownTree, setShownTree] = useState(tree);
+      const [shownPick, setShownPick] = useState<Picked | null>(picked);
+      return (
+        <TooltipProvider>
+          <Keyboard>
+            <WorkingTree
+              repo="/repo"
+              tree={shownTree}
+              message=""
+              description=""
+              amend={false}
+              previous={null}
+              picked={shownPick}
+              diffOpen={false}
+              onPick={(next) => {
+                picked = next;
+                setShownPick(next);
+              }}
+              onMessage={() => {}}
+              onDescription={() => {}}
+              onAmend={() => {}}
+              onCommit={() => {}}
+              onRun={(operation) => {
+                if ('paths' in operation) staged.push(...operation.paths);
+                return gitThatMoves(tree)(operation).then((fresh) => {
+                  if (fresh) {
+                    tree = fresh;
+                    setShownTree(fresh);
+                  }
+                  return fresh;
+                });
+              }}
+              onOperation={() => {}}
+              onConfirm={() => {}}
+              onOpen={() => {}}
+              onCopy={() => {}}
+              onHistory={() => {}}
+            />
+          </Keyboard>
+        </TooltipProvider>
+      );
+    }
+    render(<Harness />);
+
+    press('s');
+    await vi.waitFor(() => expect(picked).toEqual({ path: 'b.ts', staged: false }));
+    press('s');
+    await vi.waitFor(() => expect(picked).toEqual({ path: 'c.ts', staged: false }));
+    press('s');
+    await vi.waitFor(() => expect(picked).toEqual({ path: 'd.ts', staged: false }));
+
+    expect(staged, 'каждое нажатие стейджит ровно тот файл, что выбран').toEqual(['a.ts', 'b.ts', 'c.ts']);
   });
 });

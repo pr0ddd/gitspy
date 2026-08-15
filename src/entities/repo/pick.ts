@@ -12,3 +12,19 @@ export function pickNext(paths: readonly string[], leaving: string): string | nu
 
   return rest[Math.min(at, rest.length - 1)];
 }
+
+export function pickAfterMove(
+  before: readonly string[],
+  moved: string,
+  fromStaged: boolean,
+  after: readonly Picked[],
+): Picked | null {
+  const following = pickNext(before, moved);
+  const stillHere = (path: string) =>
+    after.some((seat) => seat.path === path && seat.staged === fromStaged);
+  if (following !== null && stillHere(following)) {
+    return { path: following, staged: fromStaged };
+  }
+  const landed = after.find((seat) => seat.path === moved && seat.staged !== fromStaged);
+  return landed ? { path: landed.path, staged: landed.staged } : null;
+}

@@ -27,4 +27,7 @@ export const notifyOperationFailed = (operation: Operation, error: unknown) => {
   });
 };
 
+export const notifyNotARepository = () =>
+  toast.error(t('toast.dropNotRepo'), { description: t('toast.dropNotRepoHint') });
+
 export const dismissAll = () => toast.dismiss();

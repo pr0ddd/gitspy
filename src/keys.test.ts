@@ -37,7 +37,11 @@ describe('главный модификатор зависит от систем
 describe('строгость по Shift и Alt', () => {
   it('аккорд без Shift не ловит нажатие с Shift', () => {
     expect(
-      matchesChord({ key: 's', primary: true }, stroke('S', { metaKey: true, shiftKey: true }), true),
+      matchesChord(
+        { key: 's', primary: true },
+        stroke('S', { metaKey: true, shiftKey: true }),
+        true,
+      ),
     ).toBe(false);
   });
 
@@ -53,7 +57,11 @@ describe('строгость по Shift и Alt', () => {
 
   it('у символа Shift не проверяется, потому что символ им и набран', () => {
     expect(
-      matchesChord({ key: '/', primary: true }, stroke('/', { metaKey: true, shiftKey: true }), true),
+      matchesChord(
+        { key: '/', primary: true },
+        stroke('/', { metaKey: true, shiftKey: true }),
+        true,
+      ),
     ).toBe(true);
   });
 
@@ -90,5 +98,29 @@ describe('определение системы', () => {
     expect(applePlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe(true);
     expect(applePlatform('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe(false);
     expect(applePlatform('Mozilla/5.0 (X11; Linux x86_64)')).toBe(false);
+  });
+});
+
+describe('раскладка клавиатуры', () => {
+  it('буква узнаётся по физической клавише: на русской раскладке S даёт «ы», но это та же клавиша', () => {
+    expect(matchesChord({ key: 's' }, { ...stroke('ы'), code: 'KeyS' }, true)).toBe(true);
+    expect(matchesChord({ key: 'u' }, { ...stroke('г'), code: 'KeyU' }, true)).toBe(true);
+  });
+
+  it('символы и служебные клавиши по-прежнему узнаются по key: у стрелок и Enter кода буквы нет', () => {
+    expect(
+      matchesChord({ key: 'ArrowDown' }, { ...stroke('ArrowDown'), code: 'ArrowDown' }, true),
+    ).toBe(true);
+    expect(
+      matchesChord(
+        { key: '\\', primary: true },
+        { ...stroke('\\', { metaKey: true }), code: 'Backslash' },
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it('другая клавиша с той же буквой в чужой раскладке не срабатывает: код решает', () => {
+    expect(matchesChord({ key: 's' }, { ...stroke('s'), code: 'KeyD' }, true)).toBe(false);
   });
 });

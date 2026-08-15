@@ -663,6 +663,24 @@ impl Git {
         shown_or_absent(self.read(repo, &["show", &format!("{reference}:{path}")]))
     }
 
+    pub fn toplevel(&self, dropped: &Path) -> Result<Option<PathBuf>, Error> {
+        let start = if dropped.is_dir() {
+            dropped
+        } else {
+            dropped.parent().unwrap_or(dropped)
+        };
+        match self.read(start, &["rev-parse", "--show-toplevel"]) {
+            Ok(text) => {
+                let trimmed = text.trim();
+                Ok((!trimmed.is_empty()).then(|| PathBuf::from(trimmed)))
+            }
+            Err(Error::Failed {
+                code: Some(128), ..
+            }) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
     pub fn remotes(&self, repo: &Path) -> Vec<String> {
         self.read(repo, &["remote"])
             .map(|text| {

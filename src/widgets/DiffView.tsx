@@ -43,7 +43,7 @@ const STATUS_STYLE: Record<string, string> = {
   U: 'text-conflict',
 };
 
-const HUNK_BAR_HEIGHT = 26;
+const HUNK_BAR_HEIGHT = 44;
 const DIFF_WAIT_LIMIT_MS = 1000;
 
 export type DiffTarget =
@@ -84,6 +84,12 @@ const hunkBarNode = (): HTMLDivElement => {
   return node;
 };
 
+const hunkMarginNode = (): HTMLDivElement => {
+  const node = document.createElement('div');
+  node.className = 'border-border h-full w-full border-b';
+  return node;
+};
+
 type Props = {
   repo: string;
   target: DiffTarget;
@@ -97,7 +103,7 @@ type Props = {
 function CommitHunkBar({ heading, onRevert }: { heading: string; onRevert: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="bg-fill-1 flex h-full items-center gap-2 rounded-md px-2">
+    <div className="flex h-full items-end gap-2 border-b pb-1.5 pl-3 pr-1">
       <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
         {heading}
       </span>
@@ -119,7 +125,7 @@ function HunkBar({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="bg-fill-1 flex h-full items-center gap-2 rounded-md px-2">
+    <div className="flex h-full items-end gap-2 border-b pb-1.5 pl-3 pr-1">
       <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
         {heading}
       </span>
@@ -204,6 +210,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     });
     file.current = created;
     if (editing) {
+      created.getDomNode()?.setAttribute('data-editing', 'true');
       created.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveEdited);
     }
 
@@ -274,6 +281,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
       for: loaded.for,
       diff,
       bars: diff.hunks.map(hunkBarNode),
+      margins: diff.hunks.map(hunkMarginNode),
     };
   }, [loaded]);
 
@@ -294,6 +302,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
           afterLineNumber: hunk.newStart - 1,
           heightInPx: HUNK_BAR_HEIGHT,
           domNode: hunks.bars[index],
+          marginDomNode: hunks.margins[index],
         }))
       : [];
 
@@ -319,10 +328,11 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     if (!hunks) return;
 
     const pin = () => {
-      const width = modified.getLayoutInfo().contentWidth;
+      const layout = modified.getLayoutInfo();
+      const width = layout.contentWidth - layout.verticalScrollbarWidth;
       const left = modified.getScrollLeft();
       for (const node of hunks.bars) {
-        node.style.width = `${Math.max(0, width - 12)}px`;
+        node.style.width = `${Math.max(0, width)}px`;
         node.style.transform = `translateX(${left}px)`;
       }
     };
@@ -361,7 +371,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div data-area="files" className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
         <span className={cn('shrink-0 text-xs', STATUS_STYLE[status])}>{status}</span>
         <span className="flex min-w-0 items-baseline text-xs">

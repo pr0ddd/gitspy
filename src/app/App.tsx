@@ -16,6 +16,7 @@ import {
   copyText as copy,
   openExternalUrl as openUrl,
   queuePathOperation,
+  useDroppedRepositories,
   useOperations,
   useCommitDraft,
   useRepoData,
@@ -97,15 +98,20 @@ export default function App() {
   const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string } | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
+  const sidebarCollapsed = railed || main.kind !== 'graph';
   const readyUpdate = useReadyUpdate();
   const { zoom, setZoom } = useZoom();
   const toggleRail = useCallback(() => {
+    if (main.kind !== 'graph') {
+      setMain({ kind: 'graph' });
+      return;
+    }
     setRailed((now) => {
       const next = !now;
       writePref('sidebar.collapsed', next);
       return next;
     });
-  }, []);
+  }, [main.kind]);
   const [asking, setAsking] = useState<Ask | null>(null);
   const [compact, setCompact] = usePref('graph.compact', false);
   const [dockOpen, setDockOpen] = usePref('term.dock.open', false);
@@ -157,10 +163,6 @@ export default function App() {
       void failed.then((stop) => stop());
     };
   }, []);
-
-  useEffect(() => {
-    if (main.kind !== 'graph') setRailed(true);
-  }, [main]);
 
   const remotes = current?.repo?.remotes;
   const { avatars, avatarTick, load, reload } = useRepoLoading({
@@ -226,6 +228,7 @@ export default function App() {
     drop,
     setRecent,
   });
+  useDroppedRepositories(openPath);
 
   const select = useCallback(
     (index: number) => {
@@ -296,14 +299,18 @@ export default function App() {
   );
 
   const runPathOperation = useCallback(
-    (operation: PathOperation) => {
-      if (!active) return;
+    (operation: PathOperation): Promise<WorkingTreeView | null> => {
+      if (!active) return Promise.resolve(null);
       const repo = active;
-      queuePathOperation(repo, operation, tree, (next) => ipc.stage(repo, next))
+      return queuePathOperation(repo, operation, tree, (next) => ipc.stage(repo, next))
         .then((next) => {
           if (next) adoptTree(next);
+          return next;
         })
-        .catch(notifyError);
+        .catch((error: unknown) => {
+          notifyError(error);
+          return null;
+        });
     },
     [active, tree, adoptTree],
   );
@@ -434,7 +441,7 @@ export default function App() {
             <Settings
               open
               account={account}
-              collapsed={railed}
+              collapsed={sidebarCollapsed}
               zoom={zoom}
               onZoom={setZoom}
               compact={compact}
@@ -456,7 +463,7 @@ export default function App() {
           ) : (
             <>
               <Sidebar
-                collapsed={railed}
+                collapsed={sidebarCollapsed}
                 onToggle={toggleRail}
                 session={current}
                 pulls={pulls}

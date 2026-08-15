@@ -9,6 +9,7 @@ export type Chord = {
 
 export type Stroke = {
   key: string;
+  code?: string;
   metaKey: boolean;
   ctrlKey: boolean;
   shiftKey: boolean;
@@ -22,8 +23,17 @@ export const onApple = (): boolean =>
 
 const shiftIsPartOfSymbol = (key: string): boolean => key.length === 1 && !/[a-z0-9]/i.test(key);
 
+const isLetter = (key: string): boolean => /^[a-z]$/i.test(key);
+
+const sameKey = (chord: Chord, stroke: Stroke): boolean => {
+  if (isLetter(chord.key) && stroke.code !== undefined && /^Key[A-Z]$/.test(stroke.code)) {
+    return stroke.code === `Key${chord.key.toUpperCase()}`;
+  }
+  return chord.key.toLowerCase() === stroke.key.toLowerCase();
+};
+
 export function matchesChord(chord: Chord, stroke: Stroke, apple: boolean): boolean {
-  if (chord.key.toLowerCase() !== stroke.key.toLowerCase()) return false;
+  if (!sameKey(chord, stroke)) return false;
 
   const primary = apple ? stroke.metaKey : stroke.ctrlKey;
   const foreign = apple ? stroke.ctrlKey : stroke.metaKey;

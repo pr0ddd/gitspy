@@ -6,8 +6,8 @@ use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
     BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
-    FoundCommitView, RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView, WorktreeView,
-    MINIMAP_BUCKETS,
+    FoundCommitView, RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView,
+    WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
@@ -743,6 +743,21 @@ pub fn forget_repo(
     app: tauri::AppHandle,
 ) -> Result<Vec<recent::RecentRepo>, ErrorView> {
     Ok(recent::forget(&data_dir(&app)?, &path))
+}
+
+#[tauri::command]
+pub async fn repository_root(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, ErrorView> {
+    let git = state.git()?;
+    let dropped = PathBuf::from(path);
+    on_reader(move || {
+        git.toplevel(&dropped)
+            .map(|root| root.map(|p| p.to_string_lossy().into_owned()))
+            .map_err(exec_error)
+    })
+    .await
 }
 
 #[tauri::command]

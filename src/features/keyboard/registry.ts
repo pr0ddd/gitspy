@@ -19,11 +19,17 @@ export function bindCommands(scope: Scope, handlers: Handlers): () => void {
   return () => taken.forEach((key) => bound.delete(key));
 }
 
-const TEXT_FIELDS = 'input, textarea, [contenteditable="true"], .monaco-editor';
+const TEXT_FIELDS = 'input, textarea, [contenteditable="true"]';
+const EDITED_MONACO = '.monaco-editor[data-editing="true"]';
 
 export function areaOf(node: Element | null): Area | null {
   if (!node) return null;
-  if (node.closest(TEXT_FIELDS)) return 'text';
+  const monaco = node.closest('.monaco-editor');
+  if (monaco) {
+    if (monaco.matches(EDITED_MONACO)) return 'text';
+  } else if (node.closest(TEXT_FIELDS)) {
+    return 'text';
+  }
   const named = node.closest('[data-area]')?.getAttribute('data-area');
   return named === 'files' || named === 'refs' || named === 'graph' ? named : null;
 }
@@ -63,12 +69,15 @@ export function useKeyboard(fallback: Area | null): void {
       const area = areaOf(document.activeElement) ?? at.current;
       const command = commandFor(event, area, apple);
       if (!command) return;
-      const run = area ? (bound.get(slot(area, command.id)) ?? bound.get(slot('app', command.id))) : bound.get(slot('app', command.id));
+      const run = area
+        ? (bound.get(slot(area, command.id)) ?? bound.get(slot('app', command.id)))
+        : bound.get(slot('app', command.id));
       if (!run) return;
       event.preventDefault();
+      event.stopPropagation();
       run();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 }

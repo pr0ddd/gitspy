@@ -165,3 +165,26 @@ mod tests {
 pub fn set_autofetch_minutes(minutes: u64, state: State<'_, AppState>) {
     state.set_autofetch_minutes(minutes);
 }
+
+#[cfg(test)]
+mod release_guards {
+    #[test]
+    fn devtools_are_not_compiled_into_release_builds() {
+        let manifest = include_str!("../Cargo.toml");
+        let tauri_line = manifest
+            .lines()
+            .find(|line| line.trim_start().starts_with("tauri = "))
+            .expect("зависимость tauri объявлена");
+        assert!(
+            !tauri_line.contains("devtools"),
+            "фича `devtools` у tauri включает инспектор и в релизе; \
+             отладочное окно открывает только код под cfg(debug_assertions)"
+        );
+
+        let config = include_str!("../tauri.conf.json");
+        assert!(
+            !config.contains("\"devtools\": true"),
+            "tauri.conf.json не должен включать devtools для окна — иначе они окажутся в проде"
+        );
+    }
+}

@@ -7,26 +7,80 @@ when the tag is cut.
 
 ## Unreleased
 
+## 1.0.6 — 2026-08-15
+
 ### New
 
 - A terminal lives in the app: PTY sessions in a dock over the graph, so a command
-  no longer means leaving the window.
-- The dock has a fullscreen layout — session on the left, the graph or the changes
-  on the right — and moves between layouts instead of snapping into place.
+  no longer means leaving the window. The dock has a fullscreen layout — session on
+  the left, the graph or the changes on the right — and moves between layouts
+  instead of snapping into place.
+- The toolbar starts with two breadcrumbs: the repository and the branch. The
+  repository menu lists favorites and the last four opened, searches across
+  everything you have ever opened, and ends in "View all repositories". The branch
+  menu lists local branches — the ones checked out in a worktree first, then the
+  rest alphabetically — and switching to a worktree branch opens that worktree.
+- Search shows what it found. Type into "Search commits" and a list of the first
+  twenty matches drops down under the field — subject, author, date, short hash;
+  a click jumps the graph to it. The counter and the arrows moved inside the field,
+  so it no longer shrinks while you type.
+- Drop a folder anywhere in the window and gitspy opens the repository it belongs
+  to — a subfolder or a file inside one resolves to the root; a folder outside git
+  says so instead of failing quietly.
+- The start page has an empty state: an isometric commit graph, three ways in
+  (open a folder, clone, create), and a hint about dropping a folder.
+- The tree view of the working tree folds. Folders start closed with a tally of
+  what is inside by status letter, "Expand all / Collapse all" sits in the toolbar,
+  and selecting a file opens the folders above it.
 
 ### Improved
 
+- Switching files in the diff no longer makes the line-number column jump. The new
+  file is compared before it is shown — the previous one stays on screen for the
+  11–45 ms the diff takes — and the hunk bars are installed in the same pass in
+  which Monaco aligns the two sides, so the first painted frame is already right.
+  Measured on real files: zero offset in every one of the first thirty frames, where
+  it used to be off by 26 to 92 pixels for two or three frames.
+- Keyboard shortcuts work on any layout. Letters are matched by the physical key,
+  so `S` stages under a Cyrillic layout too; and shortcuts are routed before the
+  diff editor sees them, so a read-only diff under focus no longer swallows arrows,
+  `S` and `U`.
+- After staging or unstaging a file, the selection is placed from git's own answer
+  rather than predicted: it moves to the next file of the same section, follows the
+  file across if it was the last one, and — with the diff open — shows the next
+  file at once. Nothing is highlighted twice, nothing flickers under the cursor.
+- The working tree panel was reshaped: section headers read "Unstaged files" and
+  "Staged files" with a chevron to collapse each, the actions are outlined in green
+  and red and read "Stage all changes" / "Unstage all changes", a row shows its own
+  "Stage file" / "Unstage file" on hover, and Path/Tree is a segmented switch. The
+  same switches serve the diff toolbar; toggles keep their pressed look under a
+  tooltip.
+- The branch chip in the working-tree header is filled instead of outlined, the
+  hunk bar in the diff is a ruled band that runs under the line numbers, and the
+  overview ruler is off in hunk view where it had nothing to say.
 - Reviewing changes is one scroll: every file in the list expands in place instead
   of opening a separate view, and the header of an expanded file sticks to the top
-  so its neighbours stay reachable.
-- The rows that offered to reveal unmodified lines are gone. The patch already
-  carries three lines of context, so opening a gap removed the row and showed
-  nothing — the affordance did not work.
-- The fullscreen split resizes by the same grip the side panels have, and remembers
-  its width.
+  so its neighbours stay reachable. The rows that offered to reveal unmodified lines
+  are gone — the patch already carries three lines of context, so opening a gap
+  removed the row and showed nothing.
+- The sidebar collapses while a diff is open and comes back when you leave it;
+  the collapse button in the diff takes you back to the graph.
 - Dragging a panel edge stays smooth. The grip no longer re-renders the whole app on
   every pointer move, the graph remeasures once per frame instead of many times, and
-  the minimap is rebuilt only when the height actually changes.
+  the minimap is rebuilt only when the height actually changes. The fullscreen split
+  resizes by the same grip the side panels have and remembers its width.
+- Pointer cursors are a theme rule now: every button, tab, option and switch shows
+  a hand, disabled ones do not — instead of a class here and a missing one there.
+
+### Fixed
+
+- Staging several files quickly no longer trips over `index.lock`. Two causes:
+  `git status` briefly takes the lock while it refreshes the index, and a click on
+  a file that git had already moved ran `git add` on a path that no longer matched.
+  Reads now run with `GIT_OPTIONAL_LOCKS=0`, and path operations go through a queue
+  that checks the fresh tree before calling git.
+- The `AcpConfigOptionView.ts did not match any files` error was the second half of
+  the same story: a stale operation reaching git.
 
 ## 1.0.5 — 2026-08-07
 
