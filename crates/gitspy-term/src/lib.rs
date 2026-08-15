@@ -1,5 +1,3 @@
-mod integration;
-
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -11,7 +9,6 @@ pub struct SpawnSpec {
     pub cwd: PathBuf,
     pub cols: u16,
     pub rows: u16,
-    pub shell_integration: bool,
 }
 
 pub struct PtySession {
@@ -25,12 +22,6 @@ pub fn login_shell(env_shell: Option<&str>, exists: impl Fn(&str) -> bool) -> St
         .filter(|shell| !shell.is_empty() && exists(shell))
         .map(str::to_string)
         .unwrap_or_else(|| "/bin/sh".to_string())
-}
-
-fn shell_is_zsh(shell: &str) -> bool {
-    std::path::Path::new(shell)
-        .file_name()
-        .is_some_and(|name| name == "zsh")
 }
 
 impl PtySession {
@@ -53,12 +44,6 @@ impl PtySession {
             None => cmd.args(["-il"]),
         };
         cmd.cwd(&spec.cwd);
-        if spec.shell_integration && shell_is_zsh(&shell) {
-            if let Some(user) = std::env::var_os("ZDOTDIR") {
-                cmd.env("GITSPY_USER_ZDOTDIR", user);
-            }
-            cmd.env("ZDOTDIR", integration::zdotdir()?);
-        }
         let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;

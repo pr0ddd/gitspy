@@ -29,7 +29,6 @@ fn shell_gets_real_tty() {
         cwd: std::env::temp_dir(),
         cols: 80,
         rows: 24,
-        shell_integration: false,
     });
     assert!(
         out.contains("MARK_TTY"),
@@ -47,30 +46,9 @@ fn session_starts_in_requested_cwd() {
         cwd: wanted.clone(),
         cols: 80,
         rows: 24,
-        shell_integration: false,
     });
     assert!(
         out.contains(&format!("MARK_{}", wanted.display())),
         "the session must start in the requested cwd, output: {out}"
-    );
-}
-
-#[test]
-fn shell_integration_emits_prompt_marks() {
-    let shell = std::env::var("SHELL").unwrap_or_default();
-    if !shell.ends_with("/zsh") || !std::path::Path::new(&shell).exists() {
-        eprintln!("shell integration is zsh-only for now; SHELL={shell}, skipping");
-        return;
-    }
-    let out = collect(SpawnSpec {
-        command: Some("echo MARK_DONE".into()),
-        cwd: std::env::temp_dir(),
-        cols: 80,
-        rows: 24,
-        shell_integration: true,
-    });
-    assert!(
-        out.contains("\u{1b}]133;"),
-        "the integration must emit OSC 133 prompt marks, output: {out:?}"
     );
 }

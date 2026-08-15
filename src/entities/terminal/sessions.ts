@@ -1,14 +1,11 @@
 import { create } from 'zustand';
 
-export type TermStatus = 'running' | 'failed' | 'idle' | 'exited';
-
 export type TermSession = {
   id: number;
   title: string;
   command: string | null;
   cwd: string;
   repo: string;
-  status: TermStatus;
 };
 
 type TermState = {
@@ -17,8 +14,6 @@ type TermState = {
   add(session: TermSession): void;
   remove(id: number): void;
   setTitle(id: number, title: string): void;
-  setStatus(id: number, status: TermStatus): void;
-  setCwd(id: number, cwd: string): void;
   setActive(repo: string, id: number | null): void;
 };
 
@@ -66,8 +61,6 @@ export const useTermSessions = create<TermState>()((set) => ({
       };
     }),
   setTitle: (id, title) => set(changeOnlySession(id, { title })),
-  setStatus: (id, status) => set(changeOnlySession(id, { status })),
-  setCwd: (id, cwd) => set(changeOnlySession(id, { cwd })),
   setActive: (repo, id) =>
     set((state) => ({ activeByRepo: { ...state.activeByRepo, [repo]: id } })),
 }));

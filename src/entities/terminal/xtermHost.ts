@@ -20,7 +20,6 @@ export type TermLinkHit = { start: number; end: number; link: TermLinkTarget };
 
 export type TermHooks = {
   onTitle(title: string): void;
-  onOsc(code: number, data: string): void;
   onFileLink(path: string, line?: number): void;
   onHashLink(oid: string): void;
 };
@@ -28,7 +27,6 @@ export type TermHooks = {
 export type TermHostOptions = {
   cwd: string;
   command: string | null;
-  integration: boolean;
   detect: (line: string) => TermLinkHit[];
   hooks: TermHooks;
 };
@@ -43,8 +41,6 @@ export type TermHost = {
 const SCROLLBACK = 5000;
 const FONT_SIZE = 13;
 const FONT_FAMILY = "'Geist Mono Variable', Menlo, monospace";
-const OSC_CWD = 7;
-const OSC_PROMPT = 133;
 
 const screensLeftByDisposedHosts = new Map<number, string>();
 
@@ -92,7 +88,7 @@ export const createTermHost = async (el: HTMLElement, opts: TermHostOptions): Pr
     void termAck(sessionId, settled);
   };
 
-  const id = await termOpen(opts.cwd, opts.command, opts.integration, (bytes) => {
+  const id = await termOpen(opts.cwd, opts.command, (bytes) => {
     term.write(bytes, () => ackOnceSessionIsKnown(bytes.length));
   });
   sessionId = id;
@@ -121,14 +117,6 @@ export const createTermHost = async (el: HTMLElement, opts: TermHostOptions): Pr
     term.onTitleChange((title) => opts.hooks.onTitle(title)),
     term.onData((data) => void termInput(id, data)),
     term.onResize(({ cols, rows }) => void termResize(id, cols, rows)),
-    term.parser.registerOscHandler(OSC_CWD, (data) => {
-      opts.hooks.onOsc(OSC_CWD, data);
-      return true;
-    }),
-    term.parser.registerOscHandler(OSC_PROMPT, (data) => {
-      opts.hooks.onOsc(OSC_PROMPT, data);
-      return true;
-    }),
     term.registerLinkProvider({
       provideLinks: (bufferLineNumber, done) => done(linksOnLine(bufferLineNumber)),
     }),
