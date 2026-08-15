@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/components/ui/sonner';
@@ -15,15 +15,21 @@ import { restartToUpdate, useReadyUpdate } from '@/features/updater';
 import {
   copyText as copy,
   openExternalUrl as openUrl,
+  queuePathOperation,
   useOperations,
   useCommitDraft,
   useRepoData,
   useRepoLoading,
   useSessionActions,
 } from '@/features/repo';
-import { useZoom } from '@/zoom';
+import { useZoom, zoomIn, zoomOut } from '@/zoom';
+import { focusArea, useCommands, useKeyboard } from '@/features/keyboard';
+import { useViewTabs } from '@/features/views';
+import { samePick, type Picked } from '@/entities/repo';
 import { clampAutofetch, SETTINGS } from '@/settingsModel';
 import { BottomBar } from '@/widgets/BottomBar';
+import { Breadcrumbs } from '@/widgets/Breadcrumbs';
+import { ChangelogView } from '@/widgets/ChangelogView';
 import { DetailsPane } from '@/widgets/DetailsPane';
 import type {
   AccountView,
@@ -58,14 +64,8 @@ import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
 import { TerminalDock } from '@/widgets/TerminalDock';
-import { RightPaneSwitch, type RightPane } from '@/widgets/RightPaneSwitch';
-import { ReviewView } from '@/widgets/ReviewView';
 import { viewForEntry } from '@/entities/diff';
-import { ResizeGrip } from '@/parts';
-import { cn } from '@/lib/utils';
-
-const clampShare = (share: number): number =>
-  Number.isFinite(share) ? Math.min(0.8, Math.max(0.2, share)) : 0.46;
+import { Shortcuts } from '@/widgets/Shortcuts';
 
 export default function App() {
   const { t } = useTranslation();
@@ -74,19 +74,26 @@ export default function App() {
   const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
   const [main, setMain] = useState<Main>({ kind: 'graph' });
-  const toggleDiff = (target: DiffTarget) =>
+  const showDiff = (target: DiffTarget) =>
     setMain((shown) =>
       shown.kind === 'diff' && sameDiffTarget(shown.target, target)
-        ? { kind: 'graph' }
+        ? shown
         : { kind: 'diff', target },
     );
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const pick = useCallback(
+    (next: Picked | null) => setPicked((now) => (samePick(now, next) ? now : next)),
+    [],
+  );
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [searchAt, setSearchAt] = useState(0);
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
   const [confirming, setConfirming] = useState<Operation | null>(null);
   const adoptTree = useCallback((next: WorkingTreeView) => {
     setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
-  const [settings, setSettings] = useState<'closed' | 'open' | 'active'>('closed');
+  const tabs = useViewTabs();
   const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string } | null>(null);
   const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
@@ -102,12 +109,6 @@ export default function App() {
   const [asking, setAsking] = useState<Ask | null>(null);
   const [compact, setCompact] = usePref('graph.compact', false);
   const [dockOpen, setDockOpen] = usePref('term.dock.open', false);
-  const [dockFull, setDockFull] = usePref('term.dock.fullscreen', false);
-  const [rightPane, setRightPane] = usePref<RightPane>('term.dock.rightPane', 'graph');
-  const [fullShare, setFullShare] = usePref<number>('term.dock.fullShare', 0.46);
-  const shareAtDrag = useRef(fullShare);
-  const draggedShare = useRef(fullShare);
-  const rightColumn = useRef<HTMLDivElement | null>(null);
   const data = useRepoData();
   const { cacheFor, refill, refillFirstWindow, fetchChunks, drop, version: redraw } = data;
 
@@ -134,26 +135,6 @@ export default function App() {
       .setAutofetchMinutes(clampAutofetch(readPref(SETTINGS.autofetchMinutes, 1)))
       .catch(() => undefined);
   }, []);
-
-  useEffect(() => {
-    const toggleSidebar = (e: KeyboardEvent) => {
-      if (e.key !== '\\' || !(e.metaKey || e.ctrlKey)) return;
-      e.preventDefault();
-      toggleRail();
-    };
-    window.addEventListener('keydown', toggleSidebar);
-    return () => window.removeEventListener('keydown', toggleSidebar);
-  }, [toggleRail]);
-
-  useEffect(() => {
-    const toggleDock = (e: KeyboardEvent) => {
-      if (e.key !== '`' || !(e.metaKey || e.ctrlKey)) return;
-      e.preventDefault();
-      setDockOpen(!dockOpen);
-    };
-    window.addEventListener('keydown', toggleDock);
-    return () => window.removeEventListener('keydown', toggleDock);
-  }, [dockOpen, setDockOpen]);
 
   useEffect(() => {
     const suppressWebviewMenu = (e: MouseEvent) => {
@@ -317,51 +298,86 @@ export default function App() {
   const runPathOperation = useCallback(
     (operation: PathOperation) => {
       if (!active) return;
-      ipc.stage(active, operation).then(adoptTree).catch(notifyError);
+      const repo = active;
+      queuePathOperation(repo, operation, tree, (next) => ipc.stage(repo, next))
+        .then((next) => {
+          if (next) adoptTree(next);
+        })
+        .catch(notifyError);
     },
-    [active, adoptTree],
+    [active, tree, adoptTree],
   );
 
   const addWorktree = useCallback(
     async (at: string) => {
       if (!active) return;
-      const picked = await openDialog({
+      const folder = await openDialog({
         directory: true,
         multiple: false,
         title: t('worktree.pickTitle'),
       });
-      if (typeof picked !== 'string') return;
+      if (typeof folder !== 'string') return;
       runOperation({
         kind: 'worktreeAdd',
-        path: `${picked}/${at.replaceAll('/', '-')}`,
+        path: `${folder}/${at.replaceAll('/', '-')}`,
         at,
       });
     },
     [active, runOperation, t],
   );
 
+  const selectedCommit = current?.selected ?? 0;
+  useEffect(() => {
+    setPicked(null);
+  }, [active, selectedCommit]);
+
+  const showing = main.kind;
+  useEffect(() => {
+    focusArea(showing === 'graph' ? 'graph' : 'files');
+  }, [showing]);
+
+  useKeyboard(main.kind === 'graph' ? 'graph' : 'files');
+
+  useCommands('app', {
+    commit,
+    stageAll: () => runPathOperation({ kind: 'stageAll' }),
+    unstageAll: () => runPathOperation({ kind: 'unstageAll' }),
+    fetch: () => runOperation({ kind: 'fetch' }),
+    createBranch: () => setAsking({ kind: 'branch' }),
+    toggleSidebar: toggleRail,
+    toggleTerminal: () => setDockOpen(!dockOpen),
+    searchCommits: () => setSearchAt((turn) => turn + 1),
+    zoomIn: () => setZoom(zoomIn(zoom)),
+    zoomOut: () => setZoom(zoomOut(zoom)),
+    zoomReset: () => setZoom(1),
+    closeTab: () => active !== null && closeRepo(active),
+    closeView: () => setMain({ kind: 'graph' }),
+    shortcuts: () => setHelpOpen(true),
+  });
+
   return (
     <TooltipProvider delayDuration={600} skipDelayDuration={0}>
       <div className="flex h-full flex-col">
         <RepoTabs
           sessions={sessions}
-          active={settings === 'active' ? '' : active}
-          settings={settings}
+          active={tabs.view ? '' : active}
+          views={tabs.views}
+          view={tabs.view}
           onActivate={(path) => {
-            setSettings((now) => (now === 'closed' ? now : 'open'));
+            tabs.leave();
             dispatch({ kind: 'activate', path });
           }}
           onClose={closeRepo}
           onStart={() => {
-            setSettings((now) => (now === 'closed' ? now : 'open'));
+            tabs.leave();
             dispatch({ kind: 'activate', path: null });
           }}
-          onSettings={() => setSettings('active')}
-          onCloseSettings={() => setSettings('closed')}
+          onView={tabs.open}
+          onCloseView={tabs.close}
         />
 
-        {current === null || settings === 'active' ? (
-          <div className="h-10 shrink-0" />
+        {current === null || tabs.view ? (
+          <div className="h-12 shrink-0" />
         ) : confirming ? (
           <ConfirmBar
             operation={confirming}
@@ -387,13 +403,34 @@ export default function App() {
             search={search.query}
             found={search.found}
             at={search.at}
+            focusAt={searchAt}
             onSearch={search.setQuery}
             onStep={search.step}
+            onPickFound={revealCommit}
+            start={
+              <Breadcrumbs
+                repoPath={current.path}
+                repoName={current.name}
+                openPaths={sessions.map((session) => session.path)}
+                recent={recent}
+                refs={current.repo?.refs ?? []}
+                worktrees={current.worktrees}
+                currentBranch={tree?.branch ?? null}
+                onOpenPath={openPath}
+                onStart={() => {
+                  tabs.leave();
+                  dispatch({ kind: 'activate', path: null });
+                }}
+                onCheckout={checkoutRef}
+              />
+            }
           />
         )}
 
         <div className="flex min-h-0 flex-1 pt-1.5 pr-2">
-          {settings === 'active' ? (
+          {tabs.view === 'changelog' ? (
+            <ChangelogView />
+          ) : tabs.view === 'settings' ? (
             <Settings
               open
               account={account}
@@ -414,7 +451,7 @@ export default function App() {
               onFavorite={favorite}
               onClone={(url) => setAdding({ mode: 'clone', url })}
               onCreate={() => setAdding({ mode: 'init', url: '' })}
-              onConnect={() => setSettings('active')}
+              onConnect={() => tabs.open('settings')}
             />
           ) : (
             <>
@@ -434,213 +471,136 @@ export default function App() {
                 onPullsExpanded={() => loadPulls(pulls !== null)}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
-              <div
-                className={cn(
-                  'relative flex min-h-0 min-w-0 flex-1',
-                  dockOpen && dockFull
-                    ? 'gap-2'
-                    : 'bg-card flex-col overflow-hidden rounded-xl border',
-                )}
-              >
-                <div
-                  ref={rightColumn}
-                  key={dockOpen && dockFull ? 'full' : 'windowed'}
-                  className={cn(
-                    'animate-in fade-in relative flex min-h-0 min-w-0 flex-1 duration-150',
-                    dockOpen && dockFull
-                      ? 'bg-card order-2 flex-none flex-col overflow-hidden rounded-xl border'
-                      : '',
-                  )}
-                  style={
-                    dockOpen && dockFull
-                      ? { flexBasis: `${clampShare(fullShare) * 100}%` }
-                      : undefined
-                  }
-                >
-                  {dockOpen && dockFull ? (
-                    <ResizeGrip
-                      edge="left"
-                      onStart={() => {
-                        shareAtDrag.current = clampShare(fullShare);
-                        draggedShare.current = shareAtDrag.current;
-                      }}
-                      onMove={(delta) => {
-                        const span = window.innerWidth;
-                        if (span <= 0) return;
-                        draggedShare.current = clampShare(shareAtDrag.current - delta / span);
-                        const column = rightColumn.current;
-                        if (column) column.style.flexBasis = `${draggedShare.current * 100}%`;
-                      }}
-                      onEnd={() => setFullShare(draggedShare.current)}
-                    />
-                  ) : null}
-                  {dockOpen && dockFull ? (
-                    <RightPaneSwitch
-                      pane={main.kind === 'graph' ? rightPane : 'changes'}
-                      changes={tree ? tree.staged + tree.unstaged : 0}
-                      context={
-                        main.kind === 'graph' && rightPane === 'changes'
-                          ? t('review.title', { branch: tree?.branch ?? t('review.detached') })
+              <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
+                <div className="flex min-h-0 min-w-0 flex-1">
+                  <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+                    {main.kind === 'diff' && current.repo ? (
+                      <DiffView
+                        repo={current.path}
+                        target={main.target}
+                        onClose={() => setMain({ kind: 'graph' })}
+                        onTree={adoptTree}
+                        onRun={runPathOperation}
+                        onTarget={(target) => setMain({ kind: 'diff', target })}
+                        onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                      />
+                    ) : main.kind === 'history' && current.repo ? (
+                      <FileHistoryView
+                        repo={current.path}
+                        path={main.path}
+                        from={main.from ?? null}
+                        avatars={avatars}
+                        onClose={() => setMain({ kind: 'graph' })}
+                      />
+                    ) : main.kind === 'conflict' && current.repo ? (
+                      <ConflictView
+                        repo={current.path}
+                        path={main.path}
+                        from={tree?.merging?.from ?? null}
+                        into={tree?.branch ?? null}
+                        onClose={() => setMain({ kind: 'graph' })}
+                        onResolved={(next) => {
+                          adoptTree(next);
+                          setMain({ kind: 'graph' });
+                        }}
+                      />
+                    ) : main.kind === 'pull' && current.repo ? (
+                      <PullPanel
+                        repo={current.path}
+                        pull={main.pull}
+                        onCheckedOut={() => {
+                          setMain({ kind: 'graph' });
+                          void reload(current.path);
+                        }}
+                        onClose={() => setMain({ kind: 'graph' })}
+                      />
+                    ) : (
+                      <GraphView
+                        key={current.path}
+                        session={current}
+                        avatars={avatars}
+                        rows={cacheFor(current.path)}
+                        redraw={redraw + avatarTick}
+                        metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
+                        pullHeads={pullHeads}
+                        currentBranch={tree?.branch ?? null}
+                        onSelect={select}
+                        onCheckoutRef={checkoutRef}
+                        onRun={runOperation}
+                        onCopy={copy}
+                        onAsk={setAsking}
+                        onWorktree={addWorktree}
+                        onOpenUrl={openUrl}
+                        onNeed={onNeed}
+                        message={message}
+                        onMessage={setMessage}
+                        onCommit={commit}
+                        compact={compact}
+                        onCompact={setCompact}
+                      />
+                    )}
+                  </main>
+                  <DetailsPane
+                    note={
+                      panel === 'workingTree' && !(tree && tree.entries.length > 0)
+                        ? 'workingTreeClean'
+                        : panel === 'noCommits'
+                          ? 'noCommits'
                           : null
-                      }
-                      onPane={(next) => {
-                        setRightPane(next);
-                        if (next === 'changes') select(0);
-                      }}
-                    />
-                  ) : null}
-                  {dockOpen && dockFull && rightPane === 'changes' && main.kind === 'graph' ? (
-                    tree ? (
-                      <ReviewView
+                    }
+                  >
+                    {panel === 'workingTree' && tree ? (
+                      <WorkingTree
                         repo={current.path}
                         tree={tree}
-                        onOpenFile={(entry) =>
-                          toggleDiff({
-                            kind: 'workingTree',
-                            path: entry.path,
-                            status: entry.letter,
-                            staged: entry.staged,
-                          })
+                        message={message}
+                        description={description}
+                        amend={amend}
+                        previous={previousCommit}
+                        onMessage={setMessage}
+                        onDescription={setDescription}
+                        onAmend={setAmend}
+                        onCommit={commit}
+                        onRun={runPathOperation}
+                        onOperation={runOperation}
+                        onConfirm={setConfirming}
+                        onCopy={copy}
+                        picked={picked}
+                        onPick={pick}
+                        diffOpen={main.kind === 'diff'}
+                        onHistory={(path) => setMain({ kind: 'history', path })}
+                        onOpen={(path, status, staged) =>
+                          viewForEntry(status, staged) === 'conflict'
+                            ? setMain({ kind: 'conflict', path })
+                            : showDiff({ kind: 'workingTree', path, status, staged })
                         }
                       />
-                    ) : null
-                  ) : null}
-                  <div className="flex min-h-0 min-w-0 flex-1">
-                    {dockOpen &&
-                    dockFull &&
-                    rightPane === 'changes' &&
-                    main.kind === 'graph' ? null : (
-                      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-                        {main.kind === 'diff' && current.repo ? (
-                          <DiffView
-                            repo={current.path}
-                            target={main.target}
-                            onClose={() => setMain({ kind: 'graph' })}
-                            onTree={adoptTree}
-                            onRun={runPathOperation}
-                            onTarget={(target) => setMain({ kind: 'diff', target })}
-                            onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                          />
-                        ) : main.kind === 'history' && current.repo ? (
-                          <FileHistoryView
-                            repo={current.path}
-                            path={main.path}
-                            from={main.from ?? null}
-                            avatars={avatars}
-                            onClose={() => setMain({ kind: 'graph' })}
-                          />
-                        ) : main.kind === 'conflict' && current.repo ? (
-                          <ConflictView
-                            repo={current.path}
-                            path={main.path}
-                            from={tree?.merging?.from ?? null}
-                            into={tree?.branch ?? null}
-                            onClose={() => setMain({ kind: 'graph' })}
-                            onResolved={(next) => {
-                              adoptTree(next);
-                              setMain({ kind: 'graph' });
-                            }}
-                          />
-                        ) : main.kind === 'pull' && current.repo ? (
-                          <PullPanel
-                            repo={current.path}
-                            pull={main.pull}
-                            onCheckedOut={() => {
-                              setMain({ kind: 'graph' });
-                              void reload(current.path);
-                            }}
-                            onClose={() => setMain({ kind: 'graph' })}
-                          />
-                        ) : (
-                          <GraphView
-                            key={current.path}
-                            session={current}
-                            avatars={avatars}
-                            rows={cacheFor(current.path)}
-                            redraw={redraw + avatarTick}
-                            metrics={compact ? METRICS_COMPACT : METRICS_AVATARS}
-                            pullHeads={pullHeads}
-                            currentBranch={tree?.branch ?? null}
-                            onSelect={select}
-                            onCheckoutRef={checkoutRef}
-                            onRun={runOperation}
-                            onCopy={copy}
-                            onAsk={setAsking}
-                            onWorktree={addWorktree}
-                            onOpenUrl={openUrl}
-                            onNeed={onNeed}
-                            message={message}
-                            onMessage={setMessage}
-                            onCommit={commit}
-                            compact={compact}
-                            onCompact={setCompact}
-                          />
-                        )}
-                      </main>
+                    ) : (
+                      <Details
+                        session={current}
+                        avatars={avatars}
+                        avatarTick={avatarTick}
+                        onHistory={(path, from) => setMain({ kind: 'history', path, from })}
+                        rows={cacheFor(current.path)}
+                        pending={tree ? tree.staged + tree.unstaged : 0}
+                        conflicts={tree?.conflicts ?? 0}
+                        pulls={pulls?.pulls ?? []}
+                        onCopy={copy}
+                        onOpenWorkingTree={() => select(0)}
+                        onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
+                        picked={picked}
+                        onPick={pick}
+                        diffOpen={main.kind === 'diff'}
+                        onOpenFile={(commit, file) => showDiff({ kind: 'commit', commit, file })}
+                      />
                     )}
-                    {dockOpen && dockFull ? null : (
-                      <DetailsPane
-                        fill={dockOpen && dockFull && rightPane === 'changes'}
-                        note={
-                          panel === 'workingTree' && !(tree && tree.entries.length > 0)
-                            ? 'workingTreeClean'
-                            : panel === 'noCommits'
-                              ? 'noCommits'
-                              : null
-                        }
-                      >
-                        {panel === 'workingTree' && tree ? (
-                          <WorkingTree
-                            repo={current.path}
-                            tree={tree}
-                            message={message}
-                            description={description}
-                            amend={amend}
-                            previous={previousCommit}
-                            onMessage={setMessage}
-                            onDescription={setDescription}
-                            onAmend={setAmend}
-                            onCommit={commit}
-                            onRun={runPathOperation}
-                            onOperation={runOperation}
-                            onConfirm={setConfirming}
-                            onCopy={copy}
-                            onHistory={(path) => setMain({ kind: 'history', path })}
-                            onOpen={(path, status, staged) =>
-                              viewForEntry(status, staged) === 'conflict'
-                                ? setMain({ kind: 'conflict', path })
-                                : toggleDiff({ kind: 'workingTree', path, status, staged })
-                            }
-                          />
-                        ) : (
-                          <Details
-                            session={current}
-                            avatars={avatars}
-                            avatarTick={avatarTick}
-                            onHistory={(path, from) => setMain({ kind: 'history', path, from })}
-                            rows={cacheFor(current.path)}
-                            pending={tree ? tree.staged + tree.unstaged : 0}
-                            conflicts={tree?.conflicts ?? 0}
-                            pulls={pulls?.pulls ?? []}
-                            onCopy={copy}
-                            onOpenWorkingTree={() => select(0)}
-                            onOpenPull={(pull) => setMain({ kind: 'pull', pull })}
-                            onOpenFile={(commit, file) =>
-                              toggleDiff({ kind: 'commit', commit, file })
-                            }
-                          />
-                        )}
-                      </DetailsPane>
-                    )}
-                  </div>
+                  </DetailsPane>
                 </div>
                 {dockOpen ? (
                   <TerminalDock
                     repo={current.path}
                     onFileLink={openFileFromTerminal}
                     onHashLink={revealCommitByHash}
-                    fullscreen={dockFull}
-                    onFullscreen={() => setDockFull(!dockFull)}
                     onClose={() => setDockOpen(false)}
                   />
                 ) : null}
@@ -654,7 +614,11 @@ export default function App() {
           onZoom={setZoom}
           ready={readyUpdate}
           onRestart={() => void restartToUpdate()}
+          onShortcuts={() => setHelpOpen(true)}
+          onChangelog={() => tabs.open('changelog')}
         />
+
+        <Shortcuts open={helpOpen} onOpenChange={setHelpOpen} />
 
         <RepoDialog
           open={adding !== null}

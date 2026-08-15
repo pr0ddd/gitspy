@@ -31,6 +31,7 @@ pub fn environment(askpass: Option<&Path>) -> Environment {
     set.insert("GIT_FLUSH".into(), "1".into());
     set.insert("LC_ALL".into(), "C".into());
     set.insert("GIT_ADVICE".into(), "0".into());
+    set.insert("GIT_OPTIONAL_LOCKS".into(), "0".into());
 
     match askpass {
         Some(helper) => {
@@ -82,6 +83,17 @@ mod tests {
         );
         assert_eq!(env.set.get("GIT_PAGER").map(String::as_str), Some("cat"));
         assert_eq!(env.set.get("PAGER").map(String::as_str), Some("cat"));
+    }
+
+    #[test]
+    fn reading_never_takes_the_index_lock() {
+        let env = environment(None);
+        assert_eq!(
+            env.set.get("GIT_OPTIONAL_LOCKS").map(String::as_str),
+            Some("0"),
+            "git status обновляет индекс и на миллисекунды берёт index.lock; \
+             попавший в это окно git add падает с «Unable to create index.lock»"
+        );
     }
 
     #[test]

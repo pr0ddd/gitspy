@@ -567,6 +567,18 @@ pub struct DiffSides {
 #[derive(Serialize, TS)]
 #[ts(export, export_to = "../../src/generated/")]
 #[serde(rename_all = "camelCase")]
+pub struct FoundCommitView {
+    pub index: u32,
+    pub hash: String,
+    pub subject: String,
+    pub author: String,
+    #[ts(type = "number")]
+    pub time: i64,
+}
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "../../src/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct ConflictFileView {
     pub base: String,
     pub ours: String,

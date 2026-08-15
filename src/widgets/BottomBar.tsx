@@ -7,7 +7,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Hint } from '@/components/ui/tooltip';
 import { Icon } from '@/icons';
+import { chordLabel, onApple } from '@/keys';
 import { ZOOM_STEPS, zoomIn, zoomLabel, zoomOut } from '@/zoom';
 
 type Props = {
@@ -15,12 +17,37 @@ type Props = {
   onZoom: (zoom: number) => void;
   ready: string | null;
   onRestart: () => void;
+  onShortcuts: () => void;
+  onChangelog: () => void;
 };
 
-export function BottomBar({ zoom, onZoom, ready, onRestart }: Props) {
+export function BottomBar({ zoom, onZoom, ready, onRestart, onShortcuts, onChangelog }: Props) {
   const { t } = useTranslation();
+  const shortcutsHint = `${t('shortcuts.title')} (${chordLabel({ key: '/', primary: true }, onApple())})`;
   return (
     <div className="flex h-6 shrink-0 items-center gap-2 px-1.5">
+      <span className="flex-1" />
+
+      <Hint text={shortcutsHint} side="top">
+        <Button
+          variant="ghost"
+          size="icon-2xs"
+          aria-label={t('shortcuts.title')}
+          onClick={onShortcuts}
+        >
+          <Icon.keyboard className="text-faint size-3.5" />
+        </Button>
+      </Hint>
+      <Hint text={t('changelog.open')} side="top">
+        <Button
+          variant="ghost"
+          size="icon-2xs"
+          aria-label={t('changelog.open')}
+          onClick={onChangelog}
+        >
+          <Icon.changelog className="text-faint size-3.5" />
+        </Button>
+      </Hint>
       <span className="flex items-center">
         <Button
           variant="ghost"
@@ -63,8 +90,6 @@ export function BottomBar({ zoom, onZoom, ready, onRestart }: Props) {
           <Icon.zoomIn className="text-faint size-3" />
         </Button>
       </span>
-
-      <span className="flex-1" />
 
       {ready ? (
         <Button variant="muted" size="2xs" onClick={onRestart}>

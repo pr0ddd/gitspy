@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { usePref } from '@/prefs';
 
@@ -13,13 +13,6 @@ export const zoomOut = (zoom: number): number =>
   [...ZOOM_STEPS].reverse().find((step) => step < zoom - NUDGE) ?? ZOOM_STEPS[0];
 
 export const zoomLabel = (zoom: number): string => `${Math.round(zoom * 100)}%`;
-
-export const zoomForKey = (key: string, zoom: number): number | null => {
-  if (key === '=' || key === '+') return zoomIn(zoom);
-  if (key === '-' || key === '_') return zoomOut(zoom);
-  if (key === '0') return 1;
-  return null;
-};
 
 let level = 1;
 
@@ -36,20 +29,6 @@ export function useZoom(): { zoom: number; setZoom: (zoom: number) => void } {
   useEffect(() => {
     void applyZoom(zoom).catch(() => {});
   }, [zoom]);
-
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-      const next = zoomForKey(event.key, zoomRef.current);
-      if (next === null) return;
-      event.preventDefault();
-      setZoom(next);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [setZoom]);
 
   return { zoom, setZoom };
 }

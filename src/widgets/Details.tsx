@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { identicon } from '@/avatar';
 import { hostBotOf } from '@/host';
 import type { AvatarCache } from '@/avatarCache';
-import { mentionOfFile } from '@/entities/agent';
-import { pullAtRefs, type Session } from '@/entities/repo';
+import { pullAtRefs, type Picked, type Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
 import { Icon } from '@/icons';
 import * as ipc from '@/ipc';
@@ -14,7 +13,8 @@ import { notifyError } from '@/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { FilePath, ListRow, PanelBanner, PanelNote, SectionHeader, StatusBadge } from '@/parts';
-import { AskAgentButton } from './agent/AskAgentButton';
+import { useCommands } from '@/features/keyboard';
+import { rovingTabIndex, stepped } from '@/roving';
 import type { ChangedFileView, PullView } from '@/types';
 
 type Props = {
@@ -25,6 +25,9 @@ type Props = {
   pending: number;
   conflicts: number;
   pulls: PullView[];
+  picked: Picked | null;
+  diffOpen: boolean;
+  onPick: (picked: Picked | null) => void;
   onCopy: (text: string) => void;
   onOpenWorkingTree: () => void;
   onOpenFile: (commit: string, file: ChangedFileView) => void;
@@ -33,7 +36,11 @@ type Props = {
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-0 flex-1 flex-col">{children}</div>;
+  return (
+    <div data-area="files" className="flex min-h-0 flex-1 flex-col">
+      {children}
+    </div>
+  );
 }
 
 function Identity({
@@ -97,6 +104,9 @@ export function Details({
   pending,
   conflicts,
   pulls,
+  picked,
+  diffOpen,
+  onPick,
   onCopy,
   onOpenWorkingTree,
   onOpenFile,
@@ -119,7 +129,10 @@ export function Details({
         else if (action.kind === 'reveal')
           void ipc.revealPath(repoPath, action.path).catch(notifyError);
         else if (action.kind === 'copyCommitPatch')
-          void ipc.commitFileHunks(repoPath, action.commit, action.path).then(onCopy).catch(notifyError);
+          void ipc
+            .commitFileHunks(repoPath, action.commit, action.path)
+            .then(onCopy)
+            .catch(notifyError);
       },
     ).catch(notifyError);
   };
@@ -142,6 +155,41 @@ export function Details({
   }, [repo, hash]);
 
   const files = loaded?.hash === hash ? loaded.files : null;
+  const order = files ?? [];
+  const at = order.findIndex((file) => file.path === picked?.path);
+  const chosen = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    chosen.current?.scrollIntoView({ block: 'nearest' });
+  }, [picked?.path]);
+
+  const openAt = (file: ChangedFileView) => {
+    if (hash === null) return;
+    onPick({ path: file.path, staged: false });
+    onOpenFile(hash, file);
+  };
+
+  const moveTo = (index: number) => {
+    const next = order[index];
+    if (!next) return;
+    if (diffOpen) openAt(next);
+    else onPick({ path: next.path, staged: false });
+  };
+
+  const openPicked = () => {
+    const file = order[at] ?? order[0];
+    if (file) openAt(file);
+  };
+
+  useCommands('files', {
+    selectNext: () => moveTo(stepped(at, 1, order.length)),
+    selectPrevious: () => moveTo(stepped(at, -1, order.length)),
+    selectFirst: () => moveTo(0),
+    selectLast: () => moveTo(order.length - 1),
+    openSelected: openPicked,
+  });
+
+  useCommands('app', { openSelected: openPicked });
 
   if (!session || !row || row.kind !== 'commit') {
     return (
@@ -241,35 +289,30 @@ export function Details({
           <p className="text-muted-foreground text-xs">{t('details.noChanges')}</p>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <ul>
-              {files.map((file) => (
-                <li key={file.path}>
-                  <ListRow
-                    as="div"
-                    title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
-                    onClick={() => onOpenFile(row.hash, file)}
-                    onContextMenu={() => openFileMenu(row.hash, file)}
-                  >
-                    <StatusBadge letter={file.status} />
-                    <FilePath path={file.path} />
-                    {file.binary ? null : (
-                      <span className="text-2xs ml-auto shrink-0 tabular-nums">
-                        <span className="text-added">+{file.added ?? 0}</span>{' '}
-                        <span className="text-deleted">−{file.deleted ?? 0}</span>
-                      </span>
-                    )}
-                    {repo === null ? null : (
-                      <AskAgentButton
-                        repo={repo}
-                        mention={mentionOfFile(file.path)}
-                        reveal
-                        className={file.binary ? 'ml-auto' : undefined}
-                      />
-                    )}
-                  </ListRow>
-                </li>
+            <div role="listbox" aria-label={t('details.changes')}>
+              {files.map((file, index) => (
+                <ListRow
+                  as="div"
+                  key={file.path}
+                  hint={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}
+                  hintSide="left"
+                  selected={file.path === picked?.path}
+                  tabIndex={rovingTabIndex(at, index)}
+                  rowRef={file.path === picked?.path ? chosen : undefined}
+                  onClick={() => openAt(file)}
+                  onContextMenu={() => openFileMenu(row.hash, file)}
+                >
+                  <StatusBadge letter={file.status} />
+                  <FilePath path={file.path} />
+                  {file.binary ? null : (
+                    <span className="text-2xs ml-auto shrink-0 tabular-nums">
+                      <span className="text-added">+{file.added ?? 0}</span>{' '}
+                      <span className="text-deleted">−{file.deleted ?? 0}</span>
+                    </span>
+                  )}
+                </ListRow>
               ))}
-            </ul>
+            </div>
           </div>
         )}
       </section>

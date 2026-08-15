@@ -9,14 +9,14 @@ import {
   languageOf,
   monaco,
   setHiddenLineSpans,
+  setModelWithZonesInOnePass,
   setUpMonaco,
   userEditorOptions,
+  waitForDiffOrGiveUp,
 } from '@/entities/diff';
 import { notifyError } from '@/toast';
 import { Icon } from '@/icons';
-import { mentionOfLines } from '@/entities/agent';
 import { DiffToolbar } from './DiffToolbar';
-import { AskAgentButton } from './agent/AskAgentButton';
 import { ViewBar } from '@/parts';
 import { shortenDirectory, splitPath } from '@/paths';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,6 @@ import { editorOptionsFor, type DiffMode } from '@/entities/diff';
 import { usePref } from '@/prefs';
 import {
   hiddenSpans,
-  hunkLineRange,
   isGitlinkDiff,
   parseUnifiedDiff,
   patchFor,
@@ -44,16 +43,14 @@ const STATUS_STYLE: Record<string, string> = {
   U: 'text-conflict',
 };
 
+const HUNK_BAR_HEIGHT = 26;
+const DIFF_WAIT_LIMIT_MS = 1000;
+
 export type DiffTarget =
   | { kind: 'commit'; commit: string; file: ChangedFileView }
   | { kind: 'workingTree'; path: string; status: string; staged: boolean };
 
 const lineTally = (text: string): number => text.split('\n').length;
-
-const mentionOfHunk = (path: string, hunk: Hunk): string => {
-  const { from, to } = hunkLineRange(hunk);
-  return mentionOfLines(path, from, to);
-};
 
 export const sameDiffTarget = (left: DiffTarget, right: DiffTarget): boolean => {
   if (left.kind === 'commit' && right.kind === 'commit') {
@@ -63,6 +60,28 @@ export const sameDiffTarget = (left: DiffTarget, right: DiffTarget): boolean => 
     return left.path === right.path && left.staged === right.staged;
   }
   return false;
+};
+
+type Loaded = {
+  for: DiffTarget;
+  before: string;
+  after: string;
+  compared: monaco.editor.IDiffEditorViewModel;
+  raw: string | null;
+};
+
+const disposeCompared = (compared: monaco.editor.IDiffEditorViewModel) => {
+  const { original, modified } = compared.model;
+  compared.dispose();
+  original.dispose();
+  modified.dispose();
+};
+
+const hunkBarNode = (): HTMLDivElement => {
+  const node = document.createElement('div');
+  node.style.pointerEvents = 'auto';
+  node.style.zIndex = '10';
+  return node;
 };
 
 type Props = {
@@ -82,12 +101,7 @@ function CommitHunkBar({ heading, onRevert }: { heading: string; onRevert: () =>
       <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
         {heading}
       </span>
-      <Button
-        variant="outline"
-        size="2xs"
-        title={t('diff.revertHunkHint')}
-        onClick={onRevert}
-      >
+      <Button variant="outline" size="2xs" title={t('diff.revertHunkHint')} onClick={onRevert}>
         {t('diff.revertHunk')}
       </Button>
     </div>
@@ -96,14 +110,10 @@ function CommitHunkBar({ heading, onRevert }: { heading: string; onRevert: () =>
 
 function HunkBar({
   heading,
-  repo,
-  mention,
   staged,
   onApply,
 }: {
   heading: string;
-  repo: string;
-  mention: string;
   staged: boolean;
   onApply: (cached: boolean, reverse: boolean) => void;
 }) {
@@ -113,27 +123,16 @@ function HunkBar({
       <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
         {heading}
       </span>
-      <AskAgentButton repo={repo} mention={mention} />
       {staged ? (
-        <Button variant="outline" size="2xs" onClick={() => onApply(true, true)}>
+        <Button variant="outlineDeleted" size="2xs" onClick={() => onApply(true, true)}>
           {t('diff.unstageHunk')}
         </Button>
       ) : (
         <>
-          <Button
-            variant="outline"
-            size="2xs"
-            className="text-deleted"
-            onClick={() => onApply(false, true)}
-          >
+          <Button variant="outlineDeleted" size="2xs" onClick={() => onApply(false, true)}>
             {t('diff.discardHunk')}
           </Button>
-          <Button
-            variant="outline"
-            size="2xs"
-            className="text-added"
-            onClick={() => onApply(true, false)}
-          >
+          <Button variant="outlineAdded" size="2xs" onClick={() => onApply(true, false)}>
             {t('diff.stageHunk')}
           </Button>
         </>
@@ -149,54 +148,58 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement | null>(null);
   const editor = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const shown = useRef<Loaded | null>(null);
   const [mode, setMode] = usePref<DiffMode>('diff.mode', 'split');
   const [whitespace, setWhitespace] = usePref('diff.whitespace', false);
   const [wrap, setWrap] = usePref('diff.wrap', false);
-  const [sides, setSides] = useState<{ for: DiffTarget; before: string; after: string } | null>(
-    null,
-  );
-  const [patch, setPatch] = useState<{ for: DiffTarget; raw: string | null } | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [applied, setApplied] = useState(0);
   const [view, setView] = useState<'diff' | 'file'>('diff');
   const [editing, setEditing] = useState(false);
   const plain = useRef<HTMLDivElement | null>(null);
   const file = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setUpMonaco();
     const element = host.current;
     if (!element) return;
 
-    const created = monaco.editor.createDiffEditor(element, { ...DIFF_EDITOR_BASE, ...userEditorOptions() });
+    const created = monaco.editor.createDiffEditor(element, {
+      ...DIFF_EDITOR_BASE,
+      ...userEditorOptions(),
+    });
     editor.current = created;
 
     return () => {
-      created.getModel()?.original.dispose();
-      created.getModel()?.modified.dispose();
       created.dispose();
       editor.current = null;
+      if (shown.current) {
+        disposeCompared(shown.current.compared);
+        shown.current = null;
+      }
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     editor.current?.updateOptions({
       ...editorOptionsFor(mode),
       ignoreTrimWhitespace: whitespace,
       diffWordWrap: wrap ? 'on' : 'off',
     });
-    editor.current?.getModifiedEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
-    editor.current?.getOriginalEditor().updateOptions({ wordWrap: wrap ? 'on' : 'off' });
+    const side = { wordWrap: (wrap ? 'on' : 'off') as 'on' | 'off', lineNumbersMinChars: 5 };
+    editor.current?.getModifiedEditor().updateOptions(side);
+    editor.current?.getOriginalEditor().updateOptions(side);
   }, [mode, whitespace, wrap]);
 
   useLayoutEffect(() => {
-    if (view !== 'file' || !plain.current || !sides) return;
+    if (view !== 'file' || !plain.current || !loaded) return;
 
     const created = monaco.editor.create(plain.current, {
       ...EDITOR_BASE,
-            ...userEditorOptions(),
+      ...userEditorOptions(),
       readOnly: !editing,
       wordWrap: wrap ? 'on' : 'off',
-      value: sides.after,
+      value: loaded.after,
       language: languageOf(path),
     });
     file.current = created;
@@ -209,16 +212,16 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
       created.dispose();
       file.current = null;
     };
-  }, [view, sides, path, wrap, editing]);
+  }, [view, loaded, path, wrap, editing]);
 
   const step = (where: 'previous' | 'next') => {
     editor.current?.goToDiff(where);
   };
 
-  const jumpedRef = useRef<DiffTarget | null>(null);
-
   useEffect(() => {
     let cancelled = false;
+    let inflight: monaco.editor.IDiffEditorViewModel | null = null;
+    const language = languageOf(path);
 
     const readingSides =
       target.kind === 'commit'
@@ -229,98 +232,96 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
         ? ipc.commitFileHunks(repo, target.commit, target.file.path)
         : ipc.workingTreeHunks(repo, target.path, target.staged);
 
-    Promise.all([readingSides, readingHunks.catch(() => null)])
-      .then(([loaded, raw]) => {
-        if (cancelled) return;
-        setSides({ for: target, before: loaded.before, after: loaded.after });
-        setPatch({ for: target, raw });
+    const comparing = readingSides.then((sides) => {
+      const diffEditor = editor.current;
+      if (cancelled || !diffEditor) return null;
+      const compared = diffEditor.createViewModel({
+        original: monaco.editor.createModel(sides.before, language),
+        modified: monaco.editor.createModel(sides.after, language),
+      });
+      inflight = compared;
+      return waitForDiffOrGiveUp(compared, DIFF_WAIT_LIMIT_MS).then(() => ({ sides, compared }));
+    });
+
+    Promise.all([comparing, readingHunks.catch(() => null)])
+      .then(([ready, raw]) => {
+        if (!ready || cancelled) return;
+        inflight = null;
+        setLoaded({
+          for: target,
+          before: ready.sides.before,
+          after: ready.sides.after,
+          compared: ready.compared,
+          raw,
+        });
       })
       .catch(notifyError);
 
     return () => {
       cancelled = true;
+      if (inflight) {
+        disposeCompared(inflight);
+        inflight = null;
+      }
     };
   }, [repo, target, path, applied]);
 
   const hunkView = useMemo(() => {
-    if (!patch?.raw || isGitlinkDiff(patch.raw)) return null;
-    const diff = parseUnifiedDiff(patch.raw);
+    if (!loaded?.raw || isGitlinkDiff(loaded.raw)) return null;
+    const diff = parseUnifiedDiff(loaded.raw);
     if (!diff) return null;
     return {
-      for: patch.for,
+      for: loaded.for,
       diff,
-      bars: diff.hunks.map(() => document.createElement('div')),
+      bars: diff.hunks.map(hunkBarNode),
     };
-  }, [patch]);
+  }, [loaded]);
 
   useLayoutEffect(() => {
     const diffEditor = editor.current;
-    if (!diffEditor || !sides || sides.for !== target) return;
-    const language = languageOf(path);
-    const previous = diffEditor.getModel();
+    if (!diffEditor || !loaded) return;
+    const original = diffEditor.getOriginalEditor();
     const modified = diffEditor.getModifiedEditor();
-    const keptScroll = jumpedRef.current === target ? modified.getScrollTop() : null;
-    diffEditor.setModel({
-      original: monaco.editor.createModel(sides.before, language),
-      modified: monaco.editor.createModel(sides.after, language),
-    });
-    previous?.original.dispose();
-    previous?.modified.dispose();
+    const previous = shown.current;
+    const keptScroll =
+      previous && sameDiffTarget(previous.for, loaded.for) ? modified.getScrollTop() : null;
+    const hunks = mode === 'hunk' && hunkView && hunkView.for === loaded.for ? hunkView : null;
+    const spans = hunks
+      ? hiddenSpans(hunks.diff.hunks, lineTally(loaded.before), lineTally(loaded.after))
+      : { original: [], modified: [] };
+    const zones = hunks
+      ? hunks.diff.hunks.map((hunk, index) => ({
+          afterLineNumber: hunk.newStart - 1,
+          heightInPx: HUNK_BAR_HEIGHT,
+          domNode: hunks.bars[index],
+        }))
+      : [];
+
+    setModelWithZonesInOnePass(diffEditor, loaded.compared, zones);
+    setHiddenLineSpans(original, spans.original);
+    setHiddenLineSpans(modified, spans.modified);
+
     if (keptScroll !== null) {
       modified.setScrollTop(keptScroll);
-    }
-  }, [sides, target, path]);
-
-  useLayoutEffect(() => {
-    const diffEditor = editor.current;
-    if (!diffEditor || !sides || sides.for !== target) return;
-    const patchReady = hunkView && hunkView.for === sides.for ? hunkView : null;
-    const spans =
-      mode === 'hunk' && patchReady
-        ? hiddenSpans(patchReady.diff.hunks, lineTally(sides.before), lineTally(sides.after))
-        : { original: [], modified: [] };
-    setHiddenLineSpans(diffEditor.getOriginalEditor(), spans.original);
-    setHiddenLineSpans(diffEditor.getModifiedEditor(), spans.modified);
-    if (jumpedRef.current === target) return;
-    jumpedRef.current = target;
-    const modified = diffEditor.getModifiedEditor();
-    if (mode === 'hunk') {
+    } else if (mode === 'hunk') {
       modified.setScrollTop(0);
-    } else if (patchReady) {
+    } else if (hunkView && hunkView.for === loaded.for) {
       modified.revealLineNearTop(
-        patchReady.diff.hunks[0].newStart,
+        hunkView.diff.hunks[0].newStart,
         monaco.editor.ScrollType.Immediate,
       );
     } else {
       diffEditor.revealFirstDiff();
     }
-  }, [sides, hunkView, target, mode]);
 
-  useLayoutEffect(() => {
-    const diffEditor = editor.current;
-    if (!diffEditor || view !== 'diff' || mode !== 'hunk' || !hunkView) return;
-
-    const modified = diffEditor.getModifiedEditor();
-    const zones: string[] = [];
-    modified.changeViewZones((accessor) => {
-      hunkView.diff.hunks.forEach((hunk, index) => {
-        const domNode = hunkView.bars[index];
-        domNode.style.pointerEvents = 'auto';
-        domNode.style.zIndex = '10';
-        zones.push(
-          accessor.addZone({
-            afterLineNumber: hunk.newStart - 1,
-            heightInPx: 26,
-            domNode,
-          }),
-        );
-      });
-    });
+    shown.current = loaded;
+    if (previous && previous !== loaded) disposeCompared(previous.compared);
+    if (!hunks) return;
 
     const pin = () => {
       const width = modified.getLayoutInfo().contentWidth;
       const left = modified.getScrollLeft();
-      for (const node of hunkView.bars) {
+      for (const node of hunks.bars) {
         node.style.width = `${Math.max(0, width - 12)}px`;
         node.style.transform = `translateX(${left}px)`;
       }
@@ -328,13 +329,11 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     pin();
     const onScroll = modified.onDidScrollChange(pin);
     const onLayout = modified.onDidLayoutChange(pin);
-
     return () => {
       onScroll.dispose();
       onLayout.dispose();
-      modified.changeViewZones((accessor) => zones.forEach((zone) => accessor.removeZone(zone)));
     };
-  }, [hunkView, view, mode]);
+  }, [loaded, hunkView, mode]);
 
   const applyHunk = (source: UnifiedDiff, hunk: Hunk, cached: boolean, reverse: boolean) =>
     ipc
@@ -443,8 +442,6 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
                   hunkView.for.kind === 'workingTree' ? (
                     <HunkBar
                       heading={hunk.heading}
-                      repo={repo}
-                      mention={mentionOfHunk(path, hunk)}
                       staged={hunkView.for.staged}
                       onApply={(cached, reverse) => applyHunk(hunkView.diff, hunk, cached, reverse)}
                     />

@@ -7,14 +7,9 @@ import '@/index.css';
 
 if (import.meta.env.VITE_SPIKE === 'term') {
   void import('@/dev/termProbe').then((probe) => probe.mountProbe());
-} else if (import.meta.env.VITE_SPIKE === 'acp') {
-  void import('@/dev/acpProbe').then((probe) => probe.mountProbe());
 } else if (import.meta.env.VITE_SPIKE === 'csp') {
   void import('@/dev/cspProbe').then((probe) => probe.mountProbe());
 } else {
-  if (import.meta.env.DEV) {
-    void import('@/dev/dragProbe').then((probe) => probe.startDragProbe());
-  }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <Boundary>

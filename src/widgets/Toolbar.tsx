@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,8 @@ import { SearchField } from '@/parts';
 import type { Operation, WorkingTreeView } from '@/types';
 import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
 import { Icon } from '@/icons';
+import { useFoundCommits } from '@/features/search';
+import { SearchResults } from './SearchResults';
 
 type Props = {
   repo: string;
@@ -26,8 +29,11 @@ type Props = {
   search: string;
   found: number[];
   at: number;
+  focusAt: number;
   onSearch: (query: string) => void;
   onStep: (delta: number) => void;
+  onPickFound: (index: number) => void;
+  start?: React.ReactNode;
 };
 
 export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
@@ -99,12 +105,7 @@ function ExchangeDeck({
           !busy && 'hover:bg-hover-fill',
         )}
       >
-        <Button
-          variant="split"
-          size="sm-lead"
-          disabled={busy}
-          onClick={() => onRun(wanted)}
-        >
+        <Button variant="split" size="sm-lead" disabled={busy} onClick={() => onRun(wanted)}>
           <Icon.pull className={cn('size-4', pulling && 'animate-dive')} />
           {GIT.pull}
           <Tally count={behind} tone="behind" />
@@ -161,8 +162,11 @@ export function Toolbar({
   search,
   found,
   at,
+  focusAt,
   onSearch,
   onStep,
+  onPickFound,
+  start,
 }: Props) {
   const { t } = useTranslation();
   const work = useRepoWork(repo);
@@ -170,10 +174,21 @@ export function Toolbar({
   const running = work?.kind ?? null;
   const push = pushFor(tree);
   const [pullMode, setPullMode] = usePref<PullMode>('toolbar.pull', 'pull');
+  const field = useRef<HTMLInputElement>(null);
+  const [listing, setListing] = useState(false);
+  const preview = useFoundCommits(repo, found);
+
+  useEffect(() => {
+    if (focusAt > 0) field.current?.select();
+  }, [focusAt]);
+
+  useEffect(() => {
+    if (!search.trim()) setListing(false);
+  }, [search]);
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2 px-2">
-      <div className="w-64" aria-hidden />
+    <div className="flex h-12 shrink-0 items-center gap-2 px-2">
+      <div className="flex w-64 min-w-0 shrink-0 items-center">{start}</div>
       <div className="flex min-w-0 flex-1 items-center justify-center">
         <div className="bg-control-fill flex items-center gap-0.5 rounded-lg p-0.5">
           <ExchangeDeck
@@ -211,38 +226,58 @@ export function Toolbar({
         </div>
       </div>
 
-      <div className="flex w-64 shrink-0 items-center gap-1">
+      <div className="relative flex w-64 shrink-0 items-center">
         <SearchField
           value={search}
+          fieldRef={field}
           placeholder={t('search.placeholder')}
-          onChange={onSearch}
-          onKeyDown={(e) => e.key === 'Enter' && onStep(e.shiftKey ? -1 : 1)}
+          onChange={(text) => {
+            setListing(true);
+            onSearch(text);
+          }}
+          onFocus={() => setListing(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setListing(false);
+            if (e.key === 'Enter') onStep(e.shiftKey ? -1 : 1);
+          }}
+          trailing={
+            search.trim() ? (
+              <>
+                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                  {found.length ? `${at + 1}/${found.length}` : t('search.none')}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t('search.previous')}
+                  disabled={!found.length}
+                  onClick={() => onStep(-1)}
+                >
+                  <Icon.up />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t('search.next')}
+                  disabled={!found.length}
+                  onClick={() => onStep(1)}
+                >
+                  <Icon.down />
+                </Button>
+              </>
+            ) : null
+          }
         />
-
-        {search.trim() ? (
-          <>
-            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-              {found.length ? `${at + 1}/${found.length}` : t('search.none')}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 shrink-0"
-              disabled={!found.length}
-              onClick={() => onStep(-1)}
-            >
-              <Icon.up className="size-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 shrink-0"
-              disabled={!found.length}
-              onClick={() => onStep(1)}
-            >
-              <Icon.down className="size-3" />
-            </Button>
-          </>
+        {listing && preview.length > 0 ? (
+          <SearchResults
+            commits={preview}
+            total={found.length}
+            at={found[at] ?? -1}
+            onPick={(index) => {
+              setListing(false);
+              onPickFound(index);
+            }}
+          />
         ) : null}
       </div>
     </div>

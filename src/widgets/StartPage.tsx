@@ -16,6 +16,7 @@ import { notifyError } from '@/toast';
 import { relativeTime } from '@/time';
 import { Hint } from '@/components/ui/tooltip';
 import { hostKindOf, splitListing, splitRecent } from '@/features/repo';
+import { StartEmpty } from './StartEmpty';
 import type { ConnectionView, RecentRepo, RepoListingView, RepoPassportView } from '@/types';
 
 type Props = {
@@ -372,10 +373,13 @@ export function StartPage({
   const starHostRepo = (fullName: string, next: boolean) => {
     if (!connection) return;
     const key = `${connection.id} ${fullName}`;
-    setHostStars(next ? [...hostStars.filter((k) => k !== key), key] : hostStars.filter((k) => k !== key));
+    setHostStars(
+      next ? [...hostStars.filter((k) => k !== key), key] : hostStars.filter((k) => k !== key),
+    );
   };
 
   const local = source === 'all' || source === 'favorites';
+  const nothingOpenedYet = local && recent.length === 0;
 
   const row = (entry: RecentRepo) => (
     <RepoRow
@@ -455,147 +459,161 @@ export function StartPage({
       </aside>
 
       <div className="bg-card flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
-        <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-          <div className="relative min-w-0 flex-1">
-            <Icon.search className="text-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
-            <Input
-              ref={searchRef}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder={t('start.searchRepos')}
-              className="h-8 w-full pr-12 pl-8 text-xs"
-            />
-            <kbd className="text-faint text-2xs border-button-border pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm border px-1.5 py-px">
-              ⌘K
-            </kbd>
-          </div>
-          {local ? (
-            <>
-              <Button size="xs" onClick={onOpen}>
-                <Icon.open className="size-3.5" />
-                {t('start.open')}
-              </Button>
-              <Button variant="action" size="xs" onClick={() => onClone('')}>
-                <Icon.clone className="size-3.5" />
-                {GIT.clone}
-              </Button>
-              <Button variant="action" size="xs" onClick={onCreate}>
-                <Icon.add className="size-3.5" />
-                {t('start.create')}
-              </Button>
-            </>
-          ) : connection ? (
-            <Hint text={t('host.refresh')}>
-              <Button variant="action" size="xs" onClick={refresh} disabled={busy}>
-                <Icon.fetch className={cn('size-3.5', busy && 'animate-spin')} />
-              </Button>
-            </Hint>
-          ) : null}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          {local ? (
-            source === 'favorites' ? (
-              favorites.length === 0 ? (
-                <InlineNote>{t('start.favoritesEmpty')}</InlineNote>
-              ) : (
-                <div>{favorites.map(row)}</div>
-              )
-            ) : favorites.length + rest.length === 0 ? (
-              <p className="text-muted-foreground px-2 py-3 text-xs">
-                {needle ? t('host.searchEmpty') : t('start.recentEmpty')}
-              </p>
-            ) : (
-              <>
-                {favorites.length > 0 ? (
-                  <>
-                    <SectionHeader>
-                      <span className="min-w-0 flex-1 truncate text-left">
-                        {t('start.favorites')}
-                      </span>
-                      <span className="text-faint tabular-nums">{favorites.length}</span>
-                    </SectionHeader>
-                    {favorites.map(row)}
-                  </>
-                ) : null}
-                {rest.length > 0 ? (
-                  <>
-                    <SectionHeader>
-                      <span className="min-w-0 flex-1 truncate text-left">{t('start.recent')}</span>
-                      <span className="text-faint tabular-nums">{rest.length}</span>
-                    </SectionHeader>
-                    {rest.map(row)}
-                  </>
-                ) : null}
-              </>
-            )
-          ) : !connection ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <span className="bg-fill-2 flex size-10 items-center justify-center rounded-xl">
-                <Icon.github className="text-muted-foreground size-5" />
-              </span>
-              <p className="text-sm font-medium">{t('start.notConnected')}</p>
-              <p className="text-faint max-w-60 text-xs leading-relaxed">{t('host.connectHint')}</p>
-              <Button size="xs" onClick={onConnect}>
-                {t('settings.connect')}
-              </Button>
-            </div>
-          ) : (
-            <>
-              {hostSplit.favorites.length > 0 ? (
+        {nothingOpenedYet ? (
+          <StartEmpty onOpen={onOpen} onClone={() => onClone('')} onCreate={onCreate} />
+        ) : (
+          <>
+            <div className="flex h-14 shrink-0 items-center gap-2 px-4">
+              <div className="relative min-w-0 flex-1">
+                <Icon.search className="text-faint pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
+                <Input
+                  ref={searchRef}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t('start.searchRepos')}
+                  className="h-8 w-full pr-12 pl-8 text-xs"
+                />
+                <kbd className="text-faint text-2xs border-button-border pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm border px-1.5 py-px">
+                  ⌘K
+                </kbd>
+              </div>
+              {local ? (
                 <>
-                  <SectionHeader>
-                    <span className="min-w-0 flex-1 truncate text-left">
-                      {t('start.favorites')}
-                    </span>
-                    <span className="text-faint tabular-nums">{hostSplit.favorites.length}</span>
-                  </SectionHeader>
-                  {hostSplit.favorites.map((repo) => (
+                  <Button size="xs" onClick={onOpen}>
+                    <Icon.open className="size-3.5" />
+                    {t('start.open')}
+                  </Button>
+                  <Button variant="action" size="xs" onClick={() => onClone('')}>
+                    <Icon.clone className="size-3.5" />
+                    {GIT.clone}
+                  </Button>
+                  <Button variant="action" size="xs" onClick={onCreate}>
+                    <Icon.add className="size-3.5" />
+                    {t('start.create')}
+                  </Button>
+                </>
+              ) : connection ? (
+                <Hint text={t('host.refresh')}>
+                  <Button variant="action" size="xs" onClick={refresh} disabled={busy}>
+                    <Icon.fetch className={cn('size-3.5', busy && 'animate-spin')} />
+                  </Button>
+                </Hint>
+              ) : null}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+              {local ? (
+                source === 'favorites' ? (
+                  favorites.length === 0 ? (
+                    <InlineNote>{t('start.favoritesEmpty')}</InlineNote>
+                  ) : (
+                    <div>{favorites.map(row)}</div>
+                  )
+                ) : favorites.length + rest.length === 0 ? (
+                  <p className="text-muted-foreground px-2 py-3 text-xs">
+                    {needle ? t('host.searchEmpty') : t('start.recentEmpty')}
+                  </p>
+                ) : (
+                  <>
+                    {favorites.length > 0 ? (
+                      <>
+                        <SectionHeader>
+                          <span className="min-w-0 flex-1 truncate text-left">
+                            {t('start.favorites')}
+                          </span>
+                          <span className="text-faint tabular-nums">{favorites.length}</span>
+                        </SectionHeader>
+                        {favorites.map(row)}
+                      </>
+                    ) : null}
+                    {rest.length > 0 ? (
+                      <>
+                        <SectionHeader>
+                          <span className="min-w-0 flex-1 truncate text-left">
+                            {t('start.recent')}
+                          </span>
+                          <span className="text-faint tabular-nums">{rest.length}</span>
+                        </SectionHeader>
+                        {rest.map(row)}
+                      </>
+                    ) : null}
+                  </>
+                )
+              ) : !connection ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                  <span className="bg-fill-2 flex size-10 items-center justify-center rounded-xl">
+                    <Icon.github className="text-muted-foreground size-5" />
+                  </span>
+                  <p className="text-sm font-medium">{t('start.notConnected')}</p>
+                  <p className="text-faint max-w-60 text-xs leading-relaxed">
+                    {t('host.connectHint')}
+                  </p>
+                  <Button size="xs" onClick={onConnect}>
+                    {t('settings.connect')}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {hostSplit.favorites.length > 0 ? (
+                    <>
+                      <SectionHeader>
+                        <span className="min-w-0 flex-1 truncate text-left">
+                          {t('start.favorites')}
+                        </span>
+                        <span className="text-faint tabular-nums">
+                          {hostSplit.favorites.length}
+                        </span>
+                      </SectionHeader>
+                      {hostSplit.favorites.map((repo) => (
+                        <HostRepoRow
+                          key={repo.fullName}
+                          repo={repo}
+                          starred
+                          now={now}
+                          language={i18n.language}
+                          onStar={starHostRepo}
+                          onClone={onClone}
+                        />
+                      ))}
+                      <SectionHeader>
+                        <span className="min-w-0 flex-1 truncate text-left">{t('start.all')}</span>
+                        <span className="text-faint tabular-nums">{hostSplit.rest.length}</span>
+                      </SectionHeader>
+                    </>
+                  ) : null}
+                  {hostSplit.rest.map((repo) => (
                     <HostRepoRow
                       key={repo.fullName}
                       repo={repo}
-                      starred
+                      starred={false}
                       now={now}
                       language={i18n.language}
                       onStar={starHostRepo}
                       onClone={onClone}
                     />
                   ))}
-                  <SectionHeader>
-                    <span className="min-w-0 flex-1 truncate text-left">{t('start.all')}</span>
-                    <span className="text-faint tabular-nums">{hostSplit.rest.length}</span>
-                  </SectionHeader>
+                  {busy && repos.length === 0 ? (
+                    <p className="text-muted-foreground flex items-center gap-1.5 px-2 py-3 text-xs">
+                      <Icon.waiting className="size-3 animate-spin" />
+                      {t('host.loading')}
+                    </p>
+                  ) : null}
+                  {!busy && failed ? (
+                    <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.failed')}</p>
+                  ) : null}
+                  {!busy &&
+                  !failed &&
+                  repos.length > 0 &&
+                  hostSplit.favorites.length + hostSplit.rest.length === 0 ? (
+                    <p className="text-muted-foreground px-2 py-3 text-xs">
+                      {t('host.searchEmpty')}
+                    </p>
+                  ) : null}
                 </>
-              ) : null}
-              {hostSplit.rest.map((repo) => (
-                <HostRepoRow
-                  key={repo.fullName}
-                  repo={repo}
-                  starred={false}
-                  now={now}
-                  language={i18n.language}
-                  onStar={starHostRepo}
-                  onClone={onClone}
-                />
-              ))}
-              {busy && repos.length === 0 ? (
-                <p className="text-muted-foreground flex items-center gap-1.5 px-2 py-3 text-xs">
-                  <Icon.waiting className="size-3 animate-spin" />
-                  {t('host.loading')}
-                </p>
-              ) : null}
-              {!busy && failed ? (
-                <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.failed')}</p>
-              ) : null}
-              {!busy &&
-              !failed &&
-              repos.length > 0 &&
-              hostSplit.favorites.length + hostSplit.rest.length === 0 ? (
-                <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.searchEmpty')}</p>
-              ) : null}
-            </>
-          )}
-        </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </>
   );

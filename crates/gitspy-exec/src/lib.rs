@@ -2,7 +2,6 @@
 
 pub mod blame;
 pub mod changes;
-pub mod checkpoint;
 pub mod env;
 pub mod filehistory;
 pub mod progress;

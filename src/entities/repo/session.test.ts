@@ -83,3 +83,21 @@ describe('переходы состояния сессий', () => {
     expect(state.sessions.find((s) => s.path === '/a')).toBe(before);
   });
 });
+
+describe('повторный выбор той же строки', () => {
+  it('возвращает прежнее состояние, поэтому Enter подряд ничего не перерисовывает', () => {
+    const opened = sessionsReducer(EMPTY, { kind: 'open', path: '/r' });
+    const chosen = sessionsReducer(opened, { kind: 'select', path: '/r', index: 5 });
+
+    expect(sessionsReducer(chosen, { kind: 'select', path: '/r', index: 5 })).toBe(chosen);
+  });
+
+  it('другая строка состояние меняет', () => {
+    const opened = sessionsReducer(EMPTY, { kind: 'open', path: '/r' });
+    const chosen = sessionsReducer(opened, { kind: 'select', path: '/r', index: 5 });
+    const moved = sessionsReducer(chosen, { kind: 'select', path: '/r', index: 6 });
+
+    expect(moved).not.toBe(chosen);
+    expect(moved.sessions[0].selected).toBe(6);
+  });
+});

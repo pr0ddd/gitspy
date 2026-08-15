@@ -27,6 +27,8 @@ export function DetailsPane({ children, note, fill }: Props) {
     >
       {fill ? null : (
         <ResizeGrip
+          name="details"
+          label={t('resize.details')}
           edge="left"
           onStart={() => {
             dragFrom.current = clampPanel('details', width);

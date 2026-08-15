@@ -7,13 +7,25 @@ const fake = vi.hoisted(() => {
   const revealed: number[] = [];
   const hiddenCalls: Array<{ from: number; to: number }[]> = [];
   const zoneNodes: HTMLElement[] = [];
+  const zonesWhileAttaching: boolean[] = [];
+  const scrolledTo: number[] = [];
+  const events: string[] = [];
+  const disposed: string[] = [];
+  const modelListeners = new Set<() => void>();
+  let attaching = false;
   const sideEditor = () => ({
     updateOptions: () => {},
     revealLineNearTop: (line: number) => {
       revealed.push(line);
     },
     getScrollTop: () => 0,
-    setScrollTop: () => {},
+    setScrollTop: (top: number) => {
+      scrolledTo.push(top);
+    },
+    onDidChangeModel: (listener: () => void) => {
+      modelListeners.add(listener);
+      return { dispose: () => modelListeners.delete(listener) };
+    },
     changeViewZones: (
       callback: (accessor: {
         addZone: (zone: { domNode: HTMLElement }) => string;
@@ -23,6 +35,8 @@ const fake = vi.hoisted(() => {
       callback({
         addZone: (zone) => {
           zoneNodes.push(zone.domNode);
+          zonesWhileAttaching.push(attaching);
+          events.push('zone');
           return 'zone';
         },
         removeZone: () => {},
@@ -33,18 +47,43 @@ const fake = vi.hoisted(() => {
     getLayoutInfo: () => ({ contentWidth: 100 }),
     getScrollLeft: () => 0,
   });
-  let model: { modified: { value: string } } | null = null;
+  type FakeModel = { value: string; dispose: () => void };
+  type FakeViewModel = {
+    model: { original: FakeModel; modified: FakeModel };
+    waitForDiff: () => Promise<void>;
+    dispose: () => void;
+  };
+  let attached: FakeViewModel['model'] | null = null;
+  let compare: (() => void) | null = null;
+  const holding = { compare: false };
   const original = sideEditor();
   const modified = sideEditor();
   const diffEditor = {
-    setModel: (next: unknown) => {
-      model = next as { modified: { value: string } };
+    createViewModel: (model: FakeViewModel['model']): FakeViewModel => ({
+      model,
+      waitForDiff: () =>
+        holding.compare
+          ? new Promise<void>((resolve) => {
+              compare = resolve;
+            })
+          : Promise.resolve(),
+      dispose: () => {
+        disposed.push(`vm:${model.modified.value}`);
+      },
+    }),
+    setModel: (next: FakeViewModel | null) => {
+      const model = next?.model ?? null;
+      if (model === attached) return;
+      attaching = true;
+      events.push(model ? `attach:${model.modified.value}` : 'detach');
+      attached = model;
+      modelListeners.forEach((listener) => listener());
+      attaching = false;
     },
-    getModel: () => model,
+    getModel: () => attached,
     updateOptions: () => {},
     getOriginalEditor: () => original,
     getModifiedEditor: () => modified,
-    onDidUpdateDiff: () => disposable,
     getLineChanges: () => [],
     revealFirstDiff: () => {},
     goToDiff: () => {},
@@ -55,12 +94,26 @@ const fake = vi.hoisted(() => {
     revealed,
     hiddenCalls,
     zoneNodes,
-    shownText: () => model?.modified.value ?? null,
+    zonesWhileAttaching,
+    scrolledTo,
+    events,
+    disposed,
+    holding,
+    finishCompare: () => compare?.(),
+    shownText: () => attached?.modified.value ?? null,
     reset: () => {
-      model = null;
+      attached = null;
+      compare = null;
+      holding.compare = false;
+      attaching = false;
+      modelListeners.clear();
       revealed.length = 0;
       hiddenCalls.length = 0;
       zoneNodes.length = 0;
+      zonesWhileAttaching.length = 0;
+      scrolledTo.length = 0;
+      events.length = 0;
+      disposed.length = 0;
     },
   };
 });
@@ -68,6 +121,7 @@ const fake = vi.hoisted(() => {
 vi.mock('@/entities/diff', async () => ({
   ...(await vi.importActual<object>('@/entities/diff/diff')),
   ...(await vi.importActual<object>('@/entities/diff/hunks')),
+  ...(await vi.importActual<object>('@/entities/diff/attach')),
   DIFF_EDITOR_BASE: {},
   EDITOR_BASE: {},
   languageOf: () => 'plaintext',
@@ -75,6 +129,7 @@ vi.mock('@/entities/diff', async () => ({
   userEditorOptions: () => ({}),
   setHiddenLineSpans: (_editor: unknown, spans: { from: number; to: number }[]) => {
     fake.hiddenCalls.push(spans);
+    fake.events.push('hidden');
   },
   monaco: {
     editor: {
@@ -85,7 +140,13 @@ vi.mock('@/entities/diff', async () => ({
         addCommand: () => {},
         dispose: () => {},
       }),
-      createModel: (value: string, language: string) => ({ value, language, dispose: () => {} }),
+      createModel: (value: string, language: string) => ({
+        value,
+        language,
+        dispose: () => {
+          fake.disposed.push(`model:${value}`);
+        },
+      }),
       ScrollType: { Immediate: 1 },
       ShowLightbulbIconMode: { Off: 'off' },
     },
@@ -171,10 +232,9 @@ describe('смена файла в diff-редакторе', () => {
 
     rerender(view(targetFor('bbbb0000', 'src/new.ts')));
     await act(async () => {});
-    expect(
-      fake.shownText(),
-      'пока грузится новый файл, прежнее содержимое остаётся на месте',
-    ).toBe('old after');
+    expect(fake.shownText(), 'пока грузится новый файл, прежнее содержимое остаётся на месте').toBe(
+      'old after',
+    );
     expect(
       editorHost(container).className.includes('invisible'),
       'редактор не прячется на время загрузки',
@@ -183,6 +243,77 @@ describe('смена файла в diff-редакторе', () => {
     await act(async () => releaseSecondSides({ before: 'new before', after: 'new after' }));
     expect(fake.shownText(), 'новый файл подменил старый одним шагом').toBe('new after');
     expect(fake.revealed, 'новый файл прокручен к своему первому ханку').toEqual([7, 3]);
+  });
+
+  it('подмена ждёт готового сравнения: старый файл стоит, пока новый не выровнен', async () => {
+    localStorage.setItem('gitspy.diff.mode', '"hunk"');
+    vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
+      Promise.resolve(
+        commit === 'aaaa0000'
+          ? { before: 'old before', after: 'old after' }
+          : { before: 'new before', after: 'new after' },
+      ),
+    );
+    vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(1));
+
+    const { rerender } = render(view(targetFor('aaaa0000', 'src/old.ts')));
+    await act(async () => {});
+    expect(fake.shownText()).toBe('old after');
+
+    fake.holding.compare = true;
+    rerender(view(targetFor('bbbb0000', 'src/new.ts')));
+    await act(async () => {});
+    expect(
+      fake.shownText(),
+      'текст пришёл, но дифф ещё считается — на экране прежний файл, без кадра с невыровненной колонкой',
+    ).toBe('old after');
+    expect(fake.scrolledTo, 'и прокрутка нового файла ещё не трогалась').toEqual([0]);
+
+    await act(async () => fake.finishCompare());
+    expect(fake.shownText(), 'дифф посчитан — новый файл встал разом').toBe('new after');
+    expect(fake.scrolledTo, 'и сразу прокручен к началу, в том же проходе').toEqual([0, 0]);
+  });
+
+  it('прежние модели и сравнение освобождаются после подмены, а брошенные на полпути — при отмене', async () => {
+    vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
+      Promise.resolve({ before: `${commit} before`, after: `${commit} after` }),
+    );
+    vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(1));
+
+    const { rerender } = render(view(targetFor('aaaa0000', 'src/a.ts')));
+    await act(async () => {});
+    rerender(view(targetFor('bbbb0000', 'src/b.ts')));
+    await act(async () => {});
+    expect(
+      fake.disposed,
+      'после подмены первый файл освобождён целиком: обе модели и сравнение',
+    ).toEqual(
+      expect.arrayContaining([
+        'vm:aaaa0000 after',
+        'model:aaaa0000 before',
+        'model:aaaa0000 after',
+      ]),
+    );
+    expect(
+      fake.disposed.filter((entry) => entry.includes('bbbb0000')),
+      'показанный файл жив',
+    ).toEqual([]);
+
+    fake.holding.compare = true;
+    rerender(view(targetFor('cccc0000', 'src/c.ts')));
+    await act(async () => {});
+    rerender(view(targetFor('dddd0000', 'src/d.ts')));
+    await act(async () => {});
+    expect(
+      fake.disposed.filter((entry) => entry.includes('cccc0000')),
+      'файл, чьё сравнение не дождались, освобождён при отмене',
+    ).toEqual(
+      expect.arrayContaining([
+        'vm:cccc0000 after',
+        'model:cccc0000 before',
+        'model:cccc0000 after',
+      ]),
+    );
   });
 
   it('в hunk-режиме строки вне ханков прячутся сразу, а плашка заголовка уже заполнена', async () => {
@@ -207,6 +338,24 @@ describe('смена файла в diff-редакторе', () => {
     ).toContain('@@ -4,2 +4,2 @@');
     expect(container.querySelector('.min-h-0')).toBeTruthy();
   });
+
+  it('полосы ханков встают, пока модель прикрепляется: Monaco выравнивает левую колонку в том же проходе, а скрытие строк идёт после', async () => {
+    localStorage.setItem('gitspy.diff.mode', '"hunk"');
+    vi.mocked(ipc.diffSides).mockResolvedValue({ before: 'a\nb\nc', after: 'a\nx\nc' });
+    vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(2));
+
+    render(view(targetFor('cccc0000', 'src/some.ts')));
+    await act(async () => {});
+
+    expect(
+      fake.zonesWhileAttaching,
+      'зона добавлена внутри setModel — иначе левая колонка узнаёт о ней по setTimeout и прыгает',
+    ).toEqual([true]);
+    expect(
+      fake.events,
+      'порядок: прикрепление с зоной внутри, затем скрытие строк на обеих сторонах — Monaco сбрасывает скрытые области при подмене модели',
+    ).toEqual(['attach:a\nx\nc', 'zone', 'hidden', 'hidden']);
+  });
 });
 
 describe('повторный клик по той же цели', () => {
@@ -215,12 +364,12 @@ describe('повторный клик по той же цели', () => {
       sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('aaaa0000', 'src/a.ts')),
       'два клика по одному файлу коммита дают одну цель — по ней дифф закрывается',
     ).toBe(true);
-    expect(sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('bbbb0000', 'src/a.ts'))).toBe(
-      false,
-    );
-    expect(sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('aaaa0000', 'src/b.ts'))).toBe(
-      false,
-    );
+    expect(
+      sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('bbbb0000', 'src/a.ts')),
+    ).toBe(false);
+    expect(
+      sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('aaaa0000', 'src/b.ts')),
+    ).toBe(false);
   });
 
   it('файл рабочего дерева различается путём и корзиной', () => {

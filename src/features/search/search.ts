@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { FoundCommitView } from '@/types';
 import * as ipc from '@/ipc';
 import { notifyError } from '@/toast';
 
@@ -58,4 +59,32 @@ export function useCommitSearch(
   );
 
   return { query, found, at, setQuery, step };
+}
+
+export const PREVIEW_LIMIT = 20;
+
+export function useFoundCommits(repo: string | null, found: readonly number[]): FoundCommitView[] {
+  const [preview, setPreview] = useState<FoundCommitView[]>([]);
+  const wanted = found.slice(0, PREVIEW_LIMIT).join(',');
+
+  useEffect(() => {
+    if (!repo || wanted.length === 0) {
+      setPreview([]);
+      return;
+    }
+
+    let alive = true;
+    ipc
+      .foundCommits(repo, wanted.split(',').map(Number))
+      .then((commits) => {
+        if (alive) setPreview(commits);
+      })
+      .catch(notifyError);
+
+    return () => {
+      alive = false;
+    };
+  }, [repo, wanted]);
+
+  return preview;
 }

@@ -113,6 +113,9 @@ jobs:
       - name: Versions agree
         run: node scripts/check-release-version.mjs "$GITHUB_REF_NAME"
 
+      - name: Changelog describes this version
+        run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > /dev/null
+
       - name: Updates base url present
         run: test -n "${{ vars.UPDATES_BASE_URL }}"
 
@@ -160,5 +163,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --generate-notes ||
+          node scripts/release-notes.mjs "$GITHUB_REF_NAME" > out/notes.md
+          gh release create "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --notes-file out/notes.md || {
+            gh release edit "$GITHUB_REF_NAME" --notes-file out/notes.md
             gh release upload "$GITHUB_REF_NAME" "out/gitspy_${VERSION}_aarch64.dmg" --clobber
+          }

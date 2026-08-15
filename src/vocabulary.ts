@@ -1,3 +1,23 @@
+export const KEYS = {
+  command: '⌘',
+  ctrl: 'Ctrl',
+  shiftSign: '⇧',
+  shiftWord: 'Shift',
+  altSign: '⌥',
+  altWord: 'Alt',
+  enterSign: '↩',
+  enterWord: 'Enter',
+  escape: 'Esc',
+  space: 'Space',
+  tab: 'Tab',
+  home: 'Home',
+  end: 'End',
+  up: '↑',
+  down: '↓',
+  left: '←',
+  right: '→',
+} as const;
+
 export const GIT = {
   local: 'Local',
   remote: 'Remote',

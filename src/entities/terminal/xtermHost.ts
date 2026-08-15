@@ -40,12 +40,6 @@ export type TermHost = {
   dispose(): void;
 };
 
-export type ReadOnlyTermHost = {
-  write(bytes: Uint8Array): void;
-  fit(): void;
-  dispose(): void;
-};
-
 const SCROLLBACK = 5000;
 const FONT_SIZE = 13;
 const FONT_FAMILY = "'Geist Mono Variable', Menlo, monospace";
@@ -69,35 +63,7 @@ const followLink = (hooks: TermHooks, link: TermLinkTarget): void => {
   else hooks.onHashLink(link.text);
 };
 
-export const createReadOnlyTermHost = (el: HTMLElement, rows: number): ReadOnlyTermHost => {
-  const term = new Terminal({
-    fontFamily: FONT_FAMILY,
-    fontSize: FONT_SIZE,
-    theme: readTermThemeFromDom(),
-    scrollback: SCROLLBACK,
-    disableStdin: true,
-    cursorInactiveStyle: 'none',
-    rows,
-  });
-  const fit = new FitAddon();
-  term.loadAddon(fit);
-  term.open(el);
-  fit.fit();
-  const webgl = acceleratedRendererOrPlainCanvas(term);
-  return {
-    write: (bytes) => term.write(bytes),
-    fit: () => fit.fit(),
-    dispose: () => {
-      webgl?.dispose();
-      term.dispose();
-    },
-  };
-};
-
-export const createTermHost = async (
-  el: HTMLElement,
-  opts: TermHostOptions,
-): Promise<TermHost> => {
+export const createTermHost = async (el: HTMLElement, opts: TermHostOptions): Promise<TermHost> => {
   const term = new Terminal({
     fontFamily: FONT_FAMILY,
     fontSize: FONT_SIZE,

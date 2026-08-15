@@ -6,7 +6,7 @@ use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
     BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
-    RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView, WorktreeView,
+    FoundCommitView, RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView, WorktreeView,
     MINIMAP_BUCKETS,
 };
 use crate::watcher;
@@ -172,6 +172,29 @@ pub fn search_commits(
             .enumerate()
             .filter(|(_, node)| node.matches(&query))
             .map(|(at, _)| at as u32)
+            .collect()
+    })
+}
+
+#[tauri::command]
+pub fn found_commits(
+    repo: String,
+    indices: Vec<u32>,
+    state: State<'_, AppState>,
+) -> Result<Vec<FoundCommitView>, ErrorView> {
+    with_repo(&state, &repo, |open| {
+        indices
+            .iter()
+            .filter_map(|at| {
+                let meta = open.history.nodes.get(*at as usize)?.commit()?;
+                Some(FoundCommitView {
+                    index: *at,
+                    hash: meta.hash.clone(),
+                    subject: meta.subject.clone(),
+                    author: meta.author.clone(),
+                    time: meta.time,
+                })
+            })
             .collect()
     })
 }

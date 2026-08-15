@@ -10,6 +10,10 @@ import {
   TAB_SIZE_LIMITS,
 } from '@/settingsModel';
 import EditorWorker from './monaco.worker?worker';
+import TypeScriptWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
+import JsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
+import CssWorker from 'monaco-editor/language/css/css.worker.js?worker';
+import HtmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
 
 export const THEME = 'gitspy';
 
@@ -33,6 +37,14 @@ const hex = (probe: HTMLElement, value: string): string => {
 let workerReady = false;
 let paintedFor = '';
 
+function workerFor(label: string): Worker {
+  if (label === 'typescript' || label === 'javascript') return new TypeScriptWorker();
+  if (label === 'json') return new JsonWorker();
+  if (label === 'css' || label === 'scss' || label === 'less') return new CssWorker();
+  if (label === 'html' || label === 'handlebars' || label === 'razor') return new HtmlWorker();
+  return new EditorWorker();
+}
+
 export function setUpMonaco(): void {
   const appearance = document.documentElement.dataset.theme ?? '';
   if (paintedFor === appearance && workerReady) return;
@@ -40,7 +52,7 @@ export function setUpMonaco(): void {
   workerReady = true;
 
   if (!self.MonacoEnvironment) {
-    self.MonacoEnvironment = { getWorker: () => new EditorWorker() };
+    self.MonacoEnvironment = { getWorker: (_id: string, label: string) => workerFor(label) };
   }
 
   const probe = document.createElement('span');
@@ -85,6 +97,8 @@ export const EDITOR_BASE = {
   fontSize: 13,
   lineHeight: 20,
   minimap: { enabled: true },
+  lineNumbersMinChars: 5,
+  inlayHints: { enabled: 'off' },
   stickyScroll: { defaultModel: 'indentationModel' },
   scrollBeyondLastLine: false,
   lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
