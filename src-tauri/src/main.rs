@@ -18,9 +18,6 @@ mod terminal;
 mod views;
 mod watcher;
 
-#[cfg(target_os = "macos")]
-use tauri::Manager;
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -110,6 +107,7 @@ fn main() {
 
 #[cfg(debug_assertions)]
 fn open_devtools_in_debug(app: &tauri::AppHandle) {
+    use tauri::Manager;
     if let Some(window) = app.get_webview_window("main") {
         window.open_devtools();
     }
@@ -120,6 +118,7 @@ fn open_devtools_in_debug(_app: &tauri::AppHandle) {}
 
 #[cfg(target_os = "macos")]
 fn show_window_on_reopen(app: &tauri::AppHandle, event: tauri::RunEvent) {
+    use tauri::Manager;
     if let tauri::RunEvent::Reopen { .. } = event {
         if let Some(window) = app.get_webview_window("main") {
             let _ = window.show();
