@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize from 'rehype-sanitize';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Icon } from '@/icons';
-import { PanelBar, ViewBar } from '@/parts';
+import { PanelBar, Prose, ViewBar } from '@/parts';
 import * as ipc from '@/ipc';
 import { runRepoWork, useRepoWork } from '@/features/repo';
 import { notifyError } from '@/toast';
@@ -24,16 +20,6 @@ type Props = {
   onCheckedOut: () => void;
   onClose: () => void;
 };
-
-function Body({ text }: { text: string }) {
-  return (
-    <div className="[&_a]:text-primary space-y-3 text-sm leading-relaxed [&_code]:rounded-sm [&_code]:bg-fill-1 [&_code]:px-1 [&_code]:font-mono [&_code]:text-xs [&_details]:rounded-md [&_details]:border [&_details]:border-border [&_details]:p-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:font-medium [&_hr]:border-border [&_img]:max-w-full [&_li]:ml-4 [&_ol]:list-decimal [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-fill-1 [&_pre]:p-2 [&_summary]:cursor-pointer [&_summary]:text-muted-foreground [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-0.5 [&_td]:whitespace-nowrap [&_th]:border [&_th]:border-border [&_th]:bg-fill-1 [&_th]:px-2 [&_th]:py-0.5 [&_th]:font-medium [&_th]:whitespace-nowrap [&_ul]:list-disc">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]}>
-        {text}
-      </Markdown>
-    </div>
-  );
-}
 
 export function PullPanel({ repo, pull, onCheckedOut, onClose }: Props) {
   const { t, i18n } = useTranslation();
@@ -132,7 +118,7 @@ export function PullPanel({ repo, pull, onCheckedOut, onClose }: Props) {
               ) : null}
 
               {card.body ? (
-                <Body text={card.body} />
+                <Prose text={card.body} />
               ) : (
                 <p className="text-muted-foreground text-sm">{t('pull.noDescription')}</p>
               )}
@@ -150,7 +136,7 @@ export function PullPanel({ repo, pull, onCheckedOut, onClose }: Props) {
                     <span className="text-foreground font-medium">{comment.author}</span>
                     <span>{ago(comment.createdAt)}</span>
                   </header>
-                  <Body text={comment.body} />
+                  <Prose text={comment.body} />
                 </article>
               ))}
             </>

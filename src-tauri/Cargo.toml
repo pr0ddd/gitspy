@@ -27,8 +27,6 @@ futures-util = { version = "0.3", default-features = false }
 gitspy-hosts = { version = "0.1.0", path = "../crates/gitspy-hosts" }
 gitspy-ai = { version = "0.1.0", path = "../crates/gitspy-ai" }
 gitspy-term = { version = "0.1.0", path = "../crates/gitspy-term" }
-gitspy-acp = { version = "0.1.0", path = "../crates/gitspy-acp" }
-base64 = "0.23.1"
 
 [dev-dependencies]
 tempfile = "3"

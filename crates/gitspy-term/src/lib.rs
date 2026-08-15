@@ -1,11 +1,10 @@
 mod integration;
 
-use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, ExitStatus, PtySize};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
 pub type OnBytes = Box<dyn FnMut(&[u8]) + Send>;
-pub type OnExit = Box<dyn FnOnce(ProgramExit) + Send>;
 
 pub struct SpawnSpec {
     pub command: Option<String>,
@@ -81,85 +80,5 @@ impl PtySession {
 
     pub fn kill(&mut self) {
         let _ = self.child.kill();
-    }
-}
-
-pub struct ProgramSpec {
-    pub command: String,
-    pub args: Vec<String>,
-    pub cwd: PathBuf,
-    pub env: Vec<(String, String)>,
-    pub cols: u16,
-    pub rows: u16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProgramExit {
-    pub code: Option<i32>,
-    pub signal: Option<String>,
-}
-
-fn outcome_of(status: ExitStatus) -> ProgramExit {
-    match status.signal() {
-        Some(signal) => ProgramExit {
-            code: None,
-            signal: Some(signal.to_owned()),
-        },
-        None => ProgramExit {
-            code: i32::try_from(status.exit_code()).ok(),
-            signal: None,
-        },
-    }
-}
-
-pub struct PtyProgram {
-    killer: Box<dyn ChildKiller + Send + Sync>,
-}
-
-impl PtyProgram {
-    pub fn start(
-        spec: ProgramSpec,
-        mut on_bytes: OnBytes,
-        on_exit: OnExit,
-    ) -> Result<PtyProgram, String> {
-        let pty = native_pty_system();
-        let pair = pty
-            .openpty(PtySize {
-                rows: spec.rows,
-                cols: spec.cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|e| e.to_string())?;
-        let mut cmd = CommandBuilder::new(&spec.command);
-        cmd.args(&spec.args);
-        cmd.cwd(&spec.cwd);
-        for (name, value) in &spec.env {
-            cmd.env(name, value);
-        }
-        let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
-        drop(pair.slave);
-        let killer = child.clone_killer();
-        let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
-        std::thread::spawn(move || {
-            let _master = pair.master;
-            let mut buf = [0u8; 65536];
-            loop {
-                match reader.read(&mut buf) {
-                    Ok(0) | Err(_) => break,
-                    Ok(n) => on_bytes(&buf[..n]),
-                }
-            }
-            let ended = child.wait().map(outcome_of).unwrap_or(ProgramExit {
-                code: None,
-                signal: None,
-            });
-            on_exit(ended);
-        });
-        Ok(PtyProgram { killer })
-    }
-
-    pub fn kill(&mut self) {
-        let _ = self.killer.kill();
     }
 }

@@ -14,7 +14,7 @@ import {
   type HoverChip,
   type Metrics,
 } from '@/entities/graph';
-import { HEADER_H, minimapFraction, rowAtY, rowTop, scrollToCenter } from '@/entities/graph';
+import { HEADER_H, minimapFraction, rowAtY, rowTop, scrollToCenter, scrollToReveal } from '@/entities/graph';
 import { chipsFor } from '@/entities/graph';
 import { pointerTarget, type PointerScene } from '@/entities/graph';
 import {
@@ -29,9 +29,10 @@ import {
   type Divider,
   type StoredWidths,
 } from '@/entities/graph';
-import { graphIsFrozen } from '@/dev/dragProbe';
 import { Icon } from '@/icons';
 import { Input } from '@/components/ui/input';
+import { useCommands } from '@/features/keyboard';
+import { stepped } from '@/roving';
 import { buildMinimap } from '@/entities/graph';
 import {
   buildChipMenu,
@@ -159,7 +160,7 @@ export const GraphView = memo(function GraphView({
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       const canvas = canvasRef.current;
-      if (canvas && !graphIsFrozen()) drawFrame(canvas, frameRef.current);
+      if (canvas) drawFrame(canvas, frameRef.current);
       placeMessageInput();
     });
   }, [needRows]);
@@ -249,6 +250,7 @@ export const GraphView = memo(function GraphView({
       const f = frameRef.current;
       const height = Math.max(0, Math.round(rect.height));
       const width = Math.max(0, Math.round(rect.width));
+      if (width === f.width && height === f.height) return;
       const sameHeight = height === f.height;
       frameRef.current = {
         ...f,
@@ -275,32 +277,31 @@ export const GraphView = memo(function GraphView({
       placeMessageInput();
     };
     measure();
-    let pending = 0;
-    const observer = new ResizeObserver(() => {
-      if (pending !== 0) return;
-      pending = requestAnimationFrame(() => {
-        pending = 0;
-        measure();
-      });
-    });
+    const observer = new ResizeObserver(measure);
     observer.observe(host);
-    return () => {
-      if (pending !== 0) cancelAnimationFrame(pending);
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [needRows, clampScroll, placeMessageInput]);
 
   const chosen = session?.selected ?? 0;
   const revealedRef = useRef<number | null>(null);
   useEffect(() => {
-    if (revealedRef.current === chosen) return;
+    const was = revealedRef.current;
+    if (was === chosen) return;
     revealedRef.current = chosen;
     const f = frameRef.current;
     if (!f.repo) return;
-    patch({
-      scrollY: clampScroll(scrollToCenter(f.metrics, chosen, f.scrollY, f.height, f.repo.count)),
-    });
+    const stepAway = was !== null && Math.abs(chosen - was) <= 1;
+    const bring = stepAway ? scrollToReveal : scrollToCenter;
+    patch({ scrollY: clampScroll(bring(f.metrics, chosen, f.scrollY, f.height, f.repo.count)) });
   }, [chosen, patch, clampScroll]);
+
+  const rowCount = session?.repo?.count ?? 0;
+  useCommands('graph', {
+    selectNext: () => onSelect(stepped(chosen, 1, rowCount)),
+    selectPrevious: () => onSelect(stepped(chosen, -1, rowCount)),
+    selectFirst: () => onSelect(0),
+    selectLast: () => onSelect(Math.max(0, rowCount - 1)),
+  });
 
   useEffect(() => {
     const host = hostRef.current;
@@ -320,14 +321,9 @@ export const GraphView = memo(function GraphView({
 
     const onKey = (e: KeyboardEvent) => {
       const f = frameRef.current;
-      const count = f.repo?.count ?? 0;
       let next: number | null = null;
       if (e.key === 'PageDown') next = f.scrollY + (f.height - f.metrics.rowH * 2);
       else if (e.key === 'PageUp') next = f.scrollY - (f.height - f.metrics.rowH * 2);
-      else if (e.key === 'Home') next = 0;
-      else if (e.key === 'End') next = count * f.metrics.rowH;
-      else if (e.key === 'ArrowDown') next = f.scrollY + f.metrics.rowH;
-      else if (e.key === 'ArrowUp') next = f.scrollY - f.metrics.rowH;
       if (next === null) return;
       e.preventDefault();
       patch({ scrollY: clampScroll(next) });
@@ -623,6 +619,7 @@ export const GraphView = memo(function GraphView({
 
   return (
     <div
+      data-area="graph"
       className="relative min-h-0 flex-1 overflow-hidden outline-none"
       ref={hostRef}
       tabIndex={0}

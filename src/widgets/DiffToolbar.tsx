@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Hint } from '@/components/ui/tooltip';
 import { Icon } from '@/icons';
+import { Toggle } from '@/components/ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DIFF_MODES, type DiffMode } from '@/entities/diff';
 
 const MODE_HINT: Record<DiffMode, string> = {
@@ -56,20 +58,18 @@ export function DiffToolbar({
 
       <div className="flex shrink-0 items-center gap-1">
         {badge}
-        <Button
-          variant={view === 'file' ? 'default' : 'action'}
-          size="xs"
-          onClick={() => onView('file')}
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={view}
+          onValueChange={(next) => {
+            if (next) onView(next as 'file' | 'diff');
+          }}
         >
-          {t('diff.fileView')}
-        </Button>
-        <Button
-          variant={view === 'diff' ? 'default' : 'action'}
-          size="xs"
-          onClick={() => onView('diff')}
-        >
-          {t('diff.diffView')}
-        </Button>
+          <ToggleGroupItem value="file">{t('diff.fileView')}</ToggleGroupItem>
+          <ToggleGroupItem value="diff">{t('diff.diffView')}</ToggleGroupItem>
+        </ToggleGroup>
         {extra}
       </div>
 
@@ -87,37 +87,50 @@ export function DiffToolbar({
           </Button>
         </Hint>
         <Separator orientation="vertical" className="mx-1.5 !h-4" />
-        {DIFF_MODES.map((shown) => {
-          const ModeIcon = Icon[MODE_ICON[shown]];
-          return (
-            <Hint key={shown} text={t(MODE_HINT[shown] as 'diff.splitView')}>
-              <Button
-                variant={view === 'diff' && mode === shown ? 'secondary' : 'action'}
-                size="xs"
-                onClick={() => {
-                  onView('diff');
-                  onMode(shown);
-                }}
-              >
-                <ModeIcon className="size-4" />
-              </Button>
-            </Hint>
-          );
-        })}
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={view === 'diff' ? mode : ''}
+          onValueChange={(next) => {
+            if (!next) return;
+            onView('diff');
+            onMode(next as DiffMode);
+          }}
+        >
+          {DIFF_MODES.map((shown) => {
+            const ModeIcon = Icon[MODE_ICON[shown]];
+            return (
+              <Hint key={shown} text={t(MODE_HINT[shown] as 'diff.splitView')}>
+                <ToggleGroupItem value={shown} aria-label={t(MODE_HINT[shown] as 'diff.splitView')}>
+                  <ModeIcon />
+                </ToggleGroupItem>
+              </Hint>
+            );
+          })}
+        </ToggleGroup>
         <Separator orientation="vertical" className="mx-1.5 !h-4" />
         <Hint text={t('diff.whitespace')}>
-          <Button
-            variant={whitespace ? 'secondary' : 'action'}
-            size="xs"
-            onClick={() => onWhitespace(!whitespace)}
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={whitespace}
+            aria-label={t('diff.whitespace')}
+            onPressedChange={onWhitespace}
           >
-            <Icon.whitespace className="size-4" />
-          </Button>
+            <Icon.whitespace />
+          </Toggle>
         </Hint>
         <Hint text={t('diff.wrap')}>
-          <Button variant={wrap ? 'secondary' : 'action'} size="xs" onClick={() => onWrap(!wrap)}>
-            <Icon.wrap className="size-4" />
-          </Button>
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={wrap}
+            aria-label={t('diff.wrap')}
+            onPressedChange={onWrap}
+          >
+            <Icon.wrap />
+          </Toggle>
         </Hint>
       </div>
     </div>

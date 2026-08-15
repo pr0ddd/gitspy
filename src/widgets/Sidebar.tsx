@@ -14,6 +14,8 @@ import { useRepoWork } from '@/features/repo';
 import { usePref } from '@/prefs';
 import { clampPanel, PANEL_LIMITS } from '@/resize';
 import { HOVER_FILL, InlineNote, ListRow, NavItem, ResizeGrip, SearchField } from '@/parts';
+import { useCommands } from '@/features/keyboard';
+import { rovingTabIndex, stepped } from '@/roving';
 import type { Ask } from './AskBar';
 import type { Operation, PullListView, PullView, RefKind, RefView, WorktreeView } from '@/types';
 
@@ -51,10 +53,6 @@ const OVERSCAN = 8;
 const capped = (count: number) => (count > CAP ? `${CAP}+` : `${count}`);
 
 function Tracking({ view }: { view: RefView }) {
-  const { t } = useTranslation();
-  if (view.gone) {
-    return <span className="text-deleted text-2xs shrink-0">{t('sidebar.gone')}</span>;
-  }
   if (!view.ahead && !view.behind) return null;
 
   return (
@@ -78,12 +76,16 @@ function Tracking({ view }: { view: RefView }) {
 const RefRow = memo(function RefRow({
   item,
   checkingOut,
+  selected,
+  tabIndex,
   onPick,
   onCheckout,
   onMenu,
 }: {
   item: Extract<FlatRef, { kind: 'ref' }>;
   checkingOut: string | null;
+  selected: boolean;
+  tabIndex: 0 | -1;
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
   onMenu: (ref: RefView) => void;
@@ -94,6 +96,8 @@ const RefRow = memo(function RefRow({
       depth={item.depth}
       gutter={view.isHead ? <Icon.current className="text-ref-current size-3.5" /> : null}
       current={view.isHead}
+      selected={selected}
+      tabIndex={tabIndex}
       title={item.path === item.name ? undefined : item.path}
       onClick={() => onPick(view.commit)}
       onDoubleClick={() => onCheckout(view)}
@@ -112,14 +116,25 @@ const RefRow = memo(function RefRow({
 
 const FolderRow = memo(function FolderRow({
   item,
+  selected,
+  tabIndex,
   onFlip,
 }: {
   item: Extract<FlatRef, { kind: 'folder' }>;
+  selected: boolean;
+  tabIndex: 0 | -1;
   onFlip: (path: string) => void;
 }) {
   const Glyph = item.open ? Icon.open : Icon.folder;
   return (
-    <ListRow depth={item.depth} gutter={null} title={item.path} onClick={() => onFlip(item.path)}>
+    <ListRow
+      depth={item.depth}
+      gutter={null}
+      selected={selected}
+      tabIndex={tabIndex}
+      title={item.path}
+      onClick={() => onFlip(item.path)}
+    >
       <Glyph className="text-faint size-3.5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{item.name}</span>
     </ListRow>
@@ -128,26 +143,46 @@ const FolderRow = memo(function FolderRow({
 
 const TagRow = memo(function TagRow({
   view,
+  selected,
+  tabIndex,
   onPick,
   onMenu,
 }: {
   view: RefView;
+  selected: boolean;
+  tabIndex: 0 | -1;
   onPick: (commit: number) => void;
   onMenu: (ref: RefView) => void;
 }) {
   return (
-    <ListRow gutter={null} onClick={() => onPick(view.commit)} onContextMenu={() => onMenu(view)}>
+    <ListRow
+      gutter={null}
+      selected={selected}
+      tabIndex={tabIndex}
+      onClick={() => onPick(view.commit)}
+      onContextMenu={() => onMenu(view)}
+    >
       <Icon.tag className="text-faint size-3.5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{view.name}</span>
     </ListRow>
   );
 });
 
-const WorktreeRow = memo(function WorktreeRow({ view }: { view: WorktreeView }) {
+const WorktreeRow = memo(function WorktreeRow({
+  view,
+  selected,
+  tabIndex,
+}: {
+  view: WorktreeView;
+  selected: boolean;
+  tabIndex: 0 | -1;
+}) {
   return (
     <ListRow
       gutter={view.isMain ? <Icon.current className="text-ref-current size-3.5" /> : null}
       current={view.isMain}
+      selected={selected}
+      tabIndex={tabIndex}
       title={view.path}
     >
       <Icon.worktree className="text-faint size-3.5 shrink-0" />
@@ -164,13 +199,23 @@ const pullRank = (pull: PullView): number =>
 
 const PullRow = memo(function PullRow({
   pull,
+  selected,
+  tabIndex,
   onPickPull,
 }: {
   pull: PullView;
+  selected: boolean;
+  tabIndex: 0 | -1;
   onPickPull: (pull: PullView) => void;
 }) {
   return (
-    <ListRow gutter={null} title={pull.title} onClick={() => onPickPull(pull)}>
+    <ListRow
+      gutter={null}
+      selected={selected}
+      tabIndex={tabIndex}
+      title={pull.title}
+      onClick={() => onPickPull(pull)}
+    >
       <Icon.pullRequest className="text-faint size-3.5 shrink-0" />
       <span className="text-faint shrink-0 tabular-nums">#{pull.number}</span>
       <span className="min-w-0 flex-1 truncate">{pull.title}</span>
@@ -266,6 +311,7 @@ export function Sidebar({
   const dragFrom = useRef(width);
   const [filter, setFilter] = useState('');
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
+  const [cursor, setCursor] = useState(-1);
   const [first, setFirst] = useState(0);
   const [viewportH, setViewportH] = useState(600);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -308,7 +354,18 @@ export function Sidebar({
         },
       );
     },
-    [remotes, remoteNames, currentBranch, onCheckout, onRun, onCopy, onAsk, onWorktree, onOpenUrl, t],
+    [
+      remotes,
+      remoteNames,
+      currentBranch,
+      onCheckout,
+      onRun,
+      onCopy,
+      onAsk,
+      onWorktree,
+      onOpenUrl,
+      t,
+    ],
   );
 
   const ofKind = useCallback((kind: RefKind) => refs.filter((r) => r.kind === kind), [refs]);
@@ -342,7 +399,8 @@ export function Sidebar({
 
   const items: Item[] = useMemo(() => {
     if (view === 'local' || view === 'remote') return flattenRefTree(matching[view], closed);
-    if (view === 'worktrees') return shownWorktrees.map((worktree) => ({ kind: 'worktree', worktree }));
+    if (view === 'worktrees')
+      return shownWorktrees.map((worktree) => ({ kind: 'worktree', worktree }));
     if (view === 'tags') return tags.map((ref) => ({ kind: 'tag', ref }));
     return [...(pulls?.pulls ?? [])]
       .sort((a, b) => pullRank(a) - pullRank(b))
@@ -369,8 +427,55 @@ export function Sidebar({
 
   useEffect(() => {
     setFirst(0);
+    setCursor(-1);
     if (listRef.current) listRef.current.scrollTop = 0;
   }, [view, needle]);
+
+  const revealRow = (index: number) => {
+    const list = listRef.current;
+    if (!list) return;
+    const top = index * ROW_PITCH;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (top + ROW_PITCH > list.scrollTop + list.clientHeight) {
+      list.scrollTop = top + ROW_PITCH - list.clientHeight;
+    }
+  };
+
+  const openItem = (item: Item) => {
+    switch (item.kind) {
+      case 'folder':
+        flipFolder(item.path);
+        return;
+      case 'ref':
+        onPick(item.ref.commit);
+        return;
+      case 'tag':
+        onPick(item.ref.commit);
+        return;
+      case 'pull':
+        onPickPull(item.pull);
+        return;
+      default:
+        return;
+    }
+  };
+
+  const moveTo = (index: number) => {
+    if (index < 0 || index >= items.length) return;
+    setCursor(index);
+    revealRow(index);
+  };
+
+  useCommands('refs', {
+    selectNext: () => moveTo(stepped(cursor, 1, items.length)),
+    selectPrevious: () => moveTo(stepped(cursor, -1, items.length)),
+    selectFirst: () => moveTo(0),
+    selectLast: () => moveTo(items.length - 1),
+    openSelected: () => {
+      const item = items[cursor];
+      if (item) openItem(item);
+    },
+  });
 
   const pickView = (key: ViewKey) => {
     if (key === 'pullRequests' && pulls === null) onPullsExpanded();
@@ -386,26 +491,47 @@ export function Sidebar({
 
   const last = Math.min(items.length, first + Math.ceil(viewportH / ROW_PITCH) + OVERSCAN * 2);
 
-  const renderItem = (item: Item) => {
+  const renderItem = (item: Item, index: number) => {
+    const selected = index === cursor;
+    const tabIndex = rovingTabIndex(cursor, index);
     switch (item.kind) {
       case 'folder':
-        return <FolderRow item={item} onFlip={flipFolder} />;
+        return (
+          <FolderRow item={item} selected={selected} tabIndex={tabIndex} onFlip={flipFolder} />
+        );
       case 'ref':
         return (
           <RefRow
             item={item}
             checkingOut={checkingOut}
+            selected={selected}
+            tabIndex={tabIndex}
             onPick={onPick}
             onCheckout={onCheckout}
             onMenu={openRefMenu}
           />
         );
       case 'worktree':
-        return <WorktreeRow view={item.worktree} />;
+        return <WorktreeRow view={item.worktree} selected={selected} tabIndex={tabIndex} />;
       case 'tag':
-        return <TagRow view={item.ref} onPick={onPick} onMenu={openRefMenu} />;
+        return (
+          <TagRow
+            view={item.ref}
+            selected={selected}
+            tabIndex={tabIndex}
+            onPick={onPick}
+            onMenu={openRefMenu}
+          />
+        );
       case 'pull':
-        return <PullRow pull={item.pull} onPickPull={onPickPull} />;
+        return (
+          <PullRow
+            pull={item.pull}
+            selected={selected}
+            tabIndex={tabIndex}
+            onPickPull={onPickPull}
+          />
+        );
     }
   };
 
@@ -438,6 +564,8 @@ export function Sidebar({
       style={{ width: clampPanel('sidebar', width) }}
     >
       <ResizeGrip
+        name="sidebar"
+        label={t('resize.sidebar')}
         edge="right"
         onStart={() => {
           dragFrom.current = clampPanel('sidebar', width);
@@ -463,7 +591,10 @@ export function Sidebar({
 
       <div
         ref={listRef}
+        data-area="refs"
         data-slot="sidebar-rows"
+        role="listbox"
+        aria-label={VIEWS.find((known) => known.key === view)?.title}
         onScroll={onScroll}
         className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2.5"
       >
@@ -477,9 +608,9 @@ export function Sidebar({
         ) : (
           <>
             <div style={{ height: first * ROW_PITCH }} />
-            {items.slice(first, last).map((item) => (
+            {items.slice(first, last).map((item, offset) => (
               <div key={keyOf(item)} style={{ height: ROW_PITCH }}>
-                {renderItem(item)}
+                {renderItem(item, first + offset)}
               </div>
             ))}
             <div style={{ height: Math.max(0, (items.length - last) * ROW_PITCH) }} />

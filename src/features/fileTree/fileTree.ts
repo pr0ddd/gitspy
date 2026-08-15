@@ -75,3 +75,23 @@ export const sortedByPath = (
 
 export const filesOf = (nodes: readonly FileNode[]): StatusEntryView[] =>
   nodes.flatMap((node) => (node.kind === 'file' ? [node.entry] : filesOf(node.children)));
+
+export const foldersOf = (nodes: readonly FileNode[]): string[] =>
+  nodes.flatMap((node) => (node.kind === 'folder' ? [node.path, ...foldersOf(node.children)] : []));
+
+const TALLY_ORDER = ['A', 'M', 'R', 'C', 'T', 'D', 'U'];
+
+const shownLetter = (letter: string): string => (letter === '?' ? 'A' : letter);
+
+export const tallyByLetter = (
+  nodes: readonly FileNode[],
+): Array<{ letter: string; count: number }> => {
+  const counts = new Map<string, number>();
+  for (const entry of filesOf(nodes)) {
+    const letter = shownLetter(entry.letter);
+    counts.set(letter, (counts.get(letter) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([letter, count]) => ({ letter, count }))
+    .sort((a, b) => TALLY_ORDER.indexOf(a.letter) - TALLY_ORDER.indexOf(b.letter));
+};

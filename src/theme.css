@@ -49,6 +49,10 @@
 
   --status-added: oklch(0.74 0.16 150);
   --status-deleted: oklch(0.66 0.19 25);
+  --fill-added: color-mix(in oklab, var(--status-added) 32%, var(--card));
+  --fill-added-hover: color-mix(in oklab, var(--status-added) 42%, var(--card));
+  --fill-deleted: color-mix(in oklab, var(--status-deleted) 32%, var(--card));
+  --fill-deleted-hover: color-mix(in oklab, var(--status-deleted) 42%, var(--card));
   --status-modified: oklch(0.79 0.14 82);
   --status-renamed: oklch(0.69 0.14 250);
   --status-conflict: oklch(0.68 0.15 52);
@@ -101,8 +105,12 @@
   --row-height: 28px;
   --row-height-graph: 30px;
   --bar-height: 52px;
+  --scrollbar-width: 10px;
 }
 
+@utility pr-gutter {
+  padding-right: var(--scrollbar-width);
+}
 
 [data-theme='linear-dark'] {
   --background: lch(2.595% 0.4 272);
@@ -197,17 +205,17 @@
   --ref-stash: oklch(0.5 0.12 320);
   --ref-worktree: oklch(0.52 0.12 195);
   --ref-current: oklch(0.53 0.15 150);
-  --graph-1: oklch(0.60 0.17 268 / 0.6);
+  --graph-1: oklch(0.6 0.17 268 / 0.6);
   --graph-2: oklch(0.58 0.19 325 / 0.6);
   --graph-3: oklch(0.62 0.13 195 / 0.6);
   --graph-4: oklch(0.66 0.13 92 / 0.6);
   --graph-5: oklch(0.62 0.16 20 / 0.6);
   --graph-6: oklch(0.62 0.14 150 / 0.6);
-  --graph-7: oklch(0.60 0.13 220 / 0.6);
+  --graph-7: oklch(0.6 0.13 220 / 0.6);
   --graph-8: oklch(0.65 0.13 55 / 0.6);
   --graph-9: oklch(0.58 0.16 300 / 0.6);
   --graph-10: oklch(0.64 0.13 120 / 0.6);
-  --graph-11: oklch(0.60 0.17 350 / 0.6);
+  --graph-11: oklch(0.6 0.17 350 / 0.6);
   --graph-12: oklch(0.58 0.15 245 / 0.6);
 }
 
@@ -278,6 +286,10 @@
 
   --color-added: var(--status-added);
   --color-deleted: var(--status-deleted);
+  --color-fill-added: var(--fill-added);
+  --color-fill-added-hover: var(--fill-added-hover);
+  --color-fill-deleted: var(--fill-deleted);
+  --color-fill-deleted-hover: var(--fill-deleted-hover);
   --color-modified: var(--status-modified);
   --color-renamed: var(--status-renamed);
   --color-conflict: var(--status-conflict);
@@ -323,11 +335,42 @@
 
   --animate-lift: lift 1100ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
   --animate-dive: dive 1100ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-hero-float: hero-float 10s ease-in-out infinite;
+  --animate-hero-bob: hero-bob 5s ease-in-out infinite;
+  --animate-hero-dash: hero-dash 7s linear infinite;
 
   --spacing-row: var(--row-height);
   --spacing-row-graph: var(--row-height-graph);
   --spacing-bar: var(--bar-height);
+}
 
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes hero-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes hero-dash {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -240;
+  }
 }
 
 @keyframes lift {
@@ -360,12 +403,41 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/40;
+    @apply border-border;
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+
+  button,
+  summary,
+  a[href],
+  [role='button'],
+  [role='option'],
+  [role='tab'],
+  [role='radio'],
+  [role='switch'] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'],
+  [data-disabled] {
+    cursor: default;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  [role='option']:focus-visible,
+  [role='tab']:focus-visible,
+  [role='separator']:focus-visible {
+    background-color: var(--hover-fill);
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
   }
 
   ::-webkit-scrollbar-track {

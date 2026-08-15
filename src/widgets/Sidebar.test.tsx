@@ -236,3 +236,25 @@ describe('дерево и стрелки', () => {
     expect(row('main').textContent).toBe('main99+');
   });
 });
+
+describe('ветка с исчезнувшим upstream', () => {
+  it('остаётся в списке и не помечается словом, потому что ветка на месте', () => {
+    draw([branch({ name: 'invoices-pagination', gone: true, upstream: 'origin/invoices-pagination' })]);
+
+    expect(
+      screen.getByText('invoices-pagination'),
+      'ветка существует локально — её надо показывать',
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('gone'),
+      'красная метка у каждой второй строки — шум, GitKraken её тоже не рисует',
+    ).toBeNull();
+  });
+
+  it('отставание и опережение по-прежнему видно', () => {
+    draw([branch({ name: 'feature/live', ahead: 2, behind: 3 })]);
+
+    expect(screen.getByText('2'), 'счётчик опережения остаётся').toBeTruthy();
+    expect(screen.getByText('3'), 'счётчик отставания остаётся').toBeTruthy();
+  });
+});

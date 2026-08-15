@@ -21,6 +21,7 @@ import {
   Plus,
   RefreshCw,
   ZoomIn,
+  Keyboard,
   ZoomOut,
   CircleUserRound,
   Loader2,
@@ -58,6 +59,7 @@ import {
   ListTree,
   Unlink,
   Sparkles,
+  ScrollText,
   Star,
 } from 'lucide-react';
 import { createElement, type SVGProps } from 'react';
@@ -94,7 +96,9 @@ export const Icon = {
 
   fetch: RefreshCw,
   update: CircleArrowUp,
+  changelog: ScrollText,
   zoomIn: ZoomIn,
+  keyboard: Keyboard,
   zoomOut: ZoomOut,
   back: ArrowLeft,
   forward: ArrowRight,

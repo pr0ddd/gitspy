@@ -13,4 +13,7 @@ globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObse
 
 if (typeof document !== 'undefined') {
   document.queryCommandSupported ??= () => false;
+  Element.prototype.scrollIntoView ??= () => {};
+  Element.prototype.setPointerCapture ??= () => {};
+  Element.prototype.releasePointerCapture ??= () => {};
 }

@@ -1,10 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
-mod acp;
-mod acp_adapter;
-mod acp_attach;
-mod acp_terminal;
 mod ai;
 mod autofetch;
 mod avatars;
@@ -63,6 +59,7 @@ fn main() {
             repo_commands::stage,
             repo_commands::commit,
             repo_commands::search_commits,
+            repo_commands::found_commits,
             repo_commands::refresh_tip,
             avatars::avatar_paths,
             avatars::resolve_avatars,
@@ -92,17 +89,11 @@ fn main() {
             term::term_input,
             term::term_resize,
             term::term_ack,
-            term::term_kill,
-            acp::acp_open,
-            acp::acp_prompt,
-            acp::acp_permission,
-            acp::acp_set_config,
-            acp::acp_cancel,
-            acp::acp_kill,
-            acp::acp_rollback
+            term::term_kill
         ])
         .setup(|app| {
             autofetch::start(app.handle().clone());
+            open_devtools_in_debug(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -115,6 +106,16 @@ fn main() {
         .expect("приложение запускается")
         .run(show_window_on_reopen)
 }
+
+#[cfg(debug_assertions)]
+fn open_devtools_in_debug(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        window.open_devtools();
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn open_devtools_in_debug(_app: &tauri::AppHandle) {}
 
 #[cfg(target_os = "macos")]
 fn show_window_on_reopen(app: &tauri::AppHandle, event: tauri::RunEvent) {

@@ -1,10 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { TerminalDock } from './TerminalDock';
-import { useAgentSessions } from '@/entities/agent';
-import { useTermSessions } from '@/entities/terminal';
-import { feedOf, openAgentSession } from '@/features/agent';
+
+const draw = (dock: React.ReactElement) => render(<TooltipProvider>{dock}</TooltipProvider>);
+import { createTermHost, useTermSessions } from '@/entities/terminal';
+import { writeProfiles } from '@/features/terminal';
 import '@/i18n';
+
+const { refit } = vi.hoisted(() => ({ refit: vi.fn() }));
+
+vi.mock('@/entities/terminal', async (importActual) => ({
+  ...(await importActual<typeof import('@/entities/terminal')>()),
+  createTermHost: vi.fn(async () => ({
+    id: 77,
+    fit: refit,
+    focus: () => {},
+    dispose: () => {},
+  })),
+}));
 
 vi.mock('@/ipc', () => ({
   termOpen: vi.fn(async () => 1),
@@ -15,24 +29,54 @@ vi.mock('@/ipc', () => ({
   openUrl: vi.fn(),
 }));
 
-vi.mock('@/features/agent', () => ({
-  feedOf: vi.fn(() => []),
-  onFeed: vi.fn(() => () => {}),
-  openAgentSession: vi.fn(async () => 9),
-  sendPrompt: vi.fn(async () => {}),
-  answerPermission: vi.fn(async () => {}),
-  rollbackCheckpoint: vi.fn(async () => {}),
-}));
-
 describe('док терминалов', () => {
-  it('пустой док показывает подсказку и кнопку нового терминала', () => {
+  it('открытый док сразу заводит терминал, не спрашивая второй раз', async () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
-    expect(screen.getByText('No terminals yet'), 'пустота названа честно').toBeTruthy();
+    draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    expect(
+      await screen.findByRole('tab'),
+      'кнопкой терминала намерение уже высказано — предлагать его ещё раз нечего',
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('No terminals yet'),
+      'пустой док с одинокой кнопкой — лишний шаг на ровном месте',
+    ).toBeNull();
+  });
+
+  it('закрыв последнюю вкладку, док не заводит новую сам', async () => {
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    await screen.findByRole('tab');
+    fireEvent.click(screen.getByLabelText('Close terminal'));
+    expect(
+      await screen.findByText('No terminals yet'),
+      'закрытая вкладка — тоже намерение, и спорить с ним нельзя',
+    ).toBeTruthy();
     expect(
       screen.getByText('New terminal'),
-      'из пустого дока терминал заводится одним кликом',
+      'вернуться к терминалу можно одним кликом',
+    ).toBeTruthy();
+  });
+
+  it('пока сессия поднимается, подсказки о пустоте не мелькает', () => {
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    expect(
+      screen.queryByText('No terminals yet'),
+      'мигание «пусто» на первом кадре читается как поломка',
+    ).toBeNull();
+  });
+
+  it('одного профиля хватает кнопки «плюс» без стрелки выбора', () => {
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    expect(
+      screen.queryByLabelText('Start from a profile'),
+      'меню из одного пункта — лишний клик и лишняя стрелка в шапке',
+    ).toBeNull();
+    expect(
+      screen.getByLabelText('New terminal'),
+      'завести ещё один терминал всё ещё можно',
     ).toBeTruthy();
   });
 
@@ -51,75 +95,12 @@ describe('док терминалов', () => {
       ],
       activeByRepo: { '/r': 2 },
     });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(screen.getByText('сборка фронта'), 'живой заголовок сессии виден в списке').toBeTruthy();
     expect(screen.getByText('zsh'), 'соседняя сессия из списка не пропадает').toBeTruthy();
     expect(
       screen.queryByText('No terminals yet'),
       'с сессиями подсказке о пустоте места нет',
-    ).toBeNull();
-  });
-
-  it('агентская сессия стоит в том же списке и открывает свою ленту вместо терминала', () => {
-    useTermSessions.setState({
-      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r', status: 'idle' }],
-      activeByRepo: { '/r': 1 },
-    });
-    useAgentSessions.setState({
-      sessions: [
-        {
-          id: 2,
-          repo: '/r',
-          title: 'claude · ACP',
-          status: 'ready',
-          config: [],
-          commands: [],
-          usage: null,
-        },
-      ],
-      activeByRepo: {},
-    });
-    vi.mocked(feedOf).mockReturnValue([{ kind: 'agent', text: 'починил сборку' }]);
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
-    expect(
-      screen.queryByLabelText('Agent session'),
-      'пока выбран терминал, лента агента не занимает сцену',
-    ).toBeNull();
-    fireEvent.click(screen.getByText('claude · ACP'));
-    expect(
-      screen.getByLabelText('Agent session'),
-      'выбранная агентская сессия рендерит ленту, а не терминал',
-    ).toBeTruthy();
-    expect(screen.getByText('починил сборку'), 'лента показывает ответ агента').toBeTruthy();
-    fireEvent.click(screen.getByText('zsh'));
-    expect(
-      screen.queryByLabelText('Agent session'),
-      'возврат к терминалу убирает ленту со сцены',
-    ).toBeNull();
-  });
-
-  it('одна агентская сессия занимает док без подсказки о пустоте', () => {
-    useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({
-      sessions: [
-        {
-          id: 3,
-          repo: '/r',
-          title: 'claude · ACP',
-          status: 'working',
-          config: [],
-          commands: [],
-          usage: null,
-        },
-      ],
-      activeByRepo: {},
-    });
-    vi.mocked(feedOf).mockReturnValue([]);
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
-    expect(
-      screen.queryByText('No terminals yet'),
-      'сессия в доке есть — пустым он себя называть не должен',
     ).toBeNull();
   });
 
@@ -131,8 +112,7 @@ describe('док терминалов', () => {
       ],
       activeByRepo: { '/a': 1, '/b': 2 },
     });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/b" onFileLink={() => {}} onHashLink={() => {}} />);
+    draw(<TerminalDock repo="/b" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
       screen.queryByText('zsh гитспая'),
       'чужой репозиторий не приносит свои сессии',
@@ -140,123 +120,69 @@ describe('док терминалов', () => {
     expect(screen.getByText('zsh реакта')).toBeTruthy();
   });
 
-  it('свёрнутый список остаётся навигацией: иконки сессий и кнопка новой', () => {
+  it('сессии стоят вкладками в полоске над терминалом, а не колонкой сбоку', () => {
     useTermSessions.setState({
       sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
       activeByRepo: { '/a': 1 },
     });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
-    fireEvent.click(screen.getByLabelText('Collapse sessions'));
+    const { container } = draw(
+      <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />,
+    );
     expect(
-      screen.getByLabelText('New terminal'),
-      'свёрнутая полоса не теряет кнопку новой сессии',
-    ).toBeTruthy();
+      container.querySelector('aside'),
+      'панель на 256 px справа съедала ширину, ради которой терминал и разворачивают',
+    ).toBeNull();
+    expect(screen.getByText('zsh'), 'сессия остаётся выбираемой вкладкой').toBeTruthy();
     expect(
-      screen.getAllByRole('button', { name: 'zsh' }).length,
-      'сессии остаются кликабельными иконками',
-    ).toBe(1);
+      screen.queryByLabelText('Collapse sessions'),
+      'сворачивать в рельсу нечего: полоска и так занимает одну строку',
+    ).toBeNull();
   });
 
   it('шапки «Terminal» над доком нет', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
+    draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(screen.queryByText('Terminal'), 'полоса-заголовок только ела высоту').toBeNull();
+  });
+
+  it('док лежит внизу поверх графа и не заводит своей раскладки', () => {
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    const { container } = draw(
+      <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />,
+    );
+    const root = container.querySelector('section');
+    expect(
+      root?.className.includes('bottom-0'),
+      'терминал живёт снизу: другого места у него нет',
+    ).toBe(true);
+    expect(
+      screen.queryByLabelText('Fullscreen'),
+      'полноэкранного режима у дока нет — граф не должен уезжать вбок',
+    ).toBeNull();
   });
 });
 
 describe('запуск сессий из дока', () => {
-  it('пункт меню «claude · ACP» открывает агентскую сессию репозитория', async () => {
-    useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
-    fireEvent.pointerDown(
-      screen.getByLabelText('Start from a profile'),
-      new PointerEvent('pointerdown', { bubbles: true, ctrlKey: false, button: 0 }),
-    );
-    const item = await screen.findByText('claude · ACP');
-    fireEvent.click(item);
-    expect(
-      vi.mocked(openAgentSession),
-      'выбор профиля агента обязан открывать сессию, а не молчать',
-    ).toHaveBeenCalledWith('/r');
-  });
-
-  it('открытая агентская сессия становится активной и показывает ленту', () => {
+  it('со вторым профилем появляется стрелка выбора, и её пункт заводит сессию', async () => {
     useTermSessions.setState({
       sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r', status: 'idle' }],
       activeByRepo: { '/r': 1 },
     });
-    useAgentSessions.setState({
-      sessions: [
-        { id: 9, repo: '/r', title: 'claude · ACP', status: 'ready', config: [], commands: [], usage: null },
-      ],
-      activeByRepo: { '/r': 9 },
-    });
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
-    expect(
-      screen.getByLabelText('Agent session'),
-      'новая сессия агента обязана выйти на сцену поверх открытого терминала',
-    ).toBeTruthy();
-  });
-});
-
-describe('отклик на запуск агента', () => {
-  it('пока адаптер поднимается, в списке видно заводящуюся сессию', async () => {
-    useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    let release: (id: number) => void = () => {};
-    vi.mocked(openAgentSession).mockImplementation(
-      () => new Promise<number>((resolve) => (release = resolve)),
-    );
-    render(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    writeProfiles([
+      { label: 'zsh', command: null },
+      { label: 'сборка', command: 'npm run app' },
+    ]);
+    draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     fireEvent.pointerDown(
       screen.getByLabelText('Start from a profile'),
-      new PointerEvent('pointerdown', { bubbles: true, button: 0 }),
+      new PointerEvent('pointerdown', { bubbles: true, ctrlKey: false, button: 0 }),
     );
-    fireEvent.click(await screen.findByText('claude · ACP'));
+    fireEvent.click(await screen.findByText('сборка'));
     expect(
-      await screen.findByText('Starting…'),
-      'две секунды тишины после клика человек читает как поломку',
-    ).toBeTruthy();
-    release(9);
-  });
-});
-
-describe('полноэкранный режим дока', () => {
-  it('кнопка разворота зовёт хозяина раскладки, а не двигает док сама', () => {
-    useTermSessions.setState({
-      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
-      activeByRepo: { '/a': 1 },
-    });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    const asked = vi.fn();
-    render(
-      <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} onFullscreen={asked} />,
-    );
-    fireEvent.click(screen.getByLabelText('Fullscreen'));
-    expect(asked, 'раскладкой владеет приложение: док только просит').toHaveBeenCalledTimes(1);
-  });
-
-  it('в полноэкранном режиме док не висит поверх, а занимает свою колонку', () => {
-    useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    const { container } = render(
-      <TerminalDock
-        repo="/a"
-        onFileLink={() => {}}
-        onHashLink={() => {}}
-        fullscreen
-        onFullscreen={() => {}}
-      />,
-    );
-    const root = container.querySelector('section');
-    expect(
-      root?.className.includes('absolute'),
-      'наложение поверх графа осмысленно только в оконном режиме',
-    ).toBe(false);
-    expect(screen.getByLabelText('Leave fullscreen')).toBeTruthy();
+      vi.mocked(createTermHost).mock.calls.at(-1)?.[1].command,
+      'выбор профиля запускает его команду, а не логин-шелл',
+    ).toBe('npm run app');
+    localStorage.clear();
   });
 });
 
@@ -266,8 +192,7 @@ describe('шапка списка сессий', () => {
       sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
       activeByRepo: { '/a': 1 },
     });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
-    render(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
+    draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
       screen.queryByText('Sessions'),
       'заголовок повторяет то, что и так видно из содержимого',
@@ -276,14 +201,90 @@ describe('шапка списка сессий', () => {
 
   it('закрывает терминал целиком по своей кнопке', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
-    useAgentSessions.setState({ sessions: [], activeByRepo: {} });
     const closed = vi.fn();
-    render(
-      <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} onClose={closed} />,
-    );
+    draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} onClose={closed} />);
     fireEvent.click(screen.getByLabelText('Close terminal panel'));
-    expect(closed, 'уйти из терминала можно тем же местом, где его открывали').toHaveBeenCalledTimes(
-      1,
-    );
+    expect(
+      closed,
+      'уйти из терминала можно тем же местом, где его открывали',
+    ).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('подгон терминала под новый размер', () => {
+  let notifyResize: () => void = () => {};
+
+  const watchingResizes = () => {
+    class Watch {
+      constructor(private readonly report: ResizeObserverCallback) {
+        notifyResize = () => this.report([], this as unknown as ResizeObserver);
+      }
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    globalThis.ResizeObserver = Watch as unknown as typeof ResizeObserver;
+  };
+
+  const nextFrame = () =>
+    act(async () => {
+      await new Promise((done) => requestAnimationFrame(() => done(null)));
+    });
+
+  const dockWithOneTerminal = async () => {
+    watchingResizes();
+    useTermSessions.setState({ sessions: [], activeByRepo: {} });
+    const view = draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
+    await screen.findByRole('tab');
+    await nextFrame();
+    refit.mockClear();
+    const grip = view.container.querySelector('[data-grip="dock"]') as HTMLElement;
+    return { grip };
+  };
+
+  it('пока разделитель зажат, содержимое перекладывается каждый кадр', async () => {
+    const { grip } = await dockWithOneTerminal();
+
+    fireEvent.pointerDown(grip, { pointerId: 1 });
+    notifyResize();
+    await nextFrame();
+    notifyResize();
+    await nextFrame();
+
+    expect(
+      refit,
+      'терминал, застывший до конца жеста, показывает старую сетку под новой высотой',
+    ).toHaveBeenCalledTimes(2);
+
+    fireEvent.pointerUp(grip, { pointerId: 1 });
+  });
+
+  it('несколько уведомлений об одном кадре стоят одного подгона', async () => {
+    const { grip } = await dockWithOneTerminal();
+
+    fireEvent.pointerDown(grip, { pointerId: 1 });
+    notifyResize();
+    notifyResize();
+    notifyResize();
+    await nextFrame();
+
+    expect(
+      refit,
+      'перелив буфера стоит миллисекунды, и больше одного раза за кадр он не нужен',
+    ).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerUp(grip, { pointerId: 1 });
+  });
+
+  it('размер, изменившийся сам по себе, подгоняется тем же кадром', async () => {
+    await dockWithOneTerminal();
+
+    notifyResize();
+    await nextFrame();
+
+    expect(
+      refit,
+      'открытие панели или смена вкладки — не жест, ждать тут нечего',
+    ).toHaveBeenCalledTimes(1);
   });
 });

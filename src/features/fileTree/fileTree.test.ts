@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { buildFileTree, filesOf, sortedByPath } from './fileTree';
+import { buildFileTree, filesOf, foldersOf, sortedByPath, tallyByLetter } from './fileTree';
 import type { StatusEntryView } from '@/types';
 
-const entry = (path: string): StatusEntryView => ({
+const entry = (path: string, letter = 'M'): StatusEntryView => ({
   staged: false,
-  letter: 'M',
+  letter,
   path,
   oldPath: null,
 });
 
 const shape = (nodes: ReturnType<typeof buildFileTree>): string[] =>
   nodes.flatMap((node) =>
-    node.kind === 'file' ? [node.name] : [`${node.name}/`, ...shape(node.children).map((s) => `  ${s}`)],
+    node.kind === 'file'
+      ? [node.name]
+      : [`${node.name}/`, ...shape(node.children).map((s) => `  ${s}`)],
   );
 
 describe('дерево файлов рабочего копии', () => {
@@ -57,8 +59,38 @@ describe('дерево файлов рабочего копии', () => {
   it('обход дерева отдаёт ровно те же файлы, что вошли', () => {
     const paths = ['src/App.tsx', 'crates/core/src/lib.rs', 'README.md'];
 
-    expect(filesOf(buildFileTree(paths.map(entry))).map((e) => e.path).sort()).toEqual(
-      [...paths].sort(),
-    );
+    expect(
+      filesOf(buildFileTree(paths.map((path) => entry(path))))
+        .map((e) => e.path)
+        .sort(),
+    ).toEqual([...paths].sort());
+  });
+
+  it('каталоги перечисляются целыми путями: по ним и открывается свёрнутая ветка дерева', () => {
+    const tree = buildFileTree([
+      entry('src/app/App.tsx'),
+      entry('docs/plan.md'),
+      entry('README.md'),
+    ]);
+
+    expect(foldersOf(tree)).toEqual(['docs', 'src/app']);
+  });
+
+  it('свёрнутый каталог показывает, что внутри: по букве статуса со счётом', () => {
+    const tree = buildFileTree([
+      entry('src/a.ts', 'M'),
+      entry('src/b.ts', 'M'),
+      entry('src/c.ts', '?'),
+      entry('src/d.ts', 'D'),
+    ]);
+
+    expect(
+      tallyByLetter(tree),
+      'неотслеживаемый файл считается добавленным, порядок букв — от добавленных к удалённым',
+    ).toEqual([
+      { letter: 'A', count: 1 },
+      { letter: 'M', count: 2 },
+      { letter: 'D', count: 1 },
+    ]);
   });
 });

@@ -19,7 +19,9 @@ vi.mock('@/ipc', async (importOriginal) => ({
 import '../i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { WorkingTree } from './WorkingTree';
-import type { Operation, WorkingTreeView } from '@/types';
+import type { Operation, PathOperation, WorkingTreeView } from '@/types';
+import type { Picked } from '@/entities/repo';
+import { useKeyboard } from '@/features/keyboard';
 
 const treeWith = (staged: number): WorkingTreeView => ({
   branch: 'branches',
@@ -42,13 +44,17 @@ const treeWith = (staged: number): WorkingTreeView => ({
 
 type Extra = Partial<{
   onConfirm: (operation: Operation) => void;
-  onRun: () => void;
+  onRun: (operation: PathOperation) => void;
   description: string;
   amend: boolean;
   onAmend: (next: boolean) => void;
   onMessage: (text: string) => void;
   onDescription: (text: string) => void;
   previous: { subject: string; body: string } | null;
+  picked: Picked | null;
+  diffOpen: boolean;
+  onPick: (picked: Picked | null) => void;
+  onOpen: (path: string, status: string, staged: boolean) => void;
 }>;
 
 const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extra: Extra = {}) =>
@@ -61,6 +67,9 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
         description={extra.description ?? ''}
         amend={extra.amend ?? false}
         previous={extra.previous ?? null}
+        picked={extra.picked ?? null}
+        diffOpen={extra.diffOpen ?? false}
+        onPick={extra.onPick ?? (() => {})}
         onMessage={extra.onMessage ?? (() => {})}
         onDescription={extra.onDescription ?? (() => {})}
         onAmend={extra.onAmend ?? (() => {})}
@@ -68,7 +77,7 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
         onRun={extra.onRun ?? (() => {})}
         onOperation={() => {}}
         onConfirm={extra.onConfirm ?? (() => {})}
-        onOpen={() => {}}
+        onOpen={extra.onOpen ?? (() => {})}
         onCopy={() => {}}
         onHistory={() => {}}
       />
@@ -136,15 +145,38 @@ describe('шапка панели рабочего дерева', () => {
     expect(getByText('1 file change on')).toBeTruthy();
   });
 
-  it('вид «дерево» собирает файлы под каталог, вид «путь» держит их плоско', () => {
+  it('вид «дерево» собирает файлы под каталог и держит его закрытым, пока не откроют', () => {
     const { getByRole, queryByText } = draw(treeWith(2), '', () => {});
 
     expect(queryByText('src'), 'в плоском виде каталог отдельной строкой не стоит').toBeNull();
 
-    fireEvent.click(getByRole('button', { name: /tree/i }));
+    fireEvent.click(getByRole('radio', { name: /tree/i }));
 
     expect(queryByText('src'), 'в дереве каталог становится строкой').toBeTruthy();
-    expect(queryByText('file-0.ts'), 'а файл под ним теряет путь из имени').toBeTruthy();
+    expect(
+      queryByText('file-0.ts'),
+      'закрытый каталог не вываливает содержимое: сотня файлов не должна распахиваться сама',
+    ).toBeNull();
+
+    fireEvent.click(getByRole('button', { name: /expand all/i }));
+
+    expect(
+      queryByText('file-0.ts'),
+      'открытый каталог показывает файл без пути в имени',
+    ).toBeTruthy();
+  });
+
+  it('щелчок по каталогу открывает и снова закрывает его', () => {
+    const { getByRole, getByText, queryByText } = draw(treeWith(2), '', () => {});
+
+    fireEvent.click(getByRole('radio', { name: /tree/i }));
+    fireEvent.click(getByText('src'));
+
+    expect(queryByText('file-0.ts'), 'первый щелчок открывает').toBeTruthy();
+
+    fireEvent.click(getByText('src'));
+
+    expect(queryByText('file-0.ts'), 'второй закрывает').toBeNull();
   });
 });
 
@@ -273,6 +305,9 @@ describe('панель во время слияния', () => {
           description=""
           amend={false}
           previous={null}
+          picked={null}
+          diffOpen={false}
+          onPick={() => {}}
           onMessage={() => {}}
           onDescription={() => {}}
           onAmend={() => {}}
@@ -328,7 +363,10 @@ describe('панель во время слияния', () => {
     const view = drawMerging(mergingTree(0, 2), { message: 'Merge!' });
     expect(view.getByText(/unstaged/i), 'секции обычные, как вне слияния').toBeTruthy();
     expect(view.getByText(/^staged/i)).toBeTruthy();
-    expect(view.queryByText(/conflicted files/i), 'конфликтов нет — конфликтной панели нет').toBeNull();
+    expect(
+      view.queryByText(/conflicted files/i),
+      'конфликтов нет — конфликтной панели нет',
+    ).toBeNull();
     expect(view.queryByText(/resolved files/i)).toBeNull();
     expect(view.getByRole('button', { name: /commit and merge/i })).toBeTruthy();
     expect(view.getByRole('button', { name: /abort merge/i })).toBeTruthy();
@@ -365,5 +403,160 @@ describe('панель во время слияния', () => {
       queryByRole('checkbox', { name: 'Amend previous commit' }),
       'git commit --amend при MERGE_HEAD отказывает',
     ).toBeNull();
+  });
+});
+
+const unstagedTree = (paths: string[]): WorkingTreeView => ({
+  ...treeWith(0),
+  unstaged: paths.length,
+  entries: paths.map((path) => ({ staged: false, letter: 'M', path, oldPath: null })),
+});
+
+function Keyboard({ children }: { children: React.ReactNode }) {
+  useKeyboard('files');
+  return <>{children}</>;
+}
+
+const drawWithKeys = (tree: WorkingTreeView, extra: Extra = {}) =>
+  render(
+    <TooltipProvider>
+      <Keyboard>
+        <WorkingTree
+          repo="/repo"
+          tree={tree}
+          message=""
+          description=""
+          amend={false}
+          previous={null}
+          picked={extra.picked ?? null}
+          diffOpen={extra.diffOpen ?? false}
+          onPick={extra.onPick ?? (() => {})}
+          onMessage={() => {}}
+          onDescription={() => {}}
+          onAmend={() => {}}
+          onCommit={() => {}}
+          onRun={extra.onRun ?? (() => {})}
+          onOperation={() => {}}
+          onConfirm={() => {}}
+          onOpen={extra.onOpen ?? (() => {})}
+          onCopy={() => {}}
+          onHistory={() => {}}
+        />
+      </Keyboard>
+    </TooltipProvider>,
+  );
+
+const press = (key: string) => fireEvent.keyDown(window, { key });
+
+describe('выбранный файл', () => {
+  it('подсвечен, а не только обведён при наведении', () => {
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts']), { picked: { path: 'b.ts', staged: false } });
+
+    const rows = screen.getAllByRole('option');
+    expect(
+      rows.map((row) => row.getAttribute('aria-selected')),
+      'выбран ровно один файл',
+    ).toEqual(['false', 'true']);
+  });
+
+  it('стрелка вниз ведёт к следующему файлу', () => {
+    const onPick = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts', 'c.ts']), {
+      picked: { path: 'a.ts', staged: false },
+      onPick,
+    });
+
+    press('ArrowDown');
+    expect(onPick, 'вниз — следующий по списку').toHaveBeenLastCalledWith({
+      path: 'b.ts',
+      staged: false,
+    });
+  });
+
+  it('с последнего файла стрелка вниз уходит на первый', () => {
+    const onPick = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
+      picked: { path: 'b.ts', staged: false },
+      onPick,
+    });
+
+    press('ArrowDown');
+    expect(onPick, 'список листается по кругу, а не упирается в край').toHaveBeenLastCalledWith({
+      path: 'a.ts',
+      staged: false,
+    });
+  });
+
+  it('буква S стейджит выбранный файл и переводит выбор на следующий', () => {
+    const onRun = vi.fn();
+    const onPick = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts', 'c.ts']), {
+      picked: { path: 'b.ts', staged: false },
+      onRun,
+      onPick,
+    });
+
+    press('s');
+
+    expect(onRun, 'стейджится именно выбранный файл').toHaveBeenCalledWith({
+      kind: 'stage',
+      paths: ['b.ts'],
+    });
+    expect(onPick, 'после стейджа выбор едет дальше, чтобы жать S подряд').toHaveBeenLastCalledWith(
+      {
+        path: 'c.ts',
+        staged: false,
+      },
+    );
+  });
+
+  it('последний незастейдженный файл оставляет выбор на нём же в соседнем списке', () => {
+    const onPick = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts']), { picked: { path: 'a.ts', staged: false }, onPick });
+
+    press('s');
+
+    expect(onPick, 'выбор не должен пропадать, когда список опустел').toHaveBeenLastCalledWith({
+      path: 'a.ts',
+      staged: true,
+    });
+  });
+
+  it('кнопка Stage в строке ведёт себя так же, как клавиша', () => {
+    const onPick = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
+      picked: { path: 'a.ts', staged: false },
+      onPick,
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Stage file' })[0]);
+
+    expect(onPick, 'мышь и клавиатура двигают выбор одинаково').toHaveBeenLastCalledWith({
+      path: 'b.ts',
+      staged: false,
+    });
+  });
+
+  it('пока дифф закрыт, стрелка не открывает его сама', () => {
+    const onOpen = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
+      picked: { path: 'a.ts', staged: false },
+      onOpen,
+    });
+
+    press('ArrowDown');
+    expect(onOpen, 'иначе стрелка по списку дёргала бы главный вид').not.toHaveBeenCalled();
+  });
+
+  it('при открытом диффе стрелка ведёт и его', () => {
+    const onOpen = vi.fn();
+    drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
+      picked: { path: 'a.ts', staged: false },
+      diffOpen: true,
+      onOpen,
+    });
+
+    press('ArrowDown');
+    expect(onOpen, 'дифф следует за выбором').toHaveBeenCalledWith('b.ts', 'M', false);
   });
 });

@@ -61,10 +61,11 @@ const patched = (
   state: SessionsState,
   path: string,
   change: (session: Session) => Session,
-): SessionsState => ({
-  ...state,
-  sessions: state.sessions.map((s) => (s.path === path ? change(s) : s)),
-});
+): SessionsState => {
+  const sessions = state.sessions.map((s) => (s.path === path ? change(s) : s));
+  const moved = sessions.some((s, at) => s !== state.sessions[at]);
+  return moved ? { ...state, sessions } : state;
+};
 
 const without = (state: SessionsState, path: string): SessionsState => {
   const rest = state.sessions.filter((s) => s.path !== path);
@@ -98,7 +99,9 @@ export function sessionsReducer(state: SessionsState, action: SessionsAction): S
     case 'failed':
       return without(state, action.path);
     case 'select':
-      return patched(state, action.path, (s) => ({ ...s, selected: action.index }));
+      return patched(state, action.path, (s) =>
+        s.selected === action.index ? s : { ...s, selected: action.index },
+      );
     case 'worktrees':
       return patched(state, action.path, (s) => ({ ...s, worktrees: action.worktrees }));
   }

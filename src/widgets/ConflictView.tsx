@@ -60,11 +60,8 @@ function Row({
   return (
     <div
       onClick={onToggle}
-      className={cn(
-        'group flex h-5 items-center gap-1.5 border-l-2 border-transparent pr-2',
-        onToggle && 'cursor-pointer',
-        tint,
-      )}
+      role={onToggle ? 'button' : undefined}
+      className={cn('group flex h-5 items-center gap-1.5 border-l-2 border-transparent pr-2', tint)}
     >
       <span className="text-muted-foreground w-6 shrink-0 text-right font-mono text-2xs select-none">
         {mark ?? no ?? ''}
@@ -115,10 +112,13 @@ function SidePane({
   refFor: (el: HTMLDivElement | null) => void;
 }) {
   const { t } = useTranslation();
-  const lines = side === 'a' ? (b: ConflictBlock & { kind: 'conflict' }) => b.ours : (b: ConflictBlock & { kind: 'conflict' }) => b.theirs;
+  const lines =
+    side === 'a'
+      ? (b: ConflictBlock & { kind: 'conflict' }) => b.ours
+      : (b: ConflictBlock & { kind: 'conflict' }) => b.theirs;
   const chosen = (at: number) => (side === 'a' ? picks[at]?.a : picks[at]?.b) ?? new Set();
-  const every = blocks.every((block, at) =>
-    block.kind !== 'conflict' || lines(block).every((_, i) => chosen(at).has(i)),
+  const every = blocks.every(
+    (block, at) => block.kind !== 'conflict' || lines(block).every((_, i) => chosen(at).has(i)),
   );
 
   let no = 0;
@@ -247,7 +247,12 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
           {t('conflict.count', { count: conflicts.length })}
         </span>
 
-        <Button size="xs" className="ml-auto shrink-0" disabled={!file || work !== null} onClick={save}>
+        <Button
+          size="xs"
+          className="ml-auto shrink-0"
+          disabled={!file || work !== null}
+          onClick={save}
+        >
           <Icon.resolve className="size-3.5" />
           {t('conflict.markResolved')}
         </Button>
@@ -319,7 +324,12 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
               <div key={at} data-conflict={at}>
                 {untouched
                   ? block.base.map((line, i) => (
-                      <Row key={`base:${i}`} no={null} text={line} tint="border-ref-stash bg-ref-stash/20" />
+                      <Row
+                        key={`base:${i}`}
+                        no={null}
+                        text={line}
+                        tint="border-ref-stash bg-ref-stash/20"
+                      />
                     ))
                   : null}
                 {block.ours.map((line, i) =>

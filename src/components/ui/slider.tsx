@@ -18,7 +18,7 @@ function Slider({ className, ...props }: React.ComponentProps<typeof SliderPrimi
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         data-slot="slider-thumb"
-        className="border-primary bg-background ring-ring/40 block size-3.5 shrink-0 rounded-full border-2 transition-[color,box-shadow] focus-visible:ring-2 focus-visible:outline-none"
+        className="border-primary bg-background block size-3.5 shrink-0 rounded-full border-2 transition-[color,box-shadow] focus-visible:border-foreground focus-visible:outline-none"
       />
     </SliderPrimitive.Root>
   );

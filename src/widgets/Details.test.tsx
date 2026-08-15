@@ -7,6 +7,7 @@ vi.mock('@/ipc', async (importOriginal) => ({
   commitFiles: vi.fn(() => Promise.resolve([])),
 }));
 import '../i18n';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { Details } from './Details';
 import { RowCache } from '@/entities/graph';
 import type { Session } from '@/entities/repo';
@@ -71,20 +72,25 @@ type Extra = Partial<{ pulls: PullView[]; onOpenPull: (pull: PullView) => void }
 
 const draw = (session: Session, rows: RowCache, extra: Extra = {}) =>
   render(
-    <Details
-      avatars={avatars}
-      avatarTick={0}
-      session={session}
-      rows={rows}
-      pending={0}
-      conflicts={0}
-      pulls={extra.pulls ?? []}
-      onCopy={() => {}}
-      onOpenWorkingTree={() => {}}
-      onOpenFile={() => {}}
-      onHistory={() => {}}
-      onOpenPull={extra.onOpenPull ?? (() => {})}
-    />,
+    <TooltipProvider>
+      <Details
+        avatars={avatars}
+        avatarTick={0}
+        session={session}
+        rows={rows}
+        pending={0}
+        conflicts={0}
+        pulls={extra.pulls ?? []}
+        picked={null}
+        diffOpen={false}
+        onPick={() => {}}
+        onCopy={() => {}}
+        onOpenWorkingTree={() => {}}
+        onOpenFile={() => {}}
+        onHistory={() => {}}
+        onOpenPull={extra.onOpenPull ?? (() => {})}
+      />
+    </TooltipProvider>,
   );
 
 describe('файлы коммита при переключении', () => {
@@ -106,20 +112,25 @@ describe('файлы коммита при переключении', () => {
     expect(screen.getByText('old.ts'), 'файлы выбранного коммита должны показаться').toBeTruthy();
 
     rerender(
-      <Details
-        avatars={avatars}
-        avatarTick={0}
-        session={sessionAt(1)}
-        rows={rows}
-        pending={0}
-        conflicts={0}
-        pulls={[]}
-        onCopy={() => {}}
-        onOpenWorkingTree={() => {}}
-        onOpenFile={() => {}}
-        onHistory={() => {}}
-        onOpenPull={() => {}}
-      />,
+      <TooltipProvider>
+        <Details
+          avatars={avatars}
+          avatarTick={0}
+          session={sessionAt(1)}
+          rows={rows}
+          pending={0}
+          conflicts={0}
+          picked={null}
+          diffOpen={false}
+          onPick={() => {}}
+          pulls={[]}
+          onCopy={() => {}}
+          onOpenWorkingTree={() => {}}
+          onOpenFile={() => {}}
+          onHistory={() => {}}
+          onOpenPull={() => {}}
+        />
+      </TooltipProvider>,
     );
 
     expect(

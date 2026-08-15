@@ -6,27 +6,30 @@ import { hostOf } from '@/host';
 import type { Session } from '@/entities/repo';
 import { Hint } from '@/components/ui/tooltip';
 import { Tab } from '@/parts';
+import { VIEW_TABS, type ViewTab } from '@/features/views';
 
 type Props = {
   sessions: Session[];
   active: string | null;
-  settings: 'closed' | 'open' | 'active';
+  views: readonly ViewTab[];
+  view: ViewTab | null;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onStart: () => void;
-  onSettings: () => void;
-  onCloseSettings: () => void;
+  onView: (view: ViewTab) => void;
+  onCloseView: (view: ViewTab) => void;
 };
 
 export function RepoTabs({
   sessions,
   active,
-  settings,
+  views,
+  view,
   onActivate,
   onClose,
   onStart,
-  onSettings,
-  onCloseSettings,
+  onView,
+  onCloseView,
 }: Props) {
   const { t } = useTranslation();
 
@@ -47,16 +50,17 @@ export function RepoTabs({
           onClose={() => onClose(session.path)}
         />
       ))}
-      {settings === 'closed' ? null : (
+      {views.map((open) => (
         <Tab
-          icon="settings"
-          label={t('settings.title')}
-          current={settings === 'active'}
+          key={open}
+          icon={VIEW_TABS[open].icon}
+          label={t(VIEW_TABS[open].title as 'settings.title')}
+          current={open === view}
           closeLabel={t('repo.close')}
-          onSelect={onSettings}
-          onClose={onCloseSettings}
+          onSelect={() => onView(open)}
+          onClose={() => onCloseView(open)}
         />
-      )}
+      ))}
       <Hint text={t('start.title')}>
         <Button
           variant="ghost"
@@ -72,7 +76,7 @@ export function RepoTabs({
         <Button
           variant="ghost"
           size="icon"
-          onClick={onSettings}
+          onClick={() => onView('settings')}
           className="text-muted-foreground mr-1 ml-auto size-6.5"
         >
           <Icon.settings className="size-3.5" />

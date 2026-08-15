@@ -86,7 +86,7 @@ export function AskBar({ ask, onOpenChange, onRun }: Props) {
     <div
       className={cn(
         'bg-primary/15 animate-in fade-in flex shrink-0 items-center justify-center gap-3 px-4 duration-150',
-        multiline ? 'min-h-10 py-1' : 'h-10',
+        multiline ? 'min-h-12 py-1' : 'h-12',
       )}
     >
       <span className="shrink-0 text-sm">{t(wording.title as 'branch.title')}</span>

@@ -22,6 +22,7 @@ export type { BlameSpanView } from './generated/BlameSpanView';
 export type { OperationOutcome } from './generated/OperationOutcome';
 export type { Progress } from './generated/Progress';
 export type { RecentRepo } from './generated/RecentRepo';
+export type { FoundCommitView } from './generated/FoundCommitView';
 export type { RepoPassportView } from './generated/RepoPassportView';
 export type { RefKindView as RefKind } from './generated/RefKindView';
 export type { RefView } from './generated/RefView';
@@ -32,13 +33,6 @@ export type { WindowView } from './generated/WindowView';
 export type { WorktreeView } from './generated/WorktreeView';
 export type { CommitDraftView } from './generated/CommitDraftView';
 export type { AiServerView } from './generated/AiServerView';
-export type { AcpEventView } from './generated/AcpEventView';
-export type { AcpOptionView } from './generated/AcpOptionView';
-export type { AcpConfigOptionView } from './generated/AcpConfigOptionView';
-export type { AcpConfigChoiceView } from './generated/AcpConfigChoiceView';
-export type { AcpCommandView } from './generated/AcpCommandView';
-export type { AcpPlanEntryView } from './generated/AcpPlanEntryView';
-export type { AcpRateLimitView } from './generated/AcpRateLimitView';
 
 export type AiProviderId = 'ollama' | 'lmstudio';
 

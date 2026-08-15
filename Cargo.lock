@@ -1605,14 +1605,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gitspy-acp"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "gitspy-ai"
 version = "0.1.0"
 dependencies = [
@@ -1626,9 +1618,7 @@ dependencies = [
 name = "gitspy-app"
 version = "1.0.5"
 dependencies = [
- "base64 0.23.1",
  "futures-util",
- "gitspy-acp",
  "gitspy-ai",
  "gitspy-core",
  "gitspy-exec",
