@@ -83,14 +83,13 @@ describe('док терминалов', () => {
   it('сессии видны в списке справа со своими заголовками', () => {
     useTermSessions.setState({
       sessions: [
-        { id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r', status: 'idle' },
+        { id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r' },
         {
           id: 2,
           title: 'сборка фронта',
           command: 'npm run app',
           cwd: '/r',
           repo: '/r',
-          status: 'running',
         },
       ],
       activeByRepo: { '/r': 2 },
@@ -107,8 +106,8 @@ describe('док терминалов', () => {
   it('док показывает только сессии своего репозитория', () => {
     useTermSessions.setState({
       sessions: [
-        { id: 1, title: 'zsh гитспая', command: null, cwd: '/a', repo: '/a', status: 'idle' },
-        { id: 2, title: 'zsh реакта', command: null, cwd: '/b', repo: '/b', status: 'idle' },
+        { id: 1, title: 'zsh гитспая', command: null, cwd: '/a', repo: '/a' },
+        { id: 2, title: 'zsh реакта', command: null, cwd: '/b', repo: '/b' },
       ],
       activeByRepo: { '/a': 1, '/b': 2 },
     });
@@ -122,7 +121,7 @@ describe('док терминалов', () => {
 
   it('сессии стоят вкладками в полоске над терминалом, а не колонкой сбоку', () => {
     useTermSessions.setState({
-      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
+      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a' }],
       activeByRepo: { '/a': 1 },
     });
     const { container } = draw(
@@ -165,7 +164,7 @@ describe('док терминалов', () => {
 describe('запуск сессий из дока', () => {
   it('со вторым профилем появляется стрелка выбора, и её пункт заводит сессию', async () => {
     useTermSessions.setState({
-      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r', status: 'idle' }],
+      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r' }],
       activeByRepo: { '/r': 1 },
     });
     writeProfiles([
@@ -189,7 +188,7 @@ describe('запуск сессий из дока', () => {
 describe('шапка списка сессий', () => {
   it('не тратит строку на слово «Sessions» и счётчик', () => {
     useTermSessions.setState({
-      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a', status: 'idle' }],
+      sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a' }],
       activeByRepo: { '/a': 1 },
     });
     draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);

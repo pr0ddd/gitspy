@@ -8,15 +8,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { activeOf, createTermHost, sessionsOfRepo, useTermSessions } from '@/entities/terminal';
-import type { TermHost, TermStatus } from '@/entities/terminal';
-import {
-  detectLinks,
-  parseOsc133,
-  parseOsc7,
-  readProfiles,
-  type Osc133,
-  type TermProfile,
-} from '@/features/terminal';
+import type { TermHost } from '@/entities/terminal';
+import { detectLinks, readProfiles, type TermProfile } from '@/features/terminal';
 import { Icon } from '@/icons';
 import { PanelBar, PanelNote, ResizeGrip, Tab } from '@/parts';
 import { useShareUnderCursor } from '@/resize';
@@ -29,23 +22,7 @@ type Props = {
   onClose?: () => void;
 };
 
-const OSC_CWD = 7;
-const OSC_PROMPT = 133;
-
 const SHARE = { min: 0.15, max: 0.85, fallback: 0.35 };
-
-const STATUS_DOT: Record<TermStatus, string> = {
-  running: 'bg-added',
-  failed: 'bg-modified',
-  idle: 'bg-muted-foreground',
-  exited: 'bg-muted-foreground',
-};
-
-const statusAfterPrompt = (mark: Osc133): TermStatus | null => {
-  if (mark.phase === 'C') return 'running';
-  if (mark.phase !== 'D') return null;
-  return mark.exit === undefined || mark.exit === 0 ? 'idle' : 'failed';
-};
 
 const livePanes = new Map<number, { el: HTMLDivElement; host: TermHost }>();
 
@@ -63,8 +40,6 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
   const drop = useTermSessions((state) => state.remove);
   const setActive = useTermSessions((state) => state.setActive);
   const setTitle = useTermSessions((state) => state.setTitle);
-  const setStatus = useTermSessions((state) => state.setStatus);
-  const setCwd = useTermSessions((state) => state.setCwd);
 
   const dockShare = useShareUnderCursor('term.dock.size', SHARE.fallback, SHARE.min, SHARE.max);
   const [starting, setStarting] = useState(0);
@@ -76,21 +51,6 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
   const sessions = useMemo(
     () => sessionsOfRepo({ sessions: allSessions }, repo),
     [allSessions, repo],
-  );
-
-  const applyMark = useCallback(
-    (id: number, code: number, data: string) => {
-      if (code === OSC_CWD) {
-        const cwd = parseOsc7(data);
-        if (cwd) setCwd(id, cwd);
-        return;
-      }
-      if (code !== OSC_PROMPT) return;
-      const mark = parseOsc133(data);
-      const next = mark && statusAfterPrompt(mark);
-      if (next) setStatus(id, next);
-    },
-    [setCwd, setStatus],
   );
 
   const openSession = useCallback(
@@ -108,11 +68,9 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
       createTermHost(el, {
         cwd: repo,
         command: profile.command,
-        integration: true,
         detect: detectLinks,
         hooks: {
           onTitle: (title) => forOpened((id) => setTitle(id, title)),
-          onOsc: (code, data) => forOpened((id) => applyMark(id, code, data)),
           onFileLink,
           onHashLink,
         },
@@ -126,7 +84,6 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
             command: profile.command,
             cwd: repo,
             repo,
-            status: 'idle',
           });
         })
         .catch((reason) => {
@@ -139,7 +96,7 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
         })
         .finally(() => setStarting((waiting) => waiting - 1));
     },
-    [add, applyMark, onFileLink, onHashLink, repo, setTitle, stagedTermId],
+    [add, onFileLink, onHashLink, repo, setTitle, stagedTermId],
   );
 
   const closeSession = useCallback(
@@ -209,7 +166,6 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
               label={session.title}
               title={session.cwd}
               current={session.id === stagedTermId}
-              dot={session.status === 'exited' ? undefined : STATUS_DOT[session.status]}
               closeLabel={t('term.close')}
               onSelect={() => setActive(repo, session.id)}
               onClose={() => closeSession(session.id)}

@@ -217,12 +217,11 @@ const bytesOfFrame = (frame: ArrayBuffer | ArrayBufferView): Uint8Array =>
 export const termOpen = (
   cwd: string,
   command: string | null,
-  integration: boolean,
   onData: (bytes: Uint8Array) => void,
 ) => {
   const channel = new Channel<ArrayBuffer | ArrayBufferView>();
   channel.onmessage = (frame) => onData(bytesOfFrame(frame));
-  return invoke<number>('term_open', { cwd, command, integration, onData: channel });
+  return invoke<number>('term_open', { cwd, command, onData: channel });
 };
 
 export const termInput = (id: number, data: string) => invoke<void>('term_input', { id, data });

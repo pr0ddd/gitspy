@@ -168,7 +168,6 @@ fn flush_frames_the_reader_left_behind(pump: &Pump, sink: &Channel<InvokeRespons
 pub fn term_open(
     cwd: String,
     command: Option<String>,
-    integration: bool,
     on_data: Channel<InvokeResponseBody>,
 ) -> Result<u32, ErrorView> {
     let pump = Arc::new(Pump::new());
@@ -180,7 +179,6 @@ pub fn term_open(
         cwd: PathBuf::from(cwd),
         cols: OPEN_COLS,
         rows: OPEN_ROWS,
-        shell_integration: integration,
     };
     let mut pty = match PtySession::spawn(spec, batch_bytes_into_frames(Arc::clone(&pump), on_data))
     {
