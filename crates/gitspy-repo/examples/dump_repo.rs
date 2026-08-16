@@ -4,12 +4,12 @@ use gitspy_repo::RefSeed;
 use std::time::Instant;
 
 fn seeds_of(path: &std::path::Path) -> (Vec<RefSeed>, Option<String>, usize, f64) {
-    let git = Git::discover().expect("git найден в системе");
-    let cold = git.refs(path).expect("ссылки читаются");
+    let git = Git::discover().expect("git found on the system");
+    let cold = git.refs(path).expect("refs read");
     drop(cold);
 
     let started = Instant::now();
-    let found = git.refs(path).expect("ссылки читаются");
+    let found = git.refs(path).expect("refs read");
     let head = found
         .iter()
         .find(|r| r.is_head)
@@ -40,7 +40,7 @@ fn main() {
         match gitspy_repo::read(std::path::Path::new(&path), None, &seeds, head.as_deref()) {
             Ok(h) => h,
             Err(e) => {
-                eprintln!("ошибка: {e}");
+                eprintln!("error: {e}");
                 std::process::exit(1);
             }
         };
@@ -59,16 +59,16 @@ fn main() {
             outside_total += o;
         }
     }
-    println!("коммитов с внешними родителями: {with_outside}, рёбер: {outside_total}");
+    println!("commits with outside parents: {with_outside}, edges: {outside_total}");
     println!(
-        "коммитов: {}  refs: {} (в графе {})  max_lane: {}  truncated: {}",
+        "commits: {}  refs: {} (in the graph {})  max_lane: {}  truncated: {}",
         history.nodes.len(),
         ref_count,
         history.rows.len(),
         layout.max_lane,
         history.truncated
     );
-    println!("ссылки: {refs_ms:.1} мс   чтение: {read_ms:.1} мс   раскладка: {layout_ms:.1} мс");
+    println!("refs: {refs_ms:.1} ms   read: {read_ms:.1} ms   layout: {layout_ms:.1} ms");
     println!();
 
     let names: Vec<String> = history

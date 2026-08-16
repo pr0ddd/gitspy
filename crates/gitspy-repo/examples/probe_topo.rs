@@ -2,7 +2,7 @@ use std::time::Instant;
 
 fn main() {
     let path = std::env::args().nth(1).unwrap_or_else(|| ".".into());
-    let repo = gix::open(std::path::Path::new(&path)).expect("репозиторий открывается");
+    let repo = gix::open(std::path::Path::new(&path)).expect("repository opens");
 
     let mut tips: Vec<gix::ObjectId> = Vec::new();
     let platform = repo.references().expect("refs");
@@ -31,7 +31,7 @@ fn main() {
         n += 1;
     }
     println!(
-        "топология:  {n} коммитов, {edges} рёбер — {:.1} мс",
+        "topology:  {n} commits, {edges} edges — {:.1} ms",
         t.elapsed().as_secs_f64() * 1000.0
     );
 
@@ -52,7 +52,7 @@ fn main() {
         bytes += d.message.len();
     }
     println!(
-        "+ метаданные: {:.1} мс, сообщений {:.1} МБ",
+        "+ metadata: {:.1} ms, {:.1} MB of messages",
         t.elapsed().as_secs_f64() * 1000.0,
         bytes as f64 / 1048576.0
     );

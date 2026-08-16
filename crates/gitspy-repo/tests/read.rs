@@ -10,7 +10,7 @@ fn our_order(f: &Fixture) -> Vec<String> {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
     h.nodes
         .iter()
         .filter_map(gitspy_repo::Node::commit)
@@ -21,8 +21,8 @@ fn our_order(f: &Fixture) -> Vec<String> {
 #[test]
 fn commit_meta_carries_both_identities_verbatim_from_git() {
     let f = Fixture::new();
-    f.commit("своя работа");
-    f.commit_committed_by("слито веб-интерфейсом", "GitHub", "noreply@github.com");
+    f.commit("our own work");
+    f.commit_committed_by("merged through the web UI", "GitHub", "noreply@github.com");
 
     let history = gitspy_repo::read(
         f.path(),
@@ -30,7 +30,7 @@ fn commit_meta_carries_both_identities_verbatim_from_git() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
     let ours: Vec<String> = history
         .nodes
         .iter()
@@ -53,7 +53,7 @@ fn commit_meta_carries_both_identities_verbatim_from_git() {
         .map(str::to_string)
         .collect();
 
-    assert_eq!(ours, gits, "обе личности коммита совпадают с git log");
+    assert_eq!(ours, gits, "both commit identities match git log");
 }
 
 #[test]
@@ -73,9 +73,9 @@ fn order_matches_git_date_order() {
 #[test]
 fn parent_never_precedes_child_when_a_branch_points_at_the_parent() {
     let f = Fixture::new();
-    f.commit_at("родитель из будущего", 1_900_000_000);
+    f.commit_at("parent dated in the future", 1_900_000_000);
     f.run(&["branch", "points-at-parent"]);
-    f.commit_at("потомок с ранней датой", 1_600_000_000);
+    f.commit_at("child dated earlier", 1_600_000_000);
 
     let history = gitspy_repo::read(
         f.path(),
@@ -83,16 +83,16 @@ fn parent_never_precedes_child_when_a_branch_points_at_the_parent() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
 
     for i in 0..history.topology.len() as CommitIdx {
         for &p in history.topology.parents(i) {
-            assert!(p > i, "родитель {p} стоит перед потомком {i}");
+            assert!(p > i, "parent {p} comes before child {i}");
         }
         assert_eq!(
             history.topology.outside_parents(i),
             0,
-            "внешних родителей быть не должно: история загружена целиком"
+            "there must be no outside parents: the whole history is loaded"
         );
     }
     assert_eq!(our_order(&f), f.git_date_order());
@@ -101,9 +101,9 @@ fn parent_never_precedes_child_when_a_branch_points_at_the_parent() {
 #[test]
 fn parent_never_precedes_child_even_with_clock_skew() {
     let f = Fixture::new();
-    f.commit_at("старый предок", 1_600_000_000);
-    f.commit_at("родитель из будущего", 1_900_000_000);
-    f.commit_at("потомок с ранней датой", 1_600_000_100);
+    f.commit_at("old ancestor", 1_600_000_000);
+    f.commit_at("parent dated in the future", 1_900_000_000);
+    f.commit_at("child dated earlier", 1_600_000_100);
 
     let history = gitspy_repo::read(
         f.path(),
@@ -111,16 +111,16 @@ fn parent_never_precedes_child_even_with_clock_skew() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
 
     for i in 0..history.topology.len() as CommitIdx {
         for &p in history.topology.parents(i) {
-            assert!(p > i, "родитель {p} стоит перед потомком {i}");
+            assert!(p > i, "parent {p} comes before child {i}");
         }
         assert_eq!(
             history.topology.outside_parents(i),
             0,
-            "внешних родителей быть не должно: история загружена целиком"
+            "there must be no outside parents: the whole history is loaded"
         );
     }
     assert_eq!(our_order(&f), f.git_date_order());
@@ -131,27 +131,30 @@ fn seeds_come_back_with_the_row_they_landed_on() {
     let f = Fixture::new();
     f.commit("a");
     f.run(&["tag", "light"]);
-    f.run(&["tag", "-a", "annotated", "-m", "аннотированный"]);
+    f.run(&["tag", "-a", "annotated", "-m", "an annotated tag"]);
     f.run(&["branch", "feature"]);
     f.commit("b");
 
     let seeds = seeds_at(f.path());
     let history = gitspy_repo::read(f.path(), None, &seeds, head_at(f.path()).as_deref())
-        .expect("репозиторий читается");
+        .expect("repository reads");
 
-    assert!(!seeds.is_empty(), "фикстура обязана дать хоть одно семя");
+    assert!(
+        !seeds.is_empty(),
+        "the fixture must produce at least one seed"
+    );
     for seed in &seeds {
         let row = history
             .rows
             .get(&seed.oid)
-            .unwrap_or_else(|| panic!("семя {} не нашло строки, хотя коммит достижим", seed.oid));
+            .unwrap_or_else(|| panic!("seed {} got no row but its commit is reachable", seed.oid));
         assert_eq!(
             history.nodes[*row as usize]
                 .commit()
-                .expect("строка семени это коммит")
+                .expect("the row of a seed is a commit")
                 .hash,
             seed.oid,
-            "номер строки обязан указывать на тот же объект"
+            "the row number must point at the same object"
         );
     }
 }
@@ -169,11 +172,11 @@ fn a_seed_outside_the_walk_gets_no_row_rather_than_a_wrong_one() {
     seeds.push(missing.clone());
 
     let history = gitspy_repo::read(f.path(), None, &seeds, head_at(f.path()).as_deref())
-        .expect("репозиторий читается несмотря на недостижимое семя");
+        .expect("repository reads even with an unreachable seed");
 
     assert!(
         !history.rows.contains_key(&missing.oid),
-        "иначе ссылка нарисовалась бы указывающей в чужую строку"
+        "otherwise the ref would be drawn pointing at somebody else's row"
     );
 }
 
@@ -191,20 +194,20 @@ fn detached_head_still_has_a_row_even_though_no_branch_is_current() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
 
     assert!(
         history.head.is_some(),
-        "вне ветки HEAD всё равно указывает на коммит, и граф обязан знать какой"
+        "off a branch HEAD still points at a commit, and the graph has to know which one"
     );
 }
 
 #[test]
 fn stash_hangs_off_the_commit_it_was_made_on() {
     let f = Fixture::new();
-    let base = f.commit_file("a.txt", "первая версия", "начало");
-    f.write_file("a.txt", "изменение");
-    let stash = f.stash("спрятанное", false);
+    let base = f.commit_file("a.txt", "first version", "start");
+    f.write_file("a.txt", "a change");
+    let stash = f.stash("stashed work", false);
 
     let history = gitspy_repo::read(
         f.path(),
@@ -212,46 +215,46 @@ fn stash_hangs_off_the_commit_it_was_made_on() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
     assert_eq!(
         history.nodes.len(),
         2,
-        "видны только начальный коммит и стэш"
+        "only the first commit and the stash are visible"
     );
 
     let idx = history
         .nodes
         .iter()
         .position(|n| n.commit().map(|c| c.hash.as_str()) == Some(stash.as_str()))
-        .expect("запись стэша найдена") as CommitIdx;
+        .expect("the stash entry is found") as CommitIdx;
     let parents = history.topology.parents(idx);
     assert_eq!(
         parents.len(),
         1,
-        "у записи стэша ровно один видимый родитель"
+        "the stash entry has exactly one visible parent"
     );
     assert_eq!(
         history.nodes[parents[0] as usize]
             .commit()
-            .expect("коммит")
+            .expect("commit")
             .hash,
         base,
-        "и это коммит, на котором стэшили"
+        "and it is the commit the stash was made on"
     );
     assert_eq!(
         history.topology.outside_parents(idx),
         0,
-        "снимок индекса скрыт сознательно, это не обрыв истории"
+        "the index snapshot is hidden on purpose, this is not a break in the history"
     );
 }
 
 #[test]
 fn untracked_snapshot_of_a_stash_is_not_an_orphan_root() {
     let f = Fixture::new();
-    f.commit_file("a.txt", "первая версия", "начало");
-    f.write_file("a.txt", "изменение");
-    f.write_file("новый.txt", "неотслеживаемый");
-    f.stash("со снимком неотслеживаемых", true);
+    f.commit_file("a.txt", "first version", "start");
+    f.write_file("a.txt", "a change");
+    f.write_file("new.txt", "untracked");
+    f.stash("stash with an untracked snapshot", true);
 
     let history = gitspy_repo::read(
         f.path(),
@@ -259,11 +262,11 @@ fn untracked_snapshot_of_a_stash_is_not_an_orphan_root() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
     assert_eq!(
         history.nodes.len(),
         2,
-        "видны только начальный коммит и стэш"
+        "only the first commit and the stash are visible"
     );
 
     let roots = (0..history.nodes.len() as CommitIdx)
@@ -271,22 +274,22 @@ fn untracked_snapshot_of_a_stash_is_not_an_orphan_root() {
             history.topology.parents(i).is_empty() && history.topology.outside_parents(i) == 0
         })
         .count();
-    assert_eq!(roots, 1, "корень в истории ровно один");
+    assert_eq!(roots, 1, "the history has exactly one root");
 }
 
 #[test]
 fn geometry_and_full_read_agree_on_everything_but_metadata() {
     let f = Fixture::new();
-    f.commit_file("a.txt", "первая", "начало");
-    f.run(&["tag", "-a", "v1", "-m", "релиз"]);
+    f.commit_file("a.txt", "first", "start");
+    f.run(&["tag", "-a", "v1", "-m", "release"]);
     f.run(&["checkout", "-b", "side"]);
-    f.commit("боковой");
+    f.commit("side");
     f.run(&["checkout", "main"]);
-    f.commit("основной");
-    f.merge("side", "слияние");
-    f.run(&["branch", "ещё-одна"]);
-    f.write_file("a.txt", "изменение");
-    f.stash("спрятанное", true);
+    f.commit("main");
+    f.merge("side", "merge");
+    f.run(&["branch", "another"]);
+    f.write_file("a.txt", "a change");
+    f.stash("stashed work", true);
 
     let full = gitspy_repo::read(
         f.path(),
@@ -294,19 +297,19 @@ fn geometry_and_full_read_agree_on_everything_but_metadata() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("полное чтение");
+    .expect("full read");
     let geometry = gitspy_repo::read_geometry(
         f.path(),
         None,
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("чтение геометрии");
+    .expect("geometry read");
 
     assert_eq!(
         geometry.topology, full.topology,
-        "родители у геометрии берутся из обхода, у полного чтения — из разобранного \
-         коммита; это два источника одних данных, и разойтись они должны громко"
+        "geometry takes parents from the walk, the full read takes them from the \
+         decoded commit; two sources of the same data must not diverge quietly"
     );
     assert_eq!(geometry.rows, full.rows);
     assert_eq!(geometry.head, full.head);
@@ -322,15 +325,15 @@ fn geometry_and_full_read_agree_at_a_shallow_cut() {
     let (_dir, path) = f.clone(&["--depth", "2"]);
 
     let full = gitspy_repo::read(&path, None, &seeds_at(&path), head_at(&path).as_deref())
-        .expect("полное чтение");
+        .expect("full read");
     let geometry =
         gitspy_repo::read_geometry(&path, None, &seeds_at(&path), head_at(&path).as_deref())
-            .expect("чтение геометрии");
+            .expect("geometry read");
 
     assert_eq!(
         geometry.topology, full.topology,
-        "у нижнего коммита родитель записан в заголовке, но объекта нет — \
-         единственное место, где два источника родителей могли бы разойтись"
+        "the bottom commit has a parent in its header but no object for it: the one \
+         place where the two sources of parents could diverge"
     );
 }
 
@@ -347,16 +350,16 @@ fn geometry_and_full_read_agree_when_the_walk_is_truncated() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("полное чтение");
+    .expect("full read");
     let geometry = gitspy_repo::read_geometry(
         f.path(),
         Some(3),
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("чтение геометрии");
+    .expect("geometry read");
 
-    assert!(geometry.truncated, "обрезание заявлено");
+    assert!(geometry.truncated, "truncation is reported");
     assert_eq!(geometry.topology, full.topology);
 }
 
@@ -369,7 +372,7 @@ fn empty_repository_reads_as_empty() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("пустой репозиторий читается");
+    .expect("empty repository reads");
     assert!(history.nodes.is_empty());
     assert!(history.rows.is_empty());
     assert!(history.head.is_none());
@@ -389,9 +392,9 @@ fn duplicate_parent_is_not_counted_as_outside() {
             "-p",
             &base,
             "-m",
-            "дубль-родитель",
+            "duplicate parent",
         ])
-        .expect("commit-tree отрабатывает");
+        .expect("commit-tree succeeds");
     f.run(&["update-ref", "refs/heads/weird", &weird]);
 
     let history = gitspy_repo::read(
@@ -400,22 +403,18 @@ fn duplicate_parent_is_not_counted_as_outside() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
     let idx = history
         .nodes
         .iter()
         .position(|n| n.commit().map(|c| c.hash.as_str()) == Some(weird.as_str()))
-        .expect("коммит найден") as CommitIdx;
+        .expect("commit found") as CommitIdx;
     assert_eq!(
         history.topology.outside_parents(idx),
         0,
-        "дубль-родитель не внешний, его надо просто пропустить"
+        "a duplicate parent is not an outside parent, it is simply skipped"
     );
-    assert_eq!(
-        history.topology.parents(idx).len(),
-        1,
-        "остаётся один родитель"
-    );
+    assert_eq!(history.topology.parents(idx).len(), 1, "one parent is left");
 }
 
 #[test]
@@ -427,17 +426,14 @@ fn bare_repository_reads_like_a_normal_one() {
 
     let (_dir, path) = f.clone(&["--bare"]);
     let history = gitspy_repo::read(&path, None, &seeds_at(&path), head_at(&path).as_deref())
-        .expect("голый репозиторий читается");
+        .expect("bare repository reads");
 
     assert_eq!(history.nodes.len(), 2);
     assert!(
         history.rows.contains_key(&f.run(&["rev-parse", "feature"])),
-        "ветки на месте"
+        "branches are there"
     );
-    assert!(
-        history.head.is_some(),
-        "HEAD у голого репозитория тоже есть"
-    );
+    assert!(history.head.is_some(), "a bare repository has a HEAD too");
 }
 
 #[test]
@@ -449,14 +445,18 @@ fn shallow_clone_does_not_reach_past_its_cut() {
 
     let (_dir, path) = f.clone(&["--depth", "2"]);
     let history = gitspy_repo::read(&path, None, &seeds_at(&path), head_at(&path).as_deref())
-        .expect("поверхностный клон читается");
+        .expect("shallow clone reads");
 
-    assert_eq!(history.nodes.len(), 2, "клон содержит ровно два коммита");
+    assert_eq!(
+        history.nodes.len(),
+        2,
+        "the clone holds exactly two commits"
+    );
     let cut = history.nodes.len() as CommitIdx - 1;
     assert_eq!(
         history.topology.outside_parents(cut),
         1,
-        "у нижнего коммита родитель за границей клона"
+        "the bottom commit has a parent beyond the edge of the clone"
     );
 }
 
@@ -472,36 +472,36 @@ fn max_commits_truncates_and_reports_it() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("репозиторий читается");
+    .expect("repository reads");
     assert_eq!(history.nodes.len(), 3);
-    assert!(history.truncated, "обрезание должно быть заявлено");
+    assert!(history.truncated, "truncation must be reported");
 }
 
 #[test]
 fn worktrees_list_the_main_checkout_and_every_linked_one() {
     let f = Fixture::new();
     f.commit("a");
-    f.run(&["branch", "побочная"]);
+    f.run(&["branch", "side-branch"]);
     let linked = f.path().join("linked");
     f.run(&[
         "worktree",
         "add",
-        linked.to_str().expect("путь"),
-        "побочная",
+        linked.to_str().expect("path"),
+        "side-branch",
     ]);
 
-    let found = gitspy_repo::worktrees(f.path()).expect("воркtree читаются");
+    let found = gitspy_repo::worktrees(f.path()).expect("worktrees read");
     let names: Vec<&str> = found.iter().map(|w| w.name.as_str()).collect();
 
     assert_eq!(
         found.len(),
         2,
-        "основная копия и одна привязанная: {names:?}"
+        "the main checkout and one linked worktree: {names:?}"
     );
-    assert!(found[0].is_main, "первой идёт основная");
+    assert!(found[0].is_main, "the main worktree comes first");
     assert_eq!(found[0].branch.as_deref(), Some("main"));
     assert_eq!(found[1].name, "linked");
-    assert_eq!(found[1].branch.as_deref(), Some("побочная"));
+    assert_eq!(found[1].branch.as_deref(), Some("side-branch"));
 }
 
 #[test]
@@ -510,8 +510,8 @@ fn bare_repository_has_no_main_worktree() {
     f.commit("a");
     let (_dir, path) = f.clone(&["--bare"]);
 
-    let found = gitspy_repo::worktrees(&path).expect("воркtree читаются");
-    assert!(found.is_empty(), "у голого репозитория рабочего дерева нет");
+    let found = gitspy_repo::worktrees(&path).expect("worktrees read");
+    assert!(found.is_empty(), "a bare repository has no working tree");
 }
 
 #[test]
@@ -526,12 +526,12 @@ fn a_working_tree_row_becomes_the_child_of_head_without_shifting_anything_by_han
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("без рабочего дерева");
+    .expect("read without a working tree");
     let head_index = plain
         .nodes
         .iter()
         .position(|n| n.commit().map(|c| c.hash.as_str()) == Some(head.as_str()))
-        .expect("HEAD найден") as CommitIdx;
+        .expect("HEAD found") as CommitIdx;
 
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![head.clone()],
@@ -548,7 +548,7 @@ fn a_working_tree_row_becomes_the_child_of_head_without_shifting_anything_by_han
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("с рабочим деревом");
+    .expect("read with a working tree");
 
     assert_eq!(with_tree.nodes.len(), plain.nodes.len() + 1);
     assert!(
@@ -560,12 +560,12 @@ fn a_working_tree_row_becomes_the_child_of_head_without_shifting_anything_by_han
                 ..
             }
         ),
-        "нулевая строка — рабочее дерево"
+        "row zero is the working tree"
     );
     assert_eq!(
         with_tree.topology.parents(0),
         &[head_index + 1],
-        "родитель рабочего дерева — HEAD на своём новом месте"
+        "the parent of the working tree is HEAD at its new place"
     );
 }
 
@@ -574,7 +574,7 @@ fn adding_a_working_tree_row_moves_refs_and_head_with_the_commits() {
     let f = Fixture::new();
     f.commit("a");
     let head = f.commit("b");
-    f.run(&["branch", "боковая"]);
+    f.run(&["branch", "side"]);
 
     let plain = gitspy_repo::read(
         f.path(),
@@ -582,7 +582,7 @@ fn adding_a_working_tree_row_moves_refs_and_head_with_the_commits() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("без рабочего дерева");
+    .expect("read without a working tree");
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![head.clone()],
         added: 0,
@@ -598,22 +598,22 @@ fn adding_a_working_tree_row_moves_refs_and_head_with_the_commits() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("с деревом");
+    .expect("read with a working tree");
 
     assert!(
         !plain.rows.is_empty(),
-        "иначе цикл ниже ничего не проверяет"
+        "otherwise the loop below checks nothing"
     );
     for (oid, before) in &plain.rows {
         assert_eq!(
             plain.rows.len(),
             with_tree.rows.len(),
-            "строка рабочего дерева не должна терять ссылки"
+            "the working tree row must not lose any refs"
         );
         assert_eq!(
             with_tree.rows.get(oid).copied(),
             Some(before + 1),
-            "ссылка {oid} обязана указывать на ту же строку"
+            "ref {oid} must point at the same row"
         );
     }
     assert_eq!(with_tree.head, plain.head.map(|h| h + 1));
@@ -622,11 +622,11 @@ fn adding_a_working_tree_row_moves_refs_and_head_with_the_commits() {
 #[test]
 fn a_working_tree_during_a_merge_has_both_parents() {
     let f = Fixture::new();
-    f.commit("основа");
+    f.commit("base");
     f.run(&["checkout", "-b", "side"]);
-    let side = f.commit("боковой");
+    let side = f.commit("side");
     f.run(&["checkout", "main"]);
-    let main = f.commit("основной");
+    let main = f.commit("main");
 
     let tip = gitspy_repo::WorkingTreeTip {
         parents: vec![main.clone(), side.clone()],
@@ -643,12 +643,12 @@ fn a_working_tree_during_a_merge_has_both_parents() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("с деревом");
+    .expect("read with a working tree");
 
     assert_eq!(
         history.topology.parents(0).len(),
         2,
-        "во время мержа у рабочего дерева два родителя, а не один"
+        "during a merge the working tree has two parents, not one"
     );
 }
 
@@ -670,10 +670,10 @@ fn a_working_tree_in_a_repository_without_commits_is_a_root() {
         &seeds_at(f.path()),
         head_at(f.path()).as_deref(),
     )
-    .expect("пустой репозиторий");
+    .expect("empty repository");
 
     assert!(
         history.nodes.is_empty(),
-        "коммитов нет и вершин обхода нет — строке не на чем стоять"
+        "there are no commits and no walk tips, so the row has nothing to stand on"
     );
 }

@@ -5,14 +5,14 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 fn main() {
-    let path = PathBuf::from(std::env::args().nth(1).expect("путь к репозиторию"));
+    let path = PathBuf::from(std::env::args().nth(1).expect("path to the repository"));
     let with_metadata = std::env::args().nth(2).as_deref() == Some("full");
 
-    let git = Git::discover().expect("git найден в системе");
+    let git = Git::discover().expect("git found on the system");
     let head = git.head_oid(&path);
     let seeds: Vec<RefSeed> = git
         .refs(&path)
-        .expect("ссылки читаются")
+        .expect("refs read")
         .into_iter()
         .map(|r| RefSeed {
             is_stash: r.kind == gitspy_exec::refs::RefKind::Stash,
@@ -21,8 +21,8 @@ fn main() {
         .collect();
 
     let started = Instant::now();
-    let geometry = gitspy_repo::read_geometry(&path, None, &seeds, head.as_deref())
-        .expect("геометрия читается");
+    let geometry =
+        gitspy_repo::read_geometry(&path, None, &seeds, head.as_deref()).expect("geometry reads");
     let read_ms = started.elapsed().as_secs_f64() * 1000.0;
 
     let started = Instant::now();
@@ -38,24 +38,23 @@ fn main() {
         .sum();
 
     println!(
-        "коммитов {}  ссылок {}  дорожек {}  внешних родителей {}",
+        "commits {}  refs {}  lanes {}  outside parents {}",
         geometry.topology.len(),
         geometry.rows.len(),
         skeleton.max_lane as usize + 1,
         outside
     );
     println!(
-        "геометрия {read_ms:.0} мс   скелет {layout_ms:.0} мс   окно {window_ms:.2} мс   итого {:.0} мс",
+        "geometry {read_ms:.0} ms   skeleton {layout_ms:.0} ms   window {window_ms:.2} ms   total {:.0} ms",
         read_ms + layout_ms
     );
     let _ = window.len();
 
     if with_metadata {
         let started = Instant::now();
-        let history =
-            gitspy_repo::read(&path, None, &seeds, head.as_deref()).expect("полное чтение");
+        let history = gitspy_repo::read(&path, None, &seeds, head.as_deref()).expect("full read");
         println!(
-            "полное чтение с метаданными {:.0} мс, коммитов {}",
+            "full read with metadata {:.0} ms, commits {}",
             started.elapsed().as_secs_f64() * 1000.0,
             history.nodes.len()
         );
