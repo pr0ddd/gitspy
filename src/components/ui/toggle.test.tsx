@@ -4,8 +4,8 @@ import { Toggle } from '@/components/ui/toggle';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Hint, TooltipProvider } from '@/components/ui/tooltip';
 
-describe('состояние переключателя', () => {
-  it('под подсказкой «вкл» держится на aria-pressed: триггер тултипа перетирает data-state', () => {
+describe('toggle state', () => {
+  it('inside a tooltip the pressed state rides on aria-pressed: the tooltip trigger overwrites data-state', () => {
     const { container } = render(
       <TooltipProvider>
         <Hint text="x">
@@ -16,14 +16,16 @@ describe('состояние переключателя', () => {
       </TooltipProvider>,
     );
     const button = container.querySelector('button')!;
-    expect(button.getAttribute('data-state'), 'подсказка забирает data-state себе').toBe('closed');
+    expect(button.getAttribute('data-state'), 'the tooltip takes data-state for itself').toBe(
+      'closed',
+    );
     expect(button.getAttribute('aria-pressed')).toBe('true');
-    expect(button.className, 'заливка «вкл» привязана к aria-pressed').toContain(
+    expect(button.className, 'the pressed fill is bound to aria-pressed').toContain(
       'aria-pressed:bg-control-fill',
     );
   });
 
-  it('элемент группы под подсказкой — радиокнопка с aria-checked', () => {
+  it('a group item inside a tooltip is a radio button with aria-checked', () => {
     const { container } = render(
       <TooltipProvider>
         <ToggleGroup type="single" value="b">

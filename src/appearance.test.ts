@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { APPEARANCES, applyAppearance, knownAppearance } from '@/appearance';
 
-describe('темы оформления', () => {
-  it('неизвестное имя откатывается к родной теме, а не ломает вид', () => {
+describe('appearance themes', () => {
+  it('an unknown name falls back to the native theme instead of breaking the look', () => {
     expect(knownAppearance('linear-dark')).toBe('linear-dark');
     expect(knownAppearance('vaporwave')).toBe('');
   });
 
-  it('применение ставит и снимает data-theme на корне', () => {
+  it('applying a theme sets data-theme on the root and clears it again', () => {
     applyAppearance('magic-blue');
     expect(
       document.documentElement.dataset.theme,
-      'canvas и CSS читают одни токены — переключение обязано жить на корне документа',
+      'canvas and CSS read the same tokens, so the switch has to live on the document root',
     ).toBe('magic-blue');
     applyAppearance('');
     expect(document.documentElement.dataset.theme).toBeUndefined();
   });
 
-  it('родная тема первая в списке и единственная с пустым ключом', () => {
+  it('the native theme comes first and is the only one with an empty key', () => {
     expect(APPEARANCES[0].key).toBe('');
     expect(APPEARANCES.filter((entry) => entry.key === '').length).toBe(1);
   });

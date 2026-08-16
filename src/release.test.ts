@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { buildManifest } from '../scripts/release-manifest.mjs';
 import { checkVersions } from '../scripts/check-release-version.mjs';
 
-describe('манифест релиза', () => {
-  it('собирает latest.json для darwin-aarch64', () => {
+describe('release manifest', () => {
+  it('builds latest.json for darwin-aarch64', () => {
     const manifest = buildManifest({
       version: '1.0.1',
       baseUrl: 'https://pub-x.r2.dev',
@@ -23,7 +23,7 @@ describe('манифест релиза', () => {
     });
   });
 
-  it('версия в манифесте без префикса v', () => {
+  it('the version in the manifest carries no v prefix', () => {
     const manifest = buildManifest({
       version: 'v1.0.1',
       baseUrl: 'https://pub-x.r2.dev',
@@ -31,18 +31,18 @@ describe('манифест релиза', () => {
       signature: 's',
       date: 'd',
     });
-    expect(manifest.version, 'апдейтер сравнивает semver, префикс сломал бы сравнение').toBe(
+    expect(manifest.version, 'the updater compares semver, and a prefix would break it').toBe(
       '1.0.1',
     );
   });
 });
 
-describe('страж версии', () => {
-  it('пропускает совпадение и валит расхождение', () => {
+describe('version guard', () => {
+  it('lets a match through and fails on a mismatch', () => {
     expect(() => checkVersions('v1.0.1', '1.0.1', '1.0.1')).not.toThrow();
     expect(
       () => checkVersions('v1.0.2', '1.0.1', '1.0.1'),
-      'тег обязан совпадать с package.json и tauri.conf, иначе релиз лжёт о версии',
+      'the tag has to match package.json and tauri.conf, otherwise the release lies about its version',
     ).toThrow();
   });
 });
