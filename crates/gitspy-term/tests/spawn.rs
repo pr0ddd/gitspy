@@ -2,6 +2,8 @@ use gitspy_term::{PtySession, SpawnSpec};
 use std::sync::mpsc;
 use std::time::Duration;
 
+const SHELL_STARTUP_ALLOWANCE: Duration = Duration::from_secs(if cfg!(windows) { 30 } else { 5 });
+
 fn answer_cursor_position_requests_like_a_terminal(chunk: &[u8], session: &mut PtySession) {
     if chunk.windows(4).any(|w| w == b"\x1b[6n") {
         let _ = session.write(b"\x1b[1;1R");
@@ -18,7 +20,7 @@ fn collect(spec: SpawnSpec) -> String {
     )
     .expect("the session must spawn");
     let mut out = Vec::new();
-    while let Ok(chunk) = rx.recv_timeout(Duration::from_secs(5)) {
+    while let Ok(chunk) = rx.recv_timeout(SHELL_STARTUP_ALLOWANCE) {
         answer_cursor_position_requests_like_a_terminal(&chunk, &mut session);
         out.extend(chunk);
         if String::from_utf8_lossy(&out).contains("MARK_") {

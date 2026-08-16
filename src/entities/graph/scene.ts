@@ -180,6 +180,32 @@ export function graphGeometry(
   };
 }
 
+export type NodeHit = {
+  readonly row: number;
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+};
+
+export function nodeHitAt(
+  m: Metrics,
+  g: GraphGeometry,
+  scrollY: number,
+  count: number,
+  laneOf: (row: number) => number | null,
+  x: number,
+  y: number,
+): NodeHit | null {
+  const row = rowAtY(m, y, scrollY, count);
+  if (row === null) return null;
+  const lane = laneOf(row);
+  if (lane === null) return null;
+  const cx = g.nodeX(lane);
+  const cy = rowTop(m, row, scrollY) + m.rowH / 2;
+  const r = m.nodeR;
+  return (x - cx) ** 2 + (y - cy) ** 2 <= r * r ? { row, x: cx, y: cy, r } : null;
+}
+
 export type Anchor = {
   readonly index: number;
   readonly offset: number;
