@@ -5,9 +5,10 @@
 <h1 align="center">gitspy</h1>
 
 <p align="center">
-  A desktop git client with a graph you can actually read: history on canvas,
-  staging by file and by hunk, Monaco diffs, a terminal in a dock, and
-  GitHub, GitLab and Bitbucket signed in — one window.
+  An open-source alternative to the reference client: the same kind of commit graph,
+  staging, diffs, merge-conflict editor and host integrations — free,
+  AGPL-licensed, no account, no telemetry, and native (Rust + Tauri) instead
+  of a bundled browser.
 </p>
 
 <p align="center">
@@ -20,6 +21,76 @@
 <p align="center">
   <img src="docs/screenshots/graph.png" width="900" alt="gitspy: the commit graph, the working tree with staged files, and the details pane" />
 </p>
+
+## Why gitspy
+
+- **The graph you already know how to read.** Lanes, branch and tag chips
+  with leader lines, avatars, a minimap; drawn on canvas on its own animation
+  frame, so a million-commit history scrolls without the interface
+  re-rendering.
+- **Free and yours.** AGPL-3.0. No licence key, no seat, no sign-in to use
+  it, no usage data leaving your machine. Sign in to a host only if you want
+  its pull requests and repositories.
+- **A real merge tool.** Three Monaco editors — yours, theirs, output — with
+  checkboxes per block, marks per line, syntax highlighting, synchronised
+  scrolling; the output is exactly what gets saved.
+- **Native and light.** Rust reads the repository (gix for objects, system
+  git for state and every write, with a defused environment that can never
+  prompt), Tauri hosts the interface. Installers are 20-something megabytes,
+  not a browser.
+- **Honest about danger.** Every destructive action — drop, hard reset,
+  delete branch, discard — goes through one confirm bar; force push is
+  offered only after the remote rejected an ordinary push, and only with
+  lease.
+
+## What it does
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/diff-hunks.png" alt="Hunk view of a diff with stage buttons per hunk" /></td>
+    <td width="50%"><img src="docs/screenshots/conflicts.png" alt="The merge conflict editor: A, B and the output on Monaco" /></td>
+  </tr>
+  <tr>
+    <td>Diff in hunk view — stage or discard by hunk</td>
+    <td>Merge conflicts on Monaco</td>
+  </tr>
+</table>
+
+- **Graph and history.** Commit search, file history for any path, blame,
+  the commit's files with inline, split and hunk diffs; switching files
+  never jumps the line-number column. Columns resize, hide and reorder.
+- **Working tree.** Staging by file and by hunk, path and tree views, a
+  commit box that can amend and push after commit — and, if you point it at
+  Ollama or LM Studio, a commit message written by a local model from what
+  you staged.
+- **Branches, tags, stashes, worktrees.** A tree on the left, checkout by
+  double-click, upstream and ahead/behind read from git itself, a marker on
+  branches whose remote is gone with one-click cleanup.
+- **Hosts.** GitHub, GitLab, Bitbucket: sign in, browse the repository's pull
+  requests, check one out, clone from your account or create a repository on
+  the host. Client ids are compiled in; the secrets stay on a
+  [small relay](workers/oauth-relay/README.md) that stores nothing.
+- **Terminal.** A PTY dock over the graph running your login shell
+  (PowerShell or cmd on Windows), with tabs for several sessions per
+  repository.
+- **Updates itself** from GitHub Releases, verified against the key compiled
+  into the app.
+
+## Not there yet
+
+Things users of other clients will look for that gitspy does not have today, so
+nobody has to discover them the hard way:
+
+- Interactive rebase and dragging branches or commits on the graph.
+- Submodules and Git LFS in the interface (git itself handles them; gitspy
+  shows the results).
+- Commit signing and SSH key management screens.
+- Issue trackers, teams, cloud patches, AI beyond the local commit message.
+- A signed Windows build (SmartScreen warns until there is a certificate).
+
+If one of these is what keeps you on the reference client, say so in an
+[issue](https://github.com/pr0ddd/gitspy/issues/new/choose) — that is how
+the list gets shorter.
 
 ## Download
 
@@ -38,45 +109,6 @@ SmartScreen warns on first start — that is the missing certificate, not the
 app. Once installed, gitspy updates itself: it reads `latest.json` from the
 releases page, downloads the new version in the background and offers a
 restart in the bottom bar.
-
-## What it does
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/diff-hunks.png" alt="Hunk view of a diff with stage buttons per hunk" /></td>
-    <td width="50%"><img src="docs/screenshots/terminal.png" alt="The terminal dock over the graph" /></td>
-  </tr>
-  <tr>
-    <td>Diff in hunk view — stage or discard by hunk</td>
-    <td>The terminal dock over the graph</td>
-  </tr>
-</table>
-
-- **The graph.** History drawn on canvas with lanes, branch and tag chips,
-  author avatars and an optional minimap. Scrolling repaints on its own
-  animation frame and never re-renders the interface — that is what keeps a
-  million-commit repository smooth. Columns resize, hide and reorder; the
-  layout is remembered.
-- **Working tree.** Status with staging by file and by hunk, tree and path
-  views, a commit box that can amend, and — if you point it at Ollama or LM
-  Studio — a commit message written by a local model from what you staged.
-- **Diff.** Monaco in inline, split and hunk views; switching files never
-  jumps the line-number column. File history for any path, blame, and a
-  conflict view with both sides and the merged result.
-- **Branches, tags, stashes, worktrees.** A tree on the left, checkout by
-  double-click, upstream and ahead/behind read from git itself, a marker on
-  branches whose remote is gone. Every destructive action goes through one
-  confirm bar; force push is offered only after the remote rejected an
-  ordinary push, and only with lease.
-- **Hosts.** Sign in to GitHub, GitLab or Bitbucket. See the repository's pull
-  requests, check one out, clone from your account or create a repository on
-  the host. Client ids are compiled in; secrets stay on a
-  [small relay](workers/oauth-relay/README.md) that stores nothing.
-- **Terminal.** A PTY dock over the graph running your login shell (PowerShell
-  or cmd on Windows), with tabs for several sessions per repository.
-- **Quiet by design.** No telemetry, no network request you did not ask for
-  beyond the update check, the background fetch (which you can turn off) and
-  avatars from a host you signed in to. Details in [SECURITY.md](SECURITY.md).
 
 ## Status
 
