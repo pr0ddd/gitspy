@@ -1,4 +1,4 @@
-import type { RefKind, RefView } from '@/types';
+import type { RefKind, RefView } from '@/shared/api/types';
 
 export type ChipMark = 'local' | 'remote' | 'tag';
 

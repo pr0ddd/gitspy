@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,15 +8,15 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import { usePref } from '@/prefs';
+} from '@/shared/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+import { cn } from '@/shared/lib/utils';
+import { usePref } from '@/shared/lib/prefs';
 import { useRepoWork } from '@/features/repo';
-import { SearchField } from '@/parts';
-import type { Operation, WorkingTreeView } from '@/types';
-import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/vocabulary';
-import { Icon } from '@/icons';
+import { SearchField } from '@/shared/ui/parts';
+import type { Operation, WorkingTreeView } from '@/shared/api/types';
+import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/shared/config/vocabulary';
+import { Icon } from '@/shared/ui/icons';
 import { useFoundCommits } from '@/features/search';
 import { SearchResults } from './SearchResults';
 

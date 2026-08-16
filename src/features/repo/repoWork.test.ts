@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/toast', () => ({ notifyError: vi.fn() }));
+vi.mock('@/shared/ui/toast', () => ({ notifyError: vi.fn() }));
 
-import { notifyError } from '@/toast';
+import { notifyError } from '@/shared/ui/toast';
 import { workStore } from '@/entities/repo';
 import { runRepoWork } from './repoWork';
 

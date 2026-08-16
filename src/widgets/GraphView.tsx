@@ -36,10 +36,10 @@ import {
   type Divider,
   type StoredWidths,
 } from '@/entities/graph';
-import { Icon } from '@/icons';
-import { Input } from '@/components/ui/input';
+import { Icon } from '@/shared/ui/icons';
+import { Input } from '@/shared/ui/input';
 import { useCommands } from '@/features/keyboard';
-import { stepped } from '@/roving';
+import { stepped } from '@/shared/lib/roving';
 import { buildMinimap } from '@/entities/graph';
 import {
   buildChipMenu,
@@ -49,13 +49,13 @@ import {
   type MenuContext,
 } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import { readPref } from '@/prefs';
+import { readPref } from '@/shared/lib/prefs';
 import type { Confirmation, Session } from '@/entities/repo';
-import type { AvatarCache } from '@/avatarCache';
+import type { AvatarCache } from '@/shared/ui/avatarCache';
 import type { RowCache } from '@/entities/graph';
 import type { Ask } from './AskBar';
-import type { Operation, RefView } from '@/types';
-import { GIT } from '@/vocabulary';
+import type { Operation, RefView } from '@/shared/api/types';
+import { GIT } from '@/shared/config/vocabulary';
 import { wipInputShown, wipInputWidth } from '@/entities/graph';
 
 type Props = {

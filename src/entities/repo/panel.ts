@@ -1,4 +1,4 @@
-import type { RowView } from '@/types';
+import type { RowView } from '@/shared/api/types';
 
 export type Panel = 'commit' | 'workingTree' | 'loading' | 'noCommits';
 

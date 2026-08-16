@@ -1,4 +1,4 @@
-import type { RecentRepo } from '@/types';
+import type { RecentRepo } from '@/shared/api/types';
 
 export const splitRecent = (
   recent: RecentRepo[],

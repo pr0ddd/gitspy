@@ -1,4 +1,4 @@
-import { matchesChord, type Chord, type Stroke } from '@/keys';
+import { matchesChord, type Chord, type Stroke } from '@/shared/lib/keys';
 
 export type Area = 'files' | 'refs' | 'graph' | 'text';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildRefTree, filterRefTree, flattenRefTree, type TreeNode } from './refTree';
-import type { RefView } from '@/types';
+import type { RefView } from '@/shared/api/types';
 
 const ref = (name: string): RefView => ({
   name,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { panelFor } from './panel';
-import type { RowView } from '@/types';
+import type { RowView } from '@/shared/api/types';
 
 const commit = {
   kind: 'commit',

@@ -3,9 +3,9 @@ import { drawFrame, METRICS_AVATARS, type Frame } from './index';
 import { layoutColumns } from './columns';
 import { rowBandHeight } from './scene';
 import { RowCache } from './rows';
-import type { AvatarCache } from '@/avatarCache';
+import type { AvatarCache } from '@/shared/ui/avatarCache';
 import { GLYPH } from './glyphs';
-import type { RefKind, RefView, RepoView, WindowView } from '@/types';
+import type { RefKind, RefView, RepoView, WindowView } from '@/shared/api/types';
 
 class RecordedPath {
   d: string | undefined;

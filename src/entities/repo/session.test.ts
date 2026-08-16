@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clampSelected, EMPTY, sessionsReducer } from './session';
-import type { RepoView } from '@/types';
+import type { RepoView } from '@/shared/api/types';
 
 describe('selection after the history is re-read', () => {
   it('a selection past the end of the history is pulled back to the last row', () => {

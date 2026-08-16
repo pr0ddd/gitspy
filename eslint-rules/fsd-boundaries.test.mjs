@@ -22,7 +22,7 @@ test('import direction is guarded', () => {
       },
       {
         filename: '/repo/src/entities/graph/render.ts',
-        code: "import { laneColour } from '@/theme';",
+        code: "import { laneColour } from '@/shared/ui/theme';",
       },
       {
         filename: '/repo/src/entities/graph/render.ts',

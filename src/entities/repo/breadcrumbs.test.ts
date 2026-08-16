@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { branchChoices, repoMenu } from './breadcrumbs';
-import type { RecentRepo, RefView, WorktreeView } from '@/types';
+import type { RecentRepo, RefView, WorktreeView } from '@/shared/api/types';
 
 const branch = (name: string, isHead = false): RefView => ({
   name,

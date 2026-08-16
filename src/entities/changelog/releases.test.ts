@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { notesFor, parseReleases } from '../../../scripts/changelog.mjs';
+import { notesFor, parseReleases } from '@/shared/lib/changelog';
 import { RELEASES } from './releases';
 
 const FILE = `# Changelog

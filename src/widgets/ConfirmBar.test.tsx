@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import '../i18n';
+import '@/shared/config/i18n';
 import { ConfirmBar } from './ConfirmBar';
 import type { Effect } from '@/entities/repo';
 

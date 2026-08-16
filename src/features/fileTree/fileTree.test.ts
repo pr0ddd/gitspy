@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildFileTree, filesOf, foldersOf, sortedByPath, tallyByLetter } from './fileTree';
-import type { StatusEntryView } from '@/types';
+import type { StatusEntryView } from '@/shared/api/types';
 
 const entry = (path: string, letter = 'M'): StatusEntryView => ({
   staged: false,

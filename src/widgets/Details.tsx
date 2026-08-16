@@ -1,21 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { identicon } from '@/avatar';
-import { hostBotOf } from '@/host';
-import type { AvatarCache } from '@/avatarCache';
+import { Button } from '@/shared/ui/button';
+import { Separator } from '@/shared/ui/separator';
+import { identicon } from '@/shared/ui/avatar';
+import { hostBotOf } from '@/entities/repo';
+import type { AvatarCache } from '@/shared/ui/avatarCache';
 import { pullAtRefs, type Picked, type Session } from '@/entities/repo';
 import type { RowCache } from '@/entities/graph';
-import { Icon } from '@/icons';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
+import { Icon } from '@/shared/ui/icons';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
 import { buildCommitFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import { FilePath, ListRow, PanelBanner, PanelNote, SectionHeader, StatusBadge } from '@/parts';
+import {
+  FilePath,
+  ListRow,
+  PanelBanner,
+  PanelNote,
+  SectionHeader,
+  StatusBadge,
+} from '@/shared/ui/parts';
 import { useCommands } from '@/features/keyboard';
-import { rovingTabIndex, stepped } from '@/roving';
-import type { ChangedFileView, PullView } from '@/types';
+import { rovingTabIndex, stepped } from '@/shared/lib/roving';
+import type { ChangedFileView, PullView } from '@/shared/api/types';
 
 type Props = {
   avatars: AvatarCache | null;

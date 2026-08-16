@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import { confirmationOf, type Confirmation, type Effect } from '@/entities/repo';
 
 type Props = {

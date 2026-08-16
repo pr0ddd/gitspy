@@ -1,10 +1,10 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
-import { clampPanel } from '@/resize';
-import { PANEL_LIMITS } from '@/resize';
-import { usePref } from '@/prefs';
-import { PanelNote, ResizeGrip } from '@/parts';
+import { cn } from '@/shared/lib/utils';
+import { clampPanel } from '@/shared/lib/resize';
+import { PANEL_LIMITS } from '@/shared/lib/resize';
+import { usePref } from '@/shared/lib/prefs';
+import { PanelNote, ResizeGrip } from '@/shared/ui/parts';
 
 type Props = {
   children: React.ReactNode;

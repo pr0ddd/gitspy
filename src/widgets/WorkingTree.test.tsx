@@ -11,16 +11,16 @@ vi.mock('@/features/menus', async (importOriginal) => ({
   showNativeMenu: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: vi.fn(() => Promise.resolve(false)) }));
-vi.mock('@/ipc', async (importOriginal) => ({
+vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   aiGenerateCommit: vi.fn(() =>
     Promise.resolve({ summary: 'Add parser', description: 'Covers fences.' }),
   ),
 }));
-import '../i18n';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import '@/shared/config/i18n';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { WorkingTree } from './WorkingTree';
-import type { PathOperation, WorkingTreeView } from '@/types';
+import type { PathOperation, WorkingTreeView } from '@/shared/api/types';
 import type { Confirmation } from '@/entities/repo';
 import type { Picked } from '@/entities/repo';
 import { useKeyboard } from '@/features/keyboard';

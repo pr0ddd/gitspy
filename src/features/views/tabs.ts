@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { IconName } from '@/icons';
+import type { IconName } from '@/shared/ui/icons';
 
 export type ViewTab = 'settings' | 'changelog';
 

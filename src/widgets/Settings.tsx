@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Icon, type IconName } from '@/icons';
-import { Hint } from '@/components/ui/tooltip';
-import { NavItem, ViewBar } from '@/parts';
-import { clampPanel, PANEL_LIMITS } from '@/resize';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
-import { usePref } from '@/prefs';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/shared/ui/button';
+import { Icon, type IconName } from '@/shared/ui/icons';
+import { Hint } from '@/shared/ui/tooltip';
+import { NavItem, ViewBar } from '@/shared/ui/parts';
+import { clampPanel, PANEL_LIMITS } from '@/shared/lib/resize';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
+import { usePref } from '@/shared/lib/prefs';
+import { Checkbox } from '@/shared/ui/checkbox';
+import { Input } from '@/shared/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/shared/ui/dropdown-menu';
 import {
   AI_DEFAULT_URLS,
   AI_PROVIDERS,
@@ -28,10 +28,10 @@ import {
   monospaceChoices,
   SETTINGS,
   TAB_SIZE_LIMITS,
-} from '@/settingsModel';
-import { PULL_CHOICES, type PullMode } from '@/vocabulary';
-import { APPEARANCES, useAppearance } from '@/appearance';
-import { ZOOM_STEPS, zoomLabel } from '@/zoom';
+} from '@/shared/config/settingsModel';
+import { PULL_CHOICES, type PullMode } from '@/shared/config/vocabulary';
+import { APPEARANCES, useAppearance } from '@/shared/config/appearance';
+import { ZOOM_STEPS, zoomLabel } from '@/shared/lib/zoom';
 import {
   DEFAULT_HIDDEN,
   HIDEABLE,
@@ -41,7 +41,7 @@ import {
   type DescriptionMode,
   type HideableColumn,
 } from '@/entities/graph';
-import type { AccountView, AiProviderId, AiServerView } from '@/types';
+import type { AccountView, AiProviderId, AiServerView } from '@/shared/api/types';
 import { HOSTS, HostCard } from '@/widgets/HostConnect';
 
 type Props = {

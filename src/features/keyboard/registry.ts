@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { onApple } from '@/keys';
+import { onApple } from '@/shared/lib/keys';
 import { commandFor, type Area, type CommandId } from './commands';
 
 export type Scope = Area | 'app';

@@ -1,4 +1,4 @@
-import { readPref, writePref } from '@/prefs';
+import { readPref, writePref } from '@/shared/lib/prefs';
 
 export type TermProfile = { label: string; command: string | null };
 

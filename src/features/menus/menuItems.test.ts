@@ -8,7 +8,7 @@ import {
 } from './menuItems';
 import { chipsFor } from '@/entities/graph';
 import { isDangerous, isDangerousPath } from '@/entities/repo';
-import type { RefKind, RefView } from '@/types';
+import type { RefKind, RefView } from '@/shared/api/types';
 
 const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView => ({
   name,

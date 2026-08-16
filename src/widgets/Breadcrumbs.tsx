@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Icon } from '@/icons';
-import { InlineNote, ListRow, SearchField, SectionHeader } from '@/parts';
+import { Button } from '@/shared/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Icon } from '@/shared/ui/icons';
+import { InlineNote, ListRow, SearchField, SectionHeader } from '@/shared/ui/parts';
 import { branchChoices, repoMenu, type BranchChoice, type RepoChoice } from '@/entities/repo';
-import type { RecentRepo, RefView, WorktreeView } from '@/types';
+import type { RecentRepo, RefView, WorktreeView } from '@/shared/api/types';
 
 type Props = {
   repoPath: string;

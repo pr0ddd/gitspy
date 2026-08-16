@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pushFor } from './Toolbar';
-import type { WorkingTreeView } from '@/types';
+import type { WorkingTreeView } from '@/shared/api/types';
 
 const tree = (patch: Partial<WorkingTreeView>): WorkingTreeView => ({
   branch: 'master',

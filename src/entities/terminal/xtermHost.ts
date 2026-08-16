@@ -6,7 +6,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
-import { openUrl, termAck, termInput, termKill, termOpen, termResize } from '@/ipc';
+import { openUrl, termAck, termInput, termKill, termOpen, termResize } from '@/shared/api/ipc';
 import { readTermThemeFromDom } from './theme';
 
 export type TermLinkTarget = {

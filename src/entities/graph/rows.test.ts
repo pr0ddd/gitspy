@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHUNK, RowCache } from './rows';
-import type { RowView, WindowView } from '@/types';
+import type { RowView, WindowView } from '@/shared/api/types';
 
 const row = (index: number): RowView => ({
   kind: 'commit',

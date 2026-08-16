@@ -1,4 +1,4 @@
-import type { RowView, WindowView } from '@/types';
+import type { RowView, WindowView } from '@/shared/api/types';
 
 export const CHUNK = 512;
 const KEEP = 96;

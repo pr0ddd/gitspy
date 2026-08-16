@@ -24,7 +24,7 @@ mod segment_kind {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub struct ErrorView {
     pub code: String,
     pub params: BTreeMap<String, String>,
@@ -77,7 +77,7 @@ pub fn state_lock_failed() -> ErrorView {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RepoView {
     pub path: String,
@@ -94,7 +94,7 @@ pub struct RepoView {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub enum RefKindView {
     LocalBranch,
@@ -104,7 +104,7 @@ pub enum RefKindView {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteView {
     pub name: String,
@@ -131,7 +131,7 @@ pub fn build_remote_views(urls: Vec<(String, String)>) -> Vec<RemoteView> {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RefView {
     pub name: String,
@@ -200,21 +200,21 @@ mod ref_view_tests {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub struct AiServerView {
     pub provider: String,
     pub models: Vec<String>,
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub struct CommitDraftView {
     pub summary: String,
     pub description: String,
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WorktreeView {
     pub name: String,
@@ -225,7 +225,7 @@ pub struct WorktreeView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",
@@ -265,7 +265,7 @@ pub enum RowView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct ChangedFileView {
     pub status: String,
@@ -293,7 +293,7 @@ pub fn build_changed_files(files: Vec<gitspy_exec::changes::ChangedFile>) -> Vec
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct StatusEntryView {
     pub staged: bool,
@@ -303,7 +303,7 @@ pub struct StatusEntryView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct FileCommitView {
     pub hash: String,
@@ -318,7 +318,7 @@ pub struct FileCommitView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct BlameSpanView {
     pub hash: String,
@@ -331,7 +331,7 @@ pub struct BlameSpanView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct MergingView {
     pub from: Option<String>,
@@ -339,7 +339,7 @@ pub struct MergingView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WorkingTreeView {
     pub branch: Option<String>,
@@ -388,7 +388,7 @@ pub fn build_working_tree(
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct PullView {
     pub number: u32,
@@ -406,7 +406,7 @@ pub struct PullView {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct PullListView {
     pub pulls: Vec<PullView>,
@@ -416,7 +416,7 @@ pub struct PullListView {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct PullCommentView {
     pub author: String,
@@ -426,7 +426,7 @@ pub struct PullCommentView {
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct PullCardView {
     pub pull: PullView,
@@ -459,7 +459,7 @@ pub fn build_pull_view(pull: &gitspy_hosts::pulls::PullSummary, my_login: &str) 
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct AccountView {
     pub host: String,
@@ -474,14 +474,14 @@ pub struct AccountView {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub enum ConnectStartView {
     BrowserAuth { url: String },
 }
 
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub struct ConnectionView {
     pub id: String,
     pub kind: String,
@@ -490,7 +490,7 @@ pub struct ConnectionView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RepoListingView {
     pub full_name: String,
@@ -515,7 +515,7 @@ pub fn build_repo_listing(repo: &gitspy_hosts::github::Repo) -> RepoListingView 
 }
 
 #[derive(Serialize, Clone, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RepoPassportView {
     pub path: String,
@@ -524,7 +524,7 @@ pub struct RepoPassportView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct CloneStepView {
     pub stage: String,
@@ -550,14 +550,14 @@ pub fn build_account(account: gitspy_hosts::Account) -> AccountView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct TipView {
     pub structure_changed: bool,
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct DiffSides {
     pub before: String,
@@ -565,7 +565,7 @@ pub struct DiffSides {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct FoundCommitView {
     pub index: u32,
@@ -577,7 +577,7 @@ pub struct FoundCommitView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictFileView {
     pub base: String,
@@ -587,7 +587,7 @@ pub struct ConflictFileView {
 }
 
 #[derive(Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct WindowView {
     pub start: u32,

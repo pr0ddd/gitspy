@@ -1,23 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { GIT } from '@/vocabulary';
-import { Icon } from '@/icons';
-import { InlineNote, ListRow, NavItem, SectionHeader } from '@/parts';
-import { clampPanel, PANEL_LIMITS } from '@/resize';
-import { laneColour, laneSoft } from '@/theme';
-import { usePref } from '@/prefs';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
-import { relativeTime } from '@/time';
-import { Hint } from '@/components/ui/tooltip';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { cn } from '@/shared/lib/utils';
+import { GIT } from '@/shared/config/vocabulary';
+import { Icon } from '@/shared/ui/icons';
+import { InlineNote, ListRow, NavItem, SectionHeader } from '@/shared/ui/parts';
+import { clampPanel, PANEL_LIMITS } from '@/shared/lib/resize';
+import { laneColour, laneSoft } from '@/shared/ui/theme';
+import { usePref } from '@/shared/lib/prefs';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
+import { relativeTime } from '@/shared/lib/time';
+import { Hint } from '@/shared/ui/tooltip';
 import { hostKindOf, splitListing, splitRecent } from '@/features/repo';
 import { StartEmpty } from './StartEmpty';
-import type { ConnectionView, RecentRepo, RepoListingView, RepoPassportView } from '@/types';
+import type {
+  ConnectionView,
+  RecentRepo,
+  RepoListingView,
+  RepoPassportView,
+} from '@/shared/api/types';
 
 type Props = {
   recent: RecentRepo[];

@@ -1,16 +1,16 @@
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Hint } from '@/components/ui/tooltip';
-import { Icon } from '@/icons';
-import { chordLabel, onApple } from '@/keys';
-import { ZOOM_STEPS, zoomIn, zoomLabel, zoomOut } from '@/zoom';
+} from '@/shared/ui/dropdown-menu';
+import { Hint } from '@/shared/ui/tooltip';
+import { Icon } from '@/shared/ui/icons';
+import { chordLabel, onApple } from '@/shared/lib/keys';
+import { ZOOM_STEPS, zoomIn, zoomLabel, zoomOut } from '@/shared/lib/zoom';
 
 type Props = {
   zoom: number;

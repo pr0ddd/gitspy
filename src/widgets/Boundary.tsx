@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import { t } from 'i18next';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };

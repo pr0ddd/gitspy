@@ -1,5 +1,5 @@
 import type { Cols } from './columns';
-import type { RowView } from '@/types';
+import type { RowView } from '@/shared/api/types';
 
 export type WipContent = 'counters' | 'conflictBanner';
 

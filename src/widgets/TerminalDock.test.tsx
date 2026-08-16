@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { TerminalDock } from './TerminalDock';
 
 const draw = (dock: React.ReactElement) => render(<TooltipProvider>{dock}</TooltipProvider>);
 import { createTermHost, useTermSessions } from '@/entities/terminal';
 import { writeProfiles } from '@/features/terminal';
-import '@/i18n';
+import '@/shared/config/i18n';
 
 const { refit } = vi.hoisted(() => ({ refit: vi.fn() }));
 
@@ -20,7 +20,7 @@ vi.mock('@/entities/terminal', async (importActual) => ({
   })),
 }));
 
-vi.mock('@/ipc', () => ({
+vi.mock('@/shared/api/ipc', () => ({
   termOpen: vi.fn(async () => 1),
   termInput: vi.fn(),
   termResize: vi.fn(),

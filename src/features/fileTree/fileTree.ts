@@ -1,4 +1,4 @@
-import type { StatusEntryView } from '@/types';
+import type { StatusEntryView } from '@/shared/api/types';
 
 export type FileNode =
   | { kind: 'folder'; name: string; path: string; children: FileNode[] }

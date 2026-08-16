@@ -1,10 +1,10 @@
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { chordKeys, onApple, type Chord } from '@/keys';
+import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog';
+import { Separator } from '@/shared/ui/separator';
+import { chordKeys, onApple, type Chord } from '@/shared/lib/keys';
 import { COMMANDS, type Command, type CommandGroup } from '@/features/keyboard';
-import { PanelNote, SearchField } from '@/parts';
+import { PanelNote, SearchField } from '@/shared/ui/parts';
 
 const GROUPS: readonly CommandGroup[] = ['repo', 'navigation', 'ui'];
 

@@ -1,21 +1,21 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/toast', () => ({
+vi.mock('@/shared/ui/toast', () => ({
   notifyError: vi.fn(),
   notifyCopied: vi.fn(),
   notifyOperation: vi.fn(),
   notifyOperationFailed: vi.fn(),
 }));
-vi.mock('@/ipc', () => ({
+vi.mock('@/shared/api/ipc', () => ({
   runOperation: vi.fn(),
   resolveAvatars: vi.fn(() => Promise.resolve()),
   checkoutRef: vi.fn(() => Promise.resolve()),
   openUrl: vi.fn(() => Promise.resolve()),
 }));
 
-import * as ipc from '@/ipc';
-import { notifyOperation, notifyOperationFailed } from '@/toast';
+import * as ipc from '@/shared/api/ipc';
+import { notifyOperation, notifyOperationFailed } from '@/shared/ui/toast';
 import { workStore } from '@/entities/repo';
 import { useOperations } from './repoActions';
 

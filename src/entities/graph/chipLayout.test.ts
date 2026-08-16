@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chipAt, placeChips, type ChipMetrics } from './chipLayout';
 import { chipsFor } from './chips';
-import type { RefKind, RefView } from '@/types';
+import type { RefKind, RefView } from '@/shared/api/types';
 
 const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView => ({
   name,

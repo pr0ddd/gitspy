@@ -1,4 +1,4 @@
-import type { RecentRepo, RefView, WorktreeView } from '@/types';
+import type { RecentRepo, RefView, WorktreeView } from '@/shared/api/types';
 
 const byLabel = new Intl.Collator(undefined, { sensitivity: 'accent' });
 

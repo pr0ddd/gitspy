@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { CHUNK, RowCache } from '@/entities/graph';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
 
 export type RepoData = {
   readonly cacheFor: (path: string) => RowCache;

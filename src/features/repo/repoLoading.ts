@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
-import { AvatarCache } from '@/avatarCache';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
+import { AvatarCache } from '@/shared/ui/avatarCache';
 import { remoteAvatarKey } from '@/entities/graph';
 import type { SessionsAction } from '@/entities/repo';
-import type { RecentRepo, RemoteView, WorkingTreeView } from '@/types';
+import type { RecentRepo, RemoteView, WorkingTreeView } from '@/shared/api/types';
 
 const AVATAR_WARM_LIMIT_MS = 400;
 
