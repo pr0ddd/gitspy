@@ -15,7 +15,7 @@ const commit = {
   committer: 'pr0d',
   committerEmail: 'p@e',
   committerTime: 0,
-  subject: 'тема',
+  subject: 'subject',
   body: '',
 } satisfies RowView;
 
@@ -32,17 +32,17 @@ const workingTree = {
   inProgress: null,
 } satisfies RowView;
 
-describe('какая панель показывается справа', () => {
-  it('панель следует за выделением, а не за вкладкой', () => {
+describe('which details pane is shown on the right', () => {
+  it('follows the selected row, not the tab', () => {
     expect(panelFor(commit, 10)).toBe('commit');
     expect(panelFor(workingTree, 10)).toBe('workingTree');
   });
 
-  it('строка ещё не пришла — это загрузка, а не отсутствие выбора', () => {
+  it('reads a row that has not arrived yet as loading, not as nothing being selected', () => {
     expect(panelFor(undefined, 10)).toBe('loading');
   });
 
-  it('пустой репозиторий — это не вечная загрузка', () => {
+  it('does not leave an empty repository loading forever', () => {
     expect(panelFor(undefined, 0)).toBe('noCommits');
     expect(panelFor(commit, 0)).toBe('noCommits');
   });

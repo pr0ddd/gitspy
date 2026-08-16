@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { viewForEntry } from './conflict';
 
-describe('маршрут строки файла', () => {
-  it('конфликтная строка ведёт в резолв, обычная — в дифф', () => {
+describe('where a file row leads', () => {
+  it('sends a conflicted row to the resolver and an ordinary one to the diff', () => {
     expect(viewForEntry('U', false)).toBe('conflict');
     expect(viewForEntry('M', false)).toBe('diff');
     expect(viewForEntry('A', true)).toBe('diff');
   });
 
-  it('застейдженная строка идёт в дифф даже с буквой U', () => {
+  it('sends a staged row to the diff even when its status letter is U', () => {
     expect(
       viewForEntry('U', true),
-      'после git add stage-стороны :2/:3 пусты — резолву нечего показать',
+      'after git add the index stages :2/:3 are empty, so the resolver has nothing to show',
     ).toBe('diff');
   });
 });

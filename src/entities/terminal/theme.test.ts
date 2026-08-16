@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readTermTheme } from './theme';
 
-describe('тема терминала из токенов', () => {
-  it('каждый цвет приходит из переменной, а не из кода', () => {
+describe('terminal theme from tokens', () => {
+  it('every colour comes from a variable, not from code', () => {
     const asked: string[] = [];
     const theme = readTermTheme((name) => {
       asked.push(name);

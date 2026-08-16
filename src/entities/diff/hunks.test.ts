@@ -21,70 +21,73 @@ const DIFF = [
   '',
 ].join('\n');
 
-describe('разбор настоящего git diff на ханки', () => {
-  it('дифф распадается на заголовок файла и два ханка с позициями', () => {
+describe('parsing a real git diff into hunks', () => {
+  it('splits the diff into the file header and two hunks with their positions', () => {
     const diff = parseUnifiedDiff(DIFF);
-    if (!diff) throw new Error('в этом диффе есть ханки');
+    if (!diff) throw new Error('this diff has hunks');
     expect(diff.hunks.length).toBe(2);
     expect(diff.hunks[0].heading).toBe('@@ -1,4 +1,4 @@');
     expect(diff.hunks[1].heading).toBe('@@ -19,4 +19,4 @@ line 17');
-    expect(diff.hunks[0].newStart, 'позиция нужна, чтобы поставить кнопки на строку').toBe(1);
+    expect(
+      diff.hunks[0].newStart,
+      'the position is what puts the hunk buttons on the right row',
+    ).toBe(1);
     expect(diff.hunks[1].newStart).toBe(19);
   });
 
-  it('обе стороны ханка несут начало и длину — этим держится скрытие вне ханков', () => {
+  it('carries start and length for both sides of a hunk: hiding the lines outside the hunks rests on that', () => {
     const diff = parseUnifiedDiff(DIFF);
-    if (!diff) throw new Error('в этом диффе есть ханки');
+    if (!diff) throw new Error('this diff has hunks');
     expect(diff.hunks[0]).toMatchObject({ oldStart: 1, oldLines: 4, newStart: 1, newLines: 4 });
     expect(diff.hunks[1]).toMatchObject({ oldStart: 19, oldLines: 4, newStart: 19, newLines: 4 });
   });
 
-  it('длина в единицу опускается в заголовке, но не в разборе', () => {
+  it('restores a length of one that the heading omits', () => {
     const diff = parseUnifiedDiff('@@ -3 +5 @@\n-x\n+y\n');
-    if (!diff) throw new Error('в этом диффе есть ханк');
+    if (!diff) throw new Error('this diff has a hunk');
     expect(diff.hunks[0]).toMatchObject({ oldStart: 3, oldLines: 1, newStart: 5, newLines: 1 });
   });
 });
 
-describe('строки ханка в новой стороне файла', () => {
-  it('диапазон считается по уже разобранному ханку, а не по тексту заново', () => {
+describe('hunk rows on the new side of the file', () => {
+  it('computes the range from the already parsed hunk instead of reading the text again', () => {
     const diff = parseUnifiedDiff(DIFF);
-    if (!diff) throw new Error('в этом диффе есть ханки');
+    if (!diff) throw new Error('this diff has hunks');
     expect(hunkLineRange(diff.hunks[1])).toEqual({ from: 19, to: 22 });
   });
 
-  it('ханк чистого удаления не выворачивает диапазон наизнанку', () => {
+  it('does not turn the range inside out for a pure deletion hunk', () => {
     const diff = parseUnifiedDiff('@@ -3,2 +2,0 @@\n-a\n-b\n');
-    if (!diff) throw new Error('в этом диффе есть ханк');
+    if (!diff) throw new Error('this diff has a hunk');
     expect(
       hunkLineRange(diff.hunks[0]),
-      'конец раньше начала — это адрес, по которому агент ничего не найдёт',
+      'an end before the start is an address where the agent would find nothing',
     ).toEqual({ from: 2, to: 2 });
   });
 });
 
-describe('скрытие строк вне ханков', () => {
-  it('прячется всё до, между и после ханков, по обеим сторонам', () => {
+describe('hiding the lines outside the hunks', () => {
+  it('hides everything before, between and after the hunks, on both sides', () => {
     const diff = parseUnifiedDiff(DIFF);
-    if (!diff) throw new Error('в этом диффе есть ханки');
+    if (!diff) throw new Error('this diff has hunks');
     expect(hiddenSpans(diff.hunks, 22, 22)).toEqual({
       original: [{ from: 5, to: 18 }],
       modified: [{ from: 5, to: 18 }],
     });
   });
 
-  it('ханк с первой строки не рождает пустой диапазон сверху', () => {
+  it('produces no empty span above a hunk that starts at the first line', () => {
     const diff = parseUnifiedDiff('@@ -1,2 +1,2 @@\n-a\n+b\n c\n');
-    if (!diff) throw new Error('в этом диффе есть ханк');
+    if (!diff) throw new Error('this diff has a hunk');
     expect(hiddenSpans(diff.hunks, 10, 10)).toEqual({
       original: [{ from: 3, to: 10 }],
       modified: [{ from: 3, to: 10 }],
     });
   });
 
-  it('хвост после последнего ханка прячется до конца файла каждой стороны', () => {
+  it('hides the tail after the last hunk to the end of the file on each side', () => {
     const diff = parseUnifiedDiff('@@ -3,2 +3,3 @@\n x\n-a\n+b\n+c\n');
-    if (!diff) throw new Error('в этом диффе есть ханк');
+    if (!diff) throw new Error('this diff has a hunk');
     expect(hiddenSpans(diff.hunks, 8, 9)).toEqual({
       original: [
         { from: 1, to: 2 },
@@ -97,16 +100,16 @@ describe('скрытие строк вне ханков', () => {
     });
   });
 
-  it('пустой дифф — это отсутствие ханков, а не пустой список', () => {
+  it('reads an empty diff as no hunks at all, not as an empty list', () => {
     expect(parseUnifiedDiff('')).toBeNull();
   });
 
-  it('мини-патч одного ханка — байт в байт кусок исходного диффа', () => {
+  it('makes the patch for a single hunk a byte-for-byte piece of the original diff', () => {
     const diff = parseUnifiedDiff(DIFF);
-    if (!diff) throw new Error('в этом диффе есть ханки');
+    if (!diff) throw new Error('this diff has hunks');
     expect(
       patchFor(diff, diff.hunks[1]),
-      'git apply строг к байтам — патч склеивается из подстрок оригинала, не пересобирается',
+      'git apply is strict about bytes, so the patch is glued from substrings of the original instead of being rebuilt',
     ).toBe(
       [
         'diff --git a/code.txt b/code.txt',
@@ -125,8 +128,8 @@ describe('скрытие строк вне ханков', () => {
   });
 });
 
-describe('gitlink не притворяется текстовым диффом', () => {
-  it('дифф указателя на вложенный репозиторий узнаётся', () => {
+describe('a gitlink does not pass for a text diff', () => {
+  it('recognises the diff of a pointer to a nested repository', () => {
     const raw = [
       'diff --git a/sandbox b/sandbox',
       'index 8677392..1eb65eb 160000',
@@ -139,7 +142,7 @@ describe('gitlink не притворяется текстовым диффом'
     ].join('\n');
     expect(
       isGitlinkDiff(raw),
-      'git apply не умеет класть gitlink-патчи — кнопкам ханков тут не место',
+      'git apply cannot apply gitlink patches, so the hunk buttons have no place here',
     ).toBe(true);
     expect(isGitlinkDiff('diff --git a/a.ts b/a.ts\n@@ -1 +1 @@\n-x\n+y\n')).toBe(false);
   });

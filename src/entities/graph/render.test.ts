@@ -139,7 +139,7 @@ const window_ = (): WindowView => ({
     committer: 'pr0d',
     committerEmail: 'p@example.com',
     committerTime: 0,
-    subject: 'тема',
+    subject: 'subject',
     body: 'body first line\nrest',
   })),
   segOffsets: [0, 0, 0, 0],
@@ -200,15 +200,15 @@ const frameWith = (
     pullHeads,
     hoverChip,
     columns: {
-      branchTag: 'ветки',
-      graph: 'граф',
-      message: 'сообщение',
-      author: 'автор',
-      date: 'дата',
+      branchTag: 'branch / tag',
+      graph: 'graph',
+      message: 'message',
+      author: 'author',
+      date: 'date',
       sha: 'sha',
-      workingTree: 'дерево',
-      inProgress: 'слияние идёт',
-      mergeConflicts: 'два конфликта на пути в main',
+      workingTree: 'working tree',
+      inProgress: 'merge in progress',
+      mergeConflicts: 'two conflicts block the merge into main',
     },
     cols: layoutColumns(1200, {}),
     avatars,
@@ -243,38 +243,38 @@ const paint = (
   return { calls, texts, placedTexts, strokedGlyphs, drawnImages, filledRects, arcs, strokedPaths };
 };
 
-describe('кадр рисуется целиком', () => {
-  it('заголовок колонок рисуется после чипов, значит кадр дошёл до конца', () => {
+describe('a frame painted end to end', () => {
+  it('draws the column header after the chips, so the frame reached its end', () => {
     const painted = paint([
       ref('main', 'localBranch', { upstream: 'origin/main', isHead: true }),
       ref('origin/main', 'remoteBranch'),
     ]);
 
-    expect(painted.texts, 'шапка таблицы набирается капсом').toContain('СООБЩЕНИЕ');
-    expect(painted.texts).toContain('АВТОР');
+    expect(painted.texts, 'the table header is set in caps').toContain('MESSAGE');
+    expect(painted.texts).toContain('AUTHOR');
   });
 
-  it('репозиторий без единой ссылки рисуется так же полно', () => {
-    expect(paint([]).texts).toContain('СООБЩЕНИЕ');
+  it('paints just as fully for a repository without a single ref', () => {
+    expect(paint([]).texts).toContain('MESSAGE');
   });
 
-  it('чип без upstream тоже не роняет кадр', () => {
-    expect(paint([ref('wip', 'localBranch')]).texts).toContain('СООБЩЕНИЕ');
+  it('a chip without an upstream does not break the frame either', () => {
+    expect(paint([ref('wip', 'localBranch')]).texts).toContain('MESSAGE');
   });
 });
 
-describe('метки на чипах', () => {
-  it('локальная ветка несёт ноутбук, и он стоит справа от имени, как в the reference client', () => {
+describe('badges on chips', () => {
+  it('marks a local branch with the laptop glyph, and it sits right of the name as in the reference client', () => {
     const painted = paint([ref('wip', 'localBranch')]);
 
     const laptop = painted.strokedGlyphs.find((g) => g.d === GLYPH.local.d);
     const name = painted.placedTexts.find((t) => t.text === 'wip');
-    expect(laptop, 'у локальной ветки должна быть метка-ноутбук').toBeDefined();
-    expect(name, 'имя ветки должно рисоваться').toBeDefined();
-    expect(laptop!.x, 'метка идёт хвостом после имени').toBeGreaterThan(name!.x);
+    expect(laptop, 'a local branch must carry the laptop badge').toBeDefined();
+    expect(name, 'the branch name must be drawn').toBeDefined();
+    expect(laptop!.x, 'the badge trails after the name').toBeGreaterThan(name!.x);
   });
 
-  it('пара локальная+upstream несёт обе метки на одном чипе', () => {
+  it('a local branch paired with its upstream carries both badges on one chip', () => {
     const painted = paint([
       ref('main', 'localBranch', { upstream: 'origin/main' }),
       ref('origin/main', 'remoteBranch'),
@@ -282,15 +282,15 @@ describe('метки на чипах', () => {
 
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.local.d),
-      'ноутбук локальной половины',
+      'the laptop of the local half',
     ).toBe(true);
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.remote.d),
-      'облако вместо незагруженного аватара сервера',
+      'the cloud stands in for the remote avatar that has not loaded yet',
     ).toBe(true);
   });
 
-  it('загруженный аватар сервера рисуется картинкой, и облако исчезает', () => {
+  it('draws a loaded remote avatar as an image, and the cloud disappears', () => {
     const face = { fake: 'avatar' };
     const painted = paint(
       [ref('origin/dev', 'remoteBranch')],
@@ -299,15 +299,15 @@ describe('метки на чипах', () => {
 
     expect(
       painted.drawnImages.some((i) => i.image === face),
-      'картинка аватара должна дойти до канваса',
+      'the avatar image must reach the canvas',
     ).toBe(true);
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.remote.d),
-      'облако — только запасной вид, при живом аватаре его нет',
+      'the cloud is only the fallback: with a live avatar it is gone',
     ).toBe(false);
   });
 
-  it('аватар, закэшированный по имени remote, не подхватывается: origin есть у каждого репозитория', () => {
+  it('ignores an avatar cached under the remote name: every repository has an origin', () => {
     const stale = { fake: 'stale' };
     const painted = paint(
       [ref('origin/dev', 'remoteBranch')],
@@ -316,88 +316,88 @@ describe('метки на чипах', () => {
 
     expect(
       painted.drawnImages.some((i) => i.image === stale),
-      'ключ по имени подсовывал бы чужой аватар из прошлого репозитория',
+      'a key made from the remote name would serve an avatar left over from another repository',
     ).toBe(false);
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.remote.d),
-      'пока настоящий аватар не загружен — облако',
+      'until the real avatar has loaded, the cloud stands in for it',
     ).toBe(true);
   });
 
-  it('ветка с открытым пул-реквестом несёт его значок последним в хвосте', () => {
+  it('a branch with an open pull request carries its badge last in the tail', () => {
     const painted = paint([ref('wip', 'localBranch')], null, new Set(['wip']));
 
     const laptop = painted.strokedGlyphs.find((g) => g.d === GLYPH.local.d);
     const pull = painted.strokedGlyphs.find((g) => g.d === GLYPH.pull.d);
-    expect(pull, 'открытый PR подписывается значком, как в the reference client').toBeDefined();
-    expect(pull!.x, 'значок PR — последний в хвосте').toBeGreaterThan(laptop!.x);
+    expect(pull, 'an open pull request is marked with a badge, as in the reference client').toBeDefined();
+    expect(pull!.x, 'the pull request badge comes last in the tail').toBeGreaterThan(laptop!.x);
   });
 
-  it('ветка без пул-реквеста значка PR не несёт', () => {
+  it('a branch without a pull request carries no pull request badge', () => {
     const painted = paint([ref('wip', 'localBranch')]);
 
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.pull.d),
-      'значок без PR за ним ничего бы не значил',
+      'a badge with no pull request behind it would mean nothing',
     ).toBe(false);
   });
 
-  it('строка рабочего дерева считает файлы по судьбе: изменено, добавлено, удалено', () => {
+  it('the working tree row counts files by fate: modified, added, deleted', () => {
     const { texts, strokedGlyphs } = paint([], null, new Set(), null, true);
 
-    expect(texts, 'число изменённых рядом с карандашом').toContain('29');
-    expect(texts, 'число добавленных рядом с плюсом').toContain('7');
-    expect(texts, 'число удалённых рядом с минусом').toContain('3');
+    expect(texts, 'the modified count stands next to the pencil').toContain('29');
+    expect(texts, 'the added count stands next to the plus').toContain('7');
+    expect(texts, 'the deleted count stands next to the minus').toContain('3');
     expect(
       strokedGlyphs.some((g) => g.d === GLYPH.modified.d),
-      'карандаш — знак изменённых, как в the reference client',
+      'the pencil marks modified files, as in the reference client',
     ).toBe(true);
     expect(
       strokedGlyphs.some((g) => g.d === GLYPH.added.d),
-      'плюс — знак добавленных',
+      'the plus marks added files',
     ).toBe(true);
     expect(
       strokedGlyphs.some((g) => g.d === GLYPH.deleted.d),
-      'минус — знак удалённых',
+      'the minus marks deleted files',
     ).toBe(true);
     expect(
       strokedGlyphs.some((g) => g.d === GLYPH.conflict.d),
-      'нулевые счётчики не рисуются',
+      'counters that are zero are not drawn at all',
     ).toBe(false);
   });
 
-  it('подсветка огибает узел полукругом слева и не заезжает на колонку веток', () => {
+  it('the highlight wraps the node with a semicircle on the left and stays off the branch column', () => {
     const painted = paint([]);
 
     expect(
       painted.filledRects.some((r) => r.h === 30 && r.x === 0 && r.w > 1000),
-      'прямоугольник на всю строку ушёл в прошлое',
+      'the rectangle spanning the whole row is a thing of the past',
     ).toBe(false);
     expect(
       painted.arcs.some((a) => a.r === rowBandHeight(METRICS_AVATARS) / 2),
-      'левый край подсветки — полукруг радиусом в полполосы вокруг узла',
+      'the left edge of the highlight is a semicircle of half the band height around the node',
     ).toBe(true);
   });
 
-  it('строки разделены зазором: ни одна полоса не занимает высоту строки целиком', () => {
+  it('rows are separated by a gap: no band takes up the full row height', () => {
     const painted = paint([]);
     const band = rowBandHeight(METRICS_AVATARS);
 
     expect(
       painted.filledRects.some((r) => r.h === band && r.w > 100),
-      'заливка дорожки идёт по полосе, а не по всей строке',
+      'the fill runs along the band, not along the whole row',
     ).toBe(true);
     expect(
       painted.filledRects.some((r) => r.h === band && r.w > 100 && r.x < 224),
-      'полоса не выглядывает левее центра узла',
+      'the band does not stick out to the left of the node centre',
     ).toBe(false);
     expect(
       painted.filledRects.some((r) => r.h === METRICS_AVATARS.rowH && r.w > 100),
-      'полоса во всю высоту строки смыкается с соседней и зазор исчезает',
+      'a band as tall as the row would meet its neighbour and the gap would vanish',
     ).toBe(false);
   });
 
-  it('наведённая строка без своих ссылок показывает ветку-владельца приглушённо', () => {
+  it('a hovered row with no refs of its own shows the owning branch dimmed', () => {
     calls.length = 0;
     texts.length = 0;
     placedTexts.length = 0;
@@ -409,11 +409,14 @@ describe('метки на чипах', () => {
     drawFrame(canvas(), { ...frame, hover: 2 });
 
     const shown = placedTexts.filter((t) => t.text === 'wip');
-    expect(shown.length, 'имя ветки видно и на вершине, и призраком на наведённой').toBe(2);
-    expect(shown[0].y, 'призрак стоит на другой строке').not.toBe(shown[1].y);
+    expect(
+      shown.length,
+      'the branch name shows both on its tip and as a ghost on the hovered row',
+    ).toBe(2);
+    expect(shown[0].y, 'the ghost stands on a different row').not.toBe(shown[1].y);
   });
 
-  it('у строки со своими ссылками призрака нет', () => {
+  it('a row that carries its own refs gets no ghost', () => {
     calls.length = 0;
     texts.length = 0;
     placedTexts.length = 0;
@@ -426,21 +429,21 @@ describe('метки на чипах', () => {
 
     expect(
       placedTexts.filter((t) => t.text === 'wip').length,
-      'своя ссылка уже нарисована — второй раз не нужно',
+      'the ref of the row itself is already drawn, a second copy is not needed',
     ).toBe(1);
   });
 
-  it('не влезшие чипы показываются счётчиком +N', () => {
+  it('chips that did not fit are shown as a +N counter', () => {
     const painted = paint([
       ref('very-long-branch-name-one', 'localBranch'),
       ref('very-long-branch-name-two', 'localBranch'),
       ref('very-long-branch-name-three', 'localBranch'),
     ]);
 
-    expect(painted.texts, 'счётчик сообщает, сколько спрятано').toContain('+2');
+    expect(painted.texts, 'the counter tells how many chips are hidden').toContain('+2');
   });
 
-  it('ховер по счётчику раскрывает все чипы стопкой', () => {
+  it('hovering the counter unfolds every chip into a stack', () => {
     const painted = paint(
       [
         ref('very-long-branch-name-one', 'localBranch'),
@@ -454,98 +457,101 @@ describe('метки на чипах', () => {
 
     const one = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
     const two = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-two');
-    expect(one.length, 'первый чип в стопке с полным именем').toBeGreaterThan(0);
-    expect(two.length, 'спрятанный чип в стопке с полным именем').toBeGreaterThan(0);
-    expect(one[one.length - 1].y, 'стопка вертикальная — имена на разных строках').not.toBe(
-      two[two.length - 1].y,
-    );
+    expect(one.length, 'the first chip of the stack shows its full name').toBeGreaterThan(0);
+    expect(two.length, 'the hidden chip shows its full name in the stack too').toBeGreaterThan(0);
+    expect(
+      one[one.length - 1].y,
+      'the stack is vertical, so the names sit on different rows',
+    ).not.toBe(two[two.length - 1].y);
   });
 
-  it('наведённый чип раскрывается и рисуется поверх всего остального', () => {
+  it('a hovered chip unfolds and is drawn on top of everything else', () => {
     const painted = paint([ref('wip', 'localBranch')], null, new Set(), { row: 0, at: 0 });
 
     const last = painted.placedTexts[painted.placedTexts.length - 1];
-    expect(last.text, 'раскрытый чип кладётся последним, то есть поверх').toBe('wip');
+    expect(last.text, 'the unfolded chip is painted last, which is to say on top').toBe('wip');
   });
 
-  it('тег с именем как у PR-ветки получает значок тега, но не PR', () => {
+  it('a tag named like a pull request branch gets the tag badge, not the pull request one', () => {
     const painted = paint([ref('wip', 'tag')], null, new Set(['wip']));
 
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.pull.d),
-      'совпадение имени с веткой PR не делает тег пул-реквестом',
+      'a name that matches a pull request branch does not turn the tag into a pull request',
     ).toBe(false);
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.tag.d),
-      'чип тега носит значок тега',
+      'a tag chip wears the tag badge',
     ).toBe(true);
     expect(painted.texts).toContain('wip');
   });
 
-  it('стеш без чипа: квадратный узел с иконкой, имя не рисуется', () => {
+  it('a stash has no chip: a square node with an icon, and no name is drawn', () => {
     const painted = paint([ref('stash@{0}', 'stash')]);
 
-    expect(painted.texts, 'чипа stash@{0} больше нет').not.toContain('stash@{0}');
+    expect(painted.texts, 'the stash@{0} chip is gone for good').not.toContain('stash@{0}');
     expect(
       painted.strokedGlyphs.some((g) => g.d === GLYPH.stash.d),
-      'в квадрате узла — иконка стеша',
+      'the stash icon sits inside the square node',
     ).toBe(true);
   });
 
-  it('у HEAD галочка остаётся в начале имени, а метка всё равно справа', () => {
+  it('on HEAD the check mark stays in front of the name and the badge still goes to the right', () => {
     const painted = paint([ref('main', 'localBranch', { isHead: true })]);
 
     const name = painted.placedTexts.find((t) => t.text === '✓ main');
     const laptop = painted.strokedGlyphs.find((g) => g.d === GLYPH.local.d);
-    expect(name, 'галочка и имя — одна строка в начале чипа').toBeDefined();
-    expect(laptop, 'метка-ноутбук на месте').toBeDefined();
-    expect(laptop!.x, 'метка правее имени').toBeGreaterThan(name!.x);
+    expect(
+      name,
+      'the check mark and the name are one text run at the start of the chip',
+    ).toBeDefined();
+    expect(laptop, 'the laptop badge is there').toBeDefined();
+    expect(laptop!.x, 'the badge sits to the right of the name').toBeGreaterThan(name!.x);
   });
 });
 
-describe('строка WIP во время конфликтного слияния', () => {
-  it('становится оранжевым баннером с предупреждением вместо счётчиков', () => {
+describe('the WIP row during a conflicted merge', () => {
+  it('turns into an orange warning banner instead of the counters', () => {
     const painted = paint([], null, new Set(), null, {
       conflicts: 2,
       inProgress: 'merge',
     });
 
-    expect(painted.texts, 'баннер называет конфликты словами из перевода').toContain(
-      'два конфликта на пути в main',
+    expect(painted.texts, 'the banner names the conflicts with the translated label').toContain(
+      'two conflicts block the merge into main',
     );
     expect(
       painted.texts,
-      'счётчики файлов при конфликте прячутся — строка говорит об одном',
+      'the file counters hide during a conflict: the row says one thing',
     ).not.toContain('29');
     const warning = painted.strokedGlyphs.find((g) => g.d === GLYPH.conflict.d);
-    expect(warning, 'слева от текста — треугольник предупреждения').toBeDefined();
-    expect(
-      painted.texts,
-      'никаких меток состояния на полосе — только предупреждение',
-    ).not.toContain('слияние идёт');
+    expect(warning, 'a warning triangle sits left of the text').toBeDefined();
+    expect(painted.texts, 'no state badges on the band, only the warning').not.toContain(
+      'merge in progress',
+    );
   });
 
-  it('без конфликтов строка WIP остаётся счётчиками', () => {
+  it('without conflicts the WIP row stays counters', () => {
     const painted = paint([], null, new Set(), null, true);
 
     expect(painted.texts).toContain('29');
-    expect(painted.texts).not.toContain('два конфликта на пути в main');
+    expect(painted.texts).not.toContain('two conflicts block the merge into main');
   });
 });
 
-describe('описание коммита в графе', () => {
-  it('по умолчанию серая строка тела рисуется, режим never её прячет', () => {
+describe('the commit description in the graph', () => {
+  it('the grey body line is drawn by default and the never mode hides it', () => {
     const shown = paint([]);
     expect(
       shown.texts.some((text) => text.includes('body first line')),
-      'умолчание сохраняет прежнее поведение — описание видно',
+      'the default keeps the previous behaviour: the description is visible',
     ).toBe(true);
 
     localStorage.setItem('gitspy.graph.description', JSON.stringify('never'));
     const hidden = paint([]);
     expect(
       hidden.texts.some((text) => text.includes('body first line')),
-      'выключенное описание не рисуется даже при свободном месте',
+      'a disabled description is not drawn even when there is room',
     ).toBe(false);
     localStorage.removeItem('gitspy.graph.description');
   });

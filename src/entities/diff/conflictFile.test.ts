@@ -19,8 +19,8 @@ const MERGED = [
   'tail();',
 ].join('\n');
 
-describe('разбор файла с маркерами конфликта', () => {
-  it('файл распадается на общие куски и конфликтные блоки', () => {
+describe('parsing a file with conflict markers', () => {
+  it('splits the file into common chunks and conflict blocks', () => {
     const blocks = parseConflictFile(MERGED);
     expect(blocks.map((b) => b.kind)).toEqual([
       'common',
@@ -30,12 +30,12 @@ describe('разбор файла с маркерами конфликта', () 
       'common',
     ]);
     const first = blocks[1];
-    if (first.kind !== 'conflict') throw new Error('второй блок обязан быть конфликтом');
+    if (first.kind !== 'conflict') throw new Error('the second block must be a conflict');
     expect(first.ours).toEqual(['  return `Good day`;']);
     expect(first.theirs).toEqual(['  return `Hi there!`;']);
   });
 
-  it('маркеры diff3 отдают ещё и базу', () => {
+  it('reads the base as well when the markers are diff3', () => {
     const withBase = [
       'a',
       '<<<<<<< HEAD',
@@ -49,29 +49,30 @@ describe('разбор файла с маркерами конфликта', () 
     ].join('\n');
     const blocks = parseConflictFile(withBase);
     const conflict = blocks[1];
-    if (conflict.kind !== 'conflict') throw new Error('в середине конфликт');
-    expect(conflict.base, 'база между ||||||| и ======= нужна для непочатого Output').toEqual([
-      'base',
-    ]);
+    if (conflict.kind !== 'conflict') throw new Error('the middle block is a conflict');
+    expect(
+      conflict.base,
+      'the base between ||||||| and ======= is what an untouched Output is built from',
+    ).toEqual(['base']);
     expect(conflict.ours).toEqual(['ours']);
     expect(conflict.theirs).toEqual(['theirs']);
   });
 
-  it('файл без маркеров — один общий кусок', () => {
+  it('reads a file without markers as one common chunk', () => {
     const blocks = parseConflictFile('a\nb');
     expect(blocks).toEqual([{ kind: 'common', lines: ['a', 'b'] }]);
   });
 });
 
-describe('сборка Output из выбранных строк', () => {
+describe('building the Output from the picked lines', () => {
   const blocks = parseConflictFile(MERGED);
 
-  it('никого не выбрали — конфликтные места пустые, общие куски на месте', () => {
+  it('leaves the conflict spots empty and the common chunks in place when nothing is picked', () => {
     const text = composeOutput(blocks, emptyPicks(blocks));
     expect(text).toBe(['export function greet() {', '}', 'shared();', 'tail();'].join('\n'));
   });
 
-  it('выбранные строки обеих сторон входят в порядке: сначала A, потом B', () => {
+  it('takes the picked lines from both sides in order: side A first, then side B', () => {
     const picks: Picks = emptyPicks(blocks);
     picks[1] = { a: new Set([0]), b: new Set([0]) };
     picks[3] = { a: new Set(), b: new Set([1]) };

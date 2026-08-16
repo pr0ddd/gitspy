@@ -15,7 +15,7 @@ const row = (index: number): RowView => ({
   committer: 'pr0d',
   committerEmail: 'pr0d@example.com',
   committerTime: 1_700_000_000 + index,
-  subject: `коммит ${index}`,
+  subject: `commit ${index}`,
   body: '',
 });
 
@@ -32,12 +32,12 @@ const window = (chunk: number, length = CHUNK): WindowView => {
   };
 };
 
-describe('кэш строк', () => {
-  it('пустой кэш не знает ни одной строки', () => {
+describe('row cache', () => {
+  it('knows no row at all while it is empty', () => {
     expect(new RowCache().row(0)).toBeNull();
   });
 
-  it('отдаёт строку по её настоящему индексу, а не по смещению в полосе', () => {
+  it('returns a row by its real index, not by its offset inside the chunk', () => {
     const cache = new RowCache();
     cache.put(3, window(3));
     const index = 3 * CHUNK + 17;
@@ -45,7 +45,7 @@ describe('кэш строк', () => {
     expect((cache.row(index) as { hash: string }).hash).toBe(`hash-${index}`);
   });
 
-  it('прочитанное не пропадает, когда приходит соседняя полоса', () => {
+  it('does not lose what was already read when a neighbouring chunk arrives', () => {
     const cache = new RowCache();
     cache.put(0, window(0));
     cache.put(1, window(1));
@@ -53,7 +53,7 @@ describe('кэш строк', () => {
     expect(cache.row(CHUNK + 5)).not.toBeNull();
   });
 
-  it('просит только недостающие полосы и не просит их дважды', () => {
+  it('asks only for the missing chunks, and never asks for the same one twice', () => {
     const cache = new RowCache();
     const total = CHUNK * 10;
 
@@ -67,20 +67,20 @@ describe('кэш строк', () => {
     expect(cache.missing(0, 40, total)).toEqual([]);
   });
 
-  it('берёт полосу с запасом в обе стороны от видимого', () => {
+  it('takes a chunk of slack on both sides of the visible range', () => {
     const cache = new RowCache();
     const total = CHUNK * 10;
     const middle = CHUNK * 5;
     expect(cache.missing(middle, middle + 10, total)).toEqual([4, 5, 6]);
   });
 
-  it('не просит полос за пределами истории', () => {
+  it('does not ask for chunks beyond the end of the history', () => {
     const cache = new RowCache();
     const total = CHUNK + 10;
     expect(cache.missing(0, 10, total)).toEqual([0, 1]);
   });
 
-  it('вытесняет давние полосы, но не те, по которым только что читали', () => {
+  it('evicts the oldest chunks, but not the ones just read from', () => {
     const cache = new RowCache();
     for (let chunk = 0; chunk < 200; chunk++) cache.put(chunk, window(chunk));
 
@@ -88,7 +88,7 @@ describe('кэш строк', () => {
     expect(cache.row(0)).toBeNull();
   });
 
-  it('сегменты строки берутся по её индексу в полосе', () => {
+  it('takes the segments of a row by its index inside the chunk', () => {
     const cache = new RowCache();
     cache.put(2, window(2));
     const found = cache.segments(2 * CHUNK + 7);
@@ -97,7 +97,7 @@ describe('кэш строк', () => {
     expect(found?.to).toBe(8);
   });
 
-  it('после очистки кэш снова пуст и снова просит полосы', () => {
+  it('is empty again after a clear and asks for the chunks anew', () => {
     const cache = new RowCache();
     cache.put(0, window(0));
     cache.missing(0, 10, CHUNK * 4);
@@ -106,7 +106,7 @@ describe('кэш строк', () => {
     expect(cache.missing(0, 10, CHUNK * 4)).toEqual([0, 1]);
   });
 
-  it('подмена целиком: старые полосы уходят, новая встаёт одним шагом', () => {
+  it('replaces everything in one step: the old chunks go and the new one takes their place', () => {
     const cache = new RowCache();
     cache.put(0, window(0));
     cache.put(3, window(3));
@@ -115,11 +115,14 @@ describe('кэш строк', () => {
     cache.replaceAll(window(0));
 
     const swapped = cache.row(5);
-    expect(swapped?.kind === 'commit' && swapped.hash, 'новая полоса на месте').toBe('hash-5');
-    expect(cache.row(3 * CHUNK + 1), 'глубокие полосы прошлой жизни выброшены').toBeNull();
+    expect(swapped?.kind === 'commit' && swapped.hash, 'the new chunk is in place').toBe('hash-5');
+    expect(
+      cache.row(3 * CHUNK + 1),
+      'deep chunks from the previous life are thrown away',
+    ).toBeNull();
     expect(
       cache.missing(3 * CHUNK, 3 * CHUNK + 10, CHUNK * 8),
-      'полосы в полёте забыты, их можно просить заново',
+      'chunks in flight are forgotten, so they can be asked for again',
     ).toContain(3);
   });
 });

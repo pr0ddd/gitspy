@@ -3,73 +3,73 @@ import { pickAfterMove, pickNext, samePick } from './pick';
 
 const files = ['a.ts', 'b.ts', 'c.ts'];
 
-describe('кого выбрать вместо ушедшего файла', () => {
-  it('следующий по списку, чтобы стейдж подряд шёл без мыши', () => {
+describe('what to select in place of a file that is gone', () => {
+  it('takes the next file in the list, so that staging one after another needs no mouse', () => {
     expect(pickNext(files, 'a.ts')).toBe('b.ts');
     expect(pickNext(files, 'b.ts')).toBe('c.ts');
   });
 
-  it('за последним ничего нет, поэтому выбор откатывается на предыдущий', () => {
+  it('falls back to the previous file for the last one, because there is nothing after it', () => {
     expect(pickNext(files, 'c.ts')).toBe('b.ts');
   });
 
-  it('последний файл списка не оставляет выбора', () => {
+  it('the last remaining file leaves nothing to select', () => {
     expect(pickNext(['a.ts'], 'a.ts')).toBe(null);
   });
 
-  it('чужой путь ничего не выбирает', () => {
+  it('a path that is not in the list selects nothing', () => {
     expect(pickNext(files, 'z.ts')).toBe(null);
   });
 });
 
-describe('сравнение выбора', () => {
-  it('один и тот же файл в одной секции — тот же выбор', () => {
+describe('comparing selections', () => {
+  it('the same file in the same section is the same selection', () => {
     expect(samePick({ path: 'a.ts', staged: false }, { path: 'a.ts', staged: false })).toBe(true);
   });
 
-  it('тот же путь в другой секции — другой выбор: это две разные строки', () => {
+  it('the same path in the other section is a different selection: these are two different rows', () => {
     expect(samePick({ path: 'a.ts', staged: false }, { path: 'a.ts', staged: true })).toBe(false);
   });
 
-  it('пустой выбор равен пустому, иначе повторное нажатие перерисовывало бы панель', () => {
+  it('an empty selection equals an empty one, otherwise pressing again would redraw the panel', () => {
     expect(samePick(null, null)).toBe(true);
     expect(samePick(null, { path: 'a.ts', staged: false })).toBe(false);
   });
 });
 
-describe('выбор после переноса файла в другую секцию', () => {
+describe('what to select after a file moves to the other section', () => {
   const unstaged = ['a.ts', 'b.ts', 'c.ts'];
   const treeAfter = (moved: string) => [
     ...unstaged.filter((p) => p !== moved).map((path) => ({ path, staged: false })),
     { path: moved, staged: true },
   ];
 
-  it('переносится на следующий файл той же секции — стейдж подряд без мыши', () => {
+  it('moves to the next file of the same section, so staging one after another needs no mouse', () => {
     expect(pickAfterMove(unstaged, 'a.ts', false, treeAfter('a.ts'))).toEqual({
       path: 'b.ts',
       staged: false,
     });
   });
 
-  it('следующий берётся из свежего дерева: если git его уже унёс, выбор не повисает на призраке', () => {
+  it('takes the next one from the fresh tree: if git has already taken it away, the selection does not hang on a ghost', () => {
     const after = [
       { path: 'c.ts', staged: false },
       { path: 'a.ts', staged: true },
     ];
     expect(
       pickAfterMove(unstaged, 'a.ts', false, after),
-      'b.ts исчез между командой и ответом — выбор уходит к самому файлу в новой секции',
+      'b.ts disappeared between the command and the response, so the selection goes to the moved file itself in its new section',
     ).toEqual({ path: 'a.ts', staged: true });
   });
 
-  it('последний файл секции догоняет себя в соседней секции', () => {
+  it('the last file of a section follows itself into the neighbouring section', () => {
     expect(pickAfterMove(['a.ts'], 'a.ts', false, [{ path: 'a.ts', staged: true }])).toEqual({
       path: 'a.ts',
       staged: true,
     });
   });
 
-  it('файл, которого после операции нет нигде, выбор снимает', () => {
+  it('a file that is nowhere after the operation clears the selection', () => {
     expect(pickAfterMove(['a.ts'], 'a.ts', false, [])).toBe(null);
   });
 });

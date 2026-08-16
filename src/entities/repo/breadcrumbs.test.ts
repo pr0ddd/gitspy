@@ -24,14 +24,14 @@ const worktree = (branchName: string, isMain = false): WorktreeView => ({
   isLocked: false,
 });
 
-describe('список веток в шапке', () => {
-  it('показывает только локальные ветки: переключаться можно на них', () => {
+describe('the branch list in the breadcrumbs', () => {
+  it('shows local branches only: those are the ones you can switch to', () => {
     const choices = branchChoices([branch('master'), remote('origin/master')], [], 'master');
 
     expect(choices.map((c) => c.ref.name)).toEqual(['master']);
   });
 
-  it('сортирует по алфавиту без оглядки на регистр', () => {
+  it('sorts alphabetically regardless of case', () => {
     const choices = branchChoices(
       [branch('resize'), branch('Loader'), branch('avatars')],
       [],
@@ -40,11 +40,11 @@ describe('список веток в шапке', () => {
 
     expect(
       choices.map((c) => c.ref.name),
-      'заглавная буква не выбрасывает ветку в начало списка',
+      'a capital letter does not throw a branch to the top of the list',
     ).toEqual(['avatars', 'Loader', 'resize']);
   });
 
-  it('при нескольких рабочих деревьях их ветки идут первыми, главное — во главе', () => {
+  it('puts worktree branches first when there are several worktrees, the main one leading', () => {
     const refs = [branch('feature'), branch('master'), branch('zebra'), branch('alpha')];
     const trees = [worktree('master', true), worktree('zebra')];
 
@@ -52,22 +52,25 @@ describe('список веток в шапке', () => {
 
     expect(
       choices.map((c) => c.ref.name),
-      'сначала ветка главного дерева, затем прочие деревья по алфавиту, затем обычные ветки',
+      'the main worktree branch first, then the other worktrees alphabetically, then plain branches',
     ).toEqual(['master', 'zebra', 'alpha', 'feature']);
     expect(
       choices[1].worktree?.path,
-      'у ветки из дерева известен путь — по нему её и открывают',
+      'a branch from a worktree carries its path, and that path is what opens it',
     ).toBe('/trees/zebra');
   });
 
-  it('единственное рабочее дерево не делит список: делить не на что', () => {
+  it('does not split the list when there is a single worktree: there is nothing to split it into', () => {
     const choices = branchChoices([branch('master', true)], [worktree('master', true)], 'master');
 
-    expect(choices[0].worktree, 'при одном дереве ветка не помечается как «в дереве»').toBeNull();
+    expect(
+      choices[0].worktree,
+      'with a single worktree a branch is not marked as living in a worktree',
+    ).toBeNull();
     expect(choices[0].current).toBe(true);
   });
 
-  it('фильтр ищет подстроку в любом регистре', () => {
+  it('filters by substring in any case', () => {
     const choices = branchChoices([branch('Fix-Graph'), branch('master')], [], null, 'graph');
 
     expect(choices.map((c) => c.ref.name)).toEqual(['Fix-Graph']);
@@ -82,8 +85,8 @@ const recentRepo = (name: string, favorite = false): RecentRepo => ({
   favorite,
 });
 
-describe('список репозиториев в шапке', () => {
-  it('без поиска: избранные целиком, недавние без текущего и не длиннее четырёх', () => {
+describe('the repository list in the breadcrumbs', () => {
+  it('without a search: all the favourites, and recents without the current one and no longer than four', () => {
     const recent = [
       recentRepo('gitspy', true),
       recentRepo('quesk'),
@@ -100,11 +103,11 @@ describe('список репозиториев в шапке', () => {
     expect(menu.favorites.map((r) => r.name)).toEqual(['gitspy']);
     expect(
       menu.recent.map((r) => r.name),
-      'открытый репозиторий в «недавних» не повторяется, список короткий',
+      'the open repository is not repeated among the recents, and the list stays short',
     ).toEqual(['quesk', 'react', 'shpion', 'agents']);
   });
 
-  it('поиск отменяет деление на группы и ищет по всем известным, включая текущий', () => {
+  it('a search drops the grouping and looks through every known repository, the current one included', () => {
     const recent = [recentRepo('gitspy', true), recentRepo('quesk'), recentRepo('sixth')];
 
     const menu = repoMenu([], recent, '/src/gitspy', 'S');
@@ -114,7 +117,7 @@ describe('список репозиториев в шапке', () => {
     expect(menu.found.map((r) => r.name)).toEqual(['gitspy', 'quesk', 'sixth']);
   });
 
-  it('уже открытые помечены: их не нужно открывать заново, к ним переключаются', () => {
+  it('marks the already open ones: you switch to them instead of opening them again', () => {
     const menu = repoMenu(['/src/quesk'], [recentRepo('quesk')], '/src/gitspy');
 
     expect(menu.searching).toBe(false);

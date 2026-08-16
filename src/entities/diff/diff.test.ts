@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { DIFF_MODES, editorOptionsFor } from './diff';
 
-describe('режимы просмотра диффа', () => {
-  it('две колонки бывают только у split', () => {
+describe('diff view modes', () => {
+  it('gives two columns to split and to nothing else', () => {
     expect(editorOptionsFor('split').renderSideBySide).toBe(true);
     expect(editorOptionsFor('inline').renderSideBySide).toBe(false);
     expect(
       editorOptionsFor('hunk').renderSideBySide,
-      'hunk отличается от inline не опциями редактора, а скрытием строк вне ханков',
+      'hunk differs from inline by hiding the lines outside the hunks, not by editor options',
     ).toBe(false);
   });
 
-  it('обзорная полоса справа гаснет в hunk: там и так одни изменения, отмечать нечего', () => {
+  it('turns the overview ruler off in hunk view: everything left there is a change, so there is nothing to mark', () => {
     expect(editorOptionsFor('hunk').renderOverviewRuler).toBe(false);
     expect(editorOptionsFor('split').renderOverviewRuler).toBe(true);
     expect(editorOptionsFor('inline').renderOverviewRuler).toBe(true);
   });
 
-  it('список режимов закрыт', () => {
+  it('keeps the list of modes closed', () => {
     expect(DIFF_MODES).toEqual(['hunk', 'split', 'inline']);
   });
 });
