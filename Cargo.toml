@@ -1,3 +1,7 @@
 [workspace]
 members = ["crates/gitspy-ai","crates/gitspy-core", "crates/gitspy-exec", "crates/gitspy-hosts", "crates/gitspy-repo", "crates/gitspy-term", "src-tauri"]
 resolver = "2"
+
+[workspace.package]
+license = "AGPL-3.0-only"
+repository = "https://github.com/pr0ddd/gitspy"
