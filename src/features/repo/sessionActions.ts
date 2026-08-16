@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
-import { readPref, writePref } from '@/prefs';
-import { SETTINGS } from '@/settingsModel';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
+import { readPref, writePref } from '@/shared/lib/prefs';
+import { SETTINGS } from '@/shared/config/settingsModel';
 import type { Session, SessionsAction } from '@/entities/repo';
-import type { RecentRepo } from '@/types';
+import type { RecentRepo } from '@/shared/api/types';
 
 type Wiring = {
   sessions: Session[];

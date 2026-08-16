@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { Toaster } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { Toaster } from '@/shared/ui/sonner';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { METRICS_AVATARS, METRICS_COMPACT } from '@/entities/graph';
-import { notifyError } from '@/toast';
-import * as ipc from '@/ipc';
-import { readPref, usePref, writePref } from '@/prefs';
+import { notifyError } from '@/shared/ui/toast';
+import * as ipc from '@/shared/api/ipc';
+import { readPref, usePref, writePref } from '@/shared/lib/prefs';
 import { EMPTY, sessionsReducer } from '@/entities/repo';
 
 import { useCommitSearch } from '@/features/search';
@@ -23,11 +23,11 @@ import {
   useRepoLoading,
   useSessionActions,
 } from '@/features/repo';
-import { useZoom, zoomIn, zoomOut } from '@/zoom';
+import { useZoom, zoomIn, zoomOut } from '@/shared/lib/zoom';
 import { focusArea, useCommands, useKeyboard } from '@/features/keyboard';
 import { useViewTabs } from '@/features/views';
 import { samePick, type Confirmation, type Effect, type Picked } from '@/entities/repo';
-import { clampAutofetch, SETTINGS } from '@/settingsModel';
+import { clampAutofetch, SETTINGS } from '@/shared/config/settingsModel';
 import { BottomBar } from '@/widgets/BottomBar';
 import { Breadcrumbs } from '@/widgets/Breadcrumbs';
 import { ChangelogView } from '@/widgets/ChangelogView';
@@ -39,7 +39,7 @@ import type {
   PullView,
   RecentRepo,
   WorkingTreeView,
-} from '@/types';
+} from '@/shared/api/types';
 
 type Main =
   | { kind: 'graph' }
@@ -59,7 +59,7 @@ import { ConflictView } from '@/widgets/ConflictView';
 import { FileHistoryView } from '@/widgets/FileHistoryView';
 import { WorkingTree } from '@/widgets/WorkingTree';
 import { Settings } from '@/widgets/Settings';
-import { applyStoredAppearance } from '@/appearance';
+import { applyStoredAppearance } from '@/shared/config/appearance';
 import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';

@@ -2,11 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 beforeEach(() => localStorage.clear());
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { Sidebar } from './Sidebar';
 import { showNativeMenu } from '@/features/menus';
 import { newSession, type Confirmation, type Session } from '@/entities/repo';
-import type { RefView, RepoView } from '@/types';
+import type { RefView, RepoView } from '@/shared/api/types';
 
 vi.mock('@/features/menus', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -15,8 +15,8 @@ vi.mock('@/features/menus', async (importOriginal) => ({
 
 const drawn = vi.hoisted(() => ({ branchRows: 0 }));
 
-vi.mock('@/icons', async (importOriginal) => {
-  const real = await importOriginal<typeof import('@/icons')>();
+vi.mock('@/shared/ui/icons', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/shared/ui/icons')>();
   const Up = real.Icon.up;
   return {
     ...real,

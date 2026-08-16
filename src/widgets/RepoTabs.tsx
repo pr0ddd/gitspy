@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Icon } from '@/icons';
-import { hostOf } from '@/host';
+import { Button } from '@/shared/ui/button';
+import { cn } from '@/shared/lib/utils';
+import { Icon } from '@/shared/ui/icons';
+import { hostOf } from '@/entities/repo';
 import type { Session } from '@/entities/repo';
-import { Hint } from '@/components/ui/tooltip';
-import { Tab } from '@/parts';
+import { Hint } from '@/shared/ui/tooltip';
+import { Tab } from '@/shared/ui/parts';
 import { VIEW_TABS, type ViewTab } from '@/features/views';
 
 type Props = {

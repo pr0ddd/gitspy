@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RELEASES } from '@/entities/changelog';
 import { ChangelogView } from './ChangelogView';
-import '../i18n';
+import '@/shared/config/i18n';
 
 describe('release notes tab', () => {
   it('lists every released version', () => {

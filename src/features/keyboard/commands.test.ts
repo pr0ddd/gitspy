@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Stroke } from '@/keys';
+import type { Stroke } from '@/shared/lib/keys';
 import { COMMANDS, commandFor } from './commands';
 
 const stroke = (key: string, held: Partial<Stroke> = {}): Stroke => ({

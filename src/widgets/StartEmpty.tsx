@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/icons';
-import { GIT } from '@/vocabulary';
+import { Button } from '@/shared/ui/button';
+import { Icon } from '@/shared/ui/icons';
+import { GIT } from '@/shared/config/vocabulary';
 
 const COMMITS = [
   { x: -47.6, base: -27.5, top: -55.5, r: 6, lane: 1, seconds: 4.6, from: 0 },

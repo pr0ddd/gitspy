@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Icon } from '@/icons';
-import { PanelBar, Prose, ViewBar } from '@/parts';
-import * as ipc from '@/ipc';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { cn } from '@/shared/lib/utils';
+import { ScrollArea } from '@/shared/ui/scroll-area';
+import { Separator } from '@/shared/ui/separator';
+import { Icon } from '@/shared/ui/icons';
+import { PanelBar, Prose, ViewBar } from '@/shared/ui/parts';
+import * as ipc from '@/shared/api/ipc';
 import { runRepoWork, useRepoWork } from '@/features/repo';
-import { notifyError } from '@/toast';
-import type { PullCardView, PullView } from '@/types';
-import { Hint } from '@/components/ui/tooltip';
+import { notifyError } from '@/shared/ui/toast';
+import type { PullCardView, PullView } from '@/shared/api/types';
+import { Hint } from '@/shared/ui/tooltip';
 
 type Props = {
   repo: string;

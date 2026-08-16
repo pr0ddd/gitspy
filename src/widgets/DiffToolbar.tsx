@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Hint } from '@/components/ui/tooltip';
-import { Icon } from '@/icons';
-import { Toggle } from '@/components/ui/toggle';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/shared/ui/button';
+import { Separator } from '@/shared/ui/separator';
+import { Hint } from '@/shared/ui/tooltip';
+import { Icon } from '@/shared/ui/icons';
+import { Toggle } from '@/shared/ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
 import { DIFF_MODES, type DiffMode } from '@/entities/diff';
 
 const MODE_HINT: Record<DiffMode, string> = {

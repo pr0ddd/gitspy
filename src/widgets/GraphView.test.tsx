@@ -14,9 +14,9 @@ beforeEach(() => {
 });
 import { CHUNK, RowCache } from '@/entities/graph';
 import { METRICS_AVATARS } from '@/entities/graph';
-import '../i18n';
+import '@/shared/config/i18n';
 import { newSession, type Session } from '@/entities/repo';
-import type { RepoView, RowView, WindowView } from '@/types';
+import type { RepoView, RowView, WindowView } from '@/shared/api/types';
 
 beforeAll(() => {
   vi.stubGlobal(

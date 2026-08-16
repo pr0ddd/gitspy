@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { FoundCommitView } from '@/types';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
+import type { FoundCommitView } from '@/shared/api/types';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
 
 const SETTLE_MS = 200;
 

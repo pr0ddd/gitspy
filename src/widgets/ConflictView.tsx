@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Hint } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import * as ipc from '@/ipc';
+import { Badge } from '@/shared/ui/badge';
+import { Button } from '@/shared/ui/button';
+import { Checkbox } from '@/shared/ui/checkbox';
+import { Hint } from '@/shared/ui/tooltip';
+import { cn } from '@/shared/lib/utils';
+import * as ipc from '@/shared/api/ipc';
 import { runRepoWork, useRepoWork } from '@/features/repo';
-import { notifyError } from '@/toast';
-import { Icon } from '@/icons';
-import { SectionHeader, ViewBar } from '@/parts';
-import { shortenDirectory, splitPath } from '@/paths';
+import { notifyError } from '@/shared/ui/toast';
+import { Icon } from '@/shared/ui/icons';
+import { SectionHeader, ViewBar } from '@/shared/ui/parts';
+import { shortenDirectory, splitPath } from '@/shared/lib/paths';
 import {
   composeOutput,
   emptyPicks,
@@ -18,7 +18,7 @@ import {
   type ConflictBlock,
   type Picks,
 } from '@/entities/diff';
-import type { ConflictFileView, WorkingTreeView } from '@/types';
+import type { ConflictFileView, WorkingTreeView } from '@/shared/api/types';
 
 type Props = {
   repo: string;

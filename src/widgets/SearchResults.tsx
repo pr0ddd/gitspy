@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { ListRow } from '@/parts';
-import { relativeTime } from '@/time';
-import type { FoundCommitView } from '@/types';
+import { ListRow } from '@/shared/ui/parts';
+import { relativeTime } from '@/shared/lib/time';
+import type { FoundCommitView } from '@/shared/api/types';
 
 export function SearchResults({
   commits,

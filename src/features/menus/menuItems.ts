@@ -1,7 +1,7 @@
 import type { Chip } from '@/entities/graph';
 import { isDangerous, isDangerousPath, type Confirmation } from '@/entities/repo';
 import type { Ask } from './ask';
-import type { PathOperation, Operation, RefView } from '@/types';
+import type { PathOperation, Operation, RefView } from '@/shared/api/types';
 import type { HideableColumn } from '@/entities/graph';
 
 export type MenuAction =

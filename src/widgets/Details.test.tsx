@@ -1,18 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import * as ipc from '@/ipc';
+import * as ipc from '@/shared/api/ipc';
 
-vi.mock('@/ipc', async (importOriginal) => ({
+vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   commitFiles: vi.fn(() => Promise.resolve([])),
 }));
-import '../i18n';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import '@/shared/config/i18n';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { Details } from './Details';
 import { RowCache } from '@/entities/graph';
 import type { Session } from '@/entities/repo';
-import type { AvatarCache } from '@/avatarCache';
-import type { ChangedFileView, PullView, RefView, RowView, WindowView } from '@/types';
+import type { AvatarCache } from '@/shared/ui/avatarCache';
+import type { ChangedFileView, PullView, RefView, RowView, WindowView } from '@/shared/api/types';
 
 const commitRow = (
   index: number,

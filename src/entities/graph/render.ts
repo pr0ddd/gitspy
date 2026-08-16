@@ -1,5 +1,5 @@
-import { identicon } from '@/avatar';
-import type { AvatarCache } from '@/avatarCache';
+import { identicon } from '@/shared/ui/avatar';
+import type { AvatarCache } from '@/shared/ui/avatarCache';
 import {
   contentHeight,
   graphContentWidth,
@@ -21,16 +21,16 @@ import {
 } from './scene';
 import { dividers, type Cols } from './columns';
 
-import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from '@/types';
+import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from '@/shared/api/types';
 import type { RowCache } from './rows';
-import { laneColour, laneColourAlpha, laneSoft, theme } from '@/theme';
+import { laneColour, laneColourAlpha, laneSoft, theme } from '@/shared/ui/theme';
 import type { Minimap } from './view';
 import { chipsFor, remoteAvatarKey, type Chip } from './chips';
 import { moreLabel, placeChips, type ChipMetrics, type PlacedChip } from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
 import { wipBadgesX, wipContent } from './wip';
-import { canvasDensity } from '@/zoom';
-import { readPref } from '@/prefs';
+import { canvasDensity } from '@/shared/lib/zoom';
+import { readPref } from '@/shared/lib/prefs';
 
 export type DescriptionMode = 'always' | 'hover' | 'never';
 

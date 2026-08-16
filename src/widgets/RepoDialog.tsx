@@ -2,29 +2,34 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as pickDirectory } from '@tauri-apps/plugin-dialog';
 
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { Icon, type IconName } from '@/icons';
-import * as ipc from '@/ipc';
-import { HOVER_FILL, NavItem } from '@/parts';
-import { directoryFromUrl } from '@/paths';
-import { notifyError } from '@/toast';
-import { cn } from '@/lib/utils';
-import { GIT } from '@/vocabulary';
-import { readPref } from '@/prefs';
-import { SETTINGS } from '@/settingsModel';
+import { Button } from '@/shared/ui/button';
+import { Checkbox } from '@/shared/ui/checkbox';
+import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog';
+import { Input } from '@/shared/ui/input';
+import { Progress } from '@/shared/ui/progress';
+import { Icon, type IconName } from '@/shared/ui/icons';
+import * as ipc from '@/shared/api/ipc';
+import { HOVER_FILL, NavItem } from '@/shared/ui/parts';
+import { directoryFromUrl } from '@/shared/lib/paths';
+import { notifyError } from '@/shared/ui/toast';
+import { cn } from '@/shared/lib/utils';
+import { GIT } from '@/shared/config/vocabulary';
+import { readPref } from '@/shared/lib/prefs';
+import { SETTINGS } from '@/shared/config/settingsModel';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/shared/ui/dropdown-menu';
 import { HOSTS, HostCard } from '@/widgets/HostConnect';
-import type { CloneStepView, ConnectionView, RepoListingView, TemplateCatalogView } from '@/types';
+import type {
+  CloneStepView,
+  ConnectionView,
+  RepoListingView,
+  TemplateCatalogView,
+} from '@/shared/api/types';
 
 const STAGES = [
   'progress.counting',

@@ -9,8 +9,8 @@
 // Classification by path under src/:
 //   entities/<slice>/** -> entity   features/<slice>/** -> feature
 //   widgets/**          -> widget   app/**              -> app
-//   everything else under src/ (root files, components/ui, generated,
-//   locales) -> foundation (rank 0).
+//   shared/**           -> foundation (rank 0); so is anything else left
+//   at the src/ root (global css, test setup).
 
 const path = require('path');
 
@@ -30,6 +30,7 @@ function classify(rel) {
   if (top === 'features') return { layer: 'feature', slice: slice ?? null };
   if (top === 'widgets') return { layer: 'widget', slice: null };
   if (top === 'app') return { layer: 'app', slice: null };
+  if (top === 'shared') return { layer: 'foundation', slice: null };
   return { layer: 'foundation', slice: null };
 }
 

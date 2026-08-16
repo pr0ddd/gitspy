@@ -1,23 +1,37 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Hint } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { Button } from '@/shared/ui/button';
+import { Hint } from '@/shared/ui/tooltip';
+import { cn } from '@/shared/lib/utils';
 import type { Confirmation, Session } from '@/entities/repo';
-import { GIT } from '@/vocabulary';
-import { Icon, type IconName } from '@/icons';
+import { GIT } from '@/shared/config/vocabulary';
+import { Icon, type IconName } from '@/shared/ui/icons';
 import { buildRefTree, filterRefTree, flattenRefTree, type FlatRef } from '@/entities/graph';
 import { chipsFor } from '@/entities/graph';
 import { buildChipMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { useRepoWork } from '@/features/repo';
-import { usePref } from '@/prefs';
-import { clampPanel, PANEL_LIMITS } from '@/resize';
-import { HOVER_FILL, InlineNote, ListRow, NavItem, ResizeGrip, SearchField } from '@/parts';
+import { usePref } from '@/shared/lib/prefs';
+import { clampPanel, PANEL_LIMITS } from '@/shared/lib/resize';
+import {
+  HOVER_FILL,
+  InlineNote,
+  ListRow,
+  NavItem,
+  ResizeGrip,
+  SearchField,
+} from '@/shared/ui/parts';
 import { useCommands } from '@/features/keyboard';
-import { rovingTabIndex, stepped } from '@/roving';
+import { rovingTabIndex, stepped } from '@/shared/lib/roving';
 import type { Ask } from './AskBar';
-import type { Operation, PullListView, PullView, RefKind, RefView, WorktreeView } from '@/types';
+import type {
+  Operation,
+  PullListView,
+  PullView,
+  RefKind,
+  RefView,
+  WorktreeView,
+} from '@/shared/api/types';
 
 type Props = {
   session: Session | null;

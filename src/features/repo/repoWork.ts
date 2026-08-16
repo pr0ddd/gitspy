@@ -1,6 +1,6 @@
 import { useStore } from 'zustand';
 import { beginWork, endWork, workStore, type RepoWork } from '@/entities/repo';
-import { notifyError } from '@/toast';
+import { notifyError } from '@/shared/ui/toast';
 
 export async function runRepoWork(
   path: string,

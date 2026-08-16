@@ -1,14 +1,14 @@
 import * as monaco from 'monaco-editor';
-import { toHex } from '@/colour';
+import { toHex } from '@/shared/lib/colour';
 import type { HiddenSpan } from './hunks';
-import { readPref } from '@/prefs';
+import { readPref } from '@/shared/lib/prefs';
 import {
   clampFontSize,
   clampTabSize,
   FONT_SIZE_LIMITS,
   SETTINGS,
   TAB_SIZE_LIMITS,
-} from '@/settingsModel';
+} from '@/shared/config/settingsModel';
 import EditorWorker from './monaco.worker?worker';
 import TypeScriptWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
 import JsonWorker from 'monaco-editor/language/json/json.worker.js?worker';

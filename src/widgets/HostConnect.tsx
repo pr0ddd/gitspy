@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
-import { Icon, type IconName } from '@/icons';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
-import type { AccountView, ConnectStartView } from '@/types';
+import { Button } from '@/shared/ui/button';
+import { Icon, type IconName } from '@/shared/ui/icons';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
+import type { AccountView, ConnectStartView } from '@/shared/api/types';
 
 export const HOSTS: ReadonlyArray<{ id: string; label: string; icon: IconName }> = [
   { id: 'github', label: 'GitHub', icon: 'github' },

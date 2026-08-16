@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/shared/ui/dropdown-menu';
 import { activeOf, createTermHost, sessionsOfRepo, useTermSessions } from '@/entities/terminal';
 import type { TermHost } from '@/entities/terminal';
 import { detectLinks, readProfiles, type TermProfile } from '@/features/terminal';
-import { Icon } from '@/icons';
-import { PanelBar, PanelNote, ResizeGrip, Tab } from '@/parts';
-import { useShareUnderCursor } from '@/resize';
-import { notifyError } from '@/toast';
+import { Icon } from '@/shared/ui/icons';
+import { PanelBar, PanelNote, ResizeGrip, Tab } from '@/shared/ui/parts';
+import { useShareUnderCursor } from '@/shared/lib/resize';
+import { notifyError } from '@/shared/ui/toast';
 
 type Props = {
   repo: string;

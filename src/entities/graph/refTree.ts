@@ -1,4 +1,4 @@
-import type { RefView } from '@/types';
+import type { RefView } from '@/shared/api/types';
 
 export type TreeNode =
   | { kind: 'folder'; name: string; path: string; children: TreeNode[] }

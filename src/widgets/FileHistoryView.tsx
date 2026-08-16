@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Hint } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import * as ipc from '@/ipc';
+import { Button } from '@/shared/ui/button';
+import { Hint } from '@/shared/ui/tooltip';
+import { cn } from '@/shared/lib/utils';
+import * as ipc from '@/shared/api/ipc';
 import {
   DIFF_EDITOR_BASE,
   EDITOR_BASE,
@@ -13,9 +13,9 @@ import {
   setUpMonaco,
   userEditorOptions,
 } from '@/entities/diff';
-import { notifyError } from '@/toast';
-import { Icon } from '@/icons';
-import { laneColour } from '@/theme';
+import { notifyError } from '@/shared/ui/toast';
+import { Icon } from '@/shared/ui/icons';
+import { laneColour } from '@/shared/ui/theme';
 import {
   editorOptionsFor,
   hiddenSpans,
@@ -24,13 +24,13 @@ import {
   type DiffMode,
   type HiddenSpan,
 } from '@/entities/diff';
-import { usePref } from '@/prefs';
+import { usePref } from '@/shared/lib/prefs';
 import { DiffToolbar } from './DiffToolbar';
-import { InlineNote, ListRow, ViewBar } from '@/parts';
-import { shortenDirectory, splitPath } from '@/paths';
-import { relativeTime } from '@/time';
-import type { AvatarCache } from '@/avatarCache';
-import type { BlameSpanView, FileCommitView } from '@/types';
+import { InlineNote, ListRow, ViewBar } from '@/shared/ui/parts';
+import { shortenDirectory, splitPath } from '@/shared/lib/paths';
+import { relativeTime } from '@/shared/lib/time';
+import type { AvatarCache } from '@/shared/ui/avatarCache';
+import type { BlameSpanView, FileCommitView } from '@/shared/api/types';
 
 type Props = {
   repo: string;

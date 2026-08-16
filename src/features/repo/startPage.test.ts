@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hostKindOf, splitListing, splitRecent } from './startPage';
-import type { RecentRepo } from '@/types';
+import type { RecentRepo } from '@/shared/api/types';
 
 const entry = (path: string, favorite = false): RecentRepo => ({
   path,

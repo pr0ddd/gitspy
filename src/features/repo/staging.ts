@@ -1,4 +1,4 @@
-import type { PathOperation, WorkingTreeView } from '@/types';
+import type { PathOperation, WorkingTreeView } from '@/shared/api/types';
 
 const NEEDS_STAGED_SIDE: Record<string, boolean> = {
   stage: false,

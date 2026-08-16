@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
-import * as ipc from '@/ipc';
-import { notifyError, notifyNotARepository } from '@/toast';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError, notifyNotARepository } from '@/shared/ui/toast';
 
 export async function openDroppedPaths(
   paths: readonly string[],

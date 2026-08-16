@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { queuePathOperation, stillNeeded } from './staging';
-import type { PathOperation, WorkingTreeView } from '@/types';
+import type { PathOperation, WorkingTreeView } from '@/shared/api/types';
 
 const treeOf = (entries: Array<{ path: string; staged: boolean; letter?: string }>) =>
   ({

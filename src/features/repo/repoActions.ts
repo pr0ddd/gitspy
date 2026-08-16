@@ -1,9 +1,14 @@
 import { useCallback } from 'react';
-import * as ipc from '@/ipc';
-import { isRejectedPush } from '@/errors';
-import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from '@/toast';
+import * as ipc from '@/shared/api/ipc';
+import { isRejectedPush } from '@/shared/api/errors';
+import {
+  notifyCopied,
+  notifyError,
+  notifyOperation,
+  notifyOperationFailed,
+} from '@/shared/ui/toast';
 import { runRepoWork } from './repoWork';
-import type { Operation, RefView } from '@/types';
+import type { Operation, RefView } from '@/shared/api/types';
 
 export function useOperations(
   active: string | null,

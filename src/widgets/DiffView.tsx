@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import * as ipc from '@/ipc';
+import { Button } from '@/shared/ui/button';
+import * as ipc from '@/shared/api/ipc';
 import {
   DIFF_EDITOR_BASE,
   EDITOR_BASE,
@@ -14,14 +14,14 @@ import {
   userEditorOptions,
   waitForDiffOrGiveUp,
 } from '@/entities/diff';
-import { notifyError } from '@/toast';
-import { Icon } from '@/icons';
+import { notifyError } from '@/shared/ui/toast';
+import { Icon } from '@/shared/ui/icons';
 import { DiffToolbar } from './DiffToolbar';
-import { ViewBar } from '@/parts';
-import { shortenDirectory, splitPath } from '@/paths';
-import { cn } from '@/lib/utils';
+import { ViewBar } from '@/shared/ui/parts';
+import { shortenDirectory, splitPath } from '@/shared/lib/paths';
+import { cn } from '@/shared/lib/utils';
 import { editorOptionsFor, type DiffMode } from '@/entities/diff';
-import { usePref } from '@/prefs';
+import { usePref } from '@/shared/lib/prefs';
 import {
   hiddenSpans,
   isGitlinkDiff,
@@ -30,8 +30,8 @@ import {
   type Hunk,
   type UnifiedDiff,
 } from '@/entities/diff';
-import type { ChangedFileView, PathOperation, WorkingTreeView } from '@/types';
-import { Hint } from '@/components/ui/tooltip';
+import type { ChangedFileView, PathOperation, WorkingTreeView } from '@/shared/api/types';
+import { Hint } from '@/shared/ui/tooltip';
 
 const STATUS_STYLE: Record<string, string> = {
   A: 'text-added',

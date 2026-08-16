@@ -1,4 +1,4 @@
-import type { Operation, PathOperation } from '@/types';
+import type { Operation, PathOperation } from '@/shared/api/types';
 
 export type Confirmation =
   | { kind: 'operation'; operation: Operation }

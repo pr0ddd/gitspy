@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, TS, PartialEq, Eq)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub enum ResetMode {
     Soft,
@@ -16,7 +16,7 @@ pub enum ResetMode {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, PartialEq, Eq)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Operation {
     WriteCommitGraph,
@@ -114,7 +114,7 @@ pub enum Operation {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, PartialEq, Eq)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum PathOperation {
     Stage { paths: Vec<String> },
@@ -419,7 +419,7 @@ pub fn checkout_pull_commands(number: u32, branch: &str, from_fork: bool) -> Vec
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Progress {
     #[serde(rename_all = "camelCase")]
@@ -431,7 +431,7 @@ pub enum Progress {
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct OperationOutcome {
     pub code: i32,

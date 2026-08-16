@@ -7,7 +7,7 @@ const LIMIT: usize = 20;
 const FILE: &str = "recent.json";
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, TS)]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct RecentRepo {
     pub path: String,

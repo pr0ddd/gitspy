@@ -1,5 +1,5 @@
 import raw from '../../../CHANGELOG.md?raw';
-import { parseReleases, type Release } from '../../../scripts/changelog.mjs';
+import { parseReleases, type Release } from '@/shared/lib/changelog';
 
 export type Released = Release & { date: string };
 

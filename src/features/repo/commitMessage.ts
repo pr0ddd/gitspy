@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as ipc from '@/ipc';
-import { notifyError } from '@/toast';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
 import { runRepoWork } from './repoWork';
-import { usePref } from '@/prefs';
-import { AI_DEFAULT_URLS, SETTINGS } from '@/settingsModel';
-import type { AiProviderId, WorkingTreeView } from '@/types';
+import { usePref } from '@/shared/lib/prefs';
+import { AI_DEFAULT_URLS, SETTINGS } from '@/shared/config/settingsModel';
+import type { AiProviderId, WorkingTreeView } from '@/shared/api/types';
 
 export const SUBJECT_BUDGET = 72;
 

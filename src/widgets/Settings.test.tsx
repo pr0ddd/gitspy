@@ -1,9 +1,9 @@
 import { fireEvent, render as bare, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { vi } from 'vitest';
 
-vi.mock('@/ipc', async (importOriginal) => ({
+vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   setAutofetchMinutes: vi.fn(() => Promise.resolve()),
   aiDetectServer: vi.fn(() =>
@@ -12,11 +12,11 @@ vi.mock('@/ipc', async (importOriginal) => ({
   onHostConnected: vi.fn(() => Promise.resolve(() => {})),
   onHostFailed: vi.fn(() => Promise.resolve(() => {})),
 }));
-import * as ipc from '@/ipc';
+import * as ipc from '@/shared/api/ipc';
 import { Settings } from './Settings';
 
 const render = (ui: React.ReactElement) => bare(<TooltipProvider>{ui}</TooltipProvider>);
-import '../i18n';
+import '@/shared/config/i18n';
 
 const shown = {
   open: true,

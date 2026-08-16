@@ -1,4 +1,4 @@
-import type { RepoView } from '@/types';
+import type { RepoView } from '@/shared/api/types';
 
 export type Minimap = {
   readonly buckets: number;

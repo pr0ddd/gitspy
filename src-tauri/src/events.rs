@@ -24,7 +24,10 @@ mod tests {
 
     #[test]
     fn event_names_are_written_for_the_frontend() {
-        let target = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/generated/events.ts");
+        let target = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/shared/api/generated/events.ts"
+        );
         std::fs::write(target, frontend_module())
             .expect("the events file is written next to the boundary types");
     }

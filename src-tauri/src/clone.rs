@@ -121,7 +121,7 @@ pub async fn init_repo(
 
 #[derive(serde::Serialize, Clone, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub struct TemplateCatalogView {
     pub gitignores: Vec<String>,
     pub licenses: Vec<LicenseView>,
@@ -129,7 +129,7 @@ pub struct TemplateCatalogView {
 
 #[derive(serde::Serialize, Clone, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../src/generated/")]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
 pub struct LicenseView {
     pub key: String,
     pub name: String,

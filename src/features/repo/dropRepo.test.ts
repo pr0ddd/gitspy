@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import * as ipc from '@/ipc';
-import { notifyNotARepository } from '@/toast';
+import * as ipc from '@/shared/api/ipc';
+import { notifyNotARepository } from '@/shared/ui/toast';
 import { openDroppedPaths } from './dropRepo';
 
-vi.mock('@/ipc', async (importOriginal) => ({
+vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   repositoryRoot: vi.fn(),
 }));
-vi.mock('@/toast', async (importOriginal) => ({
+vi.mock('@/shared/ui/toast', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   notifyNotARepository: vi.fn(),
   notifyError: vi.fn(),

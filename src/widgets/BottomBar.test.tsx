@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { BottomBar } from './BottomBar';
-import '../i18n';
+import '@/shared/config/i18n';
 
 const draw = (bar: React.ReactElement) => render(<TooltipProvider>{bar}</TooltipProvider>);
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { wipBadgesX, wipContent, wipInputShown, wipInputWidth } from './wip';
-import type { RowView } from '@/types';
+import type { RowView } from '@/shared/api/types';
 
 type WipRow = Extract<RowView, { kind: 'workingTree' }>;
 

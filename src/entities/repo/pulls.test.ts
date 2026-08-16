@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pullAtRefs } from './pulls';
-import type { PullView, RefView } from '@/types';
+import type { PullView, RefView } from '@/shared/api/types';
 
 const ref = (kind: RefView['kind'], name: string): RefView => ({
   name,

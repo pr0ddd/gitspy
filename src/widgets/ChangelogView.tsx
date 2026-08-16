@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/lib/utils';
 import { RELEASES } from '@/entities/changelog';
-import { PanelNote, Prose } from '@/parts';
+import { PanelNote, Prose } from '@/shared/ui/parts';
 
 const onLocalDay = (date: string) => new Date(`${date}T00:00:00`);
 

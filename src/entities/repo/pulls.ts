@@ -1,4 +1,4 @@
-import type { PullView, RefView } from '@/types';
+import type { PullView, RefView } from '@/shared/api/types';
 
 export const pullAtRefs = (
   refs: readonly RefView[],

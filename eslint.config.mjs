@@ -13,7 +13,7 @@ export default tseslint.config(
       'dist/**',
       'target/**',
       'node_modules/**',
-      'src/generated/**',
+      'src/shared/api/generated/**',
       // Lint-rule sources are linter meta (CJS, own conventions), not app code.
       'eslint-rules/**',
       'design/**',

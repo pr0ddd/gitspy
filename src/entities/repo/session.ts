@@ -1,4 +1,4 @@
-import type { RefView, RepoView, WorktreeView } from '@/types';
+import type { RefView, RepoView, WorktreeView } from '@/shared/api/types';
 
 export type Session = {
   path: string;

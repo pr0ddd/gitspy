@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DetailsPane } from './DetailsPane';
-import '@/i18n';
+import '@/shared/config/i18n';
 
 describe('details pane', () => {
   it('keeps its own width and does not stretch in the normal layout', () => {

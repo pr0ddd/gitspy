@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePref } from '@/prefs';
-import * as ipc from '@/ipc';
+import { usePref } from '@/shared/lib/prefs';
+import * as ipc from '@/shared/api/ipc';
 import { buildFileMenu, type MenuAction } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
-import { notifyError } from '@/toast';
+import { notifyError } from '@/shared/ui/toast';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Hint } from '@/components/ui/tooltip';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { cn } from '@/lib/utils';
-import { Icon } from '@/icons';
-import { Chip, FilePath, ListRow, PanelBar, SectionHeader, StatusBadge } from '@/parts';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Textarea } from '@/shared/ui/textarea';
+import { Hint } from '@/shared/ui/tooltip';
+import { Checkbox } from '@/shared/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/shared/ui/toggle-group';
+import { cn } from '@/shared/lib/utils';
+import { Icon } from '@/shared/ui/icons';
+import { Chip, FilePath, ListRow, PanelBar, SectionHeader, StatusBadge } from '@/shared/ui/parts';
 import {
   buildFileTree,
   filesOf,
@@ -25,8 +25,13 @@ import {
 import { subjectLeft, useGenerateCommit, useRepoWork } from '@/features/repo';
 import { pickAfterMove, samePick, type Confirmation, type Picked } from '@/entities/repo';
 import { useCommands } from '@/features/keyboard';
-import { rovingTabIndex, stepped } from '@/roving';
-import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
+import { rovingTabIndex, stepped } from '@/shared/lib/roving';
+import type {
+  Operation,
+  PathOperation,
+  StatusEntryView,
+  WorkingTreeView,
+} from '@/shared/api/types';
 
 export type PreviousCommit = { readonly subject: string; readonly body: string };
 

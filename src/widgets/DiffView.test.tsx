@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render } from '@testing-library/react';
-import * as ipc from '@/ipc';
+import * as ipc from '@/shared/api/ipc';
 
 const fake = vi.hoisted(() => {
   const disposable = { dispose: () => {} };
@@ -154,15 +154,15 @@ vi.mock('@/entities/diff', async () => ({
     KeyCode: { KeyS: 0 },
   },
 }));
-vi.mock('@/ipc', async (importOriginal) => ({
+vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   diffSides: vi.fn(() => Promise.resolve({ before: '', after: '' })),
   commitFileHunks: vi.fn(() => Promise.resolve('')),
 }));
-import '../i18n';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import '@/shared/config/i18n';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import { DiffView, sameDiffTarget, type DiffTarget } from './DiffView';
-import type { ChangedFileView } from '@/types';
+import type { ChangedFileView } from '@/shared/api/types';
 
 beforeEach(() => {
   localStorage.clear();

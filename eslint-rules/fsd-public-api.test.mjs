@@ -26,7 +26,7 @@ test('slice facades are guarded', () => {
       },
       {
         filename: '/repo/src/widgets/Toolbar.tsx',
-        code: "import { laneColour } from '@/theme';",
+        code: "import { laneColour } from '@/shared/ui/theme';",
       },
     ],
     invalid: [
