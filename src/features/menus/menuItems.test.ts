@@ -7,6 +7,7 @@ import {
   type MenuContext,
 } from './menuItems';
 import { chipsFor } from '@/entities/graph';
+import { isDangerous, isDangerousPath } from '@/entities/repo';
 import type { RefKind, RefView } from '@/types';
 
 const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView => ({
@@ -95,7 +96,10 @@ describe('the local branch menu', () => {
     const menu = buildChipMenu(chipOf(ref('feature', 'localBranch')), CTX);
     const reset = sectionsItem(menu, 'reset');
     expect(reset.children?.map((c) => c.id)).toEqual(['resetSoft', 'resetMixed', 'resetHard']);
-    expect(reset.children?.[2].danger, 'hard throws away uncommitted changes').toBe(true);
+    expect(
+      reset.children?.map((c) => c.action?.kind),
+      'soft and mixed run at once, hard throws away uncommitted changes and asks first',
+    ).toEqual(['run', 'run', 'confirm']);
   });
 
   it('gives a remote branch checkout, worktree, commit surgery, deletion on the server and GitHub', () => {
@@ -108,11 +112,12 @@ describe('the local branch menu', () => {
     expect(found).not.toContain('rename');
 
     const remove = flat(menu).find((i) => i.id === 'deleteRemote')!;
-    expect(remove.danger).toBe(true);
+    expect(remove.action?.kind, 'deleting on the server asks first').toBe('confirm');
     expect(
-      remove.action?.kind === 'run' &&
-        remove.action.operation.kind === 'pushDelete' &&
-        remove.action.operation.branch,
+      remove.action?.kind === 'confirm' &&
+        remove.action.confirmation.kind === 'operation' &&
+        remove.action.confirmation.operation.kind === 'pushDelete' &&
+        remove.action.confirmation.operation.branch,
       'the branch deleted on the server is named without the remote prefix',
     ).toBe('dev');
 
@@ -149,8 +154,8 @@ describe('the commit menu', () => {
     ]);
   });
 
-  it('marks drop as dangerous: it rewrites history', () => {
-    expect(flatItem(buildCommitMenu('abc123', CTX), 'drop').danger).toBe(true);
+  it('drop asks first: it rewrites history', () => {
+    expect(flatItem(buildCommitMenu('abc123', CTX), 'drop').action?.kind).toBe('confirm');
   });
 
   it('lets the message be edited only on the HEAD commit', () => {
@@ -214,7 +219,49 @@ describe('the working tree file menu', () => {
     const last = sections[sections.length - 1];
 
     expect(last.map((item) => item.id)).toEqual(['deleteFile']);
-    expect(last[0].danger).toBe(true);
+    expect(last[0].action?.kind, 'deleting from disk asks first').toBe('confirm');
+  });
+});
+
+describe('every destructive action asks first', () => {
+  const everyMenu = () => [
+    ...buildChipMenu(chipOf(ref('feature', 'localBranch')), CTX),
+    ...buildChipMenu(chipOf(ref('main', 'localBranch', { isHead: true })), CTX),
+    ...buildChipMenu(chipOf(ref('origin/dev', 'remoteBranch')), CTX),
+    ...buildChipMenu(chipOf(ref('v1', 'tag')), CTX),
+    ...buildCommitMenu('abc123', CTX),
+    ...buildCommitMenu('headoid', CTX),
+    ...buildFileMenu({ path: 'src/a.ts', staged: false }),
+    ...buildFileMenu({ path: 'src/a.ts', staged: true }),
+    ...buildCommitFileMenu('abc123', 'src/a.ts'),
+  ];
+
+  it('no menu runs a dangerous operation without the confirm bar', () => {
+    for (const item of flat(everyMenu())) {
+      const action = item.action;
+      if (!action) continue;
+      if (action.kind === 'run') {
+        expect(
+          isDangerous(action.operation),
+          `${item.id} runs ${action.operation.kind} straight away`,
+        ).toBe(false);
+      }
+      if (action.kind === 'pathRun') {
+        expect(
+          isDangerousPath(action.operation),
+          `${item.id} runs ${action.operation.kind} on paths straight away`,
+        ).toBe(false);
+      }
+    }
+  });
+
+  it('and the ones that ask are exactly the destructive ones', () => {
+    const asking = flat(everyMenu())
+      .filter((item) => item.action?.kind === 'confirm')
+      .map((item) => item.id);
+    expect(new Set(asking)).toEqual(
+      new Set(['resetHard', 'drop', 'delete', 'deleteRemote', 'discard', 'deleteFile']),
+    );
   });
 });
 

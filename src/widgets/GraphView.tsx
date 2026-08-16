@@ -50,7 +50,7 @@ import {
 } from '@/features/menus';
 import { showNativeMenu } from '@/features/menus';
 import { readPref } from '@/prefs';
-import type { Session } from '@/entities/repo';
+import type { Confirmation, Session } from '@/entities/repo';
 import type { AvatarCache } from '@/avatarCache';
 import type { RowCache } from '@/entities/graph';
 import type { Ask } from './AskBar';
@@ -69,6 +69,7 @@ type Props = {
   onSelect: (index: number) => void;
   onCheckoutRef: (ref: RefView) => void;
   onRun: (operation: Operation) => void;
+  onConfirm: (confirmation: Confirmation) => void;
   onCopy: (text: string) => void;
   onAsk: (ask: Ask) => void;
   onWorktree: (at: string) => void;
@@ -111,6 +112,7 @@ export const GraphView = memo(function GraphView({
   onSelect,
   onCheckoutRef,
   onRun,
+  onConfirm,
   onCopy,
   onAsk,
   onWorktree,
@@ -381,8 +383,9 @@ export const GraphView = memo(function GraphView({
       else if (action.kind === 'worktree') onWorktree(action.at);
       else if (action.kind === 'openUrl') onOpenUrl(action.url);
       else if (action.kind === 'ask') onAsk(action.ask);
+      else if (action.kind === 'confirm') onConfirm(action.confirmation);
     },
-    [onCheckoutRef, onRun, onCopy, onAsk, onWorktree, onOpenUrl],
+    [onCheckoutRef, onRun, onConfirm, onCopy, onAsk, onWorktree, onOpenUrl],
   );
 
   const menuContext = useCallback((): MenuContext => {

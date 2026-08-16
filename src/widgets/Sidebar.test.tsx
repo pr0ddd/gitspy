@@ -5,7 +5,7 @@ beforeEach(() => localStorage.clear());
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sidebar } from './Sidebar';
 import { showNativeMenu } from '@/features/menus';
-import { newSession, type Session } from '@/entities/repo';
+import { newSession, type Confirmation, type Session } from '@/entities/repo';
 import type { RefView, RepoView } from '@/types';
 
 vi.mock('@/features/menus', async (importOriginal) => ({
@@ -63,7 +63,14 @@ const sessionWith = (refs: RefView[]): Session => ({
   loading: false,
 });
 
-const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () => void } = {}) =>
+const draw = (
+  refs: RefView[],
+  handlers: {
+    onPick?: () => void;
+    onCheckout?: () => void;
+    onConfirm?: (confirmation: Confirmation) => void;
+  } = {},
+) =>
   render(
     <TooltipProvider>
       <Sidebar
@@ -75,6 +82,7 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
         onPick={handlers.onPick ?? (() => {})}
         onCheckout={handlers.onCheckout ?? (() => {})}
         onRun={() => {}}
+        onConfirm={handlers.onConfirm ?? (() => {})}
         onCopy={() => {}}
         onAsk={() => {}}
         onWorktree={() => {}}
@@ -137,6 +145,7 @@ describe('the collapsed sidebar', () => {
           onPick={() => {}}
           onCheckout={() => {}}
           onRun={() => {}}
+          onConfirm={() => {}}
           onCopy={() => {}}
           onAsk={() => {}}
           onWorktree={() => {}}
@@ -234,6 +243,42 @@ describe('the tree and the arrows', () => {
     draw([branch({ behind: 1234 })]);
 
     expect(row('main').textContent).toBe('main99+');
+  });
+});
+
+describe('a branch whose upstream is gone', () => {
+  it('carries a marker instead of counters: the remote branch was deleted', () => {
+    draw([branch({ name: 'feature', upstream: 'origin/feature', gone: true })]);
+
+    expect(
+      screen.getByRole('button', { name: /upstream of feature is gone/i }),
+      'the marker names the branch and what it offers to do',
+    ).toBeTruthy();
+    expect(row('feature').textContent, 'no ahead/behind numbers next to a gone upstream').toBe(
+      'feature',
+    );
+  });
+
+  it('clicking the marker asks to delete the branch instead of deleting it', () => {
+    const asked: Confirmation[] = [];
+    const onPick = vi.fn();
+    const onCheckout = vi.fn();
+    draw([branch({ name: 'feature', upstream: 'origin/feature', gone: true })], {
+      onPick,
+      onCheckout,
+      onConfirm: (confirmation) => asked.push(confirmation),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /upstream of feature is gone/i }));
+
+    expect(asked, 'the deletion goes through the confirm bar').toEqual([
+      { kind: 'operation', operation: { kind: 'branchDelete', name: 'feature' } },
+    ]);
+    expect(
+      onPick,
+      'the click on the marker does not select the row underneath',
+    ).not.toHaveBeenCalled();
+    expect(onCheckout).not.toHaveBeenCalled();
   });
 });
 

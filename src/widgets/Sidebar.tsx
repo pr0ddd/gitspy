@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { Session } from '@/entities/repo';
+import type { Confirmation, Session } from '@/entities/repo';
 import { GIT } from '@/vocabulary';
 import { Icon, type IconName } from '@/icons';
 import { buildRefTree, filterRefTree, flattenRefTree, type FlatRef } from '@/entities/graph';
@@ -28,6 +28,7 @@ type Props = {
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
   onRun: (operation: Operation) => void;
+  onConfirm: (confirmation: Confirmation) => void;
   onCopy: (text: string) => void;
   onAsk: (ask: Ask) => void;
   onWorktree: (at: string) => void;
@@ -52,7 +53,27 @@ const OVERSCAN = 8;
 
 const capped = (count: number) => (count > CAP ? `${CAP}+` : `${count}`);
 
-function Tracking({ view }: { view: RefView }) {
+function Tracking({ view, onDelete }: { view: RefView; onDelete: (ref: RefView) => void }) {
+  const { t } = useTranslation();
+  if (view.gone) {
+    return (
+      <Hint text={t('branch.gone')}>
+        <Button
+          variant="ghost"
+          size="icon-2xs"
+          className="text-deleted hover:text-deleted shrink-0"
+          aria-label={t('branch.goneDelete', { name: view.name })}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete(view);
+          }}
+          onDoubleClick={(event) => event.stopPropagation()}
+        >
+          <Icon.upstreamGone />
+        </Button>
+      </Hint>
+    );
+  }
   if (!view.ahead && !view.behind) return null;
 
   return (
@@ -81,6 +102,7 @@ const RefRow = memo(function RefRow({
   onPick,
   onCheckout,
   onMenu,
+  onDelete,
 }: {
   item: Extract<FlatRef, { kind: 'ref' }>;
   checkingOut: string | null;
@@ -89,6 +111,7 @@ const RefRow = memo(function RefRow({
   onPick: (commit: number) => void;
   onCheckout: (ref: RefView) => void;
   onMenu: (ref: RefView) => void;
+  onDelete: (ref: RefView) => void;
 }) {
   const view = item.ref;
   return (
@@ -109,7 +132,7 @@ const RefRow = memo(function RefRow({
         <Icon.branch className="text-faint size-3.5 shrink-0" />
       )}
       <span className="min-w-0 flex-1 truncate">{item.name}</span>
-      <Tracking view={view} />
+      <Tracking view={view} onDelete={onDelete} />
     </ListRow>
   );
 });
@@ -296,6 +319,7 @@ export function Sidebar({
   onPick,
   onCheckout,
   onRun,
+  onConfirm,
   onCopy,
   onAsk,
   onWorktree,
@@ -331,6 +355,12 @@ export function Sidebar({
   const remoteNames = useMemo(() => remotes.map((r) => r.name), [remotes]);
   const worktrees = useMemo(() => session?.worktrees ?? [], [session?.worktrees]);
 
+  const askToDelete = useCallback(
+    (ref: RefView) =>
+      onConfirm({ kind: 'operation', operation: { kind: 'branchDelete', name: ref.name } }),
+    [onConfirm],
+  );
+
   const openRefMenu = useCallback(
     (ref: RefView) => {
       const chip = chipsFor([ref], remoteNames)[0];
@@ -351,6 +381,7 @@ export function Sidebar({
           else if (action.kind === 'worktree') onWorktree(action.at);
           else if (action.kind === 'openUrl') onOpenUrl(action.url);
           else if (action.kind === 'ask') onAsk(action.ask);
+          else if (action.kind === 'confirm') onConfirm(action.confirmation);
         },
       );
     },
@@ -360,6 +391,7 @@ export function Sidebar({
       currentBranch,
       onCheckout,
       onRun,
+      onConfirm,
       onCopy,
       onAsk,
       onWorktree,
@@ -509,6 +541,7 @@ export function Sidebar({
             onPick={onPick}
             onCheckout={onCheckout}
             onMenu={openRefMenu}
+            onDelete={askToDelete}
           />
         );
       case 'worktree':

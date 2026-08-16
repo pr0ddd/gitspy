@@ -1,10 +1,15 @@
 import { useCallback } from 'react';
 import * as ipc from '@/ipc';
+import { isRejectedPush } from '@/errors';
 import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from '@/toast';
 import { runRepoWork } from './repoWork';
 import type { Operation, RefView } from '@/types';
 
-export function useOperations(active: string | null, reload: (path: string) => Promise<void>) {
+export function useOperations(
+  active: string | null,
+  reload: (path: string) => Promise<void>,
+  onPushRejected: () => void = () => {},
+) {
   const runOperation = useCallback(
     (operation: Operation) => {
       if (!active) return;
@@ -12,7 +17,8 @@ export function useOperations(active: string | null, reload: (path: string) => P
         try {
           await ipc.runOperation(active, operation, () => {});
         } catch (e) {
-          notifyOperationFailed(operation, e);
+          if (operation.kind === 'push' && isRejectedPush(e)) onPushRejected();
+          else notifyOperationFailed(operation, e);
           return;
         }
         notifyOperation(operation);
@@ -20,7 +26,7 @@ export function useOperations(active: string | null, reload: (path: string) => P
         await reload(active).catch(notifyError);
       });
     },
-    [active, reload],
+    [active, reload, onPushRejected],
   );
 
   const checkoutRef = useCallback(

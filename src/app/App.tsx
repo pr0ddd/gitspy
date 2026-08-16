@@ -26,7 +26,7 @@ import {
 import { useZoom, zoomIn, zoomOut } from '@/zoom';
 import { focusArea, useCommands, useKeyboard } from '@/features/keyboard';
 import { useViewTabs } from '@/features/views';
-import { samePick, type Picked } from '@/entities/repo';
+import { samePick, type Confirmation, type Effect, type Picked } from '@/entities/repo';
 import { clampAutofetch, SETTINGS } from '@/settingsModel';
 import { BottomBar } from '@/widgets/BottomBar';
 import { Breadcrumbs } from '@/widgets/Breadcrumbs';
@@ -34,7 +34,6 @@ import { ChangelogView } from '@/widgets/ChangelogView';
 import { DetailsPane } from '@/widgets/DetailsPane';
 import type {
   AccountView,
-  Operation,
   PathOperation,
   PullListView,
   PullView,
@@ -90,7 +89,7 @@ export default function App() {
   const [searchAt, setSearchAt] = useState(0);
   const [pulls, setPulls] = useState<PullListView | null>(null);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
-  const [confirming, setConfirming] = useState<Operation | null>(null);
+  const [confirming, setConfirming] = useState<Confirmation | null>(null);
   const adoptTree = useCallback((next: WorkingTreeView) => {
     setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
@@ -207,7 +206,16 @@ export default function App() {
     ipc.workingTree(active).then(adoptTree).catch(notifyError);
   }, [active, adoptTree]);
 
-  const { runOperation, checkoutRef } = useOperations(active, reload);
+  const onPushRejected = useCallback(
+    () =>
+      setConfirming({
+        kind: 'pushRejected',
+        branch: tree?.branch ?? '',
+        upstream: tree?.upstream ?? null,
+      }),
+    [tree?.branch, tree?.upstream],
+  );
+  const { runOperation, checkoutRef } = useOperations(active, reload, onPushRejected);
 
   const { message, setMessage, description, setDescription, amend, setAmend, commit } =
     useCommitDraft({
@@ -315,6 +323,15 @@ export default function App() {
     [active, tree, adoptTree],
   );
 
+  const carryOut = useCallback(
+    (effect: Effect) => {
+      if (effect.kind === 'run') runOperation(effect.operation);
+      else if (effect.kind === 'runPath') void runPathOperation(effect.operation);
+      else if (active) void ipc.removePath(active, effect.path).catch(notifyError);
+    },
+    [active, runOperation, runPathOperation],
+  );
+
   const addWorktree = useCallback(
     async (at: string) => {
       if (!active) return;
@@ -387,10 +404,10 @@ export default function App() {
           <div className="h-12 shrink-0" />
         ) : confirming ? (
           <ConfirmBar
-            operation={confirming}
-            onConfirm={(operation) => {
+            confirmation={confirming}
+            onChoice={(effect) => {
               setConfirming(null);
-              runOperation(operation);
+              carryOut(effect);
             }}
             onCancel={() => setConfirming(null)}
           />
@@ -471,6 +488,7 @@ export default function App() {
                 onPick={revealCommit}
                 onCheckout={checkoutRef}
                 onRun={runOperation}
+                onConfirm={setConfirming}
                 onCopy={copy}
                 onAsk={setAsking}
                 onWorktree={addWorktree}
@@ -534,6 +552,7 @@ export default function App() {
                         onSelect={select}
                         onCheckoutRef={checkoutRef}
                         onRun={runOperation}
+                        onConfirm={setConfirming}
                         onCopy={copy}
                         onAsk={setAsking}
                         onWorktree={addWorktree}
