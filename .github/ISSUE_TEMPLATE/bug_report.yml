@@ -1,0 +1,41 @@
+name: Bug report
+description: Something behaves wrongly
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: gitspy version
+      description: Shown in the bottom-right corner of the window.
+      placeholder: 1.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, what you expected. If a toast or a bar showed an error, quote its text.
+    validations:
+      required: true
+  - type: textarea
+    id: repo
+    attributes:
+      label: About the repository
+      description: Anything unusual — size, worktrees, submodules, a remote that is not on GitHub/GitLab/Bitbucket, a git config that might matter. Never paste tokens.
+  - type: textarea
+    id: terminal
+    attributes:
+      label: What the same operation does in a terminal
+      description: If a git command is involved, its output from a terminal in the same repository helps a lot.
+      render: shell
