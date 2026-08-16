@@ -223,7 +223,7 @@ fn assemble(
 
 fn empty_history() -> History {
     History {
-        topology: Topology::new(vec![], vec![]).expect("пустая топология корректна"),
+        topology: Topology::new(vec![], vec![]).expect("an empty topology is valid"),
         nodes: Vec::new(),
         rows: HashMap::new(),
         head: None,

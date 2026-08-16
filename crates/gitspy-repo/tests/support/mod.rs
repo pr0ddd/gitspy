@@ -15,7 +15,7 @@ fn ask_git(path: &Path, args: &[&str]) -> String {
         .env("GIT_CONFIG_GLOBAL", "/dev/null")
         .env("GIT_CONFIG_SYSTEM", "/dev/null")
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
@@ -73,7 +73,7 @@ pub struct Fixture {
 
 impl Fixture {
     pub fn new() -> Self {
-        let dir = TempDir::new().expect("временный каталог");
+        let dir = TempDir::new().expect("temporary directory");
         let fixture = Self {
             dir,
             seq: std::cell::Cell::new(0),
@@ -94,7 +94,7 @@ impl Fixture {
         let out = self.try_run(args);
         match out {
             Ok(s) => s,
-            Err(e) => panic!("git {args:?} не отработал: {e}"),
+            Err(e) => panic!("git {args:?} failed: {e}"),
         }
     }
 
@@ -129,7 +129,7 @@ impl Fixture {
             child
                 .stdin
                 .as_mut()
-                .expect("stdin открыт")
+                .expect("stdin is open")
                 .write_all(text.as_bytes())
                 .map_err(|e| e.to_string())?;
         }
@@ -160,10 +160,10 @@ impl Fixture {
             .env("GIT_COMMITTER_EMAIL", EMAIL)
             .env("GIT_AUTHOR_DATE", &date)
             .env("GIT_COMMITTER_DATE", &date);
-        let out = cmd.output().expect("git commit запускается");
+        let out = cmd.output().expect("git commit runs");
         assert!(
             out.status.success(),
-            "git commit не отработал: {}",
+            "git commit failed: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         self.run(&["rev-parse", "HEAD"])
@@ -186,10 +186,10 @@ impl Fixture {
             .env("GIT_COMMITTER_EMAIL", email)
             .env("GIT_AUTHOR_DATE", &author_date)
             .env("GIT_COMMITTER_DATE", &committer_date);
-        let out = cmd.output().expect("git commit запускается");
+        let out = cmd.output().expect("git commit runs");
         assert!(
             out.status.success(),
-            "git commit не отработал: {}",
+            "git commit failed: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         self.run(&["rev-parse", "HEAD"])
@@ -211,17 +211,17 @@ impl Fixture {
             .env("GIT_COMMITTER_EMAIL", EMAIL)
             .env("GIT_AUTHOR_DATE", &date)
             .env("GIT_COMMITTER_DATE", &date);
-        let out = cmd.output().expect("git merge запускается");
+        let out = cmd.output().expect("git merge runs");
         assert!(
             out.status.success(),
-            "git merge не отработал: {}",
+            "git merge failed: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         self.run(&["rev-parse", "HEAD"])
     }
 
     pub fn write_file(&self, name: &str, content: &str) {
-        std::fs::write(self.dir.path().join(name), content).expect("файл пишется");
+        std::fs::write(self.dir.path().join(name), content).expect("file is written");
     }
 
     pub fn commit_file(&self, name: &str, content: &str, message: &str) -> String {
@@ -251,10 +251,10 @@ impl Fixture {
             .env("GIT_COMMITTER_EMAIL", EMAIL)
             .env("GIT_AUTHOR_DATE", &date)
             .env("GIT_COMMITTER_DATE", &date);
-        let out = cmd.output().expect("git stash запускается");
+        let out = cmd.output().expect("git stash runs");
         assert!(
             out.status.success(),
-            "git stash не отработал: {}",
+            "git stash failed: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         self.run(&["rev-parse", "refs/stash"])
@@ -262,7 +262,7 @@ impl Fixture {
 
     pub fn write_blob(&self, content: &str) -> String {
         self.run_with_stdin(&["hash-object", "-w", "--stdin"], Some(content))
-            .expect("blob записывается")
+            .expect("blob is written")
     }
 
     pub fn git_date_order(&self) -> Vec<String> {
@@ -282,7 +282,7 @@ impl Fixture {
 
     pub fn clone(&self, args: &[&str]) -> (TempDir, PathBuf) {
         let source = format!("file://{}", self.dir.path().display());
-        let dest = TempDir::new().expect("временный каталог");
+        let dest = TempDir::new().expect("temporary directory");
         let path = dest.path().join("clone");
 
         let out = Command::new("git")
@@ -293,10 +293,10 @@ impl Fixture {
             .env("GIT_CONFIG_GLOBAL", "/dev/null")
             .env("GIT_CONFIG_SYSTEM", "/dev/null")
             .output()
-            .expect("git clone запускается");
+            .expect("git clone runs");
         assert!(
             out.status.success(),
-            "git clone не отработал: {}",
+            "git clone failed: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         (dest, path)

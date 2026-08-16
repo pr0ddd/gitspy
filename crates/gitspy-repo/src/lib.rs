@@ -41,7 +41,7 @@ mod node_tests {
     fn history(nodes: Vec<Node>) -> History {
         History {
             topology: Topology::new(vec![Vec::new(); nodes.len()], vec![0; nodes.len()])
-                .expect("длины совпадают"),
+                .expect("lengths match"),
             nodes,
             rows: std::collections::HashMap::new(),
             head: None,
@@ -51,26 +51,29 @@ mod node_tests {
 
     #[test]
     fn a_search_looks_at_the_subject_the_author_and_the_hash() {
-        let node = commit("Досортировка Кана", "pr0d", "5faa5f3abc");
-        assert!(node.matches("кана"), "регистр не должен мешать");
+        let node = commit("Kahn re-sort for the café fixture", "pr0d", "5faa5f3abc");
+        assert!(
+            node.matches("CAFÉ"),
+            "search is case-insensitive, and lowercasing folds non-ASCII letters too"
+        );
         assert!(node.matches("pr0d"));
         assert!(node.matches("5faa5f"));
-        assert!(!node.matches("мимо"));
+        assert!(!node.matches("rebase"));
     }
 
     #[test]
     fn a_hash_matches_from_the_start_because_that_is_how_people_type_it() {
-        let node = commit("тема", "pr0d", "5faa5f3abc");
+        let node = commit("subject", "pr0d", "5faa5f3abc");
         assert!(node.matches("5faa"));
         assert!(
             !node.matches("f3abc"),
-            "иначе любой хэш находится по случайному куску"
+            "otherwise every commit would be found by a random fragment of its hash"
         );
     }
 
     #[test]
     fn an_empty_query_finds_nothing_rather_than_everything() {
-        assert!(!commit("тема", "pr0d", "abc").matches("   "));
+        assert!(!commit("subject", "pr0d", "abc").matches("   "));
     }
 
     #[test]
@@ -95,11 +98,11 @@ mod node_tests {
                 conflicts: 0,
                 in_progress: None,
             },
-            commit("тема", "pr0d", "abc"),
+            commit("subject", "pr0d", "abc"),
         ]);
 
         let changed = read.refresh_tip(Some(tip(2, 5)));
-        assert!(!changed, "поменялись числа, а не форма графа");
+        assert!(!changed, "the counters changed, not the shape of the graph");
         assert_eq!(
             read.nodes.first(),
             Some(&Node::WorkingTree {
@@ -122,14 +125,14 @@ mod node_tests {
                 conflicts: 0,
                 in_progress: None,
             },
-            commit("тема", "pr0d", "abc"),
+            commit("subject", "pr0d", "abc"),
         ]);
         assert!(
             dirty.refresh_tip(None),
-            "узел исчез — строк стало меньше, нужна перечитка"
+            "the node is gone: there are fewer rows now, so the history has to be re-read"
         );
 
-        let mut clean = history(vec![commit("тема", "pr0d", "abc")]);
-        assert!(clean.refresh_tip(Some(tip(1, 0))), "узел появился");
+        let mut clean = history(vec![commit("subject", "pr0d", "abc")]);
+        assert!(clean.refresh_tip(Some(tip(1, 0))), "the node appeared");
     }
 }
