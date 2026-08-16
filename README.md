@@ -35,34 +35,6 @@
 - **Safe by default.** Every destructive action asks first. Force push is
   offered only after a normal push was rejected, and only with `--force-with-lease`.
 
-## What you get
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/diff-hunks.png" alt="A diff in hunk view with stage and discard buttons on each hunk" /></td>
-    <td width="50%"><img src="docs/screenshots/conflicts.png" alt="The merge conflict editor with both sides and the result" /></td>
-  </tr>
-  <tr>
-    <td>Stage or discard by hunk</td>
-    <td>Merge conflicts, side by side</td>
-  </tr>
-</table>
-
-- **Graph & history** — search commits, see a file's history and blame, open a
-  commit's files in inline, split or hunk view.
-- **Working tree** — stage by file or by hunk, path or tree view, amend, push
-  after commit. Optionally, a local model (Ollama or LM Studio) writes the
-  commit message from what you staged.
-- **Branches, tags, stashes, worktrees** — a tree on the left, checkout by
-  double-click, ahead/behind counts, a marker on branches whose remote is
-  gone with one-click cleanup.
-- **GitHub, GitLab, Bitbucket** — sign in, see the repository's pull requests
-  and check them out, clone from your account, create a repository on the
-  host.
-- **Terminal** — a shell in a dock under the graph, several tabs per
-  repository. PowerShell or cmd on Windows.
-- **Updates** — the app updates itself from GitHub Releases.
-
 ## Not there yet
 
 What GitKraken users will look for that gitspy does not have today:
