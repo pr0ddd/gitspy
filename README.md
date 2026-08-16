@@ -44,11 +44,11 @@ restart in the bottom bar.
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/diff-hunks.png" alt="Hunk view of a diff with stage buttons per hunk" /></td>
-    <td width="50%"><img src="docs/screenshots/terminal.png" alt="The terminal dock in the fullscreen layout next to the graph" /></td>
+    <td width="50%"><img src="docs/screenshots/terminal.png" alt="The terminal dock over the graph" /></td>
   </tr>
   <tr>
     <td>Diff in hunk view — stage or discard by hunk</td>
-    <td>The terminal dock, fullscreen layout</td>
+    <td>The terminal dock over the graph</td>
   </tr>
 </table>
 
@@ -73,8 +73,7 @@ restart in the bottom bar.
   the host. Client ids are compiled in; secrets stay on a
   [small relay](workers/oauth-relay/README.md) that stores nothing.
 - **Terminal.** A PTY dock over the graph running your login shell (PowerShell
-  or cmd on Windows), with a fullscreen layout that puts the shell next to the
-  graph or the diff.
+  or cmd on Windows), with tabs for several sessions per repository.
 - **Quiet by design.** No telemetry, no network request you did not ask for
   beyond the update check, the background fetch (which you can turn off) and
   avatars from a host you signed in to. Details in [SECURITY.md](SECURITY.md).
