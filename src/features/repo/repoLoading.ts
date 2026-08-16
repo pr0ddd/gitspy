@@ -6,6 +6,23 @@ import { remoteAvatarKey } from '@/entities/graph';
 import type { SessionsAction } from '@/entities/repo';
 import type { RecentRepo, RemoteView, WorkingTreeView } from '@/types';
 
+const AVATAR_WARM_LIMIT_MS = 400;
+
+export const settledOrGiveUp = (work: Promise<unknown>, limitMs: number): Promise<void> =>
+  new Promise((done) => {
+    const limit = setTimeout(done, limitMs);
+    work.then(
+      () => {
+        clearTimeout(limit);
+        done();
+      },
+      () => {
+        clearTimeout(limit);
+        done();
+      },
+    );
+  });
+
 type Wiring = {
   active: string | null;
   dispatch: (action: SessionsAction) => void;
@@ -77,7 +94,7 @@ export function useRepoLoading({
           .catch(() => undefined),
         avatars.refillRemote(urls),
       ]);
-      await Promise.race([warmed, new Promise((idle) => window.setTimeout(idle, 400))]);
+      await settledOrGiveUp(warmed, AVATAR_WARM_LIMIT_MS);
     },
     [avatars],
   );
