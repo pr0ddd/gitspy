@@ -118,7 +118,7 @@ const settleFrames = () =>
       }),
   );
 
-describe('перерисовка каркаса', () => {
+describe('re-rendering the app shell', () => {
   const stillProps = {
     avatars: null,
     redraw: 0,
@@ -140,7 +140,7 @@ describe('перерисовка каркаса', () => {
     onCompact: () => {},
   };
 
-  it('переключение сайдбара — рендер родителя — не перерисовывает граф', () => {
+  it('toggling the sidebar — a render of the parent — does not redraw the graph', () => {
     const rows = new RowCache();
     rows.put(0, window());
     const session = sessionWith(CHUNK);
@@ -158,14 +158,14 @@ describe('перерисовка каркаса', () => {
 
     act(() => flip());
 
-    expect(reads.mock.calls.length, 'тело графа не выполняется при перерисовке каркаса').toBe(
+    expect(reads.mock.calls.length, 'the graph body does not run when the shell re-renders').toBe(
       afterMount,
     );
   });
 });
 
-describe('прокрутка графа', () => {
-  it('не вызывает ни одного React-рендера', () => {
+describe('scrolling the graph', () => {
+  it('does not cause a single React render', () => {
     const rows = new RowCache();
     rows.put(0, window());
 
@@ -215,7 +215,7 @@ describe('прокрутка графа', () => {
     expect(commits).toBe(afterMount);
   });
 
-  it('просит недостающие полосы, а рисование не блокирует', () => {
+  it('asks for the missing chunks without blocking the drawing', () => {
     const rows = new RowCache();
     const asked: number[][] = [];
 
@@ -248,7 +248,7 @@ describe('прокрутка графа', () => {
     expect(asked[0]).toContain(0);
   });
 
-  it('правый клик по строке коммита открывает меню, и черри-пик уходит операцией', () => {
+  it('a right click on a commit row opens the menu, and cherry-pick leaves as an operation', () => {
     const rows = new RowCache();
     rows.put(0, window());
     const ran: unknown[] = [];
@@ -290,18 +290,20 @@ describe('прокрутка графа', () => {
       );
     });
 
-    expect(showNativeMenu, 'правый клик зовёт нативное меню').toHaveBeenCalledTimes(1);
+    expect(showNativeMenu, 'the right click calls the native menu').toHaveBeenCalledTimes(1);
     const [sections, label, onAction] = vi.mocked(showNativeMenu).mock.calls[0];
-    expect(label('menu.cherryPick'), 'подписи идут через словарь').toBe('Cherry-pick commit');
+    expect(label('menu.cherryPick'), 'labels come from the i18n dictionary').toBe(
+      'Cherry-pick commit',
+    );
 
     const cherry = sections.flat().find((i) => i.id === 'cherryPick')!;
     onAction(cherry.action!);
-    expect(ran, 'операция ушла с хешем строки под курсором').toEqual([
+    expect(ran, 'the operation carries the hash of the row under the cursor').toEqual([
       { kind: 'cherryPick', hash: 'h2' },
     ]);
   });
 
-  it('рендер App с новыми колбэками не сбрасывает прокрутку наверх', async () => {
+  it('a render of App with new callbacks does not reset the scroll to the top', async () => {
     const rows = new RowCache();
     rows.put(0, workingTreeFirst());
 
@@ -341,14 +343,17 @@ describe('прокрутка графа', () => {
 
     wheel(-99999);
     await settleFrames();
-    expect(input.style.display, 'наверху строка дерева видна').toBe('block');
+    expect(input.style.display, 'at the top the working tree row is visible').toBe('block');
 
     wheel(3000);
     await settleFrames();
-    expect(input.style.display, 'после прокрутки вниз строка дерева скрыта').toBe('none');
+    expect(input.style.display, 'after scrolling down the working tree row is hidden').toBe('none');
 
     rerender(view(() => {}, 1));
     await settleFrames();
-    expect(input.style.display, 'чужой рендер не должен прокручивать граф к началу').toBe('none');
+    expect(
+      input.style.display,
+      'a render from outside must not scroll the graph back to the top',
+    ).toBe('none');
   });
 });

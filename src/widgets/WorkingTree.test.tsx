@@ -85,21 +85,24 @@ const draw = (tree: WorkingTreeView, message: string, onCommit: () => void, extr
     </TooltipProvider>,
   );
 
-describe('кнопка генерации сообщения', () => {
-  it('без staged-файлов кнопка неактивна', () => {
+describe('the generate message button', () => {
+  it('stays disabled while nothing is staged', () => {
     localStorage.setItem('gitspy.ai.model', '"qwen2.5-coder"');
     draw(treeWith(0), '', () => {});
     const generate = screen.getByLabelText('Generate commit message') as HTMLButtonElement;
-    expect(generate.disabled, 'нечего описывать — нечего и генерировать').toBe(true);
+    expect(generate.disabled, 'nothing to describe means nothing to generate').toBe(true);
   });
 
-  it('без выбранной модели кнопка неактивна', () => {
+  it('stays disabled while no model is chosen', () => {
     draw(treeWith(1), '', () => {});
     const generate = screen.getByLabelText('Generate commit message') as HTMLButtonElement;
-    expect(generate.disabled, 'без настроенной модели запрос отправлять некуда').toBe(true);
+    expect(
+      generate.disabled,
+      'without a configured model there is nowhere to send the request',
+    ).toBe(true);
   });
 
-  it('ответ модели заполняет оба поля черновика', async () => {
+  it('fills both fields of the draft from the answer of the model', async () => {
     localStorage.setItem('gitspy.ai.model', '"qwen2.5-coder"');
     const onMessage = vi.fn();
     const onDescription = vi.fn();
@@ -108,16 +111,18 @@ describe('кнопка генерации сообщения', () => {
     fireEvent.click(screen.getByLabelText('Generate commit message'));
 
     await vi.waitFor(() =>
-      expect(onMessage, 'заголовок приходит из ответа модели').toHaveBeenCalledWith('Add parser'),
+      expect(onMessage, 'the subject comes from the answer of the model').toHaveBeenCalledWith(
+        'Add parser',
+      ),
     );
-    expect(onDescription, 'описание приходит тем же ответом').toHaveBeenCalledWith(
+    expect(onDescription, 'the description comes with the same answer').toHaveBeenCalledWith(
       'Covers fences.',
     );
   });
 });
 
-describe('шапка панели рабочего дерева', () => {
-  it('корзина не выбрасывает изменения сама, а просит подтверждения', () => {
+describe('the header of the working tree panel', () => {
+  it('the trash button does not discard the changes itself, it asks for confirmation', () => {
     const asked: Operation[] = [];
     let ranStraightAway = 0;
     const { getByRole } = draw(treeWith(2), '', () => {}, {
@@ -129,62 +134,62 @@ describe('шапка панели рабочего дерева', () => {
 
     fireEvent.click(getByRole('button', { name: /discard all changes/i }));
 
-    expect(asked, 'нажатие корзины отдаёт операцию на подтверждение').toEqual([
+    expect(asked, 'pressing the trash button hands the operation over for confirmation').toEqual([
       { kind: 'discardAll' },
     ]);
-    expect(ranStraightAway, 'без подтверждения ничего не выполняется').toBe(0);
+    expect(ranStraightAway, 'nothing runs until it is confirmed').toBe(0);
   });
 
-  it('считает все изменения и называет ветку, на которой они лежат', () => {
+  it('counts all the changes and names the branch they sit on', () => {
     const { getByText } = draw(treeWith(3), '', () => {});
 
     expect(getByText('3 file changes on')).toBeTruthy();
     expect(getByText('branches')).toBeTruthy();
   });
 
-  it('единственное изменение считается в единственном числе', () => {
+  it('counts a single change in the singular', () => {
     const { getByText } = draw(treeWith(1), '', () => {});
 
     expect(getByText('1 file change on')).toBeTruthy();
   });
 
-  it('вид «дерево» собирает файлы под каталог и держит его закрытым, пока не откроют', () => {
+  it('the tree view gathers the files under their directory and keeps it collapsed until it is opened', () => {
     const { getByRole, queryByText } = draw(treeWith(2), '', () => {});
 
-    expect(queryByText('src'), 'в плоском виде каталог отдельной строкой не стоит').toBeNull();
+    expect(queryByText('src'), 'in the flat view a directory gets no row of its own').toBeNull();
 
     fireEvent.click(getByRole('radio', { name: /tree/i }));
 
-    expect(queryByText('src'), 'в дереве каталог становится строкой').toBeTruthy();
+    expect(queryByText('src'), 'in the tree view the directory becomes a row').toBeTruthy();
     expect(
       queryByText('file-0.ts'),
-      'закрытый каталог не вываливает содержимое: сотня файлов не должна распахиваться сама',
+      'a collapsed directory does not spill its content: a hundred files must not unfold by themselves',
     ).toBeNull();
 
     fireEvent.click(getByRole('button', { name: /expand all/i }));
 
     expect(
       queryByText('file-0.ts'),
-      'открытый каталог показывает файл без пути в имени',
+      'an expanded directory shows the file without the path in its name',
     ).toBeTruthy();
   });
 
-  it('щелчок по каталогу открывает и снова закрывает его', () => {
+  it('a click on a directory expands it and collapses it again', () => {
     const { getByRole, getByText, queryByText } = draw(treeWith(2), '', () => {});
 
     fireEvent.click(getByRole('radio', { name: /tree/i }));
     fireEvent.click(getByText('src'));
 
-    expect(queryByText('file-0.ts'), 'первый щелчок открывает').toBeTruthy();
+    expect(queryByText('file-0.ts'), 'the first click expands').toBeTruthy();
 
     fireEvent.click(getByText('src'));
 
-    expect(queryByText('file-0.ts'), 'второй закрывает').toBeNull();
+    expect(queryByText('file-0.ts'), 'the second one collapses').toBeNull();
   });
 });
 
-describe('контекстное меню файла', () => {
-  it('правый клик по строке открывает меню с файловыми действиями', () => {
+describe('the context menu of a file', () => {
+  it('a right click on a row opens a menu with the file actions', () => {
     vi.mocked(showNativeMenu).mockClear();
     draw(treeWith(2), '', () => {});
 
@@ -197,13 +202,13 @@ describe('контекстное меню файла', () => {
   });
 });
 
-describe('коммит из панели рабочего дерева', () => {
-  it('кнопка мертва, пока сообщение пустое', () => {
+describe('committing from the working tree panel', () => {
+  it('keeps the button dead while the message is empty', () => {
     const { getByRole } = draw(treeWith(2), '   ', () => {});
     expect((getByRole('button', { name: /^commit$/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('с сообщением и стейджем клик создаёт коммит', () => {
+  it('creates a commit on click when there is a message and something staged', () => {
     let committed = 0;
     const { getByRole } = draw(treeWith(2), 'fix: thing', () => (committed += 1));
     const button = getByRole('button', { name: /^commit$/i }) as HTMLButtonElement;
@@ -212,52 +217,54 @@ describe('коммит из панели рабочего дерева', () => {
     expect(committed).toBe(1);
   });
 
-  it('без единого файла в индексе коммитить нечего', () => {
+  it('has nothing to commit without a single file in the index', () => {
     const { getByRole } = draw(treeWith(0), 'fix: thing', () => {});
     expect((getByRole('button', { name: /^commit$/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('Cmd+Enter в поле сообщения — тот же коммит, что и кнопка', () => {
+  it('Cmd+Enter in the message field commits the same way the button does', () => {
     let committed = 0;
     const { getByPlaceholderText } = draw(treeWith(1), 'fix', () => (committed += 1));
     fireEvent.keyDown(getByPlaceholderText(/commit message/i), { key: 'Enter', metaKey: true });
     expect(committed).toBe(1);
   });
 
-  it('описание печатается в своём поле и уходит наружу', () => {
+  it('the description is typed in its own field and is handed outwards', () => {
     let described = '';
     const { getByPlaceholderText } = draw(treeWith(1), 'fix', () => {}, {
       onDescription: (text) => (described = text),
     });
-    fireEvent.change(getByPlaceholderText(/description/i), { target: { value: 'почему так' } });
-    expect(described).toBe('почему так');
+    fireEvent.change(getByPlaceholderText(/description/i), { target: { value: 'why it is so' } });
+    expect(described).toBe('why it is so');
   });
 
-  it('amend оживляет кнопку даже с пустым индексом', () => {
+  it('amend brings the button back to life even with an empty index', () => {
     const { getByRole } = draw(treeWith(0), 'better words', () => {}, {
       amend: true,
       previous: { subject: 'old', body: '' },
     });
     expect(
       (getByRole('button', { name: /^commit$/i }) as HTMLButtonElement).disabled,
-      'amend меняет сообщение прошлого коммита, индекс может быть пуст',
+      'amend rewrites the message of the previous commit, the index is allowed to be empty',
     ).toBe(false);
   });
 
-  it('включение amend при пустых полях подставляет прошлое сообщение', () => {
+  it('turning amend on with empty fields fills in the previous message', () => {
     let message = '';
     let description = '';
     const { getByRole } = draw(treeWith(0), '', () => {}, {
-      previous: { subject: 'старая тема', body: 'старое тело' },
+      previous: { subject: 'old subject', body: 'old body' },
       onMessage: (text) => (message = text),
       onDescription: (text) => (description = text),
     });
     fireEvent.click(getByRole('checkbox', { name: 'Amend previous commit' }));
-    expect(message, 'заголовок прошлого коммита переехал в поле').toBe('старая тема');
-    expect(description, 'тело прошлого коммита переехало в описание').toBe('старое тело');
+    expect(message, 'the subject of the previous commit moved into the field').toBe('old subject');
+    expect(description, 'the body of the previous commit moved into the description').toBe(
+      'old body',
+    );
   });
 
-  it('без прошлого коммита amend недоступен', () => {
+  it('amend is unavailable without a previous commit', () => {
     const { getByRole } = draw(treeWith(1), 'fix', () => {}, { previous: null });
     expect(
       (getByRole('checkbox', { name: 'Amend previous commit' }) as HTMLButtonElement).disabled,
@@ -265,7 +272,7 @@ describe('коммит из панели рабочего дерева', () => {
   });
 });
 
-describe('панель во время слияния', () => {
+describe('the panel during a merge', () => {
   const mergingTree = (conflicts: number, resolved: number): WorkingTreeView => ({
     ...treeWith(0),
     branch: 'main',
@@ -325,7 +332,7 @@ describe('панель во время слияния', () => {
       </TooltipProvider>,
     );
 
-  it('секции называются конфликтами и разрешёнными, а шапка называет ветки', () => {
+  it('names the sections conflicted and resolved, and the header names both branches', () => {
     const { getByText } = drawMerging(mergingTree(2, 1));
     expect(getByText(/conflicted files/i)).toBeTruthy();
     expect(getByText(/resolved files/i)).toBeTruthy();
@@ -333,23 +340,23 @@ describe('панель во время слияния', () => {
     expect(getByText('main', { exact: true })).toBeTruthy();
   });
 
-  it('mark all resolved стейджит все конфликтные пути разом', () => {
+  it('mark all resolved stages every conflicted path at once', () => {
     let ran: { kind: string; paths?: string[] } | null = null;
     const { getByRole } = drawMerging(mergingTree(2, 0), {
       onRun: (operation) => (ran = operation as { kind: string; paths?: string[] }),
     });
     fireEvent.click(getByRole('button', { name: /mark all resolved/i }));
-    expect(ran, 'пометить разрешённым — это git add, других значений у кнопки нет').toEqual({
+    expect(ran, 'marking resolved is git add, the button means nothing else').toEqual({
       kind: 'stage',
       paths: ['clash-0.ts', 'clash-1.ts'],
     });
   });
 
-  it('commit and merge мёртв при конфликтах и жив после', () => {
+  it('commit and merge is dead while conflicts remain and alive once they are gone', () => {
     const dead = drawMerging(mergingTree(2, 0), { message: 'Merge!' });
     expect(
       (dead.getByRole('button', { name: /commit and merge/i }) as HTMLButtonElement).disabled,
-      'git commit при неразрешённых конфликтах упадёт — кнопка знает это раньше',
+      'git commit fails while conflicts are unresolved — the button knows it beforehand',
     ).toBe(true);
     dead.unmount();
 
@@ -362,36 +369,39 @@ describe('панель во время слияния', () => {
     expect(committed).toBe(1);
   });
 
-  it('слияние без конфликтов — обычная панель стейджа с парой кнопок внизу', () => {
+  it('a merge without conflicts is the ordinary staging panel with a pair of buttons below', () => {
     const view = drawMerging(mergingTree(0, 2), { message: 'Merge!' });
-    expect(view.getByText(/unstaged/i), 'секции обычные, как вне слияния').toBeTruthy();
+    expect(
+      view.getByText(/unstaged/i),
+      'the sections are the ordinary ones, as outside a merge',
+    ).toBeTruthy();
     expect(view.getByText(/^staged/i)).toBeTruthy();
     expect(
       view.queryByText(/conflicted files/i),
-      'конфликтов нет — конфликтной панели нет',
+      'no conflicts means no conflict panel',
     ).toBeNull();
     expect(view.queryByText(/resolved files/i)).toBeNull();
     expect(view.getByRole('button', { name: /commit and merge/i })).toBeTruthy();
     expect(view.getByRole('button', { name: /abort merge/i })).toBeTruthy();
     expect(
       view.queryByRole('checkbox', { name: 'Amend previous commit' }),
-      'амендить посреди слияния нельзя',
+      'amending in the middle of a merge is not allowed',
     ).toBeNull();
   });
 
-  it('снятие разрешённого файла возвращает конфликт, а не голый reset', () => {
+  it('unstaging a resolved file brings the conflict back instead of a bare reset', () => {
     let ran: { kind: string; paths?: string[] } | null = null;
     const { getByRole } = drawMerging(mergingTree(1, 1), {
       onRun: (operation) => (ran = operation as { kind: string; paths?: string[] }),
     });
     fireEvent.click(getByRole('button', { name: /^unresolve$/i }));
-    expect(ran, 'git reset стирает стадии слияния навсегда, checkout -m их возвращает').toEqual({
+    expect(ran, 'git reset wipes the merge stages for good, checkout -m brings them back').toEqual({
       kind: 'unresolve',
       paths: ['done-0.ts'],
     });
   });
 
-  it('abort merge зовёт операцию из закрытого списка', () => {
+  it('abort merge calls an operation from the closed list', () => {
     let ran: string | null = null;
     const { getByRole } = drawMerging(mergingTree(2, 0), {
       onOperation: (operation) => (ran = operation.kind),
@@ -400,11 +410,11 @@ describe('панель во время слияния', () => {
     expect(ran).toBe('mergeAbort');
   });
 
-  it('амендить посреди слияния нельзя — чекбокса нет', () => {
+  it('amending in the middle of a merge is not allowed, so the checkbox is absent', () => {
     const { queryByRole } = drawMerging(mergingTree(1, 0));
     expect(
       queryByRole('checkbox', { name: 'Amend previous commit' }),
-      'git commit --amend при MERGE_HEAD отказывает',
+      'git commit --amend refuses while MERGE_HEAD is there',
     ).toBeNull();
   });
 });
@@ -464,18 +474,18 @@ const drawWithKeys = (tree: WorkingTreeView, extra: Extra = {}) =>
 
 const press = (key: string) => fireEvent.keyDown(window, { key });
 
-describe('выбранный файл', () => {
-  it('подсвечен, а не только обведён при наведении', () => {
+describe('the picked file', () => {
+  it('is highlighted, not merely outlined on hover', () => {
     drawWithKeys(unstagedTree(['a.ts', 'b.ts']), { picked: { path: 'b.ts', staged: false } });
 
     const rows = screen.getAllByRole('option');
     expect(
       rows.map((row) => row.getAttribute('aria-selected')),
-      'выбран ровно один файл',
+      'exactly one file is picked',
     ).toEqual(['false', 'true']);
   });
 
-  it('стрелка вниз ведёт к следующему файлу', () => {
+  it('the down arrow moves to the next file', () => {
     const onPick = vi.fn();
     drawWithKeys(unstagedTree(['a.ts', 'b.ts', 'c.ts']), {
       picked: { path: 'a.ts', staged: false },
@@ -483,13 +493,13 @@ describe('выбранный файл', () => {
     });
 
     press('ArrowDown');
-    expect(onPick, 'вниз — следующий по списку').toHaveBeenLastCalledWith({
+    expect(onPick, 'down means the next one down the list').toHaveBeenLastCalledWith({
       path: 'b.ts',
       staged: false,
     });
   });
 
-  it('с последнего файла стрелка вниз уходит на первый', () => {
+  it('the down arrow goes from the last file to the first one', () => {
     const onPick = vi.fn();
     drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
       picked: { path: 'b.ts', staged: false },
@@ -497,13 +507,16 @@ describe('выбранный файл', () => {
     });
 
     press('ArrowDown');
-    expect(onPick, 'список листается по кругу, а не упирается в край').toHaveBeenLastCalledWith({
+    expect(
+      onPick,
+      'the list wraps around instead of stopping at the edge',
+    ).toHaveBeenLastCalledWith({
       path: 'a.ts',
       staged: false,
     });
   });
 
-  it('буква S стейджит выбранный файл, а выбор переставляется только после ответа git', async () => {
+  it('the S key stages the picked file, and the pick moves only after git answers', async () => {
     const tree = unstagedTree(['a.ts', 'b.ts', 'c.ts']);
     const onRun = vi.fn(gitThatMoves(tree));
     const onPick = vi.fn();
@@ -511,19 +524,19 @@ describe('выбранный файл', () => {
 
     press('s');
 
-    expect(onRun, 'стейджится именно выбранный файл').toHaveBeenCalledWith({
+    expect(onRun, 'it is exactly the picked file that gets staged').toHaveBeenCalledWith({
       kind: 'stage',
       paths: ['b.ts'],
     });
     expect(
       onPick,
-      'до ответа git выбор не трогается — иначе строка мигает дважды',
+      'the pick is left alone until git answers — otherwise the row blinks twice',
     ).not.toHaveBeenCalled();
 
     await vi.waitFor(() =>
       expect(
         onPick,
-        'после ответа выбор едет на следующий файл секции: S жмут подряд',
+        'once the answer is in, the pick moves to the next file of the section: S is pressed in a row',
       ).toHaveBeenLastCalledWith({
         path: 'c.ts',
         staged: false,
@@ -531,7 +544,7 @@ describe('выбранный файл', () => {
     );
   });
 
-  it('при открытом диффе следующий файл ещё и открывается', async () => {
+  it('opens the next file as well while the diff is open', async () => {
     const tree = unstagedTree(['a.ts', 'b.ts', 'c.ts']);
     const onOpen = vi.fn();
     drawWithKeys(tree, {
@@ -544,7 +557,7 @@ describe('выбранный файл', () => {
     press('s');
 
     await vi.waitFor(() =>
-      expect(onOpen, 'дифф показывает уже следующий файл').toHaveBeenLastCalledWith(
+      expect(onOpen, 'the diff already shows the next file').toHaveBeenLastCalledWith(
         'c.ts',
         'M',
         false,
@@ -552,7 +565,7 @@ describe('выбранный файл', () => {
     );
   });
 
-  it('последний файл секции догоняет себя в соседней: выбор не пропадает', async () => {
+  it('the last file of a section catches up with itself in the neighbouring one: the pick does not vanish', async () => {
     const tree = unstagedTree(['a.ts']);
     const onPick = vi.fn();
     drawWithKeys(tree, {
@@ -566,7 +579,7 @@ describe('выбранный файл', () => {
     await vi.waitFor(() => expect(onPick).toHaveBeenLastCalledWith({ path: 'a.ts', staged: true }));
   });
 
-  it('если git ответил ошибкой, выбор остаётся где был', async () => {
+  it('leaves the pick where it was when git answers with an error', async () => {
     const onPick = vi.fn();
     drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
       picked: { path: 'a.ts', staged: false },
@@ -577,10 +590,10 @@ describe('выбранный файл', () => {
     press('s');
     await Promise.resolve();
 
-    expect(onPick, 'нет свежего дерева — нечего и переставлять').not.toHaveBeenCalled();
+    expect(onPick, 'no fresh tree means nothing to move the pick over').not.toHaveBeenCalled();
   });
 
-  it('кнопка Stage в строке ведёт себя так же, как клавиша', async () => {
+  it('the Stage button in a row behaves exactly like the key', async () => {
     const tree = unstagedTree(['a.ts', 'b.ts']);
     const onPick = vi.fn();
     drawWithKeys(tree, {
@@ -592,14 +605,14 @@ describe('выбранный файл', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Stage file' })[0]);
 
     await vi.waitFor(() =>
-      expect(onPick, 'мышь и клавиатура двигают выбор одинаково').toHaveBeenLastCalledWith({
+      expect(onPick, 'mouse and keyboard move the pick the same way').toHaveBeenLastCalledWith({
         path: 'b.ts',
         staged: false,
       }),
     );
   });
 
-  it('пока дифф закрыт, стрелка не открывает его сама', () => {
+  it('the arrow does not open the diff by itself while the diff is closed', () => {
     const onOpen = vi.fn();
     drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
       picked: { path: 'a.ts', staged: false },
@@ -607,10 +620,13 @@ describe('выбранный файл', () => {
     });
 
     press('ArrowDown');
-    expect(onOpen, 'иначе стрелка по списку дёргала бы главный вид').not.toHaveBeenCalled();
+    expect(
+      onOpen,
+      'otherwise arrowing through the list would jerk the main view',
+    ).not.toHaveBeenCalled();
   });
 
-  it('при открытом диффе стрелка ведёт и его', () => {
+  it('the arrow leads the diff along while the diff is open', () => {
     const onOpen = vi.fn();
     drawWithKeys(unstagedTree(['a.ts', 'b.ts']), {
       picked: { path: 'a.ts', staged: false },
@@ -619,12 +635,12 @@ describe('выбранный файл', () => {
     });
 
     press('ArrowDown');
-    expect(onOpen, 'дифф следует за выбором').toHaveBeenCalledWith('b.ts', 'M', false);
+    expect(onOpen, 'the diff follows the pick').toHaveBeenCalledWith('b.ts', 'M', false);
   });
 });
 
-describe('S подряд', () => {
-  it('три нажатия стейджат три файла: выбор и дерево идут по кругу через ответ git', async () => {
+describe('S pressed in a row', () => {
+  it('stages three files in three presses: pick and tree go round through the answer of git', async () => {
     let tree = unstagedTree(['a.ts', 'b.ts', 'c.ts', 'd.ts']);
     let picked: Picked | null = { path: 'a.ts', staged: false };
     const staged: string[] = [];
@@ -681,7 +697,7 @@ describe('S подряд', () => {
     press('s');
     await vi.waitFor(() => expect(picked).toEqual({ path: 'd.ts', staged: false }));
 
-    expect(staged, 'каждое нажатие стейджит ровно тот файл, что выбран').toEqual([
+    expect(staged, 'every press stages exactly the file that is picked').toEqual([
       'a.ts',
       'b.ts',
       'c.ts',

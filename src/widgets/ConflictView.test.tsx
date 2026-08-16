@@ -46,38 +46,38 @@ const draw = (onResolved: (tree: unknown) => void = () => {}) =>
 
 const output = (view: ReturnType<typeof draw>) => within(view.getByRole('region'));
 
-describe('резолв конфликтов выбором строк', () => {
+describe('resolving conflicts by picking lines', () => {
   beforeEach(() => {
     vi.mocked(ipc.conflictFile).mockResolvedValue(file as never);
     vi.mocked(ipc.resolveConflict).mockClear();
   });
 
-  it('пока ничего не выбрано, в выводе стоит база, а не стороны', async () => {
+  it('keeps the base in the output while nothing is picked, not either side', async () => {
     const view = draw();
     await waitFor(() => expect(view.getAllByText('top();').length).toBeGreaterThan(0));
     expect(output(view).queryByText('ours();')).toBeNull();
     expect(output(view).queryByText('theirs();')).toBeNull();
     expect(
       output(view).getByText('base();'),
-      'нерешённое место показывает общего предка, как the reference client фиолетовым',
+      'an unresolved spot shows the common ancestor, the way the reference client shows it in purple',
     ).toBeTruthy();
   });
 
-  it('клик по самой строке берёт её в вывод, клик в выводе — убирает', async () => {
+  it('a click on the line itself takes it into the output, a click in the output removes it', async () => {
     const view = draw();
     await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
 
     fireEvent.click(view.getByText('ours();'));
     expect(
       output(view).getByText('ours();'),
-      'строка целиком — цель клика, не только чекбокс',
+      'the whole line is the click target, not just the checkbox',
     ).toBeTruthy();
 
     fireEvent.click(output(view).getByText('ours();'));
     expect(output(view).queryByText('ours();')).toBeNull();
   });
 
-  it('галочка на строке стороны кладёт строку в вывод, повторный клик убирает', async () => {
+  it('the checkbox on a line of a side puts that line into the output, a second click removes it', async () => {
     const view = draw();
     await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
 
@@ -85,14 +85,14 @@ describe('резолв конфликтов выбором строк', () => {
     fireEvent.click(boxes[1]);
     expect(
       output(view).getByText('ours();'),
-      'выбранная строка обязана появиться в выводе',
+      'a picked line has to appear in the output',
     ).toBeTruthy();
 
     fireEvent.click(view.getAllByRole('checkbox')[1]);
     expect(output(view).queryByText('ours();')).toBeNull();
   });
 
-  it('галочка в шапке стороны забирает все её конфликтные строки', async () => {
+  it('the checkbox in the header of a side takes all of its conflicting lines', async () => {
     const view = draw();
     await waitFor(() => expect(view.getAllByText('theirs();').length).toBe(1));
 
@@ -100,7 +100,7 @@ describe('резолв конфликтов выбором строк', () => {
     expect(output(view).getByText('theirs();')).toBeTruthy();
   });
 
-  it('сохранение отправляет ровно собранный вывод и отдаёт дерево наверх', async () => {
+  it('saving sends exactly the assembled output and hands the working tree back up', async () => {
     const tree = { conflicts: 0 };
     vi.mocked(ipc.resolveConflict).mockResolvedValue(tree as never);
     let resolved: unknown = null;
@@ -113,11 +113,11 @@ describe('резолв конфликтов выбором строк', () => {
     await waitFor(() => expect(resolved).toBe(tree));
     expect(
       vi.mocked(ipc.resolveConflict).mock.calls[0],
-      'на диск уходит именно то, что человек собрал из строк',
+      'what reaches the disk is exactly what the person assembled out of the lines',
     ).toEqual(['/r', 'greeting.ts', 'top();\nours();\nbottom();']);
   });
 
-  it('пока сохранение идёт, полоса репозитория занята', async () => {
+  it('holds the repository lane while the save is running', async () => {
     workStore.setState({ works: new Map() });
     vi.mocked(ipc.resolveConflict).mockReturnValue(new Promise(() => {}) as never);
     const view = draw();
@@ -128,7 +128,7 @@ describe('резолв конфликтов выбором строк', () => {
     await waitFor(() =>
       expect(
         workStore.getState().works.get('/r'),
-        'запись в рабочее дерево обязана занимать полосу репозитория',
+        'a write to the working tree has to hold the lane of the repository',
       ).toEqual({ kind: 'resolveConflict', target: 'greeting.ts' }),
     );
     workStore.setState({ works: new Map() });

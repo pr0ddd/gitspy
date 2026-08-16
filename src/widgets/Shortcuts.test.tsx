@@ -8,68 +8,76 @@ const draw = () => render(<Shortcuts open onOpenChange={() => {}} />);
 
 const filter = () => screen.getByPlaceholderText('Filter shortcuts');
 
-describe('окно горячих клавиш', () => {
-  it('перечисляет весь реестр, чтобы справка не расходилась с кодом', () => {
+describe('the keyboard shortcuts dialog', () => {
+  it('lists the whole registry, so the help never drifts away from the code', () => {
     draw();
 
     expect(screen.getByText('Stage current file')).toBeTruthy();
     expect(screen.getByText('Toggle terminal panel')).toBeTruthy();
     expect(
       document.querySelectorAll('[data-slot="shortcut"]').length,
-      'в справке ровно столько строк, сколько команд в реестре',
+      'the help has exactly as many rows as there are commands in the registry',
     ).toBe(COMMANDS.length);
   });
 
-  it('фильтр оставляет подходящие команды и убирает остальные', () => {
+  it('the filter keeps the matching commands and removes the rest', () => {
     draw();
 
     fireEvent.change(filter(), { target: { value: 'stage' } });
 
     expect(
       screen.getByText('Stage current file'),
-      'по слову stage команда обязана остаться',
+      'the command matching the word stage must stay',
     ).toBeTruthy();
-    expect(screen.queryByText('Toggle terminal panel'), 'чужая команда уходит').toBeNull();
+    expect(
+      screen.queryByText('Toggle terminal panel'),
+      'an unrelated command goes away',
+    ).toBeNull();
   });
 
-  it('пустая группа не оставляет за собой заголовок', () => {
+  it('an emptied group leaves no heading behind', () => {
     draw();
 
     fireEvent.change(filter(), { target: { value: 'zoom' } });
 
     expect(screen.getByText('Increase zoom')).toBeTruthy();
-    expect(screen.queryByText('Navigation'), 'заголовок без строк — мусор на экране').toBeNull();
+    expect(
+      screen.queryByText('Navigation'),
+      'a heading with no rows is litter on screen',
+    ).toBeNull();
   });
 
-  it('когда не совпало ничего, окно говорит об этом', () => {
+  it('when nothing matched, the dialog says so', () => {
     draw();
 
-    fireEvent.change(filter(), { target: { value: 'нет такой команды' } });
+    fireEvent.change(filter(), { target: { value: 'no such command' } });
 
     expect(screen.getByText('Nothing matches')).toBeTruthy();
   });
 
-  it('высота окна не зависит от фильтра, иначе центрированный диалог прыгает', () => {
+  it('the dialog height does not depend on the filter, otherwise the centred dialog jumps', () => {
     draw();
 
     const panel = screen.getByRole('dialog');
     const sized = panel.className.split(' ').filter((part) => part.startsWith('h-'));
-    expect(sized.length, 'высота задана прямо, а не пределом по содержимому').toBe(1);
+    expect(sized.length, 'the height is set outright, not as a cap over the content').toBe(1);
     expect(
       panel.className.includes('max-h-'),
-      'предел по содержимому дал бы разную высоту при разном числе строк',
+      'a cap over the content would give a different height for a different number of rows',
     ).toBe(false);
   });
 
-  it('заголовок и поиск лежат вне прокручиваемой части, поэтому не уезжают', () => {
+  it('the title and the search box live outside the scrolling part, so they never scroll away', () => {
     draw();
 
     const scroller = document.querySelector('.overflow-y-auto') as HTMLElement;
-    expect(scroller, 'прокручивается тело списка').toBeTruthy();
-    expect(scroller.contains(filter()), 'поиск не должен уезжать вместе со списком').toBe(false);
+    expect(scroller, 'it is the body of the list that scrolls').toBeTruthy();
+    expect(scroller.contains(filter()), 'the search box must not scroll away with the list').toBe(
+      false,
+    );
     expect(
       scroller.contains(screen.getByText('Keyboard Shortcuts')),
-      'заголовок не должен уезжать вместе со списком',
+      'the title must not scroll away with the list',
     ).toBe(false);
   });
 });

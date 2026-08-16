@@ -93,8 +93,8 @@ const draw = (session: Session, rows: RowCache, extra: Extra = {}) =>
     </TooltipProvider>,
   );
 
-describe('файлы коммита при переключении', () => {
-  it('пока грузятся файлы нового коммита, файлы старого не отображаются', async () => {
+describe('commit files while switching commits', () => {
+  it('hides the files of the previous commit while the files of the next one load', async () => {
     const rows = new RowCache();
     rows.replaceAll(windowWith([commitRow(0, 'aaaa0000'), commitRow(1, 'bbbb0000')]));
 
@@ -109,7 +109,10 @@ describe('файлы коммита при переключении', () => {
 
     const { rerender } = draw(sessionAt(0), rows);
     await act(async () => {});
-    expect(screen.getByText('old.ts'), 'файлы выбранного коммита должны показаться').toBeTruthy();
+    expect(
+      screen.getByText('old.ts'),
+      'the files of the selected commit have to show up',
+    ).toBeTruthy();
 
     rerender(
       <TooltipProvider>
@@ -135,20 +138,20 @@ describe('файлы коммита при переключении', () => {
 
     expect(
       screen.queryByText('old.ts'),
-      'после смены коммита файлы старого не должны висеть до прихода новых',
+      'after the commit changes the old files must not hang around until the new ones arrive',
     ).toBeNull();
     expect(
       screen.queryByText('This commit changed nothing'),
-      'пока файлы грузятся, пустое состояние показывать нельзя',
+      'the empty state must not be shown while the files are still loading',
     ).toBeNull();
 
     await act(async () => releaseSecond([fileNamed('src/new.ts')]));
-    expect(screen.getByText('new.ts'), 'файлы нового коммита должны показаться').toBeTruthy();
+    expect(screen.getByText('new.ts'), 'the files of the new commit have to show up').toBeTruthy();
   });
 });
 
-describe('две личности коммита', () => {
-  it('когда автор и коммиттер совпадают, строки committed нет', async () => {
+describe('the two identities of a commit', () => {
+  it('shows no committed line when the author and the committer are the same', async () => {
     const rows = new RowCache();
     rows.replaceAll(windowWith([commitRow(0, 'aaaa0000')]));
     draw(sessionAt(0), rows);
@@ -156,11 +159,11 @@ describe('две личности коммита', () => {
     expect(screen.getByText('Ada')).toBeTruthy();
     expect(
       screen.queryByText('committed'),
-      'одинаковые личности не дублируются второй строкой',
+      'identical identities are not duplicated by a second line',
     ).toBeNull();
   });
 
-  it('чужой коммиттер показывается отдельной строкой committed', async () => {
+  it('shows a different committer on its own committed line', async () => {
     const rows = new RowCache();
     rows.replaceAll(
       windowWith([
@@ -173,17 +176,17 @@ describe('две личности коммита', () => {
     );
     const { container } = draw(sessionAt(0), rows);
     await act(async () => {});
-    expect(screen.getByText('GitHub'), 'имя коммиттера видно').toBeTruthy();
-    expect(screen.getByText('committed'), 'подпись committed видна').toBeTruthy();
-    expect(screen.getByText('authored'), 'подпись authored осталась').toBeTruthy();
+    expect(screen.getByText('GitHub'), 'the name of the committer is visible').toBeTruthy();
+    expect(screen.getByText('committed'), 'the committed label is visible').toBeTruthy();
+    expect(screen.getByText('authored'), 'the authored label is still there').toBeTruthy();
     expect(
       container.querySelectorAll('img').length,
-      'у бота хостинга не аватар-картинка, а фирменный знак — img только у автора',
+      'a host bot gets its brand mark instead of an avatar image, so only the author has an img',
     ).toBe(1);
   });
 });
 
-describe('пул-реквест на коммите', () => {
+describe('pull request on a commit', () => {
   const pullNamed = (headBranch: string): PullView => ({
     number: 42,
     title: 'Teach the parser about fences',
@@ -211,7 +214,7 @@ describe('пул-реквест на коммите', () => {
     gone: false,
   });
 
-  it('плашка видна на вершине ветки пулла и открывает его по клику', async () => {
+  it('shows the plate on the tip of the branch of the pull request and opens it on click', async () => {
     const rows = new RowCache();
     rows.replaceAll(windowWith([commitRow(0, 'aaaa0000')]));
     const session = sessionAt(0);
@@ -224,12 +227,12 @@ describe('пул-реквест на коммите', () => {
     await act(async () => {});
 
     const plate = screen.getByText('Teach the parser about fences');
-    expect(plate, 'плашка пулла видна').toBeTruthy();
+    expect(plate, 'the plate of the pull request is visible').toBeTruthy();
     fireEvent.click(plate);
-    expect(opened, 'клик по плашке открывает пулл').toEqual([42]);
+    expect(opened, 'a click on the plate opens the pull request').toEqual([42]);
   });
 
-  it('без совпадения ветки плашки нет', async () => {
+  it('shows no plate when no branch matches', async () => {
     const rows = new RowCache();
     rows.replaceAll(windowWith([commitRow(0, 'aaaa0000')]));
     draw(sessionAt(0), rows, { pulls: [pullNamed('feature/other')] });

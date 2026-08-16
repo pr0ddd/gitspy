@@ -29,64 +29,64 @@ vi.mock('@/ipc', () => ({
   openUrl: vi.fn(),
 }));
 
-describe('док терминалов', () => {
-  it('открытый док сразу заводит терминал, не спрашивая второй раз', async () => {
+describe('the terminal dock', () => {
+  it('an opened dock starts a terminal right away, without asking a second time', async () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
       await screen.findByRole('tab'),
-      'кнопкой терминала намерение уже высказано — предлагать его ещё раз нечего',
+      'the terminal button has already stated the intent — there is nothing to offer again',
     ).toBeTruthy();
     expect(
       screen.queryByText('No terminals yet'),
-      'пустой док с одинокой кнопкой — лишний шаг на ровном месте',
+      'an empty dock with a lone button is an extra step out of nowhere',
     ).toBeNull();
   });
 
-  it('закрыв последнюю вкладку, док не заводит новую сам', async () => {
+  it('once the last tab is closed, the dock does not start a new one by itself', async () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     await screen.findByRole('tab');
     fireEvent.click(screen.getByLabelText('Close terminal'));
     expect(
       await screen.findByText('No terminals yet'),
-      'закрытая вкладка — тоже намерение, и спорить с ним нельзя',
+      'closing a tab is an intent too, and it must not be argued with',
     ).toBeTruthy();
     expect(
       screen.getByText('New terminal'),
-      'вернуться к терминалу можно одним кликом',
+      'getting back to a terminal takes one click',
     ).toBeTruthy();
   });
 
-  it('пока сессия поднимается, подсказки о пустоте не мелькает', () => {
+  it('while the session is starting up, the empty-state note never flashes', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
       screen.queryByText('No terminals yet'),
-      'мигание «пусто» на первом кадре читается как поломка',
+      'an empty-state blink on the first frame reads as a breakage',
     ).toBeNull();
   });
 
-  it('одного профиля хватает кнопки «плюс» без стрелки выбора', () => {
+  it('with a single profile the plus button is enough, without a picker arrow', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
       screen.queryByLabelText('Start from a profile'),
-      'меню из одного пункта — лишний клик и лишняя стрелка в шапке',
+      'a menu with a single item is one extra click and one extra arrow in the header',
     ).toBeNull();
     expect(
       screen.getByLabelText('New terminal'),
-      'завести ещё один терминал всё ещё можно',
+      'starting one more terminal is still possible',
     ).toBeTruthy();
   });
 
-  it('сессии видны в списке справа со своими заголовками', () => {
+  it('sessions are visible in the list under their own titles', () => {
     useTermSessions.setState({
       sessions: [
         { id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r' },
         {
           id: 2,
-          title: 'сборка фронта',
+          title: 'frontend build',
           command: 'npm run app',
           cwd: '/r',
           repo: '/r',
@@ -95,31 +95,37 @@ describe('док терминалов', () => {
       activeByRepo: { '/r': 2 },
     });
     draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
-    expect(screen.getByText('сборка фронта'), 'живой заголовок сессии виден в списке').toBeTruthy();
-    expect(screen.getByText('zsh'), 'соседняя сессия из списка не пропадает').toBeTruthy();
+    expect(
+      screen.getByText('frontend build'),
+      'the live session title is visible in the list',
+    ).toBeTruthy();
+    expect(
+      screen.getByText('zsh'),
+      'the neighbouring session does not disappear from the list',
+    ).toBeTruthy();
     expect(
       screen.queryByText('No terminals yet'),
-      'с сессиями подсказке о пустоте места нет',
+      'with sessions on screen there is no room for the empty-state note',
     ).toBeNull();
   });
 
-  it('док показывает только сессии своего репозитория', () => {
+  it('shows only the sessions of its own repository', () => {
     useTermSessions.setState({
       sessions: [
-        { id: 1, title: 'zsh гитспая', command: null, cwd: '/a', repo: '/a' },
-        { id: 2, title: 'zsh реакта', command: null, cwd: '/b', repo: '/b' },
+        { id: 1, title: 'zsh of gitspy', command: null, cwd: '/a', repo: '/a' },
+        { id: 2, title: 'zsh of react', command: null, cwd: '/b', repo: '/b' },
       ],
       activeByRepo: { '/a': 1, '/b': 2 },
     });
     draw(<TerminalDock repo="/b" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
-      screen.queryByText('zsh гитспая'),
-      'чужой репозиторий не приносит свои сессии',
+      screen.queryByText('zsh of gitspy'),
+      'another repository does not bring its own sessions along',
     ).toBeNull();
-    expect(screen.getByText('zsh реакта')).toBeTruthy();
+    expect(screen.getByText('zsh of react')).toBeTruthy();
   });
 
-  it('сессии стоят вкладками в полоске над терминалом, а не колонкой сбоку', () => {
+  it('puts sessions as tabs in a strip above the terminal, not as a column to the side', () => {
     useTermSessions.setState({
       sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a' }],
       activeByRepo: { '/a': 1 },
@@ -129,22 +135,22 @@ describe('док терминалов', () => {
     );
     expect(
       container.querySelector('aside'),
-      'панель на 256 px справа съедала ширину, ради которой терминал и разворачивают',
+      'a 256 px panel on the right ate the very width the terminal is opened for',
     ).toBeNull();
-    expect(screen.getByText('zsh'), 'сессия остаётся выбираемой вкладкой').toBeTruthy();
+    expect(screen.getByText('zsh'), 'the session stays a selectable tab').toBeTruthy();
     expect(
       screen.queryByLabelText('Collapse sessions'),
-      'сворачивать в рельсу нечего: полоска и так занимает одну строку',
+      'there is nothing to collapse into a rail: the strip already takes a single row',
     ).toBeNull();
   });
 
-  it('шапки «Terminal» над доком нет', () => {
+  it('has no "Terminal" header above the dock', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
-    expect(screen.queryByText('Terminal'), 'полоса-заголовок только ела высоту').toBeNull();
+    expect(screen.queryByText('Terminal'), 'a title bar only ate height').toBeNull();
   });
 
-  it('док лежит внизу поверх графа и не заводит своей раскладки', () => {
+  it('sits at the bottom over the graph and starts no layout of its own', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     const { container } = draw(
       <TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />,
@@ -152,41 +158,41 @@ describe('док терминалов', () => {
     const root = container.querySelector('section');
     expect(
       root?.className.includes('bottom-0'),
-      'терминал живёт снизу: другого места у него нет',
+      'the terminal lives at the bottom: it has no other place',
     ).toBe(true);
     expect(
       screen.queryByLabelText('Fullscreen'),
-      'полноэкранного режима у дока нет — граф не должен уезжать вбок',
+      'the dock has no fullscreen mode — the graph must not be pushed aside',
     ).toBeNull();
   });
 });
 
-describe('запуск сессий из дока', () => {
-  it('со вторым профилем появляется стрелка выбора, и её пункт заводит сессию', async () => {
+describe('starting sessions from the dock', () => {
+  it('a second profile brings up the picker arrow, and its item starts a session', async () => {
     useTermSessions.setState({
       sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r' }],
       activeByRepo: { '/r': 1 },
     });
     writeProfiles([
       { label: 'zsh', command: null },
-      { label: 'сборка', command: 'npm run app' },
+      { label: 'build', command: 'npm run app' },
     ]);
     draw(<TerminalDock repo="/r" onFileLink={() => {}} onHashLink={() => {}} />);
     fireEvent.pointerDown(
       screen.getByLabelText('Start from a profile'),
       new PointerEvent('pointerdown', { bubbles: true, ctrlKey: false, button: 0 }),
     );
-    fireEvent.click(await screen.findByText('сборка'));
+    fireEvent.click(await screen.findByText('build'));
     expect(
       vi.mocked(createTermHost).mock.calls.at(-1)?.[1].command,
-      'выбор профиля запускает его команду, а не логин-шелл',
+      'picking a profile runs its command, not the login shell',
     ).toBe('npm run app');
     localStorage.clear();
   });
 });
 
-describe('шапка списка сессий', () => {
-  it('не тратит строку на слово «Sessions» и счётчик', () => {
+describe('the header of the session list', () => {
+  it('spends no row on the word "Sessions" and a counter', () => {
     useTermSessions.setState({
       sessions: [{ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a' }],
       activeByRepo: { '/a': 1 },
@@ -194,23 +200,22 @@ describe('шапка списка сессий', () => {
     draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} />);
     expect(
       screen.queryByText('Sessions'),
-      'заголовок повторяет то, что и так видно из содержимого',
+      'the heading repeats what the content already shows',
     ).toBeNull();
   });
 
-  it('закрывает терминал целиком по своей кнопке', () => {
+  it('closes the whole terminal from its own button', () => {
     useTermSessions.setState({ sessions: [], activeByRepo: {} });
     const closed = vi.fn();
     draw(<TerminalDock repo="/a" onFileLink={() => {}} onHashLink={() => {}} onClose={closed} />);
     fireEvent.click(screen.getByLabelText('Close terminal panel'));
-    expect(
-      closed,
-      'уйти из терминала можно тем же местом, где его открывали',
-    ).toHaveBeenCalledTimes(1);
+    expect(closed, 'the terminal is left from the same place it was opened').toHaveBeenCalledTimes(
+      1,
+    );
   });
 });
 
-describe('подгон терминала под новый размер', () => {
+describe('refitting the terminal to a new size', () => {
   let notifyResize: () => void = () => {};
 
   const watchingResizes = () => {
@@ -241,7 +246,7 @@ describe('подгон терминала под новый размер', () =>
     return { grip };
   };
 
-  it('пока разделитель зажат, содержимое перекладывается каждый кадр', async () => {
+  it('reflows the content every frame while the splitter is held down', async () => {
     const { grip } = await dockWithOneTerminal();
 
     fireEvent.pointerDown(grip, { pointerId: 1 });
@@ -252,13 +257,13 @@ describe('подгон терминала под новый размер', () =>
 
     expect(
       refit,
-      'терминал, застывший до конца жеста, показывает старую сетку под новой высотой',
+      'a terminal frozen until the end of the gesture shows the old grid under the new height',
     ).toHaveBeenCalledTimes(2);
 
     fireEvent.pointerUp(grip, { pointerId: 1 });
   });
 
-  it('несколько уведомлений об одном кадре стоят одного подгона', async () => {
+  it('several notifications within one frame cost a single refit', async () => {
     const { grip } = await dockWithOneTerminal();
 
     fireEvent.pointerDown(grip, { pointerId: 1 });
@@ -269,13 +274,13 @@ describe('подгон терминала под новый размер', () =>
 
     expect(
       refit,
-      'перелив буфера стоит миллисекунды, и больше одного раза за кадр он не нужен',
+      'reflowing the buffer costs milliseconds, and more than once per frame it is not needed',
     ).toHaveBeenCalledTimes(1);
 
     fireEvent.pointerUp(grip, { pointerId: 1 });
   });
 
-  it('размер, изменившийся сам по себе, подгоняется тем же кадром', async () => {
+  it('a size that changed on its own is refitted within the same frame', async () => {
     await dockWithOneTerminal();
 
     notifyResize();
@@ -283,7 +288,7 @@ describe('подгон терминала под новый размер', () =>
 
     expect(
       refit,
-      'открытие панели или смена вкладки — не жест, ждать тут нечего',
+      'opening a panel or switching a tab is not a gesture, there is nothing to wait for',
     ).toHaveBeenCalledTimes(1);
   });
 });

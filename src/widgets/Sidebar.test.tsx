@@ -87,31 +87,31 @@ const draw = (refs: RefView[], handlers: { onPick?: () => void; onCheckout?: () 
 
 const row = (name: string) => screen.getByText(name).closest('button') as HTMLElement;
 
-describe('перерисовка списков', () => {
-  it('переключение вида не перерисовывает строки, которых оно не касается', () => {
+describe('redrawing the lists', () => {
+  it('switching the view does not redraw the rows it does not touch', () => {
     draw([branch({ name: 'main', ahead: 1 }), branch({ name: 'feature', ahead: 2 })]);
     drawn.branchRows = 0;
 
     fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
 
-    expect(drawn.branchRows, 'строки веток не перерисовываются, когда открыт другой вид').toBe(0);
+    expect(drawn.branchRows, 'branch rows are not redrawn while another view is open').toBe(0);
   });
 });
 
-describe('окно списка', () => {
+describe('the visible window of the list', () => {
   const thousand = () =>
     Array.from({ length: 1000 }, (_, i) => branch({ name: `b-${String(i).padStart(4, '0')}` }));
 
-  it('тысяча веток не превращается в тысячу строк', () => {
+  it('a thousand branches do not turn into a thousand rows', () => {
     draw(thousand());
 
     expect(
       document.querySelectorAll('button').length,
-      'рисуется окно видимых строк, а не весь список',
+      'only the window of visible rows is drawn, not the whole list',
     ).toBeLessThan(120);
   });
 
-  it('прокрутка доводит до дальних строк, а начало уходит из окна', () => {
+  it('scrolling reaches the far rows, and the beginning leaves the window', () => {
     draw(thousand());
     const list = document.querySelector('[data-slot="sidebar-rows"]') as HTMLElement;
 
@@ -119,12 +119,12 @@ describe('окно списка', () => {
     fireEvent.scroll(list);
 
     expect(screen.getByText('b-0500')).toBeTruthy();
-    expect(screen.queryByText('b-0001'), 'начало списка выгружено').toBeNull();
+    expect(screen.queryByText('b-0001'), 'the beginning of the list is unmounted').toBeNull();
   });
 });
 
-describe('свёрнутый сайдбар', () => {
-  it('рейка иконок вместо пустоты: щелчок по виду раскрывает панель', () => {
+describe('the collapsed sidebar', () => {
+  it('an icon rail instead of emptiness: a click on a view expands the panel', () => {
     const onToggle = vi.fn();
     render(
       <TooltipProvider>
@@ -147,17 +147,20 @@ describe('свёрнутый сайдбар', () => {
       </TooltipProvider>,
     );
 
-    expect(screen.queryByPlaceholderText(/filter/i), 'фильтра в рейке нет').toBeNull();
-    expect(screen.getByRole('button', { name: 'Tags' }), 'иконки видов остались').toBeTruthy();
+    expect(screen.queryByPlaceholderText(/filter/i), 'the rail carries no filter').toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Tags' }),
+      'the view icons are still there',
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
 
-    expect(onToggle, 'щелчок по иконке раскрывает панель').toHaveBeenCalledTimes(1);
+    expect(onToggle, 'a click on an icon expands the panel').toHaveBeenCalledTimes(1);
   });
 });
 
-describe('щелчки по ветке', () => {
-  it('одинарный щелчок выделяет коммит и не переключает ветку', () => {
+describe('clicks on a branch', () => {
+  it('a single click selects the commit and does not check the branch out', () => {
     const onPick = vi.fn();
     const onCheckout = vi.fn();
     draw([branch()], { onPick, onCheckout });
@@ -168,7 +171,7 @@ describe('щелчки по ветке', () => {
     expect(onCheckout).not.toHaveBeenCalled();
   });
 
-  it('двойной щелчок переключает на ветку', () => {
+  it('a double click checks the branch out', () => {
     const onCheckout = vi.fn();
     draw([branch()], { onCheckout });
 
@@ -177,7 +180,7 @@ describe('щелчки по ветке', () => {
     expect(onCheckout).toHaveBeenCalledTimes(1);
   });
 
-  it('правый щелчок по ветке открывает то же меню, что и на графе', () => {
+  it('a right click on a branch opens the same menu as on the graph', () => {
     vi.mocked(showNativeMenu).mockClear();
     draw([branch({ name: 'feature' })]);
 
@@ -187,11 +190,11 @@ describe('щелчки по ветке', () => {
     const [sections] = vi.mocked(showNativeMenu).mock.calls[0];
     expect(
       sections.flat().map((i) => i.id),
-      'меню строится тем же строителем, что и на графе',
+      'the menu is built by the same builder as on the graph',
     ).toContain('checkout');
   });
 
-  it('щелчок по стрелке не промахивается мимо ветки', () => {
+  it('a click on the arrow does not miss the branch', () => {
     const onPick = vi.fn();
     draw([branch({ ahead: 3 })], { onPick });
 
@@ -201,59 +204,59 @@ describe('щелчки по ветке', () => {
   });
 });
 
-describe('дерево и стрелки', () => {
-  it('ветка в папке показывается коротким именем, папка отдельной строкой', () => {
+describe('the tree and the arrows', () => {
+  it('a branch inside a folder is shown by its short name, the folder as a row of its own', () => {
     draw([branch({ name: 'pr/36451' })]);
 
     expect(row('pr').textContent).toBe('pr');
     expect(row('36451').textContent).toBe('36451');
   });
 
-  it('папки раскрыты сразу, иначе репозиторий открывается без единой ветки', () => {
+  it('folders are expanded from the start, otherwise a repository opens without a single branch', () => {
     draw([branch({ name: 'a/b/c/deep' })]);
 
     expect(row('deep')).toBeDefined();
   });
 
-  it('без upstream стрелок нет вовсе, а не нули', () => {
+  it('without an upstream there are no arrows at all, rather than zeros', () => {
     draw([branch()]);
 
     expect(row('main').textContent).toBe('main');
   });
 
-  it('впереди и позади показываются числами рядом с именем', () => {
+  it('ahead and behind are shown as numbers next to the name', () => {
     draw([branch({ ahead: 3, behind: 1 })]);
 
     expect(row('main').textContent).toBe('main31');
   });
 
-  it('больше сотни показывается потолком, а не точным числом', () => {
+  it('anything above a hundred is shown as a cap, not as the exact number', () => {
     draw([branch({ behind: 1234 })]);
 
     expect(row('main').textContent).toBe('main99+');
   });
 });
 
-describe('ветка с исчезнувшим upstream', () => {
-  it('остаётся в списке и не помечается словом, потому что ветка на месте', () => {
+describe('a branch whose upstream is gone', () => {
+  it('stays in the list and carries no label, because the branch itself is still there', () => {
     draw([
       branch({ name: 'invoices-pagination', gone: true, upstream: 'origin/invoices-pagination' }),
     ]);
 
     expect(
       screen.getByText('invoices-pagination'),
-      'ветка существует локально — её надо показывать',
+      'the branch exists locally, so it has to be shown',
     ).toBeTruthy();
     expect(
       screen.queryByText('gone'),
-      'красная метка у каждой второй строки — шум, the reference client её тоже не рисует',
+      'a red label on every other row is noise, and the reference client does not draw it either',
     ).toBeNull();
   });
 
-  it('отставание и опережение по-прежнему видно', () => {
+  it('ahead and behind are still visible', () => {
     draw([branch({ name: 'feature/live', ahead: 2, behind: 3 })]);
 
-    expect(screen.getByText('2'), 'счётчик опережения остаётся').toBeTruthy();
-    expect(screen.getByText('3'), 'счётчик отставания остаётся').toBeTruthy();
+    expect(screen.getByText('2'), 'the ahead counter stays').toBeTruthy();
+    expect(screen.getByText('3'), 'the behind counter stays').toBeTruthy();
   });
 });

@@ -201,14 +201,14 @@ const view = (target: DiffTarget) => (
 
 const editorHost = (container: HTMLElement): HTMLElement => {
   const host = container.querySelector<HTMLElement>('div.min-h-0.flex-1:not(.flex-col)');
-  if (!host) throw new Error('контейнер diff-редактора не найден');
+  if (!host) throw new Error('diff editor container not found');
   return host;
 };
 
 const patchAt = (newStart: number) => `@@ -${newStart},2 +${newStart},2 @@\n-a\n+b\n c\n`;
 
-describe('смена файла в diff-редакторе', () => {
-  it('вид собирается целиком до подмены: прокрутка из патча, без ожидания диффа', async () => {
+describe('switching files in the diff editor', () => {
+  it('assembles the whole view before the swap: scrolls from the patch without waiting for the diff', async () => {
     let releaseSecondSides: (sides: { before: string; after: string }) => void = () => {};
     vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
       commit === 'aaaa0000'
@@ -224,28 +224,30 @@ describe('смена файла в diff-редакторе', () => {
     const first = targetFor('aaaa0000', 'src/old.ts');
     const { container, rerender } = render(view(first));
     await act(async () => {});
-    expect(fake.shownText(), 'после прихода данных показан новый текст').toBe('old after');
+    expect(fake.shownText(), 'once the data arrives the new text is shown').toBe('old after');
     expect(
       fake.revealed,
-      'прокрутка к первому ханку происходит сразу из патча, а не после пересчёта диффа',
+      'scrolling to the first hunk comes straight from the patch, not after the diff is recomputed',
     ).toEqual([7]);
 
     rerender(view(targetFor('bbbb0000', 'src/new.ts')));
     await act(async () => {});
-    expect(fake.shownText(), 'пока грузится новый файл, прежнее содержимое остаётся на месте').toBe(
+    expect(fake.shownText(), 'the previous content stays in place while the next file loads').toBe(
       'old after',
     );
     expect(
       editorHost(container).className.includes('invisible'),
-      'редактор не прячется на время загрузки',
+      'the editor is not hidden while loading',
     ).toBe(false);
 
     await act(async () => releaseSecondSides({ before: 'new before', after: 'new after' }));
-    expect(fake.shownText(), 'новый файл подменил старый одним шагом').toBe('new after');
-    expect(fake.revealed, 'новый файл прокручен к своему первому ханку').toEqual([7, 3]);
+    expect(fake.shownText(), 'the new file replaced the old one in a single step').toBe(
+      'new after',
+    );
+    expect(fake.revealed, 'the new file is scrolled to its own first hunk').toEqual([7, 3]);
   });
 
-  it('подмена ждёт готового сравнения: старый файл стоит, пока новый не выровнен', async () => {
+  it('the swap waits for a ready comparison: the old file stays until the new one is aligned', async () => {
     localStorage.setItem('gitspy.diff.mode', '"hunk"');
     vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
       Promise.resolve(
@@ -265,16 +267,20 @@ describe('смена файла в diff-редакторе', () => {
     await act(async () => {});
     expect(
       fake.shownText(),
-      'текст пришёл, но дифф ещё считается — на экране прежний файл, без кадра с невыровненной колонкой',
+      'the text has arrived but the diff is still being computed — the previous file stays on screen, with no frame showing an unaligned column',
     ).toBe('old after');
-    expect(fake.scrolledTo, 'и прокрутка нового файла ещё не трогалась').toEqual([0]);
+    expect(fake.scrolledTo, 'and the new file has not been scrolled yet').toEqual([0]);
 
     await act(async () => fake.finishCompare());
-    expect(fake.shownText(), 'дифф посчитан — новый файл встал разом').toBe('new after');
-    expect(fake.scrolledTo, 'и сразу прокручен к началу, в том же проходе').toEqual([0, 0]);
+    expect(fake.shownText(), 'the diff is computed — the new file appears all at once').toBe(
+      'new after',
+    );
+    expect(fake.scrolledTo, 'and is scrolled to the top right away, in the same pass').toEqual([
+      0, 0,
+    ]);
   });
 
-  it('прежние модели и сравнение освобождаются после подмены, а брошенные на полпути — при отмене', async () => {
+  it('previous models and comparisons are disposed after the swap, and ones abandoned midway are disposed on cancel', async () => {
     vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
       Promise.resolve({ before: `${commit} before`, after: `${commit} after` }),
     );
@@ -286,7 +292,7 @@ describe('смена файла в diff-редакторе', () => {
     await act(async () => {});
     expect(
       fake.disposed,
-      'после подмены первый файл освобождён целиком: обе модели и сравнение',
+      'after the swap the first file is disposed in full: both models and the comparison',
     ).toEqual(
       expect.arrayContaining([
         'vm:aaaa0000 after',
@@ -296,7 +302,7 @@ describe('смена файла в diff-редакторе', () => {
     );
     expect(
       fake.disposed.filter((entry) => entry.includes('bbbb0000')),
-      'показанный файл жив',
+      'the file on screen is still alive',
     ).toEqual([]);
 
     fake.holding.compare = true;
@@ -306,7 +312,7 @@ describe('смена файла в diff-редакторе', () => {
     await act(async () => {});
     expect(
       fake.disposed.filter((entry) => entry.includes('cccc0000')),
-      'файл, чьё сравнение не дождались, освобождён при отмене',
+      'a file whose comparison was never awaited is disposed on cancel',
     ).toEqual(
       expect.arrayContaining([
         'vm:cccc0000 after',
@@ -316,7 +322,7 @@ describe('смена файла в diff-редакторе', () => {
     );
   });
 
-  it('в hunk-режиме строки вне ханков прячутся сразу, а плашка заголовка уже заполнена', async () => {
+  it('in hunk view the lines outside hunks are hidden right away, and the hunk header is already filled in', async () => {
     localStorage.setItem('gitspy.diff.mode', '"hunk"');
     vi.mocked(ipc.diffSides).mockResolvedValue({
       before: Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join('\n'),
@@ -329,17 +335,17 @@ describe('смена файла в diff-редакторе', () => {
 
     expect(
       fake.hiddenCalls.some((spans) => spans.length > 0),
-      'строки вне ханков скрыты в том же проходе, что и подмена модели',
+      'the lines outside hunks are hidden in the same pass that swaps the model',
     ).toBe(true);
-    expect(fake.zoneNodes.length, 'на каждый ханк добавлена зона с плашкой').toBe(1);
+    expect(fake.zoneNodes.length, 'every hunk gets a zone carrying its header').toBe(1);
     expect(
       fake.zoneNodes[0].textContent ?? '',
-      'плашка ханка заполнена синхронно, без пустого кадра',
+      'the hunk header is filled in synchronously, with no empty frame',
     ).toContain('@@ -4,2 +4,2 @@');
     expect(container.querySelector('.min-h-0')).toBeTruthy();
   });
 
-  it('полосы ханков встают, пока модель прикрепляется: Monaco выравнивает левую колонку в том же проходе, а скрытие строк идёт после', async () => {
+  it('hunk headers are placed while the model is being attached: Monaco aligns the left column in the same pass, and hiding lines comes after', async () => {
     localStorage.setItem('gitspy.diff.mode', '"hunk"');
     vi.mocked(ipc.diffSides).mockResolvedValue({ before: 'a\nb\nc', after: 'a\nx\nc' });
     vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(2));
@@ -349,20 +355,20 @@ describe('смена файла в diff-редакторе', () => {
 
     expect(
       fake.zonesWhileAttaching,
-      'зона добавлена внутри setModel — иначе левая колонка узнаёт о ней по setTimeout и прыгает',
+      'the zone is added inside setModel — otherwise the left column learns about it on a setTimeout and jumps',
     ).toEqual([true]);
     expect(
       fake.events,
-      'порядок: прикрепление с зоной внутри, затем скрытие строк на обеих сторонах — Monaco сбрасывает скрытые области при подмене модели',
+      'order: attach with the zone inside it, then hide lines on both sides — Monaco drops hidden areas when the model is swapped',
     ).toEqual(['attach:a\nx\nc', 'zone', 'hidden', 'hidden']);
   });
 });
 
-describe('повторный клик по той же цели', () => {
-  it('одна и та же цель узнаётся по содержимому, а не по ссылке', () => {
+describe('a repeated click on the same target', () => {
+  it('the same target is recognised by its contents, not by reference', () => {
     expect(
       sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('aaaa0000', 'src/a.ts')),
-      'два клика по одному файлу коммита дают одну цель — по ней дифф закрывается',
+      'two clicks on the same file of a commit give one target — that is what closes the diff',
     ).toBe(true);
     expect(
       sameDiffTarget(targetFor('aaaa0000', 'src/a.ts'), targetFor('bbbb0000', 'src/a.ts')),
@@ -372,7 +378,7 @@ describe('повторный клик по той же цели', () => {
     ).toBe(false);
   });
 
-  it('файл рабочего дерева различается путём и корзиной', () => {
+  it('a working tree file is told apart by path and by staged or unstaged side', () => {
     const tree = (path: string, staged: boolean): DiffTarget => ({
       kind: 'workingTree',
       path,
@@ -382,7 +388,7 @@ describe('повторный клик по той же цели', () => {
     expect(sameDiffTarget(tree('a.ts', false), tree('a.ts', false))).toBe(true);
     expect(
       sameDiffTarget(tree('a.ts', false), tree('a.ts', true)),
-      'staged и unstaged версии файла — разные панели',
+      'the staged and unstaged versions of a file are different panes',
     ).toBe(false);
     expect(sameDiffTarget(tree('a.ts', false), targetFor('aaaa0000', 'a.ts'))).toBe(false);
   });
