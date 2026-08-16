@@ -186,29 +186,29 @@ mod tests {
     #[test]
     fn every_kind_builds_its_provider_and_credential() {
         let github =
-            Host::for_connection(HostKind::GitHub, "https://github.com").expect("github строится");
+            Host::for_connection(HostKind::GitHub, "https://github.com").expect("github is built");
         let cred = github.credential();
         assert_eq!(cred.username, "x-access-token");
         assert_eq!(cred.url, "https://github.com");
 
         let bitbucket = Host::for_connection(HostKind::Bitbucket, "https://bitbucket.org")
-            .expect("bitbucket строится");
+            .expect("bitbucket is built");
         assert_eq!(
             bitbucket.credential().username,
             "x-token-auth",
-            "битбакет пускает oauth-токен только под этим именем"
+            "bitbucket accepts an oauth token only under this username"
         );
 
         let gitlab = Host::for_connection(HostKind::GitLab, "https://git.corp.dev/")
-            .expect("gitlab строится");
+            .expect("gitlab is built");
         let cred = gitlab.credential();
         assert_eq!(
             cred.username, "oauth2",
-            "у каждого провайдера своё имя пользователя для https-операций"
+            "every provider has its own username for https operations"
         );
         assert_eq!(
             cred.url, "https://git.corp.dev",
-            "self-hosted несёт свой base_url в кред-хелпер"
+            "a self-hosted instance carries its own base_url into the credential helper"
         );
     }
 }

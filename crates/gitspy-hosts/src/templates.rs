@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn the_gitignore_list_is_a_plain_array_of_names() {
         assert_eq!(
-            parse_gitignore_names(r#"["Node","Rust"]"#).expect("список читается"),
+            parse_gitignore_names(r#"["Node","Rust"]"#).expect("the list parses"),
             vec!["Node".to_string(), "Rust".to_string()]
         );
     }
@@ -130,14 +130,14 @@ mod tests {
     fn the_gitignore_source_is_the_file_content() {
         assert_eq!(
             parse_gitignore_source(r#"{"name":"Node","source":"node_modules/\n"}"#)
-                .expect("шаблон читается"),
+                .expect("the template parses"),
             "node_modules/\n"
         );
     }
 
     #[test]
     fn licenses_carry_key_and_human_name() {
-        let found = parse_licenses(r#"[{"key":"mit","name":"MIT License"}]"#).expect("читается");
+        let found = parse_licenses(r#"[{"key":"mit","name":"MIT License"}]"#).expect("parses");
         assert_eq!(found[0].key, "mit");
         assert_eq!(found[0].name, "MIT License");
     }
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn the_license_body_is_the_file_content() {
         assert_eq!(
-            parse_license_body(r#"{"key":"mit","body":"MIT..."}"#).expect("читается"),
+            parse_license_body(r#"{"key":"mit","body":"MIT..."}"#).expect("parses"),
             "MIT..."
         );
     }

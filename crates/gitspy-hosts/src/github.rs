@@ -139,7 +139,7 @@ mod commit_author_tests {
         assert_eq!(
             parse_commit_author(body),
             Some(("x@e.com".to_string(), "https://a/u.png".to_string())),
-            "почта приводится к нижнему регистру, как весь индекс аватарок"
+            "the email is lowercased, the same as the whole avatar index"
         );
     }
 
@@ -149,7 +149,7 @@ mod commit_author_tests {
         assert_eq!(
             parse_commit_author(body),
             None,
-            "аккаунта нет — скачивать нечего, это честный отказ"
+            "there is no account, so there is nothing to fetch — an honest refusal"
         );
     }
 
@@ -326,7 +326,7 @@ mod tests {
         let account = parse_account(
             r#"{"login":"pr0d","name":"Pavel","avatar_url":"https://avatars.example/1"}"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(account.host, "github");
         assert_eq!(account.login, "pr0d");
         assert_eq!(account.name.as_deref(), Some("Pavel"));
@@ -335,35 +335,35 @@ mod tests {
     #[test]
     fn an_account_without_a_name_is_still_an_account() {
         let account =
-            parse_account(r#"{"login":"pr0d","name":null,"avatar_url":"u"}"#).expect("разбирается");
+            parse_account(r#"{"login":"pr0d","name":null,"avatar_url":"u"}"#).expect("parses");
         assert_eq!(account.name, None);
     }
 
     #[test]
     fn a_broken_answer_does_not_pass_for_an_account() {
-        assert!(parse_account("не json").is_err());
+        assert!(parse_account("not json").is_err());
     }
 
     #[tokio::test]
     async fn an_empty_token_never_leaves_the_process() {
         let error = GitHub::new()
-            .expect("клиент")
+            .expect("the client is built")
             .account("   ")
             .await
-            .expect_err("пусто");
+            .expect_err("an empty token is refused");
         assert_eq!(error, Error::NoToken);
     }
 
     #[test]
     fn a_repository_keeps_both_addresses_because_the_person_chooses_how_to_clone() {
         let repos = parse_repos(
-            r#"[{"full_name":"pr0ddd/gitspy","description":"клиент git","private":true,
+            r#"[{"full_name":"pr0ddd/gitspy","description":"git client","private":true,
                  "clone_url":"https://github.com/pr0ddd/gitspy.git",
                  "ssh_url":"git@github.com:pr0ddd/gitspy.git",
                  "pushed_at":"2026-08-01T10:00:00Z",
                  "owner":{"avatar_url":"https://a/1"}}]"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(repos.len(), 1);
         assert!(repos[0].private);
         assert_eq!(repos[0].clone_url, "https://github.com/pr0ddd/gitspy.git");
@@ -376,7 +376,7 @@ mod tests {
             r#"[{"full_name":"a/b","description":"  ","private":false,"clone_url":"u",
                  "ssh_url":"s","pushed_at":null,"owner":{"avatar_url":"a"}}]"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(repos[0].description, None);
     }
 }
@@ -391,11 +391,11 @@ mod avatar_tests {
             r#"[{"author":{"login":"pr0d","avatar_url":"https://a/1"},
                  "commit":{"author":{"email":"Pavel@Example.com"}}}]"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(
             found,
             vec![("pavel@example.com".to_string(), "https://a/1".to_string())],
-            "почта сравнивается без регистра"
+            "emails are matched without regard to case"
         );
     }
 
@@ -404,7 +404,7 @@ mod avatar_tests {
         let found = parse_commit_avatars(
             r#"[{"author":null,"commit":{"author":{"email":"nobody@example.com"}}}]"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert!(found.is_empty());
     }
 
@@ -414,7 +414,7 @@ mod avatar_tests {
             r#"[{"author":{"login":"a","avatar_url":"u"},"commit":{"author":{"email":"a@e"}}},
                 {"author":{"login":"a","avatar_url":"u"},"commit":{"author":{"email":"a@e"}}}]"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(found.len(), 1);
     }
 }

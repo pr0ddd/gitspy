@@ -137,10 +137,10 @@ mod tests {
                 assert_eq!(
                     detail.len(),
                     200,
-                    "подробность обрезается, а не тащит килобайты"
+                    "the detail is cut short instead of dragging along kilobytes"
                 );
             }
-            other => panic!("ожидали неизвестный ответ, получили {other:?}"),
+            other => panic!("expected Error::Unexpected, got {other:?}"),
         }
     }
 

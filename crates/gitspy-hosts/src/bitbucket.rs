@@ -506,7 +506,7 @@ mod tests {
     #[test]
     fn parse_account_maps_username_and_avatar() {
         let body = r#"{"username":"dev","display_name":"Dev Loper","links":{"avatar":{"href":"https://bb/a.png"}}}"#;
-        let account = parse_account(body).expect("аккаунт читается");
+        let account = parse_account(body).expect("the account parses");
         assert_eq!(account.login, "dev");
         assert_eq!(account.name.as_deref(), Some("Dev Loper"));
         assert_eq!(account.avatar_url, "https://bb/a.png");
@@ -528,15 +528,18 @@ mod tests {
                 ]
             }
         }], "next": "https://api.bitbucket.org/2.0/repositories?page=2"}"#;
-        let (repos, next) = parse_repos(body).expect("репозитории читаются");
+        let (repos, next) = parse_repos(body).expect("the repositories parse");
         assert_eq!(repos[0].full_name, "team/tool");
         assert!(repos[0].private);
-        assert_eq!(repos[0].description, None, "пустое описание — отсутствие");
+        assert_eq!(
+            repos[0].description, None,
+            "an empty description means no description at all"
+        );
         assert_eq!(repos[0].clone_url, "https://bitbucket.org/team/tool.git");
         assert_eq!(repos[0].ssh_url, "git@bitbucket.org:team/tool.git");
         assert!(
             next.is_some(),
-            "битбакет листается по next-ссылке, а не номеру страницы"
+            "bitbucket pages through the next link, not through a page number"
         );
     }
 
@@ -546,11 +549,11 @@ mod tests {
             {"type":"workspace_access","workspace":{"slug":"gitspy"}},
             {"type":"workspace_access","workspace":{"slug":"pr0ddd"}}
         ]}"#;
-        let (slugs, next) = parse_workspaces(body).expect("воркспейсы читаются");
+        let (slugs, next) = parse_workspaces(body).expect("the workspaces parse");
         assert_eq!(
             slugs,
             vec!["gitspy".to_string(), "pr0ddd".to_string()],
-            "глобальный список реп битбакет выпилил (410) — репы собираются по воркспейсам"
+            "bitbucket dropped the global repository list (410), so repositories are collected per workspace"
         );
         assert!(next.is_none());
     }
@@ -567,13 +570,13 @@ mod tests {
             "updated_on": "2026-08-05T10:00:00Z",
             "reviewers": [{"nickname": "boss"}]
         }]}"#;
-        let pulls = parse_pulls(body).expect("пуллы читаются");
+        let pulls = parse_pulls(body).expect("the pull requests parse");
         let pull = &pulls[0];
         assert_eq!(pull.number, 5);
         assert_eq!(pull.head_branch, "fix");
         assert!(
             pull.from_fork,
-            "разные full_name источника и цели — это форк"
+            "different full_name on source and destination means the pull request comes from a fork"
         );
         assert_eq!(pull.requested_reviewers, vec!["boss".to_string()]);
     }
@@ -587,7 +590,7 @@ mod tests {
             "updated_on": "t",
             "summary": {"raw": "why and how"}
         }"#;
-        let detail = parse_pull_detail(body).expect("деталь читается");
+        let detail = parse_pull_detail(body).expect("the detail parses");
         assert_eq!(detail.body, "why and how");
     }
 
@@ -597,8 +600,12 @@ mod tests {
             {"user": {"nickname": "dev"}, "content": {"raw": "lgtm"}, "created_on": "t"},
             {"user": {"nickname": "bot"}, "content": {"raw": ""}, "created_on": "t2"}
         ]}"#;
-        let comments = parse_comments(body).expect("комментарии читаются");
-        assert_eq!(comments.len(), 1, "пустые заглушки — шум, а не разговор");
+        let comments = parse_comments(body).expect("the comments parse");
+        assert_eq!(
+            comments.len(),
+            1,
+            "empty stubs are noise, not part of the conversation"
+        );
         assert_eq!(comments[0].author, "dev");
     }
 
@@ -607,7 +614,7 @@ mod tests {
         assert_eq!(
             email_of_raw("Dev Loper <Dev@Example.com>"),
             Some("dev@example.com".to_string()),
-            "email в нижний регистр — так же, как везде в аватарках"
+            "the email is lowercased, the same as everywhere else in the avatar index"
         );
         assert_eq!(email_of_raw("no email here"), None);
     }
@@ -623,7 +630,7 @@ mod tests {
         assert_eq!(
             parse_commit_avatar(r#"{"author": {"raw": "D <d@e.com>"}}"#),
             None,
-            "автор без bitbucket-аккаунта аватара не даёт — и не выдумывается"
+            "an author without a bitbucket account gives no avatar, and none is invented for them"
         );
     }
 

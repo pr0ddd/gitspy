@@ -466,7 +466,7 @@ mod tests {
     fn parse_account_maps_username_and_avatar() {
         let body =
             r#"{"username":"dev","name":"Dev Loper","avatar_url":"https://gitlab.com/a.png"}"#;
-        let account = parse_account(body).expect("аккаунт читается");
+        let account = parse_account(body).expect("the account parses");
         assert_eq!(account.login, "dev");
         assert_eq!(account.name.as_deref(), Some("Dev Loper"));
         assert_eq!(account.host, ID);
@@ -484,12 +484,12 @@ mod tests {
             "avatar_url": null,
             "namespace": {"avatar_url": "https://gitlab.com/g.png"}
         }]"#;
-        let repos = parse_repos(body).expect("репозитории читаются");
+        let repos = parse_repos(body).expect("the repositories parse");
         assert_eq!(repos[0].full_name, "group/tool");
         assert!(repos[0].private);
         assert_eq!(
             repos[0].description, None,
-            "пустое описание — отсутствие, как у github-парсера"
+            "a blank description means no description, the same as in the github parser"
         );
         assert_eq!(repos[0].owner_avatar_url, "https://gitlab.com/g.png");
     }
@@ -509,11 +509,17 @@ mod tests {
             "assignees": [{"username": "rev"}],
             "reviewers": [{"username": "boss"}]
         }]"#;
-        let pulls = parse_pulls(body).expect("MR читаются");
+        let pulls = parse_pulls(body).expect("the merge requests parse");
         let mr = &pulls[0];
-        assert_eq!(mr.number, 7, "у GitLab номер — это iid, а не глобальный id");
+        assert_eq!(
+            mr.number, 7,
+            "on GitLab the pull request number is the iid, not the global id"
+        );
         assert!(mr.draft);
-        assert!(mr.from_fork, "разные project id — это форк");
+        assert!(
+            mr.from_fork,
+            "different source and target project ids mean the merge request comes from a fork"
+        );
         assert_eq!(mr.head_branch, "fix");
         assert_eq!(mr.assignees, vec!["rev".to_string()]);
         assert_eq!(mr.requested_reviewers, vec!["boss".to_string()]);
@@ -530,12 +536,12 @@ mod tests {
             "labels": ["bug"],
             "changes_count": "3+"
         }"#;
-        let detail = parse_pull_detail(body).expect("деталь читается");
+        let detail = parse_pull_detail(body).expect("the detail parses");
         assert_eq!(detail.body, "why and how");
         assert_eq!(detail.labels, vec!["bug".to_string()]);
         assert_eq!(
             detail.changed_files, 3,
-            "гитлабовский «3+» читается как число"
+            "the gitlab changes_count of \"3+\" is read as a number"
         );
     }
 
@@ -545,15 +551,20 @@ mod tests {
             {"author": {"username": "bot"}, "body": "changed the description", "created_at": "t", "system": true},
             {"author": {"username": "dev", "avatar_url": "a"}, "body": "lgtm", "created_at": "t2", "system": false}
         ]"#;
-        let comments = parse_comments(body).expect("заметки читаются");
-        assert_eq!(comments.len(), 1, "системные заметки — шум, а не разговор");
+        let comments = parse_comments(body).expect("the notes parse");
+        assert_eq!(
+            comments.len(),
+            1,
+            "system notes are noise, not part of the conversation"
+        );
         assert_eq!(comments[0].author, "dev");
     }
 
     #[test]
     fn parse_avatar_reads_the_email_lookup_answer() {
         assert_eq!(
-            parse_avatar(r#"{"avatar_url":"https://gitlab.com/u.png"}"#).expect("аватар читается"),
+            parse_avatar(r#"{"avatar_url":"https://gitlab.com/u.png"}"#)
+                .expect("the avatar parses"),
             "https://gitlab.com/u.png"
         );
     }
@@ -567,7 +578,7 @@ mod tests {
     #[test]
     fn parse_token_reads_access_and_refresh() {
         let (access, refresh) =
-            parse_token(r#"{"access_token":"A","refresh_token":"R"}"#).expect("токен читается");
+            parse_token(r#"{"access_token":"A","refresh_token":"R"}"#).expect("the token parses");
         assert_eq!(access, "A");
         assert_eq!(refresh.as_deref(), Some("R"));
     }
