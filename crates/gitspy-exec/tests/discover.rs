@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use gitspy_exec::Git;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
