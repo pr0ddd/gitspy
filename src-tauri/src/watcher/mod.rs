@@ -33,7 +33,7 @@ pub struct Watchers {
 }
 
 fn noise(path: &Path) -> bool {
-    let text = path.to_string_lossy();
+    let text = path.to_string_lossy().replace('\\', "/");
     text.ends_with(".lock")
         || text.contains("/objects/tmp_")
         || text.ends_with("/FETCH_HEAD")
@@ -81,6 +81,7 @@ impl Watchers {
         }
 
         let watched = resolved(repo);
+        let root = watched.clone();
         let mut ignores = Ignores::at(&watched);
         let mut rules_written = written_at(&watched.join(".gitignore"));
 
@@ -110,9 +111,9 @@ impl Watchers {
             return;
         };
 
-        let _ = debouncer.watch(repo, RecursiveMode::Recursive);
-        let elsewhere = git_dir(repo);
-        if elsewhere != repo.join(".git") {
+        let _ = debouncer.watch(&root, RecursiveMode::Recursive);
+        let elsewhere = git_dir(&root);
+        if elsewhere != root.join(".git") {
             let _ = debouncer.watch(&elsewhere, RecursiveMode::Recursive);
         }
 
