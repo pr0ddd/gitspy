@@ -56,6 +56,7 @@ import type { RowCache } from '@/entities/graph';
 import type { Ask } from './AskBar';
 import type { Operation, RefView } from '@/shared/api/types';
 import { GIT } from '@/shared/config/vocabulary';
+import { GRAPH_MINIMAP_DEFAULT, SETTINGS } from '@/shared/config/settingsModel';
 import { wipInputShown, wipInputWidth } from '@/entities/graph';
 
 type Props = {
@@ -147,7 +148,7 @@ export const GraphView = memo(function GraphView({
   const rafRef = useRef<number | null>(null);
   const storedRef = useRef<StoredWidths>(loadWidths());
   const hiddenRef = useRef(loadHidden());
-  const minimapRef = useRef(readPref<boolean>('graph.minimap', true));
+  const minimapRef = useRef(readPref<boolean>(SETTINGS.graphMinimap, GRAPH_MINIMAP_DEFAULT));
   const dragRef = useRef<
     'minimap' | 'hscroll' | { divider: Divider; fromX: number; fromStored: StoredWidths } | null
   >(null);

@@ -25,6 +25,7 @@ import {
   clampFontSize,
   clampTabSize,
   FONT_SIZE_LIMITS,
+  GRAPH_MINIMAP_DEFAULT,
   monospaceChoices,
   SETTINGS,
   TAB_SIZE_LIMITS,
@@ -284,7 +285,7 @@ function InterfaceSection({
 }) {
   const { t } = useTranslation();
   const [appearance, setAppearance] = useAppearance();
-  const [minimap, setMinimap] = usePref<boolean>('graph.minimap', true);
+  const [minimap, setMinimap] = usePref<boolean>(SETTINGS.graphMinimap, GRAPH_MINIMAP_DEFAULT);
   const [description, setDescription] = usePref<DescriptionMode>('graph.description', 'always');
   const [hidden, setHidden] = useState<ReadonlySet<HideableColumn>>(loadHidden);
 

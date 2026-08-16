@@ -10,6 +10,7 @@ export const SETTINGS = {
   editorTabSize: 'editor.tabSize',
   editorSyntax: 'editor.syntax',
   editorLineNumbers: 'editor.lineNumbers',
+  graphMinimap: 'graph.minimap',
   aiProvider: 'ai.provider',
   aiBaseUrl: 'ai.baseUrl',
   aiModel: 'ai.model',
@@ -64,3 +65,5 @@ export const MONO_CANDIDATES = [
 export function monospaceChoices(installed: (family: string) => boolean): string[] {
   return MONO_CANDIDATES.filter((family) => installed(family));
 }
+
+export const GRAPH_MINIMAP_DEFAULT = false;

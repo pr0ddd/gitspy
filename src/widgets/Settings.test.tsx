@@ -122,8 +122,8 @@ describe('the Interface section', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Graph minimap' }));
     expect(
       localStorage.getItem('gitspy.graph.minimap'),
-      'the graph reads this pref on mount — otherwise the checkbox would be a stage prop',
-    ).toBe('false');
+      'the graph reads this pref on mount — otherwise the checkbox would be a stage prop; off by default, so the first click turns it on',
+    ).toBe('true');
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Branch / Tag' }));
     expect(
