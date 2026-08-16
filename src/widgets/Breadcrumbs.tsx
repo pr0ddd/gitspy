@@ -36,11 +36,11 @@ function Crumb({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="action" size="crumb" className="min-w-0" title={label}>
+        <Button variant="action" size="crumb" className="min-w-0 shrink" title={label}>
           <span className="text-muted-foreground text-xs leading-4">{caption}</span>
-          <span className="flex min-w-0 items-center gap-2 leading-5">
+          <span className="flex max-w-full min-w-0 items-center gap-2 leading-5">
             <span className="text-foreground truncate font-semibold">{label}</span>
-            <Icon.chevron className="text-muted-foreground rotate-90" />
+            <Icon.chevron className="text-muted-foreground shrink-0 rotate-90" />
           </span>
         </Button>
       </PopoverTrigger>

@@ -254,6 +254,7 @@
 }
 
 @theme inline {
+  --grid-template-columns-toolbar: minmax(0, 1fr) auto minmax(0, 1fr);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
