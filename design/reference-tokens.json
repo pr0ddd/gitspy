@@ -1,5 +1,5 @@
 {
-  "source": "linear.app, снято getComputedStyle по темам 2026-08-06",
+  "source": "linear.app, captured with getComputedStyle per theme on 2026-08-06",
   "accent": "#5e69d1",
   "dark": {
     "bgPrimary": "lch(5.52% 0.4 272)",
