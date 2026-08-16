@@ -463,19 +463,20 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
         const badge = Math.max(9, m.fontPx - 3);
         if (wipContent(row) === 'conflictBanner') {
-          const bandX = msgX - 10;
-          const bandW = listW - bandX - 4;
+          const bandX = cols.message.left;
+          const bandW = listW - bandX;
+          const bandTop = yc - half + rowBandInset(m);
           ctx.save();
-          ctx.globalAlpha = 0.22;
+          ctx.globalAlpha = 0.38;
           ctx.fillStyle = t.conflict;
-          ctx.fillRect(bandX, yc - half + 1, bandW, m.rowH - 2);
+          ctx.fillRect(bandX, bandTop, bandW, rowBandHeight(m));
           ctx.restore();
           ctx.strokeStyle = t.foreground;
-          strokeGlyphInSlot(ctx, GLYPH.conflict, msgX + 4, yc, badge);
+          strokeGlyphInSlot(ctx, GLYPH.conflict, msgX + 2, yc, badge);
           ctx.fillStyle = t.foreground;
           ctx.fillText(
-            fitText(ctx, frame.columns.mergeConflicts, bandW - badge - 26),
-            msgX + badge + 12,
+            fitText(ctx, frame.columns.mergeConflicts, bandW - badge - 28),
+            msgX + badge + 10,
             yc,
           );
           continue;

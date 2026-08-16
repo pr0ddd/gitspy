@@ -385,9 +385,10 @@ describe('the panel during a merge', () => {
     expect(view.getByRole('button', { name: /commit and merge/i })).toBeTruthy();
     expect(view.getByRole('button', { name: /abort merge/i })).toBeTruthy();
     expect(
-      view.queryByRole('checkbox', { name: 'Amend previous commit' }),
-      'amending in the middle of a merge is not allowed',
-    ).toBeNull();
+      (view.getByRole('checkbox', { name: 'Amend previous commit' }) as HTMLButtonElement).disabled,
+      'amending in the middle of a merge is not allowed, so the box is there but off',
+    ).toBe(true);
+    expect(view.getByRole('checkbox', { name: 'Push after commit' })).toBeTruthy();
   });
 
   it('unstaging a resolved file brings the conflict back instead of a bare reset', () => {
@@ -411,12 +412,13 @@ describe('the panel during a merge', () => {
     expect(ran).toBe('mergeAbort');
   });
 
-  it('amending in the middle of a merge is not allowed, so the checkbox is absent', () => {
-    const { queryByRole } = drawMerging(mergingTree(1, 0));
+  it('amending in the middle of a merge is not allowed, so the checkbox is disabled', () => {
+    const { getByRole } = drawMerging(mergingTree(1, 0));
     expect(
-      queryByRole('checkbox', { name: 'Amend previous commit' }),
+      (getByRole('checkbox', { name: 'Amend previous commit' }) as HTMLButtonElement).disabled,
       'git commit --amend refuses while MERGE_HEAD is there',
-    ).toBeNull();
+    ).toBe(true);
+    expect(getByRole('checkbox', { name: 'Push after commit' })).toBeTruthy();
   });
 });
 
