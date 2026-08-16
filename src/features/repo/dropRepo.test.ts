@@ -13,8 +13,8 @@ vi.mock('@/toast', async (importOriginal) => ({
   notifyError: vi.fn(),
 }));
 
-describe('папка, брошенная в окно', () => {
-  it('открывается корень репозитория, а не то, что бросили: файл или подкаталог ведут к нему же', async () => {
+describe('a folder dropped onto the window', () => {
+  it('opens the repository root rather than what was dropped: a file or a subdirectory leads to the same root', async () => {
     vi.mocked(ipc.repositoryRoot).mockResolvedValue('/work/gitspy');
     const openPath = vi.fn();
 
@@ -23,7 +23,7 @@ describe('папка, брошенная в окно', () => {
     expect(openPath).toHaveBeenCalledWith('/work/gitspy');
   });
 
-  it('несколько путей из одного репозитория открывают его один раз', async () => {
+  it('opens one repository once even when several paths inside it are dropped', async () => {
     vi.mocked(ipc.repositoryRoot).mockResolvedValue('/work/gitspy');
     const openPath = vi.fn();
 
@@ -32,7 +32,7 @@ describe('папка, брошенная в окно', () => {
     expect(openPath).toHaveBeenCalledTimes(1);
   });
 
-  it('не репозиторий — не открывать, а сказать об этом', async () => {
+  it('opens nothing for a path that is not a repository and says so instead', async () => {
     vi.mocked(ipc.repositoryRoot).mockResolvedValue(null);
     const openPath = vi.fn();
 

@@ -10,14 +10,14 @@ const entry = (path: string, favorite = false): RecentRepo => ({
   favorite,
 });
 
-describe('срез недавних на секции', () => {
-  it('избранное не повторяется в недавних', () => {
+describe('splitting the recent repositories into sections', () => {
+  it('does not repeat a favorite among the recent ones', () => {
     const { favorites, rest } = splitRecent([entry('/a', true), entry('/b')], '');
     expect(favorites.map((e) => e.path)).toEqual(['/a']);
     expect(rest.map((e) => e.path)).toEqual(['/b']);
   });
 
-  it('фильтр режет обе секции и не смотрит на регистр', () => {
+  it('filters both sections and ignores case', () => {
     const { favorites, rest } = splitRecent(
       [entry('/Alpha', true), entry('/beta'), entry('/Alps')],
       'al',
@@ -27,8 +27,8 @@ describe('срез недавних на секции', () => {
   });
 });
 
-describe('срез репозиториев хостинга', () => {
-  it('избранные уходят в свою секцию, фильтр режет обе', () => {
+describe('splitting the repositories listed by a host', () => {
+  it('moves the favorites into their own section and filters both', () => {
     const repos = [{ fullName: 'me/a' }, { fullName: 'me/b' }, { fullName: 'you/ab' }];
     const { favorites, rest } = splitListing(repos, new Set(['me/a']), 'a');
     expect(favorites.map((r) => r.fullName)).toEqual(['me/a']);
@@ -36,8 +36,8 @@ describe('срез репозиториев хостинга', () => {
   });
 });
 
-describe('вид хостинга по хосту origin', () => {
-  it('узнаёт основные хостинги и их самостоятельные инстансы', () => {
+describe('the kind of host behind the origin hostname', () => {
+  it('recognizes the main hosts and their self-hosted instances', () => {
     expect(hostKindOf('github.com')).toBe('github');
     expect(hostKindOf('gitlab.corp.dev')).toBe('gitlab');
     expect(hostKindOf('bitbucket.org')).toBe('bitbucket');

@@ -22,17 +22,17 @@ const treeOf = (entries: Array<{ path: string; staged: boolean; letter?: string 
     })),
   }) as WorkingTreeView;
 
-describe('операция уже сделана', () => {
-  it('стейдж уже застейдженного файла отбрасывается: git на нём падает pathspec-ошибкой', () => {
+describe('an operation that is already done', () => {
+  it('drops a stage of an already staged file: git fails on it with a pathspec error', () => {
     const staged = treeOf([{ path: 'a.ts', staged: true, letter: 'D' }]);
 
     expect(
       stillNeeded({ kind: 'stage', paths: ['a.ts'] }, staged),
-      'удалённого файла нет ни в дереве, ни в индексе — git add по нему только ругается',
+      'a deleted file is in neither the working tree nor the unstaged side of the index — git add on it only complains',
     ).toBeNull();
   });
 
-  it('из группы остаются только те пути, которым операция ещё нужна', () => {
+  it('keeps only the paths in the group that still need the operation', () => {
     const tree = treeOf([
       { path: 'a.ts', staged: false },
       { path: 'b.ts', staged: true },
@@ -44,7 +44,7 @@ describe('операция уже сделана', () => {
     });
   });
 
-  it('снятие со стейджа смотрит на другую сторону, чем стейдж', () => {
+  it('makes unstage look at the other side of the index than stage does', () => {
     const tree = treeOf([{ path: 'a.ts', staged: true }]);
 
     expect(stillNeeded({ kind: 'unstage', paths: ['a.ts'] }, tree)).toEqual({
@@ -54,15 +54,15 @@ describe('операция уже сделана', () => {
     expect(stillNeeded({ kind: 'unstage', paths: ['b.ts'] }, tree)).toBeNull();
   });
 
-  it('операции без путей проходят всегда: «застейджить всё» решает сам git', () => {
+  it('always lets an operation without paths through: git itself decides what "stage all" covers', () => {
     const empty = treeOf([]);
 
     expect(stillNeeded({ kind: 'stageAll' }, empty)).toEqual({ kind: 'stageAll' });
   });
 });
 
-describe('очередь операций над путями', () => {
-  it('вторая операция ждёт первую: параллельные git add дерутся за index.lock', async () => {
+describe('the queue of path operations', () => {
+  it('makes the second operation wait for the first: parallel git add calls fight over index.lock', async () => {
     const order: string[] = [];
     let releaseFirst: (tree: WorkingTreeView) => void = () => {};
     const perform = vi.fn((operation: PathOperation) => {
@@ -81,7 +81,7 @@ describe('очередь операций над путями', () => {
     const second = queuePathOperation('/repo', { kind: 'stage', paths: ['b.ts'] }, tree, perform);
     await Promise.resolve();
 
-    expect(order, 'вторая не стартует, пока первая не ответила').toEqual(['start:a.ts']);
+    expect(order, 'the second does not start until the first has answered').toEqual(['start:a.ts']);
 
     releaseFirst(treeOf([{ path: 'b.ts', staged: false }]));
     await first;
@@ -90,7 +90,7 @@ describe('очередь операций над путями', () => {
     expect(order).toEqual(['start:a.ts', 'start:b.ts']);
   });
 
-  it('повторный щелчок по строке не доходит до git: состояние из ответа первой операции уже другое', async () => {
+  it('never reaches git on a second click of the same row: the state from the first answer is already different', async () => {
     const perform = vi.fn(() => Promise.resolve(treeOf([{ path: 'a.ts', staged: true }])));
     const tree = treeOf([{ path: 'a.ts', staged: false }]);
 
@@ -99,11 +99,14 @@ describe('очередь операций над путями', () => {
     await first;
     const after = await second;
 
-    expect(perform, 'git позвали ровно один раз').toHaveBeenCalledTimes(1);
-    expect(after?.entries[0].staged, 'а вызывающий получил свежее дерево, а не ошибку').toBe(true);
+    expect(perform, 'git was called exactly once').toHaveBeenCalledTimes(1);
+    expect(
+      after?.entries[0].staged,
+      'and the caller still got the fresh working tree back, not an error',
+    ).toBe(true);
   });
 
-  it('упавшая операция не хоронит очередь: следующая всё равно выполняется', async () => {
+  it('does not let a failed operation bury the queue: the next one still runs', async () => {
     const perform = vi.fn((operation: PathOperation) =>
       'paths' in operation && operation.paths[0] === 'bad.ts'
         ? Promise.reject(new Error('git failed'))
@@ -129,8 +132,8 @@ describe('очередь операций над путями', () => {
   });
 });
 
-describe('очередь помнит последний ответ git', () => {
-  it('третье нажатие судится по дереву из ответа, а не по устаревшему пропсу: React мог не успеть', async () => {
+describe('the queue remembers the last answer from git', () => {
+  it('judges the third click by the working tree from the answer, not by the stale prop React has not re-rendered yet', async () => {
     const before = treeOf([
       { path: 'a.ts', staged: false },
       { path: 'b.ts', staged: false },
@@ -155,7 +158,7 @@ describe('очередь помнит последний ответ git', () => 
 
     expect(
       perform,
-      'все три файла ушли в git, хотя вызывающий трижды передал одно старое дерево',
+      'all three files reached git even though the caller passed the same stale working tree three times',
     ).toHaveBeenCalledTimes(3);
   });
 });

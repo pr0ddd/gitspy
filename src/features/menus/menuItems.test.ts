@@ -25,7 +25,7 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
 const CTX: MenuContext = {
   currentBranch: 'main',
   remotes: [{ name: 'origin', webUrl: 'https://github.com/pr0ddd/gitspy' }],
-  head: { oid: 'headoid', subject: 'тема', body: 'тело' },
+  head: { oid: 'headoid', subject: 'subject', body: 'body' },
 };
 
 const chipOf = (r: RefView) => chipsFor([r], ['origin'])[0];
@@ -34,8 +34,8 @@ const flat = (sections: ReturnType<typeof buildCommitMenu>) =>
   sections.flat().flatMap((i) => [i, ...(i.children ?? [])]);
 const ids = (sections: ReturnType<typeof buildCommitMenu>) => sections.flat().map((i) => i.id);
 
-describe('меню локальной ветки', () => {
-  it('несёт переключение, обновление, слияние, worktree, хирургию коммита и учёт', () => {
+describe('the local branch menu', () => {
+  it('carries checkout, fast-forward, merge, worktree, commit surgery and bookkeeping', () => {
     const menu = buildChipMenu(chipOf(ref('feature', 'localBranch')), CTX);
     expect(ids(menu)).toEqual([
       'checkout',
@@ -58,7 +58,7 @@ describe('меню локальной ветки', () => {
     ]);
   });
 
-  it('ветка с upstream получает pull и обычный push, ссылка на ветку копируется', () => {
+  it('gives a branch with an upstream pull, a plain push and a copyable branch link', () => {
     const menu = buildChipMenu(
       chipOf(ref('feature', 'localBranch', { upstream: 'origin/feature' })),
       CTX,
@@ -69,17 +69,17 @@ describe('меню локальной ветки', () => {
     const push = flat(menu).find((i) => i.id === 'push')!;
     expect(
       push.action?.kind === 'run' && push.action.operation.kind,
-      'push с настроенным upstream не пересоздаёт связь',
+      'push does not set the upstream again when the branch already has one',
     ).toBe('pushBranch');
   });
 
-  it('без upstream push сразу настраивает связь с первым remote', () => {
+  it('makes push set the upstream to the first remote when there is none', () => {
     const menu = buildChipMenu(chipOf(ref('feature', 'localBranch')), CTX);
     const push = flat(menu).find((i) => i.id === 'push')!;
     expect(push.action?.kind === 'run' && push.action.operation.kind).toBe('pushSetUpstream');
   });
 
-  it('текущая ветка не переключается, не обновляется и не удаляется, но worktree можно', () => {
+  it('offers the current branch no checkout, no fast-forward and no delete, but still a worktree', () => {
     const menu = buildChipMenu(chipOf(ref('main', 'localBranch', { isHead: true })), CTX);
     const found = ids(menu);
     expect(found).not.toContain('checkout');
@@ -91,14 +91,14 @@ describe('меню локальной ветки', () => {
     expect(found).toContain('rename');
   });
 
-  it('сброс — подменю из трёх режимов с объяснением последствий', () => {
+  it('offers reset as a submenu of three modes, each saying what it costs', () => {
     const menu = buildChipMenu(chipOf(ref('feature', 'localBranch')), CTX);
     const reset = sectionsItem(menu, 'reset');
     expect(reset.children?.map((c) => c.id)).toEqual(['resetSoft', 'resetMixed', 'resetHard']);
-    expect(reset.children?.[2].danger, 'hard выбрасывает незакоммиченное').toBe(true);
+    expect(reset.children?.[2].danger, 'hard throws away uncommitted changes').toBe(true);
   });
 
-  it('ремоутная ветка: checkout, worktree, хирургия, удаление на сервере и GitHub', () => {
+  it('gives a remote branch checkout, worktree, commit surgery, deletion on the server and GitHub', () => {
     const menu = buildChipMenu(chipOf(ref('origin/dev', 'remoteBranch')), CTX);
     const found = ids(menu);
     expect(found).toContain('checkout');
@@ -113,7 +113,7 @@ describe('меню локальной ветки', () => {
       remove.action?.kind === 'run' &&
         remove.action.operation.kind === 'pushDelete' &&
         remove.action.operation.branch,
-      'удаляется ветка на сервере, без префикса remote',
+      'the branch deleted on the server is named without the remote prefix',
     ).toBe('dev');
 
     const open = flat(menu).find((i) => i.id === 'openGitHub')!;
@@ -122,7 +122,7 @@ describe('меню локальной ветки', () => {
     );
   });
 
-  it('без web-адреса remote нет ни ссылок, ни GitHub', () => {
+  it('drops both the links and GitHub when the remote has no web URL', () => {
     const bare: MenuContext = { ...CTX, remotes: [{ name: 'origin', webUrl: null }] };
     const found = ids(buildChipMenu(chipOf(ref('origin/dev', 'remoteBranch')), bare));
     expect(found).not.toContain('openGitHub');
@@ -130,8 +130,8 @@ describe('меню локальной ветки', () => {
   });
 });
 
-describe('меню коммита', () => {
-  it('несёт checkout, worktree, ростки, хирургию, сброс и копии', () => {
+describe('the commit menu', () => {
+  it('carries checkout, worktree, branch and tag creation, commit surgery, reset and copies', () => {
     const menu = buildCommitMenu('abc123', CTX);
     expect(ids(menu)).toEqual([
       'checkoutCommit',
@@ -149,22 +149,22 @@ describe('меню коммита', () => {
     ]);
   });
 
-  it('drop помечен опасным — он переписывает историю', () => {
+  it('marks drop as dangerous: it rewrites history', () => {
     expect(flatItem(buildCommitMenu('abc123', CTX), 'drop').danger).toBe(true);
   });
 
-  it('свой заголовок правится только у HEAD-коммита', () => {
+  it('lets the message be edited only on the HEAD commit', () => {
     const onHead = buildCommitMenu('headoid', CTX);
     const edit = flatItem(onHead, 'editMessage');
     expect(
       edit.action?.kind === 'ask' && edit.action.ask.kind === 'editMessage' && edit.action.ask.full,
-      'старое сообщение подставляется целиком, тело не теряется',
-    ).toBe('тема\n\nтело');
+      'the old message is prefilled whole, the body is not lost',
+    ).toBe('subject\n\nbody');
 
     expect(ids(buildCommitMenu('abc123', CTX))).not.toContain('editMessage');
   });
 
-  it('worktree растёт из этого коммита', () => {
+  it('grows the worktree from this very commit', () => {
     const wt = flatItem(buildCommitMenu('abc123', CTX), 'worktree');
     expect(wt.action?.kind === 'worktree' && wt.action.at).toBe('abc123');
   });
@@ -176,8 +176,8 @@ const sectionsItem = (sections: ReturnType<typeof buildCommitMenu>, id: string) 
 const flatItem = (sections: ReturnType<typeof buildCommitMenu>, id: string) =>
   flat(sections).find((i) => i.id === id)!;
 
-describe('меню файла рабочего дерева', () => {
-  it('unstaged файл предлагает stage, staged — unstage', () => {
+describe('the working tree file menu', () => {
+  it('offers stage for an unstaged file and unstage for a staged one', () => {
     const ids = (staged: boolean) =>
       buildFileMenu({ path: 'src/a.ts', staged })
         .flat()
@@ -189,7 +189,7 @@ describe('меню файла рабочего дерева', () => {
     expect(ids(true)).not.toContain('stage');
   });
 
-  it('ignore предлагает точное имя, расширение и папку', () => {
+  it('offers ignore by the exact path, by the extension and by the folder', () => {
     const ignore = buildFileMenu({ path: 'crates/core/src/dump.rs', staged: false })
       .flat()
       .find((item) => item.id === 'ignore');
@@ -201,15 +201,15 @@ describe('меню файла рабочего дерева', () => {
     ).toEqual(['crates/core/src/dump.rs', '*.rs', 'crates/core/src/']);
   });
 
-  it('файл в корне без расширения не предлагает пустых шаблонов', () => {
+  it('offers no empty patterns for a file at the root without an extension', () => {
     const ignore = buildFileMenu({ path: 'sandbox', staged: false })
       .flat()
       .find((item) => item.id === 'ignore');
 
-    expect(ignore?.children?.length, 'только точное имя').toBe(1);
+    expect(ignore?.children?.length, 'only the exact path is left').toBe(1);
   });
 
-  it('деструктивные пункты помечены и стоят отдельно', () => {
+  it('marks the destructive items and keeps them in a section of their own', () => {
     const sections = buildFileMenu({ path: 'src/a.ts', staged: false });
     const last = sections[sections.length - 1];
 
@@ -218,8 +218,8 @@ describe('меню файла рабочего дерева', () => {
   });
 });
 
-describe('меню файла коммита', () => {
-  it('предлагает историю, открытие, путь и патч — без stage и удаления', () => {
+describe('the commit file menu', () => {
+  it('offers history, open, path and patch — no stage, no delete', () => {
     const ids = buildCommitFileMenu('abc123', 'src/a.ts')
       .flat()
       .map((item) => item.id);
@@ -227,7 +227,7 @@ describe('меню файла коммита', () => {
     expect(ids).toEqual(['fileHistory', 'openFile', 'reveal', 'copyPath', 'copyPatch']);
   });
 
-  it('патч помнит, из какого коммита резать', () => {
+  it('remembers which commit the patch is cut from', () => {
     const patch = buildCommitFileMenu('abc123', 'src/a.ts')
       .flat()
       .find((item) => item.id === 'copyPatch');

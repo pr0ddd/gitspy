@@ -2,48 +2,50 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { useViewTabs } from './tabs';
 
-describe('вкладки приложения', () => {
-  it('открытие показывает вкладку, повторное открытие не заводит вторую', () => {
+describe('the app view tabs', () => {
+  it('shows a tab when a view is opened and adds no second one when it is opened again', () => {
     const hook = renderHook(() => useViewTabs());
     act(() => hook.result.current.open('settings'));
     act(() => hook.result.current.open('settings'));
-    expect(hook.result.current.views, 'вкладка одна на вид, как у настроек до этого').toEqual([
+    expect(hook.result.current.views, 'a view has one tab, the one settings already had').toEqual([
       'settings',
     ]);
     expect(hook.result.current.view).toBe('settings');
   });
 
-  it('вкладки живут рядом и переключаются', () => {
+  it('keeps tabs side by side and switches between them', () => {
     const hook = renderHook(() => useViewTabs());
     act(() => hook.result.current.open('settings'));
     act(() => hook.result.current.open('changelog'));
     expect(hook.result.current.views).toEqual(['settings', 'changelog']);
-    expect(hook.result.current.view, 'открытая вкладка становится текущей').toBe('changelog');
+    expect(hook.result.current.view, 'the tab just opened becomes the current one').toBe(
+      'changelog',
+    );
   });
 
-  it('уход на репозиторий оставляет вкладку открытой', () => {
+  it('leaves the tab open when the repository takes over the screen', () => {
     const hook = renderHook(() => useViewTabs());
     act(() => hook.result.current.open('changelog'));
     act(() => hook.result.current.leave());
-    expect(hook.result.current.views, 'вкладка остаётся в полосе, как и была').toEqual([
+    expect(hook.result.current.views, 'the tab stays in the strip exactly as it was').toEqual([
       'changelog',
     ]);
-    expect(hook.result.current.view, 'но экран отдан репозиторию').toBeNull();
+    expect(hook.result.current.view, 'but the screen is given to the repository').toBeNull();
   });
 
-  it('закрытие текущей вкладки возвращает к репозиторию', () => {
+  it('returns to the repository when the current tab is closed', () => {
     const hook = renderHook(() => useViewTabs());
     act(() => hook.result.current.open('settings'));
     act(() => hook.result.current.close('settings'));
     expect(hook.result.current.views).toEqual([]);
-    expect(hook.result.current.view, 'закрытая вкладка не может остаться на экране').toBeNull();
+    expect(hook.result.current.view, 'a closed tab cannot stay on the screen').toBeNull();
   });
 
-  it('закрытие соседней вкладки не сбрасывает текущую', () => {
+  it('does not reset the current tab when a neighbouring one is closed', () => {
     const hook = renderHook(() => useViewTabs());
     act(() => hook.result.current.open('settings'));
     act(() => hook.result.current.open('changelog'));
     act(() => hook.result.current.close('settings'));
-    expect(hook.result.current.view, 'закрывали не её').toBe('changelog');
+    expect(hook.result.current.view, 'it was not the tab that was closed').toBe('changelog');
   });
 });

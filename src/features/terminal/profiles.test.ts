@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { readProfiles, writeProfiles } from './profiles';
 
-describe('профили терминала', () => {
+describe('terminal profiles', () => {
   beforeEach(() => localStorage.clear());
 
-  it('без сохранённых профилей есть логин-шелл', () => {
-    expect(readProfiles(), 'новая вкладка открывается без всякой настройки').toEqual([
+  it('offers the login shell when nothing has been saved', () => {
+    expect(readProfiles(), 'a new tab opens without any setup at all').toEqual([
       { label: 'zsh', command: null },
     ]);
   });
 
-  it('сохранённые профили возвращаются как есть', () => {
+  it('returns saved profiles as they were written', () => {
     writeProfiles([{ label: 'dev', command: 'npm run app' }]);
     expect(readProfiles()).toEqual([{ label: 'dev', command: 'npm run app' }]);
   });

@@ -11,8 +11,8 @@ beforeEach(() => {
   vi.mocked(notifyError).mockClear();
 });
 
-describe('обёртка работ репозитория', () => {
-  it('на время работы полоса занята, после — свободна', async () => {
+describe('the repository work wrapper', () => {
+  it('holds the lane busy while the work runs and frees it afterwards', async () => {
     let during = false;
     const ok = await runRepoWork('/a', { kind: 'push' }, async () => {
       during = workStore.getState().works.has('/a');
@@ -22,14 +22,14 @@ describe('обёртка работ репозитория', () => {
     expect(workStore.getState().works.has('/a')).toBe(false);
   });
 
-  it('повторный старт по занятому пути не выполняет работу', async () => {
+  it('performs no work when the path is already busy', async () => {
     void runRepoWork('/a', { kind: 'push' }, () => new Promise(() => {}));
     const performed = vi.fn(async () => {});
     expect(await runRepoWork('/a', { kind: 'pull' }, performed)).toBe(false);
     expect(performed).not.toHaveBeenCalled();
   });
 
-  it('ошибка работы уходит в тост и освобождает полосу', async () => {
+  it('sends a failure to the toast and frees the lane', async () => {
     const ok = await runRepoWork('/a', { kind: 'push' }, async () => {
       throw new Error('boom');
     });
