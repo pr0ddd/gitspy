@@ -38,3 +38,6 @@ logs
 
 design/dist/
 design/.compiled.css
+
+# Agent working documents (specs, plans): local only
+docs/superpowers/
