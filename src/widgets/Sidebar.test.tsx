@@ -5,7 +5,13 @@ beforeEach(() => localStorage.clear());
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { Sidebar } from './Sidebar';
 import { showNativeMenu } from '@/features/menus';
-import { newSession, type Confirmation, type Session } from '@/entities/repo';
+import {
+  newSession,
+  PULLS_IDLE,
+  type Confirmation,
+  type PullsState,
+  type Session,
+} from '@/entities/repo';
 import type { RefView, RepoView } from '@/shared/api/types';
 
 vi.mock('@/features/menus', async (importOriginal) => ({
@@ -69,13 +75,16 @@ const draw = (
     onPick?: () => void;
     onCheckout?: () => void;
     onConfirm?: (confirmation: Confirmation) => void;
+    pulls?: PullsState;
+    onLoadPulls?: () => void;
+    onConnect?: () => void;
   } = {},
 ) =>
   render(
     <TooltipProvider>
       <Sidebar
         session={sessionWith(refs)}
-        pulls={null}
+        pulls={handlers.pulls ?? PULLS_IDLE}
         collapsed={false}
         onToggle={() => {}}
         currentBranch="main"
@@ -87,7 +96,8 @@ const draw = (
         onAsk={() => {}}
         onWorktree={() => {}}
         onOpenUrl={() => {}}
-        onPullsExpanded={() => {}}
+        onLoadPulls={handlers.onLoadPulls ?? (() => {})}
+        onConnect={handlers.onConnect ?? (() => {})}
         onPickPull={() => {}}
       />
     </TooltipProvider>,
@@ -138,7 +148,7 @@ describe('the collapsed sidebar', () => {
       <TooltipProvider>
         <Sidebar
           session={sessionWith([branch()])}
-          pulls={null}
+          pulls={PULLS_IDLE}
           collapsed
           onToggle={onToggle}
           currentBranch="main"
@@ -150,7 +160,8 @@ describe('the collapsed sidebar', () => {
           onAsk={() => {}}
           onWorktree={() => {}}
           onOpenUrl={() => {}}
-          onPullsExpanded={() => {}}
+          onLoadPulls={() => {}}
+          onConnect={() => {}}
           onPickPull={() => {}}
         />
       </TooltipProvider>,
@@ -310,5 +321,52 @@ describe('a branch whose upstream is gone', () => {
 
     expect(screen.getByText('2'), 'the ahead counter stays').toBeTruthy();
     expect(screen.getByText('3'), 'the behind counter stays').toBeTruthy();
+  });
+});
+
+describe('the pull requests pane', () => {
+  const openPulls = () => fireEvent.click(screen.getByRole('button', { name: /pull requests/i }));
+
+  it('a repository whose remote is not on a known host has no Pull Requests tab at all', () => {
+    localStorage.setItem('gitspy.sidebar.view', JSON.stringify('pullRequests'));
+    draw([branch()], { pulls: { kind: 'noHost' } });
+
+    expect(
+      screen.queryByRole('button', { name: /pull requests/i }),
+      'like GitKraken: the section is not offered where it cannot apply',
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /^local$/i }).getAttribute('aria-pressed'),
+      'a remembered Pull Requests view falls back to Local instead of an empty pane',
+    ).toBe('true');
+  });
+
+  it('a known host without a connected account offers to sign in instead of an error toast', () => {
+    const onConnect = vi.fn();
+    draw([branch()], { pulls: { kind: 'notConnected', host: 'github' }, onConnect });
+    openPulls();
+
+    expect(screen.getByText(/sign in to github/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /connect/i }));
+    expect(onConnect).toHaveBeenCalledOnce();
+  });
+
+  it('a failed request shows the failure in the pane with a retry, not a spinner forever', () => {
+    const onLoadPulls = vi.fn();
+    draw([branch()], { pulls: { kind: 'failed' }, onLoadPulls });
+    openPulls();
+
+    expect(screen.getByText(/could not load the pull requests/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(onLoadPulls).toHaveBeenCalledOnce();
+  });
+
+  it('opening the tab for the first time asks for the list once', () => {
+    const onLoadPulls = vi.fn();
+    draw([branch()], { pulls: PULLS_IDLE, onLoadPulls });
+    openPulls();
+
+    expect(onLoadPulls).toHaveBeenCalledOnce();
+    expect(screen.getByText(/loading the list/i)).toBeTruthy();
   });
 });

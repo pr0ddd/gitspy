@@ -26,7 +26,17 @@ import {
 import { useZoom, zoomIn, zoomOut } from '@/shared/lib/zoom';
 import { focusArea, useCommands, useKeyboard } from '@/features/keyboard';
 import { useViewTabs } from '@/features/views';
-import { samePick, type Confirmation, type Effect, type Picked } from '@/entities/repo';
+import {
+  hostOf,
+  PULLS_IDLE,
+  pullsAfterFailure,
+  pullsOf,
+  samePick,
+  type Confirmation,
+  type Effect,
+  type Picked,
+  type PullsState,
+} from '@/entities/repo';
 import { clampAutofetch, SETTINGS } from '@/shared/config/settingsModel';
 import { BottomBar } from '@/widgets/BottomBar';
 import { Breadcrumbs } from '@/widgets/Breadcrumbs';
@@ -87,7 +97,7 @@ export default function App() {
   );
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchAt, setSearchAt] = useState(0);
-  const [pulls, setPulls] = useState<PullListView | null>(null);
+  const [pulls, setPulls] = useState<PullsState>(PULLS_IDLE);
   const [tree, setTree] = useState<WorkingTreeView | null>(null);
   const [confirming, setConfirming] = useState<Confirmation | null>(null);
   const adoptTree = useCallback((next: WorkingTreeView) => {
@@ -122,7 +132,12 @@ export default function App() {
   const previousCommit =
     headRow?.kind === 'commit' ? { subject: headRow.subject, body: headRow.body } : null;
   const pullHeads = useMemo(
-    () => new Set((pulls?.pulls ?? []).filter((p) => !p.fromFork).map((p) => p.headBranch)),
+    () =>
+      new Set(
+        pullsOf(pulls)
+          .filter((p) => !p.fromFork)
+          .map((p) => p.headBranch),
+      ),
     [pulls],
   );
   const panel = panelFor(
@@ -177,26 +192,38 @@ export default function App() {
 
   useEffect(() => {
     setMain({ kind: 'graph' });
-    setPulls(null);
-    if (!active) return;
+  }, [active]);
+
+  const host = remotes ? hostOf(remotes) : null;
+  const remotesKey = remotes?.map((remote) => remote.webUrl ?? remote.name).join('\n');
+  useEffect(() => {
+    setPulls(PULLS_IDLE);
+    if (!active || remotesKey === undefined) return;
+    if (!host) {
+      setPulls({ kind: 'noHost' });
+      return;
+    }
 
     let alive = true;
     const stale = (view: PullListView) => Date.now() / 1000 - view.fetchedAt > 300;
+    setPulls({ kind: 'loading' });
     ipc
       .pullRequests(active, false, true)
       .then((known) => {
         if (!alive || !known) return;
-        setPulls(known);
+        setPulls({ kind: 'ready', list: known });
         if (!stale(known)) return;
         return ipc.pullRequests(active, true, true).then((fresh) => {
-          if (alive && fresh) setPulls(fresh);
+          if (alive && fresh) setPulls({ kind: 'ready', list: fresh });
         });
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        if (alive) setPulls(pullsAfterFailure(error, host));
+      });
     return () => {
       alive = false;
     };
-  }, [active]);
+  }, [active, host, remotesKey]);
 
   useEffect(() => {
     if (!active) {
@@ -287,17 +314,19 @@ export default function App() {
     [active, revealCommit],
   );
 
-  const loadPulls = useCallback(
-    (refresh: boolean) => {
-      if (!active) return;
-      ipc
-        .pullRequests(active, refresh, true)
-        .then((known) => known && setPulls(known))
-        .catch(notifyError);
-      void ipc.resolveAvatars(active).catch(() => undefined);
-    },
-    [active],
-  );
+  const loadPulls = useCallback(() => {
+    if (!active) return;
+    if (!host) {
+      setPulls({ kind: 'noHost' });
+      return;
+    }
+    setPulls((prev) => (prev.kind === 'ready' ? prev : { kind: 'loading' }));
+    ipc
+      .pullRequests(active, pulls.kind === 'ready', true)
+      .then((known) => known && setPulls({ kind: 'ready', list: known }))
+      .catch((error: unknown) => setPulls(pullsAfterFailure(error, host)));
+    void ipc.resolveAvatars(active).catch(() => undefined);
+  }, [active, host, pulls.kind]);
 
   const onNeed = useCallback(
     (chunks: number[]) => {
@@ -493,7 +522,8 @@ export default function App() {
                 onAsk={setAsking}
                 onWorktree={addWorktree}
                 onOpenUrl={openUrl}
-                onPullsExpanded={() => loadPulls(pulls !== null)}
+                onLoadPulls={loadPulls}
+                onConnect={() => tabs.open('settings')}
                 onPickPull={(pull) => setMain({ kind: 'pull', pull })}
               />
               <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
@@ -610,7 +640,7 @@ export default function App() {
                         rows={cacheFor(current.path)}
                         pending={tree ? tree.staged + tree.unstaged : 0}
                         conflicts={tree?.conflicts ?? 0}
-                        pulls={pulls?.pulls ?? []}
+                        pulls={pullsOf(pulls)}
                         onCopy={copy}
                         onOpenWorkingTree={() => select(0)}
                         onOpenPull={(pull) => setMain({ kind: 'pull', pull })}

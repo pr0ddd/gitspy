@@ -2,6 +2,12 @@ import type { RemoteView } from '@/shared/api/types';
 
 export type HostKind = 'github' | 'gitlab' | 'bitbucket';
 
+export const HOST_LABEL: Readonly<Record<HostKind, string>> = {
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  bitbucket: 'Bitbucket',
+};
+
 const MARKERS: ReadonlyArray<readonly [HostKind, string]> = [
   ['github', 'github.com'],
   ['gitlab', 'gitlab.'],

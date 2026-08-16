@@ -22,6 +22,9 @@ export const isNotOpen = (error: unknown): boolean =>
 export const isRejectedPush = (error: unknown): boolean =>
   isErrorView(error) && error.code === 'exec.rejected';
 
+export const isNoConnection = (error: unknown): boolean =>
+  isErrorView(error) && error.code === 'host.noConnection';
+
 function withoutHintNoise(detail: string): string {
   const essence = detail
     .split('\n')

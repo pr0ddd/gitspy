@@ -6,11 +6,12 @@ import { Icon, type IconName } from '@/shared/ui/icons';
 import * as ipc from '@/shared/api/ipc';
 import { notifyError } from '@/shared/ui/toast';
 import type { AccountView, ConnectStartView } from '@/shared/api/types';
+import { HOST_LABEL } from '@/entities/repo';
 
 export const HOSTS: ReadonlyArray<{ id: string; label: string; icon: IconName }> = [
-  { id: 'github', label: 'GitHub', icon: 'github' },
-  { id: 'gitlab', label: 'GitLab', icon: 'gitlab' },
-  { id: 'bitbucket', label: 'Bitbucket', icon: 'bitbucket' },
+  { id: 'github', label: HOST_LABEL.github, icon: 'github' },
+  { id: 'gitlab', label: HOST_LABEL.gitlab, icon: 'gitlab' },
+  { id: 'bitbucket', label: HOST_LABEL.bitbucket, icon: 'bitbucket' },
 ];
 
 export function HostCard({

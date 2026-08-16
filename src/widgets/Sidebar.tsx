@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { Hint } from '@/shared/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
-import type { Confirmation, Session } from '@/entities/repo';
+import {
+  HOST_LABEL,
+  pullsOf,
+  type Confirmation,
+  type PullsState,
+  type Session,
+} from '@/entities/repo';
 import { GIT } from '@/shared/config/vocabulary';
 import { Icon, type IconName } from '@/shared/ui/icons';
 import { buildRefTree, filterRefTree, flattenRefTree, type FlatRef } from '@/entities/graph';
@@ -16,6 +22,7 @@ import { clampPanel, PANEL_LIMITS } from '@/shared/lib/resize';
 import {
   HOVER_FILL,
   InlineNote,
+  PanelNote,
   ListRow,
   NavItem,
   ResizeGrip,
@@ -24,18 +31,11 @@ import {
 import { useCommands } from '@/features/keyboard';
 import { rovingTabIndex, stepped } from '@/shared/lib/roving';
 import type { Ask } from './AskBar';
-import type {
-  Operation,
-  PullListView,
-  PullView,
-  RefKind,
-  RefView,
-  WorktreeView,
-} from '@/shared/api/types';
+import type { Operation, PullView, RefKind, RefView, WorktreeView } from '@/shared/api/types';
 
 type Props = {
   session: Session | null;
-  pulls: PullListView | null;
+  pulls: PullsState;
   collapsed: boolean;
   onToggle: () => void;
   currentBranch: string | null;
@@ -47,7 +47,8 @@ type Props = {
   onAsk: (ask: Ask) => void;
   onWorktree: (at: string) => void;
   onOpenUrl: (url: string) => void;
-  onPullsExpanded: () => void;
+  onLoadPulls: () => void;
+  onConnect: () => void;
   onPickPull: (pull: PullView) => void;
 };
 
@@ -115,6 +116,48 @@ function Tracking({ view, onDelete }: { view: RefView; onDelete: (ref: RefView) 
       ) : null}
     </span>
   );
+}
+
+function PullsNote({
+  state,
+  onRetry,
+  onConnect,
+}: {
+  state: Exclude<PullsState, { kind: 'ready' }>;
+  onRetry: () => void;
+  onConnect: () => void;
+}) {
+  const { t } = useTranslation();
+  switch (state.kind) {
+    case 'idle':
+    case 'loading':
+      return (
+        <InlineNote>
+          <Icon.waiting className="size-3 animate-spin" />
+          {t('host.loading')}
+        </InlineNote>
+      );
+    case 'noHost':
+      return null;
+    case 'notConnected':
+      return (
+        <PanelNote>
+          {t('pull.notConnected', { host: HOST_LABEL[state.host] })}
+          <Button size="2xs" variant="outline" className="mx-auto mt-2 flex" onClick={onConnect}>
+            {t('pull.connect')}
+          </Button>
+        </PanelNote>
+      );
+    case 'failed':
+      return (
+        <PanelNote>
+          {t('pull.failed')}
+          <Button size="2xs" variant="outline" className="mx-auto mt-2 flex" onClick={onRetry}>
+            {t('pull.retry')}
+          </Button>
+        </PanelNote>
+      );
+  }
 }
 
 const RefRow = memo(function RefRow({
@@ -270,17 +313,19 @@ const PullRow = memo(function PullRow({
 });
 
 function ViewSwitch({
+  views,
   active,
   counts,
   onPick,
 }: {
+  views: readonly (typeof VIEWS)[number][];
   active: ViewKey;
   counts: Record<ViewKey, number | null>;
   onPick: (key: ViewKey) => void;
 }) {
   return (
     <div className="mx-2.5 mb-2 flex shrink-0 items-center gap-0.5">
-      {VIEWS.map(({ key, title, icon }) => {
+      {views.map(({ key, title, icon }) => {
         const Glyph = Icon[icon];
         const count = counts[key];
         const chosen = key === active;
@@ -347,13 +392,18 @@ export function Sidebar({
   onAsk,
   onWorktree,
   onOpenUrl,
-  onPullsExpanded,
+  onLoadPulls,
+  onConnect,
   onPickPull,
 }: Props) {
   const { t } = useTranslation();
   const work = useRepoWork(session?.path ?? null);
   const checkingOut = work?.kind === 'checkout' ? (work.target ?? null) : null;
-  const [view, setView] = usePref<ViewKey>('sidebar.view', 'local');
+  const [storedView, setView] = usePref<ViewKey>('sidebar.view', 'local');
+  const shownViews =
+    pulls.kind === 'noHost' ? VIEWS.filter((v) => v.key !== 'pullRequests') : VIEWS;
+  const view: ViewKey =
+    storedView === 'pullRequests' && pulls.kind === 'noHost' ? 'local' : storedView;
   const [width, setWidth] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
   const dragFrom = useRef(width);
   const [filter, setFilter] = useState('');
@@ -457,7 +507,7 @@ export function Sidebar({
     if (view === 'worktrees')
       return shownWorktrees.map((worktree) => ({ kind: 'worktree', worktree }));
     if (view === 'tags') return tags.map((ref) => ({ kind: 'tag', ref }));
-    return [...(pulls?.pulls ?? [])]
+    return [...pullsOf(pulls)]
       .sort((a, b) => pullRank(a) - pullRank(b))
       .map((pull) => ({ kind: 'pull', pull }));
   }, [view, matching, closed, shownWorktrees, tags, pulls]);
@@ -467,7 +517,7 @@ export function Sidebar({
     remote: ofKind('remoteBranch').length,
     worktrees: worktrees.length,
     tags: ofKind('tag').length,
-    pullRequests: pulls?.pulls.length ?? null,
+    pullRequests: pulls.kind === 'ready' ? pulls.list.pulls.length : null,
   };
 
   useEffect(() => {
@@ -533,7 +583,7 @@ export function Sidebar({
   });
 
   const pickView = (key: ViewKey) => {
-    if (key === 'pullRequests' && pulls === null) onPullsExpanded();
+    if (key === 'pullRequests' && pulls.kind === 'idle') onLoadPulls();
     setView(key);
   };
 
@@ -596,7 +646,7 @@ export function Sidebar({
       <aside className="flex w-12 shrink-0 flex-col items-center gap-1">
         <NavItem icon="expand" hint={t('sidebar.expand')} hintSide="right" onClick={onToggle} />
         <span className="h-1" />
-        {VIEWS.map(({ key, title, icon }) => (
+        {shownViews.map(({ key, title, icon }) => (
           <NavItem
             key={key}
             icon={icon}
@@ -643,7 +693,7 @@ export function Sidebar({
         </Hint>
       </div>
 
-      <ViewSwitch active={view} counts={counts} onPick={pickView} />
+      <ViewSwitch views={shownViews} active={view} counts={counts} onPick={pickView} />
 
       <div
         ref={listRef}
@@ -654,11 +704,8 @@ export function Sidebar({
         onScroll={onScroll}
         className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2.5"
       >
-        {view === 'pullRequests' && pulls === null ? (
-          <InlineNote>
-            <Icon.waiting className="size-3 animate-spin" />
-            {t('host.loading')}
-          </InlineNote>
+        {view === 'pullRequests' && pulls.kind !== 'ready' ? (
+          <PullsNote state={pulls} onRetry={onLoadPulls} onConnect={onConnect} />
         ) : items.length === 0 ? (
           <InlineNote>{t(view === 'pullRequests' ? 'pull.empty' : 'sidebar.nothing')}</InlineNote>
         ) : (
@@ -670,8 +717,8 @@ export function Sidebar({
               </div>
             ))}
             <div style={{ height: Math.max(0, (items.length - last) * ROW_PITCH) }} />
-            {view === 'pullRequests' && pulls?.truncated ? (
-              <InlineNote>{t('pull.truncated', { count: pulls.pulls.length })}</InlineNote>
+            {view === 'pullRequests' && pulls.kind === 'ready' && pulls.list.truncated ? (
+              <InlineNote>{t('pull.truncated', { count: pulls.list.pulls.length })}</InlineNote>
             ) : null}
           </>
         )}
