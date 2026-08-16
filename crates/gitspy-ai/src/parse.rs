@@ -38,7 +38,7 @@ mod tests {
         let draft = parse_draft(
             r#"{"summary": "Fix lane collapse", "description": "The layout dropped merges."}"#,
         )
-        .expect("чистый JSON разбирается");
+        .expect("plain JSON parses");
         assert_eq!(draft.summary, "Fix lane collapse");
         assert_eq!(draft.description, "The layout dropped merges.");
     }
@@ -46,20 +46,21 @@ mod tests {
     #[test]
     fn json_inside_code_fence_parses() {
         let text = "```json\n{\"summary\": \"Add tests\", \"description\": \"\"}\n```";
-        let draft = parse_draft(text).expect("JSON в код-фенсах разбирается");
+        let draft = parse_draft(text).expect("JSON inside a code fence parses");
         assert_eq!(draft.summary, "Add tests");
     }
 
     #[test]
     fn json_with_chatter_around_parses() {
         let text = "Here is your commit message:\n{\"summary\": \"Rename module\", \"description\": \"Old name lied.\"}\nHope it helps!";
-        let draft = parse_draft(text).expect("болтовня вокруг JSON не мешает");
+        let draft = parse_draft(text).expect("chatter around the JSON does not get in the way");
         assert_eq!(draft.summary, "Rename module");
     }
 
     #[test]
     fn missing_description_defaults_to_empty() {
-        let draft = parse_draft(r#"{"summary": "Bump version"}"#).expect("описание опционально");
+        let draft =
+            parse_draft(r#"{"summary": "Bump version"}"#).expect("the description is optional");
         assert_eq!(draft.description, "");
     }
 
@@ -67,7 +68,7 @@ mod tests {
     fn garbage_is_rejected() {
         assert!(
             parse_draft("I cannot help with that.").is_none(),
-            "не-JSON — отказ, не паника"
+            "a non-JSON reply is rejected, not a panic"
         );
     }
 
@@ -75,7 +76,7 @@ mod tests {
     fn empty_summary_is_rejected() {
         assert!(
             parse_draft(r#"{"summary": "  ", "description": "x"}"#).is_none(),
-            "пустой заголовок — это не сообщение коммита"
+            "a blank summary is not a commit message"
         );
     }
 }

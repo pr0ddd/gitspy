@@ -132,7 +132,11 @@ mod tests {
     #[test]
     fn small_diff_passes_unchanged() {
         let diff = file_chunk("src/a.rs", 3);
-        assert_eq!(trim_diff(&diff), diff, "маленький дифф не трогаем");
+        assert_eq!(
+            trim_diff(&diff),
+            diff,
+            "a diff under the limits is left untouched"
+        );
     }
 
     #[test]
@@ -141,16 +145,19 @@ mod tests {
         let trimmed = trim_diff(&diff);
         assert!(
             trimmed.len() < diff.len(),
-            "файл больше лимита обязан ужаться"
+            "a file over the per-file limit has to shrink"
         );
         assert!(
             trimmed.contains("diff --git a/src/big.rs"),
-            "заголовок файла остаётся"
+            "the file header stays"
         );
-        assert!(trimmed.contains("[truncated]"), "об урезании сказано явно");
+        assert!(
+            trimmed.contains("[truncated]"),
+            "the truncation is stated explicitly"
+        );
         assert!(
             trimmed.len() <= FILE_LIMIT + 200,
-            "хвост за лимитом не протекает"
+            "the tail past the limit does not leak through"
         );
     }
 
@@ -158,14 +165,14 @@ mod tests {
     fn cyrillic_body_is_cut_at_a_char_boundary_not_at_a_byte() {
         for pad in 0..4 {
             let mut chunk = format!("diff --git a/d.md b/d.md\n{}\n", "x".repeat(pad));
-            let line = format!("+{}\n", "е".repeat(400));
+            let line = format!("+{}\n", "é".repeat(400));
             while chunk.len() <= FILE_LIMIT {
                 chunk.push_str(&line);
             }
             let trimmed = trim_diff(&chunk);
             assert!(
                 trimmed.contains("[truncated]"),
-                "кириллический дифф ужимается без паники при сдвиге {pad}"
+                "a multi-byte non-ASCII diff is trimmed without a panic at offset {pad}"
             );
         }
     }
@@ -176,15 +183,15 @@ mod tests {
         let trimmed = trim_diff(diff);
         assert!(
             trimmed.contains("diff --git a/logo.png"),
-            "заголовок файла остаётся"
+            "the file header stays"
         );
         assert!(
             trimmed.contains("[binary file]"),
-            "вместо бинарного тела — заглушка"
+            "a stub stands in for the binary body"
         );
         assert!(
             !trimmed.contains("Binary files"),
-            "сырой маркер git наружу не идёт"
+            "the raw git marker does not reach the model"
         );
     }
 
@@ -194,15 +201,15 @@ mod tests {
         let trimmed = trim_diff(&diff);
         assert!(
             trimmed.contains("diff --git a/package-lock.json"),
-            "заголовок файла остаётся"
+            "the file header stays"
         );
         assert!(
             trimmed.contains("[lock file]"),
-            "тело lock-файла модели не нужно"
+            "the model has no use for the body of a lock file"
         );
         assert!(
             !trimmed.contains("added line"),
-            "строки lock-файла выкинуты"
+            "the lines of the lock file are dropped"
         );
     }
 
@@ -215,11 +222,11 @@ mod tests {
         let trimmed = trim_diff(&diff);
         assert!(
             trimmed.len() <= TOTAL_LIMIT + FILE_LIMIT,
-            "общий лимит держится"
+            "the total limit holds"
         );
         assert!(
             trimmed.contains("(+100 -0)"),
-            "у свёрнутого файла счётчик строк"
+            "a collapsed file keeps its line counts"
         );
     }
 
@@ -232,11 +239,11 @@ mod tests {
         let trimmed = trim_diff(&diff);
         assert!(
             trimmed.len() <= TOTAL_LIMIT + FILE_LIMIT,
-            "и на сотнях файлов выход не растёт: заголовки хвоста не бесплатны"
+            "the output does not grow across hundreds of files either: tail headers are not free"
         );
         assert!(
             trimmed.contains("more changed files]"),
-            "невместившийся хвост считается одной строкой, а не перечисляется"
+            "the tail that did not fit is counted in a single line instead of being enumerated"
         );
     }
 }

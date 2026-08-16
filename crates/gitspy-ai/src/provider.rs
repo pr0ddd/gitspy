@@ -76,12 +76,12 @@ mod tests {
         assert_eq!(
             AiProvider::Ollama.id(),
             "ollama",
-            "id — контракт с фронтендом"
+            "the id is the contract with the frontend"
         );
         assert_eq!(
             AiProvider::LmStudio.id(),
             "lmstudio",
-            "id — контракт с фронтендом"
+            "the id is the contract with the frontend"
         );
     }
 
@@ -90,7 +90,7 @@ mod tests {
         assert_eq!(
             chat_url("http://hulk:1234/"),
             "http://hulk:1234/v1/chat/completions",
-            "хвостовой слэш адреса не удваивается"
+            "a trailing slash in the base URL is not doubled"
         );
         assert_eq!(
             models_url("http://localhost:11434"),
@@ -101,12 +101,15 @@ mod tests {
     #[test]
     fn chat_body_carries_model_and_both_messages() {
         let body = chat_body("qwen2.5-coder", &build_prompt("diff"));
-        assert_eq!(body["model"], "qwen2.5-coder", "имя модели уходит как есть");
+        assert_eq!(
+            body["model"], "qwen2.5-coder",
+            "the model name is sent as is"
+        );
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["role"], "user");
         assert_eq!(
             body["stream"], false,
-            "стриминг выключен: ответ разбирается целиком"
+            "streaming is off: the reply is parsed as a whole"
         );
     }
 
@@ -115,12 +118,12 @@ mod tests {
         let body = chat_body("m", &build_prompt("diff"));
         assert_eq!(
             body["response_format"]["type"], "json_schema",
-            "свежая Ollama принимает только json_schema или text, LM Studio тоже понимает схему"
+            "recent Ollama accepts only json_schema or text, and LM Studio understands the schema as well"
         );
         assert_eq!(
             body["response_format"]["json_schema"]["schema"]["required"],
             serde_json::json!(["summary", "description"]),
-            "схема требует оба поля"
+            "the schema requires both fields"
         );
     }
 }
@@ -134,7 +137,7 @@ mod detect_tests {
         assert_eq!(
             version_url("http://hulk:1234/"),
             "http://hulk:1234/api/version",
-            "зонд бьёт в эндпоинт, который есть только у Ollama"
+            "the probe hits an endpoint that only Ollama has"
         );
     }
 
@@ -151,7 +154,7 @@ mod detect_tests {
                 "google/gemma-4-12b-qat".to_string(),
                 "qwen/qwen3.6-27b".to_string()
             ],
-            "embedding-модель не пишет текст — ей не место в списке"
+            "an embedding model does not write text, so it has no place in the list"
         );
     }
 }

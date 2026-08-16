@@ -86,7 +86,7 @@ impl Secrets for InMemory {
         Ok(self
             .values
             .lock()
-            .expect("хранилище не отравлено")
+            .expect("the store mutex is not poisoned")
             .get(key)
             .cloned())
     }
@@ -94,7 +94,7 @@ impl Secrets for InMemory {
     fn write(&self, key: &str, value: &str) -> Result<(), Error> {
         self.values
             .lock()
-            .expect("хранилище не отравлено")
+            .expect("the store mutex is not poisoned")
             .insert(key.to_string(), value.to_string());
         Ok(())
     }
@@ -102,7 +102,7 @@ impl Secrets for InMemory {
     fn forget(&self, key: &str) -> Result<(), Error> {
         self.values
             .lock()
-            .expect("хранилище не отравлено")
+            .expect("the store mutex is not poisoned")
             .remove(key);
         Ok(())
     }
@@ -115,15 +115,15 @@ mod tests {
     #[test]
     fn a_secret_that_was_never_written_reads_as_absent_not_as_an_error() {
         let store = InMemory::default();
-        assert_eq!(store.read("github").expect("чтение"), None);
+        assert_eq!(store.read("github").expect("the read succeeds"), None);
     }
 
     #[test]
     fn a_written_secret_comes_back() {
         let store = InMemory::default();
-        store.write("github", "ghp_x").expect("запись");
+        store.write("github", "ghp_x").expect("the write succeeds");
         assert_eq!(
-            store.read("github").expect("чтение").as_deref(),
+            store.read("github").expect("the read succeeds").as_deref(),
             Some("ghp_x")
         );
     }
@@ -131,41 +131,47 @@ mod tests {
     #[test]
     fn forgetting_twice_is_not_an_error() {
         let store = InMemory::default();
-        store.write("github", "ghp_x").expect("запись");
-        store.forget("github").expect("первое забывание");
-        store.forget("github").expect("второе тоже проходит");
-        assert_eq!(store.read("github").expect("чтение"), None);
+        store.write("github", "ghp_x").expect("the write succeeds");
+        store.forget("github").expect("the first forget succeeds");
+        store
+            .forget("github")
+            .expect("the second forget succeeds too");
+        assert_eq!(store.read("github").expect("the read succeeds"), None);
     }
 
     #[test]
     fn a_token_on_disk_survives_a_restart_but_stays_readable_only_by_its_owner() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("the temporary directory is created");
         let store = Files::at(dir.path());
 
-        store.write("github", "gho_x").expect("запись");
+        store.write("github", "gho_x").expect("the write succeeds");
         assert_eq!(
             Files::at(dir.path())
                 .read("github")
-                .expect("чтение")
+                .expect("the read succeeds")
                 .as_deref(),
             Some("gho_x"),
-            "новый экземпляр читает то же, что записал прежний"
+            "a fresh instance reads back what the previous one wrote"
         );
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let mode = std::fs::metadata(dir.path().join("github.token"))
-                .expect("файл на месте")
+                .expect("the token file is on disk")
                 .permissions()
                 .mode();
-            assert_eq!(mode & 0o777, 0o600, "токен не виден остальным на машине");
+            assert_eq!(
+                mode & 0o777,
+                0o600,
+                "the token is not readable by anyone else on the machine"
+            );
         }
     }
 
     #[test]
     fn a_key_that_could_climb_out_of_the_folder_is_refused() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("the temporary directory is created");
         let store = Files::at(dir.path());
         assert!(store.write("../../passwd", "x").is_err());
         assert!(store.read("..").is_err());
@@ -173,23 +179,23 @@ mod tests {
 
     #[test]
     fn a_forgotten_token_leaves_no_file_behind() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("the temporary directory is created");
         let store = Files::at(dir.path());
 
-        store.write("github", "gho_x").expect("запись");
-        store.forget("github").expect("забывание");
-        assert_eq!(store.read("github").expect("чтение"), None);
+        store.write("github", "gho_x").expect("the write succeeds");
+        store.forget("github").expect("the forget succeeds");
+        assert_eq!(store.read("github").expect("the read succeeds"), None);
         assert!(!dir.path().join("github.token").exists());
     }
 
     #[test]
     fn hosts_do_not_share_a_slot() {
         let store = InMemory::default();
-        store.write("github", "one").expect("запись");
-        store.write("gitlab", "two").expect("запись");
-        store.forget("github").expect("забывание");
+        store.write("github", "one").expect("the write succeeds");
+        store.write("gitlab", "two").expect("the write succeeds");
+        store.forget("github").expect("the forget succeeds");
         assert_eq!(
-            store.read("gitlab").expect("чтение").as_deref(),
+            store.read("gitlab").expect("the read succeeds").as_deref(),
             Some("two")
         );
     }

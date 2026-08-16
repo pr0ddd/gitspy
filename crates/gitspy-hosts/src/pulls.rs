@@ -272,14 +272,14 @@ mod tests {
 
     #[test]
     fn a_pull_from_a_fork_is_told_apart_from_a_branch_of_the_repository() {
-        let pulls = parse_pulls(&format!("[{PULL}]")).expect("разбирается");
+        let pulls = parse_pulls(&format!("[{PULL}]")).expect("parses");
         assert!(
             pulls[0].from_fork,
-            "иначе checkout пойдёт за веткой, которой в origin нет"
+            "otherwise checkout goes looking for a branch that origin does not have"
         );
 
         let same = PULL.replace("fresh3nough/react", "facebook/react");
-        let pulls = parse_pulls(&format!("[{same}]")).expect("разбирается");
+        let pulls = parse_pulls(&format!("[{same}]")).expect("parses");
         assert!(!pulls[0].from_fork);
     }
 
@@ -289,7 +289,7 @@ mod tests {
             r#""repo": {"full_name": "fresh3nough/react"}"#,
             r#""repo": null"#,
         );
-        let pulls = parse_pulls(&format!("[{gone}]")).expect("разбирается");
+        let pulls = parse_pulls(&format!("[{gone}]")).expect("parses");
         assert!(pulls[0].from_fork);
     }
 
@@ -301,7 +301,7 @@ mod tests {
                 r###""number": 37184, "body": "## Summary\n- fix", "labels": [{"name": "CLA Signed"}], "changed_files": 3, "additions": 120, "deletions": 4,"###,
             ),
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(detail.body, "## Summary\n- fix");
         assert_eq!(detail.labels, vec!["CLA Signed"]);
         assert_eq!(detail.changed_files, 3);
@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn an_empty_body_is_an_empty_string_not_a_crash() {
-        let detail = parse_pull_detail(PULL).expect("разбирается");
+        let detail = parse_pull_detail(PULL).expect("parses");
         assert_eq!(detail.body, "");
     }
 
@@ -319,22 +319,22 @@ mod tests {
             r#"[{"user": {"login": "react-sizebot", "avatar_url": "https://a/2"},
                 "body": "Comparing: abc...def", "created_at": "2026-08-03T09:00:00Z"}]"#,
         )
-        .expect("разбирается");
+        .expect("parses");
         assert_eq!(comments[0].author, "react-sizebot");
         assert_eq!(comments[0].created_at, "2026-08-03T09:00:00Z");
     }
 
     #[test]
     fn a_pull_lands_in_every_group_it_belongs_to() {
-        let pulls = parse_pulls(&format!("[{PULL}]")).expect("разбирается");
+        let pulls = parse_pulls(&format!("[{PULL}]")).expect("parses");
         assert_eq!(
             groups_of(&pulls[0], "pr0d"),
             vec![Group::AwaitingMyReview],
-            "я в requested_reviewers"
+            "pr0d is in requested_reviewers"
         );
         assert_eq!(groups_of(&pulls[0], "someone"), vec![Group::Assigned]);
         assert_eq!(groups_of(&pulls[0], "fresh3nough"), vec![Group::Mine]);
-        assert!(groups_of(&pulls[0], "посторонний").is_empty());
+        assert!(groups_of(&pulls[0], "outsider").is_empty());
     }
 
     #[test]

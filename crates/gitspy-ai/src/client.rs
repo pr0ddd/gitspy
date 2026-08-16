@@ -192,15 +192,15 @@ mod tests {
     #[test]
     fn empty_ollama_serializes_models_as_null_and_that_is_not_an_error() {
         let models = parse_model_list(r#"{"object":"list","data":null}"#)
-            .expect("null вместо списка — это пустой сервер, а не поломка");
-        assert!(models.is_empty(), "моделей нет, но разбор цел");
+            .expect("null instead of a list means an empty server, not a broken one");
+        assert!(models.is_empty(), "no models, but parsing stays intact");
     }
 
     #[test]
     fn missing_data_field_is_also_an_empty_server() {
         let models = parse_model_list(r#"{"object":"list"}"#)
-            .expect("отсутствие поля — тот же пустой сервер");
-        assert!(models.is_empty(), "моделей нет, но разбор цел");
+            .expect("a missing field is the same empty server");
+        assert!(models.is_empty(), "no models, but parsing stays intact");
     }
 
     #[test]
@@ -210,12 +210,12 @@ mod tests {
         assert_eq!(
             error.code(),
             "ai.modelMissing",
-            "сервер жив и назвал причину — это не «не достучались»"
+            "the server is alive and named the reason, so this is not \"could not reach it\""
         );
         assert_eq!(
             error.detail(),
             "model 'google/gemma-4-12b-qat' not found",
-            "в подробность идёт фраза сервера, а не JSON-конверт"
+            "the detail carries the server's own phrase, not the JSON envelope"
         );
     }
 
@@ -226,12 +226,12 @@ mod tests {
         assert_eq!(
             error.code(),
             "ai.refused",
-            "отказ сервера — свой код, не сеть"
+            "a rejection by the server gets its own code, not the network one"
         );
         assert_eq!(
             error.detail(),
             "400: context length exceeded",
-            "подробность — статус и фраза сервера без конверта"
+            "the detail is the status plus the server's phrase, without the envelope"
         );
     }
 
@@ -242,12 +242,12 @@ mod tests {
         assert_eq!(
             error.code(),
             "ai.refused",
-            "отказ сервера — свой код, не сеть"
+            "a rejection by the server gets its own code, not the network one"
         );
         assert_eq!(
             error.detail(),
             "400: 'response_format.type' must be 'json_schema' or 'text'",
-            "у Ollama ошибка — голая строка, и её тоже достаём из конверта"
+            "Ollama reports the error as a bare string, and we unwrap that envelope too"
         );
     }
 
@@ -257,23 +257,24 @@ mod tests {
         assert_eq!(
             error.code(),
             "ai.refused",
-            "и без JSON это отказ, а не поломка разбора"
+            "even without JSON this is a rejection, not a parsing failure"
         );
         assert_eq!(error.detail(), "502: Bad Gateway");
     }
 
     #[test]
     fn alien_reply_names_the_server_not_the_model() {
-        let error = parse_model_list("<html>404</html>").expect_err("не-JSON — ошибка сервера");
+        let error =
+            parse_model_list("<html>404</html>").expect_err("a non-JSON body is a server error");
         assert_eq!(
             error.code(),
             "ai.badServer",
-            "чужой ответ сервера — не про качество ответа модели"
+            "a reply that is not ours to parse blames the server, not the model's answer"
         );
         assert_eq!(
             error.detail(),
             "<html>404</html>",
-            "в подробность идёт тело ответа, без серде-жаргона"
+            "the detail carries the response body, without serde jargon"
         );
     }
 }

@@ -34,12 +34,12 @@ mod tests {
         assert_eq!(
             service_avatar("12345+pr0ddd@users.noreply.github.com").as_deref(),
             Some("https://avatars.githubusercontent.com/u/12345?s=64"),
-            "новая форма несёт id — картинка арифметикой"
+            "the new form carries the numeric id — the picture comes from arithmetic"
         );
         assert_eq!(
             service_avatar("pr0ddd@users.noreply.github.com").as_deref(),
             Some("https://avatars.githubusercontent.com/pr0ddd?s=64"),
-            "старая форма несёт только логин"
+            "the old form carries only the login"
         );
     }
 
@@ -54,7 +54,7 @@ mod tests {
     #[test]
     fn an_ordinary_email_is_not_guessed_at() {
         assert_eq!(service_avatar("pavel@example.com"), None);
-        assert_eq!(service_avatar("без-собаки"), None);
+        assert_eq!(service_avatar("no-at-sign"), None);
     }
 
     #[test]

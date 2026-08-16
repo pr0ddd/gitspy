@@ -84,12 +84,12 @@ mod tests {
         assert_eq!(
             matches_remote(&remotes, "https://gitlab.com"),
             Some(("me".to_string(), "tool".to_string())),
-            "origin выигрывает у прочих remote того же хоста"
+            "origin wins over the other remotes of the same host"
         );
         assert_eq!(
             matches_remote(&remotes, "https://git.corp.dev"),
             None,
-            "чужой инстанс не подгоняется под ближайший похожий"
+            "a foreign instance is not forced onto the closest similar one"
         );
         assert_eq!(
             matches_remote(
@@ -100,7 +100,7 @@ mod tests {
                 "https://git.corp.dev",
             ),
             Some(("team".to_string(), "app".to_string())),
-            "self-hosted с портом в ssh-форме — тот же хост"
+            "a self-hosted instance with a port in the ssh form is still the same host"
         );
     }
 
@@ -143,7 +143,7 @@ mod tests {
                 "group".to_string(),
                 "tool".to_string()
             )),
-            "по хосту из remote строятся веб-ссылки для любого провайдера"
+            "the host taken from the remote is what builds web links for any provider"
         );
     }
 
@@ -162,7 +162,7 @@ mod tests {
         assert_eq!(
             matches_remote(&remotes, "https://github.com"),
             Some(("pr0ddd".to_string(), "gitspy".to_string())),
-            "иначе PR придут из чужого форка, а не из основного репозитория"
+            "otherwise the pull requests come from someone else's fork instead of the main repository"
         );
     }
 }

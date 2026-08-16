@@ -82,12 +82,13 @@ mod tests {
     #[test]
     fn the_token_set_reads_access_refresh_and_lifetime() {
         let set = parse_token_set(r#"{"access":"A","refresh":"R","expiresIn":7200}"#)
-            .expect("токен-сет читается");
+            .expect("the token set parses");
         assert_eq!(set.access, "A");
         assert_eq!(set.refresh.as_deref(), Some("R"));
         assert_eq!(set.expires_in, Some(7200));
 
-        let bare = parse_token_set(r#"{"access":"A"}"#).expect("github живёт без refresh");
+        let bare =
+            parse_token_set(r#"{"access":"A"}"#).expect("github lives without a refresh token");
         assert_eq!(bare.refresh, None);
     }
 
@@ -95,9 +96,9 @@ mod tests {
     fn the_relay_is_configured_with_our_worker() {
         assert!(
             configured()
-                .expect("релей настроен")
+                .expect("the relay is configured")
                 .starts_with("https://"),
-            "обмен кодов ходит только по https"
+            "the code exchange travels over https and nothing else"
         );
     }
 }

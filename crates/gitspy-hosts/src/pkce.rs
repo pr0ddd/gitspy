@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 
 pub fn verifier() -> String {
     let mut raw = [0u8; 48];
-    getrandom::fill(&mut raw).expect("системная энтропия доступна");
+    getrandom::fill(&mut raw).expect("system entropy is available");
     URL_SAFE_NO_PAD.encode(raw)
 }
 
@@ -49,7 +49,7 @@ mod tests {
         assert_eq!(
             challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
             "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
-            "S256 обязан совпасть с примером из RFC, иначе GitLab отвергнет обмен"
+            "S256 must match the vector from the RFC, otherwise GitLab rejects the exchange"
         );
     }
 
@@ -60,7 +60,7 @@ mod tests {
         assert!(made
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_')));
-        assert_ne!(verifier(), made, "два вызова — два разных секрета");
+        assert_ne!(verifier(), made, "two calls give two different secrets");
     }
 
     #[test]

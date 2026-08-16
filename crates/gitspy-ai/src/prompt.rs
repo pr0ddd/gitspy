@@ -21,19 +21,19 @@ mod tests {
         let prompt = build_prompt("diff --git a/x b/x\n+new line\n");
         assert!(
             prompt.user.contains("+new line"),
-            "дифф лежит в пользовательском сообщении"
+            "the diff goes into the user message"
         );
         assert!(
             prompt.system.contains("summary"),
-            "правила формата лежат в системном"
+            "the format rules go into the system message"
         );
         assert!(
             prompt.system.contains("72"),
-            "лимит длины заголовка назван явно"
+            "the summary length limit is stated explicitly"
         );
         assert!(
             !prompt.system.contains("+new line"),
-            "дифф в системное сообщение не течёт"
+            "the diff does not leak into the system message"
         );
     }
 
@@ -42,15 +42,15 @@ mod tests {
         let prompt = build_prompt("diff");
         assert!(
             prompt.system.contains("Never restate"),
-            "модель дублировала заголовок в описание, пока запрет не назван прямо"
+            "the model duplicated the summary in the description until the ban was spelled out"
         );
         assert!(
             prompt.system.contains("2 to 5"),
-            "описанию задан объём: одно предложение вырождается в пересказ заголовка"
+            "the description is given a length: a single sentence degenerates into a retelling of the summary"
         );
         assert!(
             prompt.system.contains("first sentence states the intent"),
-            "без явного требования описание ныряет в перечисление, минуя цель правки"
+            "without an explicit demand the description dives into an enumeration and skips the point of the change"
         );
     }
 }
