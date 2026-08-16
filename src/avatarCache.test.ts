@@ -21,32 +21,32 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('кэш аватарок', () => {
-  it('картинка появляется после декодирования, и кэш будит отрисовку', async () => {
+describe('avatar cache', () => {
+  it('the image shows up once it is decoded, and the cache wakes the render', async () => {
     const woke: number[] = [];
     const cache = new AvatarCache(() => woke.push(1));
 
     const settled = cache.refillRemote({ 'remote:u': 'https://u' });
-    expect(cache.lookOf('remote:u').kind, 'до декодирования — идентикон').toBe('identicon');
+    expect(cache.lookOf('remote:u').kind, 'an identicon until decoding finishes').toBe('identicon');
 
     FakeImage.pending[0].resolve();
     await settled;
 
-    expect(cache.lookOf('remote:u').kind, 'после декодирования — картинка').toBe('image');
-    expect(woke.length, 'отрисовка разбужена').toBe(1);
+    expect(cache.lookOf('remote:u').kind, 'the image once decoding finished').toBe('image');
+    expect(woke.length, 'the render was woken').toBe(1);
   });
 
-  it('битая картинка не подвешивает ожидание первого кадра', async () => {
+  it('a broken image does not hang the wait for the first frame', async () => {
     const cache = new AvatarCache(() => undefined);
 
     const settled = cache.refillRemote({ 'remote:u': 'https://broken' });
     FakeImage.pending[0].reject(new Error('EncodingError'));
     await settled;
 
-    expect(cache.lookOf('remote:u').kind, 'битая остаётся идентиконом').toBe('identicon');
+    expect(cache.lookOf('remote:u').kind, 'a broken image stays an identicon').toBe('identicon');
   });
 
-  it('повторный refill не создаёт картинку заново и разрешается сразу', async () => {
+  it('a repeated refill does not build the image again and resolves at once', async () => {
     const cache = new AvatarCache(() => undefined);
 
     const first = cache.refillRemote({ 'remote:u': 'https://u' });
@@ -54,6 +54,6 @@ describe('кэш аватарок', () => {
     await first;
 
     await cache.refillRemote({ 'remote:u': 'https://u' });
-    expect(FakeImage.pending.length, 'второй заход не трогает сеть').toBe(1);
+    expect(FakeImage.pending.length, 'the second pass does not touch the network').toBe(1);
   });
 });

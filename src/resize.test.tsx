@@ -11,63 +11,63 @@ const panelInARow = (span: number, along: 'x' | 'y'): HTMLElement => {
   return panel;
 };
 
-describe('пределы ширины панелей', () => {
-  it('ширина внутри пределов проходит как есть', () => {
+describe('panel width limits', () => {
+  it('a width inside the limits passes through untouched', () => {
     expect(clampPanel('sidebar', 300)).toBe(300);
     expect(clampPanel('details', 400)).toBe(400);
   });
 
-  it('за пределами ширина упирается в край, а не пружинит', () => {
+  it('beyond the limits the width stops at the edge instead of springing back', () => {
     expect(clampPanel('sidebar', 50)).toBe(PANEL_LIMITS.sidebar.min);
     expect(clampPanel('sidebar', 9000)).toBe(PANEL_LIMITS.sidebar.max);
     expect(clampPanel('details', 0)).toBe(PANEL_LIMITS.details.min);
     expect(clampPanel('details', 9000)).toBe(PANEL_LIMITS.details.max);
   });
 
-  it('мусор из хранилища превращается в ширину по умолчанию', () => {
+  it('garbage from storage turns into the default width', () => {
     expect(clampPanel('sidebar', Number.NaN)).toBe(PANEL_LIMITS.sidebar.fallback);
     expect(clampPanel('details', Number.NaN)).toBe(PANEL_LIMITS.details.fallback);
   });
 });
 
-describe('разделитель, который делит ряд долями', () => {
-  it('край панели проходит ровно столько же, сколько курсор', () => {
+describe('splitter that divides a row into shares', () => {
+  it('the panel edge travels exactly as far as the cursor', () => {
     const panel = panelInARow(1000, 'x');
     const before = 0.46 * 1000;
     const after = shareAfterDrag(panel, 0.46, -200, 'x') * 1000;
     expect(
       after - before,
-      'разделитель, отстающий от курсора, читается как торможение приложения, а не как ошибка счёта',
+      'a splitter lagging behind the cursor reads as the app stalling, not as an arithmetic mistake',
     ).toBeCloseTo(200);
   });
 
-  it('доля считается от ряда, в котором стоит панель, а не от окна', () => {
+  it('the share is measured against the row the panel sits in, not against the window', () => {
     const panel = panelInARow(1000, 'x');
     Object.defineProperty(window, 'innerWidth', { value: 1447, configurable: true });
     expect(
       shareAfterDrag(panel, 0.46, -200, 'x'),
-      'окно шире ряда на боковую панель, и доля от него отстаёт на эту разницу',
+      'the window is wider than the row by the sidebar, and a share taken from the window lags behind by exactly that difference',
     ).toBeCloseTo(0.66);
   });
 
-  it('панель, растущую вверх, ряд меряет высотой', () => {
+  it('a panel that grows upwards is measured by the height of its row', () => {
     const panel = panelInARow(500, 'y');
     expect(
       shareAfterDrag(panel, 0.35, -50, 'y'),
-      'нижний док тянут за верхнюю кромку — делится высота ряда, не ширина',
+      'the bottom dock is dragged by its top edge, so it is the row height that gets divided, not the width',
     ).toBeCloseTo(0.45);
   });
 
-  it('ряд без размера оставляет долю в покое', () => {
+  it('a row with no size leaves the share alone', () => {
     const panel = panelInARow(0, 'x');
     expect(
       shareAfterDrag(panel, 0.4, -200, 'x'),
-      'до первой раскладки делить нечего, и доля не должна улетать в бесконечность',
+      'before the first layout there is nothing to divide, and the share must not fly off to infinity',
     ).toBe(0.4);
   });
 });
 
-describe('доля, которую держит курсор', () => {
+describe('the share held under the cursor', () => {
   beforeEach(() => localStorage.clear());
 
   const dragged = (by: number) => {
@@ -79,50 +79,53 @@ describe('доля, которую держит курсор', () => {
     return hook;
   };
 
-  it('перерисовка посреди жеста рисует панель там, где курсор, а не там, где она была до жеста', () => {
+  it('a re-render in the middle of the gesture draws the panel where the cursor is, not where it stood before the gesture', () => {
     const hook = dragged(-100);
     hook.rerender();
     expect(
       hook.result.current.shown,
-      'React с довраговой долей в пропе отбрасывает панель назад каждым перерендером — это и есть рывки под курсором',
+      'React holding the pre-drag share in a prop throws the panel back on every re-render, and that is exactly the stutter felt under the cursor',
     ).toBeCloseTo(0.6);
   });
 
-  it('до отпускания жест не трогает сохранённую настройку', () => {
+  it('until the drag is released the gesture does not touch the stored preference', () => {
     dragged(-100);
     expect(
       localStorage.getItem('gitspy.split'),
-      'запись доли на каждом движении — это запись в хранилище шестьдесят раз в секунду',
+      'writing the share on every move means writing to storage sixty times a second',
     ).toBeNull();
   });
 
-  it('отпускание сохраняет ту долю, что осталась под курсором', () => {
+  it('releasing stores the share that was left under the cursor', () => {
     const hook = dragged(-100);
     act(() => hook.result.current.commit());
     expect(JSON.parse(localStorage.getItem('gitspy.split') ?? 'null')).toBeCloseTo(0.6);
   });
 
-  it('доля не выходит за пределы, как далеко ни тяни', () => {
+  it('the share stays inside its limits no matter how far you drag', () => {
     const hook = dragged(-900);
     hook.rerender();
-    expect(hook.result.current.shown, 'панель не должна съедать соседнюю целиком').toBeCloseTo(0.8);
+    expect(hook.result.current.shown, 'a panel must not eat its neighbour whole').toBeCloseTo(0.8);
   });
 });
 
-describe('разделитель встаёт на целый пиксель', () => {
-  it('доля даёт панели целую ширину, а не дробную', () => {
+describe('splitter lands on a whole pixel', () => {
+  it('the share gives the panel a whole width, not a fractional one', () => {
     const panel = panelInARow(1172, 'x');
     const share = shareAfterDrag(panel, 0.25, -222, 'x');
     expect(
       share * 1172,
-      'дробная ширина заставляет браузер каждый кадр растрировать рамки и текст на сдвинутой сетке',
+      'a fractional width makes the browser rasterise borders and text on a shifted grid every frame',
     ).toBe(Math.round(share * 1172));
   });
 
-  it('целые пиксели не мешают панели идти ровно за курсором', () => {
+  it('whole pixels do not stop the panel from following the cursor exactly', () => {
     const panel = panelInARow(1000, 'x');
     const before = 0.46 * 1000;
     const after = shareAfterDrag(panel, 0.46, -200, 'x') * 1000;
-    expect(after - before, 'округление до пикселя не имеет права копить снос').toBeCloseTo(200, 0);
+    expect(after - before, 'rounding to a pixel has no right to accumulate drift').toBeCloseTo(
+      200,
+      0,
+    );
   });
 });

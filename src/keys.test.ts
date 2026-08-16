@@ -10,32 +10,32 @@ const stroke = (key: string, held: Partial<Stroke> = {}): Stroke => ({
   ...held,
 });
 
-describe('главный модификатор зависит от системы', () => {
-  it('один аккорд ловит и Command на макбуке, и Ctrl на остальных', () => {
+describe('the primary modifier depends on the platform', () => {
+  it('a single chord catches Command on a Mac and Ctrl everywhere else', () => {
     const chord = { key: 's', primary: true };
     expect(matchesChord(chord, stroke('s', { metaKey: true }), true)).toBe(true);
     expect(matchesChord(chord, stroke('s', { ctrlKey: true }), false)).toBe(true);
   });
 
-  it('Ctrl на макбуке не заменяет Command, иначе Ctrl+C ушёл бы в команду', () => {
+  it('Ctrl on a Mac does not stand in for Command, otherwise Ctrl+C would fire the command', () => {
     expect(matchesChord({ key: 's', primary: true }, stroke('s', { ctrlKey: true }), true)).toBe(
       false,
     );
   });
 
-  it('Command на Windows не заменяет Ctrl', () => {
+  it('Command on Windows does not stand in for Ctrl', () => {
     expect(matchesChord({ key: 's', primary: true }, stroke('s', { metaKey: true }), false)).toBe(
       false,
     );
   });
 
-  it('аккорд без модификатора не срабатывает под модификатором', () => {
+  it('a chord without a modifier does not fire while a modifier is held', () => {
     expect(matchesChord({ key: 's' }, stroke('s', { metaKey: true }), true)).toBe(false);
   });
 });
 
-describe('строгость по Shift и Alt', () => {
-  it('аккорд без Shift не ловит нажатие с Shift', () => {
+describe('strictness about Shift and Alt', () => {
+  it('a chord without Shift does not catch a stroke with Shift held', () => {
     expect(
       matchesChord(
         { key: 's', primary: true },
@@ -45,7 +45,7 @@ describe('строгость по Shift и Alt', () => {
     ).toBe(false);
   });
 
-  it('регистр буквы не важен: под Shift браузер отдаёт заглавную', () => {
+  it('letter case does not matter: under Shift the browser reports the uppercase letter', () => {
     expect(
       matchesChord(
         { key: 's', primary: true, shift: true },
@@ -55,7 +55,7 @@ describe('строгость по Shift и Alt', () => {
     ).toBe(true);
   });
 
-  it('у символа Shift не проверяется, потому что символ им и набран', () => {
+  it('Shift is not checked for a symbol, because the symbol is typed with it', () => {
     expect(
       matchesChord(
         { key: '/', primary: true },
@@ -65,49 +65,49 @@ describe('строгость по Shift и Alt', () => {
     ).toBe(true);
   });
 
-  it('Alt проверяется строго и на символах тоже', () => {
+  it('Alt is checked strictly, on symbols as well', () => {
     expect(
       matchesChord({ key: '/', primary: true }, stroke('/', { metaKey: true, altKey: true }), true),
     ).toBe(false);
   });
 });
 
-describe('подпись аккорда', () => {
-  it('на макбуке знаки, на остальных слова', () => {
+describe('chord label', () => {
+  it('glyphs on a Mac, words everywhere else', () => {
     expect(chordKeys({ key: 'Enter', primary: true }, true)).toEqual(['⌘', '↩']);
     expect(chordKeys({ key: 'Enter', primary: true }, false)).toEqual(['Ctrl', 'Enter']);
   });
 
-  it('модификаторы идут в постоянном порядке', () => {
+  it('modifiers always come in the same order', () => {
     expect(chordKeys({ key: 's', primary: true, shift: true }, true)).toEqual(['⌘', '⇧', 'S']);
   });
 
-  it('стрелки и Escape показываются знаком и коротким словом', () => {
+  it('arrows and Escape are shown as a glyph and a short word', () => {
     expect(keyLabel('ArrowDown', true)).toBe('↓');
     expect(keyLabel('Escape', false)).toBe('Esc');
   });
 
-  it('на не-макбуке части разделены плюсом, как принято в Windows', () => {
+  it('off a Mac the parts are joined by a plus, the way Windows writes them', () => {
     expect(chordLabel({ key: 'l', primary: true }, false)).toBe('Ctrl + L');
     expect(chordLabel({ key: 'l', primary: true }, true)).toBe('⌘ L');
   });
 });
 
-describe('определение системы', () => {
-  it('макбук узнаётся по строке webview', () => {
+describe('platform detection', () => {
+  it('a Mac is recognised from the webview user agent string', () => {
     expect(applePlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe(true);
     expect(applePlatform('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe(false);
     expect(applePlatform('Mozilla/5.0 (X11; Linux x86_64)')).toBe(false);
   });
 });
 
-describe('раскладка клавиатуры', () => {
-  it('буква узнаётся по физической клавише: на русской раскладке S даёт «ы», но это та же клавиша', () => {
-    expect(matchesChord({ key: 's' }, { ...stroke('ы'), code: 'KeyS' }, true)).toBe(true);
-    expect(matchesChord({ key: 'u' }, { ...stroke('г'), code: 'KeyU' }, true)).toBe(true);
+describe('keyboard layout', () => {
+  it('a letter is matched by the physical key: on a Greek layout KeyS types σ, yet it is the same key', () => {
+    expect(matchesChord({ key: 's' }, { ...stroke('σ'), code: 'KeyS' }, true)).toBe(true);
+    expect(matchesChord({ key: 'u' }, { ...stroke('θ'), code: 'KeyU' }, true)).toBe(true);
   });
 
-  it('символы и служебные клавиши по-прежнему узнаются по key: у стрелок и Enter кода буквы нет', () => {
+  it('symbols and named keys are still matched by key: arrows and Enter carry no letter code', () => {
     expect(
       matchesChord({ key: 'ArrowDown' }, { ...stroke('ArrowDown'), code: 'ArrowDown' }, true),
     ).toBe(true);
@@ -120,7 +120,7 @@ describe('раскладка клавиатуры', () => {
     ).toBe(true);
   });
 
-  it('другая клавиша с той же буквой в чужой раскладке не срабатывает: код решает', () => {
+  it('another key carrying the same letter in a foreign layout does not fire: the code decides', () => {
     expect(matchesChord({ key: 's' }, { ...stroke('s'), code: 'KeyD' }, true)).toBe(false);
   });
 });

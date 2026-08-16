@@ -52,37 +52,37 @@ const EVERY_KIND: Record<Operation['kind'], null> = {
   discardAll: null,
 };
 
-describe('тосты — только исход действия, словами человека', () => {
+describe('toasts — the outcome of an action only, in human words', () => {
   beforeEach(() => {
     vi.mocked(toast.loading).mockClear();
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
   });
 
-  it('запуск не рождает ни одного тоста — индикатор живёт у кнопки', () => {
+  it('raises no toast when an operation starts — the progress indicator lives on the button', () => {
     notifyOperation({ kind: 'pull' });
-    expect(vi.mocked(toast.loading).mock.calls.length, 'спиннер-тостов больше нет').toBe(0);
+    expect(vi.mocked(toast.loading).mock.calls.length, 'spinner toasts are gone for good').toBe(0);
     expect(vi.mocked(toast.success).mock.calls.length).toBe(1);
   });
 
-  it('исход назван фразой, а не склейкой «branch finished»', () => {
+  it('names the outcome with a phrase, not a glued-together "branch finished"', () => {
     notifyOperation({ kind: 'branch', name: 'wip', checkout: false });
     expect(String(vi.mocked(toast.success).mock.calls[0]?.[0])).toBe('Branch created');
   });
 
-  it('у каждой операции закрытого списка есть фразы исхода и провала', () => {
+  it('has a success and a failure phrase for every operation in the closed list', () => {
     for (const kind of Object.keys(EVERY_KIND)) {
-      expect(i18next.exists(`toast.done.${kind}`), `нет toast.done.${kind}`).toBe(true);
-      expect(i18next.exists(`toast.fail.${kind}`), `нет toast.fail.${kind}`).toBe(true);
+      expect(i18next.exists(`toast.done.${kind}`), `toast.done.${kind} is missing`).toBe(true);
+      expect(i18next.exists(`toast.fail.${kind}`), `toast.fail.${kind} is missing`).toBe(true);
     }
   });
 
-  it('локальный fast-forward не называется fetch', () => {
+  it('does not call a local fast-forward a fetch', () => {
     notifyOperation({ kind: 'fetchInto', remote: '.', from: 'origin/main', into: 'main' });
     expect(String(vi.mocked(toast.success).mock.calls[0]?.[0])).toMatch(/fast-forward/i);
   });
 
-  it('провал — error с человеческим заголовком и объяснением', () => {
+  it('reports a failure as an error toast with a human title and an explanation', () => {
     notifyOperationFailed({ kind: 'pull' }, { code: 'exec.pullDiverged', params: {} });
     const [title, options] = vi.mocked(toast.error).mock.calls[0] ?? [];
     expect(String(title)).toBe('Pull failed');

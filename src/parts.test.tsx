@@ -5,8 +5,8 @@ import { ListRow, NavItem, Tab } from '@/parts';
 
 const render = (ui: React.ReactElement) => bare(<TooltipProvider>{ui}</TooltipProvider>);
 
-describe('таб верхней полосы', () => {
-  it('клик по табу выбирает его, крестик закрывает и не выбирает', () => {
+describe('tab in the top bar', () => {
+  it('clicking a tab selects it, while the close cross closes it without selecting', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
     render(
@@ -23,10 +23,13 @@ describe('таб верхней полосы', () => {
     expect(onSelect).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalledOnce();
-    expect(onSelect, 'крестик не должен заодно активировать таб').toHaveBeenCalledOnce();
+    expect(
+      onSelect,
+      'the close cross must not activate the tab along the way',
+    ).toHaveBeenCalledOnce();
   });
 
-  it('активный таб несёт заливку и всегда видимый крестик', () => {
+  it('the current tab carries the fill and a close cross that is always visible', () => {
     render(
       <Tab
         icon="folder"
@@ -42,8 +45,8 @@ describe('таб верхней полосы', () => {
   });
 });
 
-describe('высокая строка списка', () => {
-  it('tall двухстрочная, обычная нет', () => {
+describe('tall list row', () => {
+  it('tall makes the row two lines high, the plain row stays one', () => {
     const { rerender } = bare(<ListRow onClick={() => {}}>x</ListRow>);
     expect(screen.getByRole('button').className).toContain('h-8');
     rerender(
@@ -55,8 +58,8 @@ describe('высокая строка списка', () => {
   });
 });
 
-describe('кнопка навигации', () => {
-  it('активная несёт заливку, покойная — нет', () => {
+describe('navigation button', () => {
+  it('the active one carries the fill, the idle one does not', () => {
     const { rerender } = render(<NavItem icon="branch" label="Local" onClick={() => {}} />);
     const idle = screen.getByRole('button', { name: 'Local' });
     expect(idle.className).not.toContain('bg-fill-2');
@@ -68,9 +71,9 @@ describe('кнопка навигации', () => {
     expect(screen.getByRole('button', { name: 'Local' }).className).toContain('bg-fill-2');
   });
 
-  it('без подписи остаётся квадратом с доступным именем из подсказки', () => {
+  it('with no label it stays a square whose accessible name comes from the tooltip', () => {
     render(<NavItem icon="branch" hint="Branches" onClick={() => {}} />);
     const square = screen.getByRole('button', { name: 'Branches' });
-    expect(square.className, 'квадрат рейла — size-8, не строка').toContain('size-8');
+    expect(square.className, 'a rail square is size-8, not a list row').toContain('size-8');
   });
 });
