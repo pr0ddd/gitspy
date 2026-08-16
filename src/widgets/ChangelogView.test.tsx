@@ -4,36 +4,36 @@ import { RELEASES } from '@/entities/changelog';
 import { ChangelogView } from './ChangelogView';
 import '../i18n';
 
-describe('вкладка заметок', () => {
-  it('перечисляет выпущенные версии', () => {
+describe('release notes tab', () => {
+  it('lists every released version', () => {
     render(<ChangelogView />);
     expect(
       RELEASES.length,
-      'файл проекта не пуст, иначе вкладке нечего показывать',
+      'the project file is not empty, otherwise the tab has nothing to show',
     ).toBeGreaterThan(0);
     for (const release of RELEASES) {
       expect(screen.getByText(`Version ${release.version}`)).toBeTruthy();
     }
   });
 
-  it('помечает установленную версию и рисует её markdown', () => {
+  it('marks the installed version and renders its markdown', () => {
     render(<ChangelogView />);
     expect(
       screen.getByText('installed'),
-      'без пометки непонятно, что из списка уже стоит',
+      'without the mark it is unclear which entry of the list is already installed',
     ).toBeTruthy();
     const current = RELEASES.find((release) => release.version === __APP_VERSION__);
     const bullet = current?.body.split('\n').find((line) => line.startsWith('- ')) ?? '';
     expect(
       screen.getByText(bullet.replace(/^- /, ''), { exact: false }),
-      'строки секции доходят до экрана через Prose',
+      'the lines of a section reach the screen through Prose',
     ).toBeTruthy();
 
     const heading = current?.body.split('\n').find((line) => line.startsWith('### ')) ?? '';
     const installed = screen.getByText('installed').closest('section') as HTMLElement;
     expect(
       within(installed).getByRole('heading', { name: heading.replace(/^### /, '') }),
-      'рубрики внутри версии остаются заголовками, а не решёткой в тексте',
+      'the sub-sections inside a version stay headings instead of hashes in the text',
     ).toBeTruthy();
   });
 });

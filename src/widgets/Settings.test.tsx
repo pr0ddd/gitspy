@@ -30,20 +30,20 @@ const shown = {
   onDisconnected: () => {},
 };
 
-describe('страница настроек', () => {
+describe('the settings page', () => {
   beforeEach(() => localStorage.clear());
 
-  it('закрытая страница не занимает ни пикселя', () => {
+  it('a closed page takes up not a single pixel', () => {
     const { container } = render(<Settings {...shown} open={false} />);
-    expect(container.innerHTML, 'закрытые настройки — это отсутствие, а не display:none').toBe('');
+    expect(container.innerHTML, 'closed settings are absence, not display:none').toBe('');
   });
 
-  it('строки General пишут в те же префы, что живое поведение', () => {
+  it('the General rows write to the same prefs the live behaviour reads', () => {
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Remember open tabs' }));
     expect(
       localStorage.getItem('gitspy.session.remember'),
-      'галка «помнить вкладки» и восстановление сессии обязаны читать один преф',
+      'the "remember open tabs" checkbox and session restore must read one and the same pref',
     ).toBe('false');
 
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Auto-fetch interval' }), {
@@ -52,48 +52,48 @@ describe('страница настроек', () => {
     expect(localStorage.getItem('gitspy.autofetch.minutes')).toBe('7');
   });
 
-  it('слева секции, выбор секции меняет содержимое и шапку', () => {
+  it('the sections are on the left, and picking one changes both the content and the header', () => {
     render(<Settings {...shown} />);
     expect(screen.getByRole('button', { name: 'General' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Integrations' }));
     expect(
       screen.getByRole('button', { name: /Connect GitHub/ }),
-      'секция интеграций несёт живое подключение GitHub, а не заглушку',
+      'the Integrations section carries a live GitHub connection, not a placeholder',
     ).toBeTruthy();
     expect(
       screen.getByRole('banner').textContent,
-      'ViewBar-шапка называет открытую секцию',
+      'the ViewBar header names the open section',
     ).toContain('Integrations');
   });
 });
 
-describe('секция AI', () => {
+describe('the AI section', () => {
   beforeEach(() => localStorage.clear());
 
-  it('открытие секции само грузит список, определяет провайдера и выбирает модель', async () => {
+  it('opening the section loads the list, detects the provider and picks a model on its own', async () => {
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('button', { name: 'AI commit message' }));
 
     expect(
       await screen.findByRole('button', { name: 'qwen2.5-coder' }),
-      'первая модель из ответа сервера выбирается сама',
+      'the first model from the server response is selected on its own',
     ).toBeTruthy();
     expect(
       localStorage.getItem('gitspy.ai.provider'),
-      'провайдера называет сервер, а не пользователь',
+      'the provider is named by the server, not by the user',
     ).toBe('"lmstudio"');
     expect(
       localStorage.getItem('gitspy.ai.model'),
-      'выбор модели пишется в преф, который читает кнопка генерации',
+      'the chosen model goes to the pref that the generate button reads',
     ).toBe('"qwen2.5-coder"');
     expect(
       screen.getByText('Found LM Studio at this address.'),
-      'найденный провайдер назван человеку',
+      'the detected provider is named to the user',
     ).toBeTruthy();
   });
 
-  it('пустой адрес пробует оба локальных порта по очереди', async () => {
+  it('an empty address tries both local ports in turn', async () => {
     vi.mocked(ipc.aiDetectServer)
       .mockClear()
       .mockRejectedValueOnce(new Error('dead'))
@@ -103,7 +103,7 @@ describe('секция AI', () => {
 
     expect(
       await screen.findByRole('button', { name: 'llama3.1' }),
-      'второй порт спасает, когда первый молчит',
+      'the second port saves the case when the first one stays silent',
     ).toBeTruthy();
     expect(vi.mocked(ipc.aiDetectServer).mock.calls.map((call) => call[0])).toEqual([
       'http://localhost:11434',
@@ -112,23 +112,23 @@ describe('секция AI', () => {
   });
 });
 
-describe('секция Interface', () => {
+describe('the Interface section', () => {
   beforeEach(() => localStorage.clear());
 
-  it('минимапа и колонки пишут в те же хранилища, что живой граф', () => {
+  it('the minimap and the columns write to the same storage the live graph reads', () => {
     render(<Settings {...shown} />);
     fireEvent.click(screen.getByRole('button', { name: 'Interface' }));
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Graph minimap' }));
     expect(
       localStorage.getItem('gitspy.graph.minimap'),
-      'граф читает этот преф при маунте — иначе галка была бы бутафорией',
+      'the graph reads this pref on mount — otherwise the checkbox would be a stage prop',
     ).toBe('false');
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Branch / Tag' }));
     expect(
       localStorage.getItem('gitspy.columns.hidden'),
-      'видимость колонок делит хранилище с контекстным меню шапки',
+      'column visibility shares its storage with the header context menu',
     ).toContain('branchTag');
   });
 });

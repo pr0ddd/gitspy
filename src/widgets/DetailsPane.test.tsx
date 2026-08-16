@@ -3,25 +3,25 @@ import { describe, expect, it } from 'vitest';
 import { DetailsPane } from './DetailsPane';
 import '@/i18n';
 
-describe('панель подробностей', () => {
-  it('в обычной раскладке держит свою ширину и не тянется', () => {
-    const { container } = render(<DetailsPane note={null}>детали</DetailsPane>);
+describe('details pane', () => {
+  it('keeps its own width and does not stretch in the normal layout', () => {
+    const { container } = render(<DetailsPane note={null}>details</DetailsPane>);
     const pane = container.querySelector('aside');
-    expect(pane?.style.width, 'ширина панели — настройка человека').not.toBe('');
+    expect(pane?.style.width, 'the width of the pane is set by the person').not.toBe('');
     expect(pane?.className.includes('shrink-0')).toBe(true);
   });
 
-  it('заполняет колонку, когда она отдана ему целиком', () => {
+  it('fills the column when the whole column is given to it', () => {
     const { container } = render(
       <DetailsPane note={null} fill>
-        детали
+        details
       </DetailsPane>,
     );
     const pane = container.querySelector('aside');
     expect(
       pane?.className.includes('flex-1'),
-      'в полноэкранном режиме панель занимает колонку, иначе рядом зияет пустота',
+      'in full-screen mode the pane takes the column, otherwise a gap gapes next to it',
     ).toBe(true);
-    expect(pane?.style.width, 'фиксированная ширина тут только мешает').toBe('');
+    expect(pane?.style.width, 'a fixed width only gets in the way here').toBe('');
   });
 });

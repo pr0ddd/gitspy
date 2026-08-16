@@ -17,14 +17,14 @@ const tree = (patch: Partial<WorkingTreeView>): WorkingTreeView => ({
   ...patch,
 });
 
-describe('выбор push по состоянию ветки', () => {
-  it('с upstream идёт обычный push', () => {
+describe('choosing the push by the state of the branch', () => {
+  it('with an upstream a plain push goes out', () => {
     expect(pushFor(tree({ upstream: 'origin/master' }))).toEqual({
       kind: 'push',
     });
   });
 
-  it('без upstream push назначает его явно, а не молча', () => {
+  it('without an upstream the push sets one explicitly, not silently', () => {
     expect(pushFor(tree({ remotes: ['origin'] }))).toEqual({
       kind: 'pushSetUpstream',
       remote: 'origin',
@@ -32,11 +32,11 @@ describe('выбор push по состоянию ветки', () => {
     });
   });
 
-  it('без единого remote пушить некуда, и кнопка это признаёт', () => {
+  it('with no remote at all there is nowhere to push, and the button admits it', () => {
     expect(pushFor(tree({}))).toBeNull();
   });
 
-  it('в отсоединённой голове ветки нет, значит и push нет', () => {
+  it('on a detached HEAD there is no branch, so there is no push either', () => {
     expect(pushFor(tree({ branch: null, remotes: ['origin'] }))).toBeNull();
   });
 });
