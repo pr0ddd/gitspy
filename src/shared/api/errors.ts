@@ -25,6 +25,9 @@ export const isRejectedPush = (error: unknown): boolean =>
 export const isNoConnection = (error: unknown): boolean =>
   isErrorView(error) && error.code === 'host.noConnection';
 
+export const isRejectedByHost = (error: unknown): boolean =>
+  isErrorView(error) && error.code === 'host.badToken';
+
 function withoutHintNoise(detail: string): string {
   const essence = detail
     .split('\n')

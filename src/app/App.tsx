@@ -26,6 +26,7 @@ import {
 import { useZoom, zoomIn, zoomOut } from '@/shared/lib/zoom';
 import { focusArea, useCommands, useKeyboard } from '@/features/keyboard';
 import { useViewTabs } from '@/features/views';
+import { noteHostError, useHostsSync } from '@/features/hosts';
 import {
   hostOf,
   PULLS_IDLE,
@@ -43,7 +44,6 @@ import { Breadcrumbs } from '@/widgets/Breadcrumbs';
 import { ChangelogView } from '@/widgets/ChangelogView';
 import { DetailsPane } from '@/widgets/DetailsPane';
 import type {
-  AccountView,
   PathOperation,
   PullListView,
   PullView,
@@ -64,7 +64,8 @@ import { Sidebar } from '@/widgets/Sidebar';
 import { Details } from '@/widgets/Details';
 import { GraphView } from '@/widgets/GraphView';
 import { StartPage } from '@/widgets/StartPage';
-import { DiffView, sameDiffTarget, type DiffTarget } from '@/widgets/DiffView';
+import { DiffView } from '@/widgets/DiffView';
+import { sameDiffTarget, type DiffTarget } from '@/entities/diff';
 import { ConflictView } from '@/widgets/ConflictView';
 import { FileHistoryView } from '@/widgets/FileHistoryView';
 import { WorkingTree } from '@/widgets/WorkingTree';
@@ -105,7 +106,6 @@ export default function App() {
   }, []);
   const tabs = useViewTabs();
   const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string } | null>(null);
-  const [account, setAccount] = useState<AccountView | null>(null);
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
   const sidebarCollapsed = railed || main.kind !== 'graph';
   const readyUpdate = useReadyUpdate();
@@ -167,16 +167,7 @@ export default function App() {
     return () => document.removeEventListener('contextmenu', suppressWebviewMenu);
   }, []);
 
-  useEffect(() => {
-    ipc.hostAccount('github').then(setAccount).catch(notifyError);
-
-    const connected = ipc.onHostConnected(setAccount);
-    const failed = ipc.onHostFailed(notifyError);
-    return () => {
-      void connected.then((stop) => stop());
-      void failed.then((stop) => stop());
-    };
-  }, []);
+  useHostsSync();
 
   const remotes = current?.repo?.remotes;
   const { avatars, avatarTick, load, reload } = useRepoLoading({
@@ -218,6 +209,7 @@ export default function App() {
         });
       })
       .catch((error: unknown) => {
+        noteHostError(host, error);
         if (alive) setPulls(pullsAfterFailure(error, host));
       });
     return () => {
@@ -324,7 +316,10 @@ export default function App() {
     ipc
       .pullRequests(active, pulls.kind === 'ready', true)
       .then((known) => known && setPulls({ kind: 'ready', list: known }))
-      .catch((error: unknown) => setPulls(pullsAfterFailure(error, host)));
+      .catch((error: unknown) => {
+        noteHostError(host, error);
+        setPulls(pullsAfterFailure(error, host));
+      });
     void ipc.resolveAvatars(active).catch(() => undefined);
   }, [active, host, pulls.kind]);
 
@@ -486,14 +481,12 @@ export default function App() {
           ) : tabs.view === 'settings' ? (
             <Settings
               open
-              account={account}
               collapsed={sidebarCollapsed}
               zoom={zoom}
               onZoom={setZoom}
               compact={compact}
               onCompact={setCompact}
               onToggle={toggleRail}
-              onDisconnected={() => setAccount(null)}
             />
           ) : current === null ? (
             <StartPage

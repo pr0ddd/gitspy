@@ -16,13 +16,9 @@ import { notifyError } from '@/shared/ui/toast';
 import { relativeTime } from '@/shared/lib/time';
 import { Hint } from '@/shared/ui/tooltip';
 import { hostKindOf, splitListing, splitRecent } from '@/features/repo';
+import { noteHostError, useConnections } from '@/features/hosts';
 import { StartEmpty } from './StartEmpty';
-import type {
-  ConnectionView,
-  RecentRepo,
-  RepoListingView,
-  RepoPassportView,
-} from '@/shared/api/types';
+import type { RecentRepo, RepoListingView, RepoPassportView } from '@/shared/api/types';
 
 type Props = {
   recent: RecentRepo[];
@@ -279,25 +275,10 @@ export function StartPage({
   const [repos, setRepos] = useState<RepoListingView[]>([]);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [links, setLinks] = useState<ConnectionView[]>([]);
+  const links = useConnections();
   const [passports, setPassports] = useState<ReadonlyMap<string, RepoPassportView>>(new Map());
   const [hostStars, setHostStars] = usePref<string[]>('start.hostFavorites', []);
   const searchRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const pull = () =>
-      ipc
-        .connections()
-        .then((found) => alive && setLinks(found))
-        .catch(() => undefined);
-    void pull();
-    const stop = ipc.onHostConnected(() => void pull());
-    return () => {
-      alive = false;
-      void stop.then((off) => off());
-    };
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -340,7 +321,10 @@ export function StartPage({
     ipc
       .hostRepos(connection.id, false)
       .then((found) => alive && setRepos(found))
-      .catch(() => alive && setFailed(true))
+      .catch((error: unknown) => {
+        noteHostError(connection.id, error);
+        if (alive) setFailed(true);
+      })
       .finally(() => alive && setBusy(false));
     return () => {
       alive = false;
@@ -354,7 +338,10 @@ export function StartPage({
     ipc
       .hostRepos(connection.id, true)
       .then(setRepos)
-      .catch(() => setFailed(true))
+      .catch((error: unknown) => {
+        noteHostError(connection.id, error);
+        setFailed(true);
+      })
       .finally(() => setBusy(false));
   };
 
