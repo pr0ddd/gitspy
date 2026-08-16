@@ -9,7 +9,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+import { Hint, Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 import { usePref } from '@/shared/lib/prefs';
 import { useRepoWork } from '@/features/repo';
@@ -47,6 +47,10 @@ export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
 
 const pullOperation = (mode: PullMode): Operation =>
   mode === 'fetch' ? { kind: 'fetch' } : { kind: mode };
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <span className="@6xl:inline hidden">{children}</span>;
+}
 
 function Tally({ count, tone }: { count: number; tone: 'ahead' | 'behind' }) {
   if (count === 0) return null;
@@ -92,7 +96,7 @@ function ExchangeDeck({
       onClick={() => push && onRun(push)}
     >
       <Icon.push className={cn('size-4', pushing && 'animate-lift')} />
-      {GIT.push}
+      <Label>{GIT.push}</Label>
       <Tally count={ahead} tone="ahead" />
     </Button>
   );
@@ -105,11 +109,13 @@ function ExchangeDeck({
           !busy && 'hover:bg-hover-fill',
         )}
       >
-        <Button variant="split" size="sm-lead" disabled={busy} onClick={() => onRun(wanted)}>
-          <Icon.pull className={cn('size-4', pulling && 'animate-dive')} />
-          {GIT.pull}
-          <Tally count={behind} tone="behind" />
-        </Button>
+        <Hint text={GIT.pull}>
+          <Button variant="split" size="sm-lead" disabled={busy} onClick={() => onRun(wanted)}>
+            <Icon.pull className={cn('size-4', pulling && 'animate-dive')} />
+            <Label>{GIT.pull}</Label>
+            <Tally count={behind} tone="behind" />
+          </Button>
+        </Hint>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -140,7 +146,7 @@ function ExchangeDeck({
       </span>
 
       {push ? (
-        pushButton
+        <Hint text={GIT.push}>{pushButton}</Hint>
       ) : (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -187,8 +193,8 @@ export function Toolbar({
   }, [search]);
 
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 px-2">
-      <div className="flex w-64 min-w-0 shrink-0 items-center">{start}</div>
+    <div className="@container flex h-12 shrink-0 items-center gap-2 px-2">
+      <div className="@6xl:w-64 flex w-52 min-w-0 shrink-0 items-center">{start}</div>
       <div className="flex min-w-0 flex-1 items-center justify-center">
         <div className="bg-control-fill flex items-center gap-0.5 rounded-lg p-0.5">
           <ExchangeDeck
@@ -205,28 +211,29 @@ export function Toolbar({
             const Glyph = Icon[icon];
             const spinning = operation !== undefined && running === operation.kind;
             return (
-              <Button
-                key={label}
-                variant="action"
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  terminal ? onTerminal() : asks ? onAsk(asks) : operation && onRun(operation)
-                }
-              >
-                {spinning ? (
-                  <Icon.waiting className="size-4 animate-spin" />
-                ) : (
-                  <Glyph className="size-4" />
-                )}
-                {label}
-              </Button>
+              <Hint key={label} text={label}>
+                <Button
+                  variant="action"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() =>
+                    terminal ? onTerminal() : asks ? onAsk(asks) : operation && onRun(operation)
+                  }
+                >
+                  {spinning ? (
+                    <Icon.waiting className="size-4 animate-spin" />
+                  ) : (
+                    <Glyph className="size-4" />
+                  )}
+                  <Label>{label}</Label>
+                </Button>
+              </Hint>
             );
           })}
         </div>
       </div>
 
-      <div className="relative flex w-64 shrink-0 items-center">
+      <div className="@6xl:w-64 relative flex w-52 shrink-0 items-center">
         <SearchField
           value={search}
           fieldRef={field}
