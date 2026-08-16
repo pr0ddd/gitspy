@@ -30,23 +30,23 @@ const pull = (headBranch: string, extra: Partial<PullView> = {}): PullView => ({
   ...extra,
 });
 
-describe('пул-реквест на коммите', () => {
-  it('локальная ветка совпадает с головой пулла по имени', () => {
+describe('the pull request on a commit', () => {
+  it('a local branch matches the head branch of the pull request by name', () => {
     expect(pullAtRefs([ref('localBranch', 'feature/x')], [pull('feature/x')])?.number).toBe(7);
   });
 
-  it('удалённая ветка совпадает без имени remote', () => {
+  it('a remote branch matches once the remote name is dropped', () => {
     expect(pullAtRefs([ref('remoteBranch', 'origin/feature/x')], [pull('feature/x')])?.number).toBe(
       7,
     );
   });
 
-  it('чужие имена и теги пуллом не считаются', () => {
+  it('other names and tags do not count as a pull request', () => {
     expect(pullAtRefs([ref('localBranch', 'feature/y')], [pull('feature/x')])).toBeNull();
     expect(pullAtRefs([ref('tag', 'feature/x')], [pull('feature/x')])).toBeNull();
   });
 
-  it('пулл из форка по имени ветки не находится: ветка живёт в чужом репозитории', () => {
+  it('a pull request from a fork is not found by branch name: that branch lives in another repository', () => {
     expect(
       pullAtRefs([ref('localBranch', 'feature/x')], [pull('feature/x', { fromFork: true })]),
     ).toBeNull();

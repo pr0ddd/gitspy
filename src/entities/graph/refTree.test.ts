@@ -21,22 +21,22 @@ const shape = (nodes: TreeNode[], depth = 0): string[] =>
   ]);
 
 describe('buildRefTree', () => {
-  it('цепочка папок без развилки слипается в одну строку, иначе панель уходит в лесенку', () => {
+  it('collapses a chain of folders without a branching point into one row, otherwise the sidebar turns into a staircase', () => {
     const tree = buildRefTree([ref('fixtures/packaging/brunch/dev/minimatch-3.1.5')]);
     expect(shape(tree)).toEqual(['fixtures/packaging/brunch/dev/', '  minimatch-3.1.5']);
   });
 
-  it('развилка останавливает слипание: у папки снова есть выбор', () => {
+  it('stops collapsing at a branching point, where the folder has a choice again', () => {
     const tree = buildRefTree([ref('deps/npm/webpack/dev/a'), ref('deps/npm/brunch/dev/b')]);
     expect(shape(tree)).toEqual(['deps/npm/', '  brunch/dev/', '    b', '  webpack/dev/', '    a']);
   });
 
-  it('держит папки и листья в общем алфавитном порядке, не поднимая папки наверх', () => {
+  it('keeps folders and leaves in one alphabetical order instead of lifting folders to the top', () => {
     const tree = buildRefTree([ref('develop'), ref('ci/daemon-workflow'), ref('feat/x')]);
     expect(shape(tree)).toEqual(['ci/', '  daemon-workflow', 'develop', 'feat/', '  x']);
   });
 
-  it('даёт листу полное имя, потому что по нему выполняется checkout', () => {
+  it('gives a leaf the full ref name, because that is what checkout is run on', () => {
     const tree = buildRefTree([ref('pr/36451')]);
     const folder = tree[0];
     expect(folder.kind).toBe('folder');
@@ -45,51 +45,51 @@ describe('buildRefTree', () => {
     expect(folder.children[0].path).toBe('pr/36451');
   });
 
-  it('ветка и папка с одним именем не сливаются, и ветка идёт первой', () => {
+  it('does not merge a branch with a folder of the same name, and puts the branch first', () => {
     const tree = buildRefTree([ref('feat'), ref('feat/x')]);
     expect(shape(tree)).toEqual(['feat', 'feat/', '  x']);
   });
 
-  it('порядок при равных именах задан правилом, а не устойчивостью сортировки', () => {
+  it('orders equal names by a rule of its own, not by the stability of the sort', () => {
     const folderFirst = buildRefTree([ref('feat/x'), ref('feat')]);
     const leafFirst = buildRefTree([ref('feat'), ref('feat/x')]);
     expect(shape(folderFirst)).toEqual(shape(leafFirst));
   });
 
-  it('удалённая ветка держит remote первым сегментом склеенной папки', () => {
+  it('keeps the remote as the first segment of the collapsed folder for a remote branch', () => {
     const tree = buildRefTree([ref('origin/dev/x')]);
     expect(shape(tree)).toEqual(['origin/dev/', '  x']);
   });
 
-  it('пустой список даёт пустое дерево, а не корень из ничего', () => {
+  it('gives an empty tree for an empty list, not a root made of nothing', () => {
     expect(buildRefTree([])).toEqual([]);
   });
 });
 
 describe('filterRefTree', () => {
-  it('оставляет только ветви с совпадением', () => {
+  it('keeps only the branches of the tree that hold a match', () => {
     const tree = buildRefTree([ref('ci/daemon-workflow'), ref('feat/login')]);
     expect(shape(filterRefTree(tree, 'daemon'))).toEqual(['ci/', '  daemon-workflow']);
   });
 
-  it('пустая папка после отсева не остаётся висеть', () => {
+  it('does not leave a folder hanging around once the filter empties it', () => {
     const tree = buildRefTree([ref('ci/one'), ref('ci/two'), ref('feat/x')]);
     expect(shape(filterRefTree(tree, 'two'))).toEqual(['ci/', '  two']);
   });
 
-  it('совпадение по имени папки оставляет её содержимое', () => {
+  it('keeps the contents of a folder whose own name matches', () => {
     const tree = buildRefTree([ref('ci/one'), ref('feat/x')]);
     expect(shape(filterRefTree(tree, 'ci/'))).toEqual(['ci/', '  one']);
   });
 
-  it('пустой запрос отдаёт дерево как есть', () => {
+  it('returns the tree as is for a blank query', () => {
     const tree = buildRefTree([ref('ci/one')]);
     expect(filterRefTree(tree, '  ')).toBe(tree);
   });
 
-  it('ничего не совпало — пусто, а не всё', () => {
+  it('gives nothing when nothing matched, not everything', () => {
     const tree = buildRefTree([ref('ci/one')]);
-    expect(filterRefTree(tree, 'нетакого')).toEqual([]);
+    expect(filterRefTree(tree, 'nosuchthing')).toEqual([]);
   });
 });
 
@@ -99,15 +99,15 @@ describe('flattenRefTree', () => {
       (row) => `${'  '.repeat(row.depth)}${row.kind === 'folder' ? `${row.name}/` : row.name}`,
     );
 
-  it('открытое дерево разворачивается в те же строки и в том же порядке', () => {
+  it('flattens a fully open tree into the same rows in the same order', () => {
     expect(flat(['ci/one', 'develop'])).toEqual(['ci/', '  one', 'develop']);
   });
 
-  it('закрытая папка остаётся строкой, но прячет содержимое, не трогая соседей', () => {
+  it('keeps a closed folder as a row but hides its contents, leaving its neighbours alone', () => {
     expect(flat(['ci/one', 'develop'], ['ci'])).toEqual(['ci/', 'develop']);
   });
 
-  it('глубина растёт на уровень с каждой развилкой, а не с каждым сегментом имени', () => {
+  it('grows depth by one level at each branching point, not at each name segment', () => {
     const rows = flattenRefTree(buildRefTree([ref('a/b/target'), ref('a/other')]), new Set());
     expect(rows.map((row) => `${row.depth}:${row.name}`)).toEqual([
       '0:a',

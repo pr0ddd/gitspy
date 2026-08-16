@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { clampSelected, EMPTY, sessionsReducer } from './session';
 import type { RepoView } from '@/types';
 
-describe('выделение после перечитывания истории', () => {
-  it('выделение за пределами истории подтягивается к последней строке', () => {
+describe('selection after the history is re-read', () => {
+  it('a selection past the end of the history is pulled back to the last row', () => {
     expect(clampSelected(500, 100)).toBe(99);
   });
 
-  it('обычное выделение не трогается', () => {
+  it('a selection inside the history is left alone', () => {
     expect(clampSelected(7, 100)).toBe(7);
   });
 
-  it('в пустом репозитории выделение остаётся нулевым, а не отрицательным', () => {
+  it('in an empty repository the selection stays at zero instead of going negative', () => {
     expect(clampSelected(3, 0)).toBe(0);
   });
 });
@@ -30,8 +30,8 @@ const repo = (count: number): RepoView => ({
   refs: [],
 });
 
-describe('переходы состояния сессий', () => {
-  it('повторное открытие не плодит вкладку, а активирует существующую', () => {
+describe('session state transitions', () => {
+  it('opening the same path again activates the existing tab instead of adding a second one', () => {
     let state = sessionsReducer(EMPTY, { kind: 'open', path: '/a' });
     state = sessionsReducer(state, { kind: 'open', path: '/b' });
     state = sessionsReducer(state, { kind: 'open', path: '/a' });
@@ -40,7 +40,7 @@ describe('переходы состояния сессий', () => {
     expect(state.active).toBe('/a');
   });
 
-  it('закрытие активной вкладки выбирает соседнюю, а не пустоту', () => {
+  it('closing the active tab activates its neighbour instead of leaving nothing active', () => {
     let state = sessionsReducer(EMPTY, { kind: 'open', path: '/a' });
     state = sessionsReducer(state, { kind: 'open', path: '/b' });
     state = sessionsReducer(state, { kind: 'close', path: '/b' });
@@ -49,7 +49,7 @@ describe('переходы состояния сессий', () => {
     expect(state.sessions).toHaveLength(1);
   });
 
-  it('закрытие неактивной не трогает активную', () => {
+  it('closing an inactive tab leaves the active one alone', () => {
     let state = sessionsReducer(EMPTY, { kind: 'open', path: '/a' });
     state = sessionsReducer(state, { kind: 'open', path: '/b' });
     state = sessionsReducer(state, { kind: 'close', path: '/a' });
@@ -57,7 +57,7 @@ describe('переходы состояния сессий', () => {
     expect(state.active).toBe('/b');
   });
 
-  it('история стала короче — выделение подтягивается, а не указывает в пустоту', () => {
+  it('when the history got shorter the selection is pulled in instead of pointing past the end', () => {
     let state = sessionsReducer(EMPTY, { kind: 'open', path: '/a' });
     state = sessionsReducer(state, { kind: 'select', path: '/a', index: 500 });
     state = sessionsReducer(state, { kind: 'loaded', path: '/a', repo: repo(100) });
@@ -66,7 +66,7 @@ describe('переходы состояния сессий', () => {
     expect(state.sessions[0].loading).toBe(false);
   });
 
-  it('провал загрузки убирает сессию целиком', () => {
+  it('a failed load removes the session entirely', () => {
     let state = sessionsReducer(EMPTY, { kind: 'open', path: '/a' });
     state = sessionsReducer(state, { kind: 'failed', path: '/a' });
 
@@ -74,7 +74,7 @@ describe('переходы состояния сессий', () => {
     expect(state.active).toBeNull();
   });
 
-  it('загрузка чужой вкладки не трогает мою', () => {
+  it('a load that finished for another tab leaves this one untouched', () => {
     let state = sessionsReducer(EMPTY, { kind: 'open', path: '/a' });
     state = sessionsReducer(state, { kind: 'open', path: '/b' });
     const before = state.sessions.find((s) => s.path === '/a')!;
@@ -84,15 +84,15 @@ describe('переходы состояния сессий', () => {
   });
 });
 
-describe('повторный выбор той же строки', () => {
-  it('возвращает прежнее состояние, поэтому Enter подряд ничего не перерисовывает', () => {
+describe('selecting the same row again', () => {
+  it('returns the previous state, so pressing Enter twice in a row redraws nothing', () => {
     const opened = sessionsReducer(EMPTY, { kind: 'open', path: '/r' });
     const chosen = sessionsReducer(opened, { kind: 'select', path: '/r', index: 5 });
 
     expect(sessionsReducer(chosen, { kind: 'select', path: '/r', index: 5 })).toBe(chosen);
   });
 
-  it('другая строка состояние меняет', () => {
+  it('a different row does change the state', () => {
     const opened = sessionsReducer(EMPTY, { kind: 'open', path: '/r' });
     const chosen = sessionsReducer(opened, { kind: 'select', path: '/r', index: 5 });
     const moved = sessionsReducer(chosen, { kind: 'select', path: '/r', index: 6 });

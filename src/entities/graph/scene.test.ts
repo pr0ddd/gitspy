@@ -34,56 +34,60 @@ const HEIGHT = 800;
 const colsWith = (graph: number) => layoutColumns(listWidth(WIDTH), { graph });
 const COLS = layoutColumns(listWidth(WIDTH), {});
 
-describe('зазор между строками графа', () => {
-  it('строка не заливается во всю высоту: соседние полосы разделены, как в GitKraken', () => {
-    expect(rowBandHeight(M), 'полоса в 30px строке').toBe(24);
-    expect(M.rowH - rowBandHeight(M), 'зазор — 21% шага строки, замерено по GitKraken').toBe(6);
+describe('the gap between graph rows', () => {
+  it('does not fill the row to its full height: neighbouring bands stay apart, as in GitKraken', () => {
+    expect(rowBandHeight(M), 'the band inside a 30px row').toBe(24);
+    expect(
+      M.rowH - rowBandHeight(M),
+      'the gap is 21% of the row step, measured against GitKraken',
+    ).toBe(6);
   });
 
-  it('на плотной раскладке зазор ужимается вместе со строкой, а не остаётся прежним', () => {
-    expect(rowBandInset(METRICS_COMPACT), 'строка 28px').toBe(3);
+  it('shrinks the gap together with the row on the compact layout instead of keeping it as it was', () => {
+    expect(rowBandInset(METRICS_COMPACT), 'a 28px row').toBe(3);
     expect(rowBandHeight(METRICS_COMPACT)).toBe(22);
   });
 
-  it('узел помещается в полосу целиком на обеих плотностях', () => {
+  it('fits the node inside the band whole at both densities', () => {
     for (const m of [M, METRICS_COMPACT]) {
       expect(
         rowBandHeight(m) >= m.nodeR * 2,
-        `узел радиуса ${m.nodeR} торчит из полосы ${rowBandHeight(m)}px`,
+        `a node of radius ${m.nodeR} sticks out of the ${rowBandHeight(m)}px band`,
       ).toBe(true);
     }
   });
 
-  it('первая полоса отделена от шапки тем же зазором, что и соседние коммиты', () => {
+  it('separates the first band from the header by the same gap that separates neighbouring commits', () => {
     for (const m of [M, METRICS_COMPACT]) {
       const firstBandTop = rowTop(m, 0, 0) + rowBandInset(m);
-      expect(firstBandTop - HEADER_H, 'от низа шапки до первой карточки — межкоммитный зазор').toBe(
-        m.rowH - rowBandHeight(m),
-      );
+      expect(
+        firstBandTop - HEADER_H,
+        'from the bottom of the header to the first card it is the between-commits gap',
+      ).toBe(m.rowH - rowBandHeight(m));
     }
   });
 });
 
-describe('видимый диапазон', () => {
-  it('в начале истории показывает строки с нуля', () => {
+describe('visible range', () => {
+  it('starts at row zero at the top of the history', () => {
     const { first, last } = visibleRange(M, 0, HEIGHT, 1000);
     expect(first).toBe(0);
     expect(last).toBe(Math.ceil(contentHeight(HEIGHT) / M.rowH) + 1);
   });
 
-  it('не выходит за конец истории', () => {
+  it('does not run past the end of the history', () => {
     const { last } = visibleRange(M, 1e9, HEIGHT, 40);
     expect(last).toBe(40);
   });
 
-  it('сдвиг компенсирует часть строки, ушедшую под шапку', () => {
+  it('shifts by the part of the row that went under the header', () => {
     const { shift } = visibleRange(M, listTopInset(M) + M.rowH * 3 + 7, HEIGHT, 1000);
     expect(shift).toBe(HEADER_H - 7);
   });
 });
 
-describe('якорь прокрутки', () => {
-  it('переживает смену плотности: коммит остаётся на месте', () => {
+describe('scroll anchor', () => {
+  it('survives a change of density: the commit stays where it was', () => {
     const scrollY = 137 * M.rowH + 11;
     const anchor = anchorAt(M, scrollY);
     expect(anchor.index).toBe(137);
@@ -92,121 +96,121 @@ describe('якорь прокрутки', () => {
     expect(anchorAt(METRICS_COMPACT, moved).index).toBe(137);
   });
 
-  it('туда и обратно даёт исходную прокрутку', () => {
+  it('round-trips back to the original scroll position', () => {
     const scrollY = 42 * M.rowH + 9;
     expect(scrollForAnchor(M, anchorAt(M, scrollY))).toBeCloseTo(scrollY);
   });
 });
 
-describe('центрирование выделенной строки', () => {
+describe('centring the selected row', () => {
   const H = HEADER_H + M.rowH * 10;
 
-  it('видимую строку не трогает: щелчок в графе не должен дёргать прокрутку', () => {
+  it('leaves a visible row alone: a click in the graph must not jerk the scroll', () => {
     const at = M.rowH * 100;
     expect(scrollToCenter(M, 103, at, H, 1000)).toBe(at);
   });
 
-  it('строка вне окна встаёт в середину окна', () => {
+  it('puts a row from outside the window into the middle of the window', () => {
     const got = scrollToCenter(M, 500, 0, H, 1000);
     const view = H - HEADER_H;
     expect(got).toBe(listTopInset(M) + 500 * M.rowH - (view - M.rowH) / 2);
   });
 
-  it('у краёв истории прижимается к пределам, а не уходит за них', () => {
+  it('clamps to the limits at the ends of the history instead of going past them', () => {
     expect(scrollToCenter(M, 0, M.rowH * 500, H, 1000)).toBe(0);
     expect(scrollToCenter(M, 999, 0, H, 1000)).toBe(maxScroll(M, 1000, H));
   });
 });
 
-describe('строка под курсором', () => {
-  it('в шапке строки нет', () => {
+describe('the row under the cursor', () => {
+  it('finds no row inside the header', () => {
     expect(rowAtY(M, HEADER_H - 1, 0, 100)).toBeNull();
   });
 
-  it('первая строка начинается после верхнего отступа', () => {
+  it('starts the first row after the top inset', () => {
     expect(
       rowAtY(M, HEADER_H + 1, 0, 100),
-      'в зазоре между шапкой и первой строкой клика нет',
+      'a click in the gap between the header and the first row hits no row',
     ).toBeNull();
     expect(rowAtY(M, HEADER_H + listTopInset(M) + 1, 0, 100)).toBe(0);
   });
 
-  it('за концом истории строки нет', () => {
+  it('finds no row past the end of the history', () => {
     expect(rowAtY(M, HEADER_H + M.rowH * 50, 0, 10)).toBeNull();
   });
 });
 
-describe('предел прокрутки', () => {
-  it('короткая история не прокручивается', () => {
+describe('scroll limit', () => {
+  it('does not scroll a history shorter than the window', () => {
     expect(maxScroll(M, 3, HEIGHT)).toBe(0);
   });
 
-  it('длинная упирается в последнюю строку вместе с верхним отступом', () => {
+  it('stops a long one at the last row, top inset included', () => {
     expect(maxScroll(M, 1000, HEIGHT)).toBe(
       listTopInset(M) + 1000 * M.rowH - contentHeight(HEIGHT),
     );
   });
 });
 
-describe('геометрия графа', () => {
-  it('узкий граф не прокручивается вбок и не прижимает узлы', () => {
+describe('graph geometry', () => {
+  it('neither scrolls sideways nor pins nodes while the graph is narrow enough', () => {
     const g = graphGeometry(M, 2, 0, COLS);
     expect(maxScrollX(M, 2, COLS.graph.width)).toBe(0);
     expect(g.isStuck(0)).toBe(false);
     expect(g.nodeX(1)).toBe(g.laneAt(1));
   });
 
-  it('широкий граф прижимает узлы за краем к краю', () => {
+  it('pins the nodes beyond the edge of a wide graph to that edge', () => {
     const g = graphGeometry(M, 200, 0, COLS);
     expect(maxScrollX(M, 200, COLS.graph.width)).toBeGreaterThan(0);
     expect(g.isStuck(199)).toBe(true);
     expect(g.nodeX(199)).toBeLessThanOrEqual(COLS.graph.left + COLS.graph.width);
   });
 
-  it('тень слева появляется только когда слева что-то скрыто', () => {
+  it('shows the left shadow only when something is hidden on the left', () => {
     expect(graphGeometry(M, 200, 0, COLS).leftShadow).toBe(false);
     expect(graphGeometry(M, 200, 40, COLS).leftShadow).toBe(true);
   });
 
-  it('тень справа исчезает на самом правом краю', () => {
+  it('drops the right shadow at the very right edge', () => {
     const max = maxScrollX(M, 200, COLS.graph.width);
     expect(graphGeometry(M, 200, 0, COLS).rightShadow).toBe(true);
     expect(graphGeometry(M, 200, max, COLS).rightShadow).toBe(false);
   });
 
-  it('дорожки идут слева направо с шагом в ширину дорожки', () => {
+  it('runs the lanes left to right, one lane width apart', () => {
     const g = graphGeometry(M, 10, 0, COLS);
     expect(g.laneAt(3) - g.laneAt(2)).toBe(M.laneW);
   });
 });
 
-describe('место поля ввода в строке', () => {
-  it('верх строки уезжает вверх ровно на прокрутку', () => {
+describe('where the input field sits in the row', () => {
+  it('moves the top of the row up by exactly the scroll offset', () => {
     expect(rowTop(M, 0, 0)).toBe(HEADER_H + listTopInset(M));
     expect(rowTop(M, 0, 40)).toBe(HEADER_H + listTopInset(M) - 40);
     expect(rowTop(M, 3, 0)).toBe(HEADER_H + listTopInset(M) + 3 * M.rowH);
   });
 });
 
-describe('минимапа под шапкой', () => {
-  it('щелчок в самый верх полосы не уводит выше начала', () => {
+describe('the minimap under the header', () => {
+  it('does not go above the start of the history on a click at the very top of the band', () => {
     expect(minimapFraction(0, 800)).toBe(0);
     expect(minimapFraction(MINIMAP_TOP, 800)).toBe(0);
   });
 
-  it('щелчок в самый низ даёт конец истории', () => {
+  it('gives the end of the history on a click at the very bottom', () => {
     expect(minimapFraction(800, 800)).toBe(1);
   });
 
-  it('середина полосы — середина истории, а не середина окна', () => {
+  it('maps the middle of the band to the middle of the history, not to the middle of the window', () => {
     const height = 800;
     const middle = MINIMAP_TOP + minimapBand(height) / 2;
     expect(minimapFraction(middle, height)).toBeCloseTo(0.5);
   });
 });
 
-describe('якорь дорожек', () => {
-  it('порог прокручиваемости не сдвигает дорожки: ворота режут, а не двигают', () => {
+describe('the lane anchor', () => {
+  it('keeps the lanes in place across the scrollability threshold: the gate clips, it does not move', () => {
     const narrow = colsWith(300);
     const wide = colsWith(1200);
     const before = graphGeometry(M, 20, 0, narrow);
@@ -215,8 +219,8 @@ describe('якорь дорожек', () => {
   });
 });
 
-describe('прижатие в покое', () => {
-  it('без прокрутки ни один узел прокручиваемого графа не прижат', () => {
+describe('pinning at rest', () => {
+  it('pins no node of a scrollable graph while the horizontal scroll is at zero', () => {
     const narrow = colsWith(200);
     const g = graphGeometry(M, 60, 0, narrow);
     expect(g.isStuck(0)).toBe(false);
@@ -224,101 +228,101 @@ describe('прижатие в покое', () => {
   });
 });
 
-describe('узкая колонка графа', () => {
-  it('шаг дорожек не зависит от ширины колонки — граница не зумит содержимое', () => {
+describe('a narrow graph column', () => {
+  it('keeps the lane step independent of the column width: the border does not zoom the content', () => {
     const wide = graphGeometry(M, 99, 0, colsWith(700));
     const tight = graphGeometry(M, 99, 0, colsWith(120));
     expect(wide.laneAt(1) - wide.laneAt(0)).toBe(M.laneW);
     expect(tight.laneAt(1) - tight.laneAt(0)).toBe(M.laneW);
   });
 
-  it('не влезающие узлы прижимаются в колонну у края', () => {
+  it('pins the nodes that do not fit into a single stack at the edge', () => {
     const g = graphGeometry(M, 99, 0, colsWith(70));
     expect(g.nodeX(60)).toBe(g.nodeX(99));
     expect(g.isStuck(60)).toBe(true);
   });
 });
 
-describe('минимальная колонка графа', () => {
-  it('свободный аватар стоит на месте, пока край до него не доехал', () => {
+describe('the minimum graph column', () => {
+  it('leaves a free avatar in place until the edge has reached it', () => {
     const roomy = graphGeometry(M, 99, 0, colsWith(200));
     const tight = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
     expect(roomy.nodeX(0)).toBe(roomy.laneAt(0));
     expect(tight.nodeX(0)).toBe(tight.laneAt(0));
   });
 
-  it('в минимуме колонна и свободный узел сливаются в один ряд', () => {
+  it('merges the pinned stack and the free node into one line at the minimum width', () => {
     const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
     expect(Math.abs(g.nodeX(99) - g.nodeX(0))).toBeLessThanOrEqual(M.nodeR);
   });
 
-  it('линии забранных дорожек вливаются в ось колонны, а не пропадают', () => {
+  it('folds the lines of the pinned lanes into the axis of the stack instead of losing them', () => {
     const g = graphGeometry(M, 99, 0, colsWith(90));
     expect(Math.min(g.laneAt(50), g.pinX)).toBe(g.pinX);
     expect(g.pinX).toBe(g.nodeX(50));
   });
 
-  it('просторный граф ничего не прижимает', () => {
+  it('pins nothing in a roomy graph', () => {
     const g = graphGeometry(M, 3, 0, colsWith(400));
     expect(g.pinX).toBe(Number.POSITIVE_INFINITY);
   });
 });
 
-describe('дно колонки графа', () => {
-  it('в минимуме все узлы становятся в один ряд без остатка', () => {
+describe('the floor of the graph column', () => {
+  it('stands every node in one line at the minimum width, with nothing left over', () => {
     const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 28 }));
     expect(g.nodeX(0)).toBe(g.nodeX(99));
   });
 });
 
-describe('проматывание к выделенной строке', () => {
+describe('scrolling to reveal the selected row', () => {
   const H = HEADER_H + M.rowH * 10;
   const COUNT = 1000;
 
-  it('видимую строку не трогает вовсе', () => {
+  it('does not touch a visible row at all', () => {
     const at = M.rowH * 100;
     expect(scrollToReveal(M, 105, at, H, COUNT)).toBe(at);
   });
 
-  it('строку выше окна подводит к его верхнему краю', () => {
+  it('brings a row above the window up to its top edge', () => {
     expect(scrollToReveal(M, 3, M.rowH * 100, H, COUNT)).toBe(listTopInset(M) + M.rowH * 3);
   });
 
-  it('строку ниже окна подводит к нижнему краю, а не к верхнему', () => {
+  it('brings a row below the window to the bottom edge, not to the top one', () => {
     const got = scrollToReveal(M, 200, 0, H, COUNT);
     expect(got).toBe(listTopInset(M) + M.rowH * 201 - M.rowH * 10);
     expect(got).toBeLessThan(M.rowH * 200);
   });
 
-  it('последняя строка не уезжает за предел прокрутки', () => {
+  it('does not take the last row past the scroll limit', () => {
     const got = scrollToReveal(M, COUNT - 1, 0, H, COUNT);
     expect(got).toBe(maxScroll(M, COUNT, H));
   });
 
-  it('в репозитории короче окна прокрутка остаётся нулевой', () => {
+  it('keeps the scroll at zero in a repository shorter than the window', () => {
     expect(scrollToReveal(M, 2, 0, H, 3)).toBe(0);
   });
 });
 
-describe('рельса минимапы', () => {
-  it('без минимапы список кончается перед полосой скроллбара, а не под ней', () => {
+describe('the minimap rail', () => {
+  it('ends the list before the scrollbar rail rather than underneath it when there is no minimap', () => {
     expect(listWidth(1000)).toBe(1000 - MINIMAP_W);
     expect(
       listWidth(1000, false),
-      'ползунку резервируется своя полоса — иначе он ложится поверх текста колонок',
+      'the thumb gets a rail of its own, otherwise it lies over the text of the columns',
     ).toBe(1000 - VSCROLL_W);
     expect(VSCROLL_W).toBeLessThan(MINIMAP_W);
   });
 });
 
-describe('вертикальный скроллбар без минимапы', () => {
+describe('the vertical scrollbar without the minimap', () => {
   const m = METRICS_AVATARS;
 
-  it('умещающийся список ползунка не получает', () => {
-    expect(vScrollThumb(m, 5, 0, 800), 'скроллить нечего — рисовать нечего').toBeNull();
+  it('gives no thumb to a list that fits', () => {
+    expect(vScrollThumb(m, 5, 0, 800), 'nothing to scroll means nothing to draw').toBeNull();
   });
 
-  it('ползунок пропорционален видимой доле и ходит по всей полосе', () => {
+  it('sizes the thumb by the visible fraction and lets it travel the whole rail', () => {
     const count = 1000;
     const height = 800;
     const top = vScrollThumb(m, count, 0, height)!;
@@ -328,7 +332,7 @@ describe('вертикальный скроллбар без минимапы', 
     const bottom = vScrollThumb(m, count, limit, height)!;
     expect(
       Math.round(bottom.top + bottom.height),
-      'на самом низу ползунок упирается в край, а не вылетает',
+      'at the very bottom the thumb stops at the edge instead of overshooting it',
     ).toBe(height);
     expect(bottom.height).toBeGreaterThanOrEqual(30);
   });

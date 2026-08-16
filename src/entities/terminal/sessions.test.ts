@@ -6,13 +6,13 @@ const fresh = () => {
   return useTermSessions.getState();
 };
 
-describe('стор сессий терминала', () => {
-  it('add делает сессию активной', () => {
+describe('terminal session store', () => {
+  it('add makes the session active', () => {
     fresh().add({ id: 1, title: 'zsh', command: null, cwd: '/r', repo: '/r' });
     expect(activeOf(useTermSessions.getState(), '/r')).toBe(1);
   });
 
-  it('remove активной переключает на соседнюю', () => {
+  it('removing the active session switches to its neighbour', () => {
     const s = fresh();
     s.add({ id: 1, title: 'a', command: null, cwd: '/r', repo: '/r' });
     s.add({ id: 2, title: 'b', command: null, cwd: '/r', repo: '/r' });
@@ -20,17 +20,17 @@ describe('стор сессий терминала', () => {
     expect(activeOf(useTermSessions.getState(), '/r')).toBe(1);
   });
 
-  it('setTitle не трогает чужие сессии', () => {
+  it('setTitle does not touch other sessions', () => {
     const s = fresh();
     s.add({ id: 1, title: 'a', command: null, cwd: '/r', repo: '/r' });
     s.add({ id: 2, title: 'b', command: null, cwd: '/r', repo: '/r' });
-    useTermSessions.getState().setTitle(1, 'сборка');
+    useTermSessions.getState().setTitle(1, 'build');
     const [one, two] = useTermSessions.getState().sessions;
-    expect(one.title).toBe('сборка');
-    expect(two.title, 'заголовок пришёл только одной сессии').toBe('b');
+    expect(one.title).toBe('build');
+    expect(two.title, 'the title reached only one session').toBe('b');
   });
 
-  it('сессии разных репозиториев не смешиваются', () => {
+  it('sessions of different repositories do not mix', () => {
     const s = fresh();
     s.add({ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a' });
     s.add({ id: 2, title: 'zsh', command: null, cwd: '/b', repo: '/b' });
@@ -38,25 +38,25 @@ describe('стор сессий терминала', () => {
     expect(sessionsOfRepo(useTermSessions.getState(), '/b').map((x) => x.id)).toEqual([2]);
   });
 
-  it('активная сессия своя у каждого репозитория', () => {
+  it('each repository has its own active session', () => {
     const s = fresh();
     s.add({ id: 1, title: 'zsh', command: null, cwd: '/a', repo: '/a' });
     s.add({ id: 2, title: 'zsh', command: null, cwd: '/b', repo: '/b' });
     expect(
       activeOf(useTermSessions.getState(), '/a'),
-      'переключение вкладки не крадёт активную сессию',
+      'switching tabs does not steal the active session',
     ).toBe(1);
     expect(activeOf(useTermSessions.getState(), '/b')).toBe(2);
   });
 
-  it('remove уводит активную только к сессии своего репозитория', () => {
+  it('remove moves the active pointer only to a session of the same repository', () => {
     const s = fresh();
     s.add({ id: 1, title: 'a', command: null, cwd: '/a', repo: '/a' });
     s.add({ id: 2, title: 'b', command: null, cwd: '/b', repo: '/b' });
     useTermSessions.getState().remove(2);
     expect(
       activeOf(useTermSessions.getState(), '/b'),
-      'соседа в чужом репозитории не ищут — закрылась последняя',
+      'no neighbour is looked for in another repository: the last one closed',
     ).toBeNull();
     expect(activeOf(useTermSessions.getState(), '/a')).toBe(1);
   });

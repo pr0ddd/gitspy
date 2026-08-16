@@ -18,31 +18,31 @@ const wip = (over: Partial<WipRow> = {}): WipRow => ({
   ...over,
 });
 
-describe('единственное решение о содержимом строки WIP', () => {
-  it('в покое строка показывает счётчики', () => {
+describe('the single decision about what the WIP row shows', () => {
+  it('shows the counters when nothing is in progress', () => {
     expect(wipContent(wip())).toBe('counters');
   });
 
-  it('конфликтное слияние вытесняет счётчики баннером', () => {
+  it('replaces the counters with a banner during a conflicted merge', () => {
     expect(wipContent(wip({ conflicts: 2, inProgress: 'merge' }))).toBe('conflictBanner');
   });
 
-  it('конфликтные буквы без слияния — ещё не баннер', () => {
+  it('does not raise the banner for conflict letters alone, without a merge in progress', () => {
     expect(
       wipContent(wip({ conflicts: 1 })),
-      'без MERGE_HEAD это просто файлы с плохими буквами, слияние не идёт',
+      'without MERGE_HEAD these are just files carrying a conflict status letter, no merge is running',
     ).toBe('counters');
   });
 
-  it('инпут сообщения живёт только над счётчиками', () => {
+  it('shows the message input only over the counters', () => {
     expect(wipInputShown(wip(), 0)).toBe(true);
     expect(
       wipInputShown(wip({ conflicts: 2, inProgress: 'merge' }), 0),
-      'коммитить посреди конфликтов нельзя — инпуту нечего делать поверх баннера',
+      'committing in the middle of conflicts is impossible, so the input has nothing to do over the banner',
     ).toBe(false);
   });
 
-  it('инпут исчезает вместе со строкой при прокрутке и на чужих строках', () => {
+  it('hides the input together with the row once it scrolls away, and on any other row', () => {
     expect(wipInputShown(wip(), 3)).toBe(false);
     expect(wipInputShown(undefined, 0)).toBe(false);
   });
@@ -50,22 +50,23 @@ describe('единственное решение о содержимом стр
 
 import { layoutColumns } from './columns';
 
-describe('счётчики WIP при скрытых колонках', () => {
-  it('с видимым автором бейджи стоят в его колонке, инпут во всю ширину', () => {
+describe('WIP counters when columns are hidden', () => {
+  it('puts the badges in the author column and gives the input the full width while the author is visible', () => {
     const cols = layoutColumns(1200, {}, new Set());
 
     expect(wipBadgesX(cols)).toBe(cols.author.left + 8);
     expect(wipInputWidth(cols)).toBe(cols.message.width - 24);
   });
 
-  it('со скрытым автором бейджи переезжают в колонку сообщения, инпут уступает им место', () => {
+  it('moves the badges into the message column when the author is hidden, and the input yields the room', () => {
     const cols = layoutColumns(1200, {}, new Set(['author', 'date', 'sha'] as const));
 
-    expect(wipBadgesX(cols), 'бейджи внутри колонки сообщения').toBeLessThan(
+    expect(wipBadgesX(cols), 'the badges stay inside the message column').toBeLessThan(
       cols.message.left + cols.message.width,
     );
-    expect(wipInputWidth(cols), 'инпут короче колонки ровно на резерв бейджей').toBe(
-      cols.message.width - 24 - 150,
-    );
+    expect(
+      wipInputWidth(cols),
+      'the input is shorter than the column by exactly the room reserved for the badges',
+    ).toBe(cols.message.width - 24 - 150);
   });
 });

@@ -20,58 +20,61 @@ Preamble that belongs to no version.
 - older thing
 `;
 
-describe('разбор changelog', () => {
-  it('делит файл на секции и не считает преамбулу версией', () => {
+describe('changelog parsing', () => {
+  it('splits the file into sections and does not take the preamble for a version', () => {
     const releases = parseReleases(FILE);
     expect(
       releases.map((release) => release.version),
-      'версии идут сверху вниз, текст до первого заголовка ничей',
+      'versions come in file order, the text before the first heading belongs to none of them',
     ).toEqual(['Unreleased', '1.0.6', '1.0.5']);
   });
 
-  it('тело секции — всё до следующего заголовка, без пустых краёв', () => {
+  it('takes the body up to the next heading, without the blank edges', () => {
     const [, latest] = parseReleases(FILE);
-    expect(latest.body, 'тело уходит в Prose как есть, лишние пустые строки там мусор').toBe(
-      '- one thing\n- another thing',
+    expect(
+      latest.body,
+      'the body goes into Prose as is, and stray blank lines are litter there',
+    ).toBe('- one thing\n- another thing');
+    expect(latest.date, 'a date next to the version is what marks the section as released').toBe(
+      '2026-08-14',
     );
-    expect(latest.date, 'дата рядом с версией — признак выпущенной секции').toBe('2026-08-14');
   });
 
-  it('заголовок не по форме роняет разбор, а не молча теряет версию', () => {
+  it('fails the parse on a malformed heading instead of silently losing the version', () => {
     expect(
       () => parseReleases('## 1.0.6 (2026-08-14)\n\n- thing\n'),
-      'потерянная секция вышла бы пустым релизом на экране и в GitHub',
+      'a lost section would show up as an empty release both on screen and on GitHub',
     ).toThrow(/## <version>/);
   });
 });
 
-describe('заметки релиза', () => {
-  it('отдаёт тело версии и снимает префикс v', () => {
+describe('release notes', () => {
+  it('returns the body of the version and strips the v prefix', () => {
     expect(notesFor(FILE, 'v1.0.6')).toBe('- one thing\n- another thing');
   });
 
-  it('валится на невыпущенной и на отсутствующей секции', () => {
+  it('throws for an unreleased section and for a missing one', () => {
     expect(
       () => notesFor(FILE, '1.0.7'),
-      'тег без секции — релиз без заметок, ловим до сборки',
+      'a tag with no section is a release with no notes, and we catch that before the build',
     ).toThrow();
     expect(
       () => notesFor(FILE, 'Unreleased'),
-      'секция без даты не выпущена и заметками быть не может',
+      'a section without a date is not released and cannot serve as release notes',
     ).toThrow();
   });
 });
 
-describe('CHANGELOG.md проекта', () => {
-  it('описывает установленную версию', () => {
+describe("the project's CHANGELOG.md", () => {
+  it('describes the version that is installed', () => {
     const current = RELEASES.find((release) => release.version === __APP_VERSION__);
-    expect(current?.body, `версия ${__APP_VERSION__} обязана иметь непустую секцию`).toBeTruthy();
+    expect(current?.body, `version ${__APP_VERSION__} must have a non-empty section`).toBeTruthy();
   });
 
-  it('показывает только выпущенное', () => {
+  it('shows only what has been released', () => {
     expect(
       RELEASES.every((release) => release.date !== null),
-      'Unreleased — черновик для нас, пользователю его показывать нечестно',
+      'Unreleased is a draft for us, and showing it to the user would be dishonest',
     ).toBe(true);
   });
 });

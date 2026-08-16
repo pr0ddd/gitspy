@@ -16,13 +16,13 @@ const scene: PointerScene = {
   count: 100,
 };
 
-describe('маршрутизация указателя', () => {
-  it('справа от списка всегда мини-карта, даже в шапке', () => {
+describe('pointer routing', () => {
+  it('routes everything right of the list to the minimap, header included', () => {
     expect(pointerTarget(WIDTH - 10, 400, scene).kind).toBe('minimap');
     expect(pointerTarget(WIDTH - 10, 5, scene).kind).toBe('minimap');
   });
 
-  it('граница в шапке ловится раньше строки под ней', () => {
+  it('catches a divider in the header before the row beneath it', () => {
     const edge = scene.cols.branchTag.width;
     const inHeader = pointerTarget(edge, HEADER_H - 5, scene);
     expect(inHeader.kind).toBe('divider');
@@ -31,18 +31,18 @@ describe('маршрутизация указателя', () => {
     expect(below.kind).toBe('row');
   });
 
-  it('шапка вне границ ничего не выбирает', () => {
+  it('selects nothing in the header away from a divider', () => {
     expect(pointerTarget(600, 5, scene).kind).toBe('none');
   });
 
-  it('полоса прокрутки живёт только под графом', () => {
+  it('keeps the horizontal scrollbar under the graph column only', () => {
     const inside = scene.cols.graph.left + 20;
     const outside = scene.cols.message.left + 20;
     expect(pointerTarget(inside, HEIGHT - 3, scene).kind).toBe('hscroll');
     expect(pointerTarget(outside, HEIGHT - 3, scene).kind).toBe('row');
   });
 
-  it('середина строки — выделение с её индексом', () => {
+  it('reports the row index for a point in the middle of a row', () => {
     const hit = pointerTarget(
       600,
       HEADER_H + listTopInset(scene.metrics) + scene.metrics.rowH * 2 + 1,
@@ -51,7 +51,7 @@ describe('маршрутизация указателя', () => {
     expect(hit).toEqual({ kind: 'row', index: 2 });
   });
 
-  it('за концом истории строки нет', () => {
+  it('has no row past the end of the history', () => {
     const short: PointerScene = { ...scene, count: 1 };
     expect(pointerTarget(600, HEADER_H + scene.metrics.rowH * 5, short).kind).toBe('none');
   });

@@ -23,18 +23,18 @@ const METRICS: ChipMetrics = { pad: 9, markSize: 13, pullSize: 11, gap: 4 };
 const place = (refs: RefView[], room = 400, pullHeads: ReadonlySet<string> = new Set()) =>
   placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads).placed;
 
-describe('узкая колонка', () => {
-  it('первый чип сжимается в квадрат со значком, а не в пустую пилюлю', () => {
+describe('narrow column', () => {
+  it('shrinks the first chip to a square with its mark instead of an empty pill', () => {
     const [one] = place([ref('feature/long-name', 'localBranch')], 40);
 
-    expect(one.compact, 'имя не влезло — чип компактный').toBe(true);
+    expect(one.compact, 'the name does not fit, so the chip goes compact').toBe(true);
     expect(one.text).toBe('');
-    expect(one.w, 'квадрат — значок с полем, без хвоста имени').toBe(
+    expect(one.w, 'the square is the mark plus padding, with no room left for the name').toBe(
       METRICS.markSize + METRICS.pad,
     );
   });
 
-  it('в просторной колонке компактного режима нет', () => {
+  it('never goes compact in a roomy column', () => {
     const [one] = place([ref('main', 'localBranch')]);
 
     expect(one.compact).toBe(false);
@@ -42,15 +42,15 @@ describe('узкая колонка', () => {
   });
 });
 
-describe('раскладка чипов', () => {
-  it('первый чип начинается с отступа, следующий — после зазора', () => {
+describe('chip layout', () => {
+  it('starts the first chip at the left inset and puts the next one after the gap', () => {
     const placed = place([ref('a', 'localBranch'), ref('b', 'localBranch')]);
 
     expect(placed[0].x).toBe(12);
-    expect(placed[1].x, 'зазор между чипами — 4px').toBe(12 + placed[0].w + 4);
+    expect(placed[1].x, 'the gap between chips is 4px').toBe(12 + placed[0].w + 4);
   });
 
-  it('ширина чипа — отступы, текст и хвост меток', () => {
+  it('sizes a chip as padding plus text plus the trailing marks', () => {
     const [placed] = place([ref('wip', 'localBranch')]);
 
     const textW = measure('wip');
@@ -58,7 +58,7 @@ describe('раскладка чипов', () => {
     expect(placed.w).toBe(9 * 2 + textW + trail);
   });
 
-  it('открытый PR удлиняет хвост на свой значок', () => {
+  it('an open pull request lengthens the trail by its own mark', () => {
     const [bare] = place([ref('wip', 'localBranch')]);
     const [withPull] = place([ref('wip', 'localBranch')], 400, new Set(['wip']));
 
@@ -66,16 +66,16 @@ describe('раскладка чипов', () => {
     expect(withPull.w - bare.w).toBe(METRICS.pullSize + METRICS.gap);
   });
 
-  it('в тесноте текст усечён, но полное имя чип помнит', () => {
+  it('truncates the text when space runs out but keeps the full name on the chip', () => {
     const long = 'very-long-branch-name-that-cannot-fit';
     const [placed] = place([ref(long, 'localBranch')], 120);
 
-    expect(placed.text.endsWith('…'), 'на экране — усечённый текст').toBe(true);
+    expect(placed.text.endsWith('…'), 'the text drawn on screen is truncated').toBe(true);
     expect(placed.fullText).toBe(long);
-    expect(placed.fullW, 'полная ширина шире показанной').toBeGreaterThan(placed.w);
+    expect(placed.fullW, 'the full width is wider than the drawn one').toBeGreaterThan(placed.w);
   });
 
-  it('не влезшие чипы схлопываются в счётчик +N, а не в огрызки', () => {
+  it('collapses the chips that do not fit into a +N counter instead of into stubs', () => {
     const { placed, more } = placeChips(
       chipsFor(
         [ref('first', 'localBranch'), ref('second', 'localBranch'), ref('third', 'localBranch')],
@@ -87,19 +87,19 @@ describe('раскладка чипов', () => {
       new Set(),
     );
 
-    expect(placed.length, 'первый чип показан целиком').toBe(1);
-    expect(more, 'остальные спрятаны за счётчиком').not.toBeNull();
+    expect(placed.length, 'the first chip is shown in full').toBe(1);
+    expect(more, 'the rest are hidden behind the counter').not.toBeNull();
     expect(more!.count).toBe(2);
     expect(
       more!.chips.map((c) => c.name),
-      'счётчик помнит всех спрятанных',
+      'the counter remembers every hidden chip',
     ).toEqual(['second', 'third']);
-    expect(more!.x, 'счётчик стоит сразу после последнего чипа').toBe(
+    expect(more!.x, 'the counter sits right after the last placed chip').toBe(
       placed[0].x + placed[0].w + 4,
     );
   });
 
-  it('когда все чипы влезают, счётчика нет', () => {
+  it('has no counter when every chip fits', () => {
     const { more } = placeChips(
       chipsFor([ref('a', 'localBranch'), ref('b', 'localBranch')], ['origin']),
       measure,
@@ -110,16 +110,16 @@ describe('раскладка чипов', () => {
     expect(more).toBeNull();
   });
 
-  it('chipAt находит чип по координате, а мимо чипов — никого', () => {
+  it('chipAt finds the chip under a coordinate and nothing beside the chips', () => {
     const placed = place([ref('a', 'localBranch'), ref('b', 'localBranch')]);
 
     expect(chipAt(placed, placed[0].x + 1)?.chip.name).toBe('a');
     expect(chipAt(placed, placed[1].x + 1)?.chip.name).toBe('b');
-    expect(chipAt(placed, 0), 'слева от чипов пусто').toBeNull();
-    expect(chipAt(placed, placed[1].x + placed[1].w + 5), 'справа пусто').toBeNull();
+    expect(chipAt(placed, 0), 'nothing to the left of the chips').toBeNull();
+    expect(chipAt(placed, placed[1].x + placed[1].w + 5), 'nothing to the right').toBeNull();
   });
 
-  it('галочка HEAD входит и в показанный, и в полный текст', () => {
+  it('puts the HEAD check mark into both the drawn text and the full text', () => {
     const [placed] = place([ref('main', 'localBranch', { isHead: true })]);
 
     expect(placed.text).toBe('✓ main');
