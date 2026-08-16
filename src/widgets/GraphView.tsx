@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   chipAt,
@@ -24,6 +24,8 @@ import {
 } from '@/entities/graph';
 import { chipsFor } from '@/entities/graph';
 import { pointerTarget, type PointerScene } from '@/entities/graph';
+import { authorsLine, graphGeometry, nodeHitAt, type NodeHit } from '@/entities/graph';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import {
   layoutColumns,
   loadHidden,
@@ -129,6 +131,7 @@ export const GraphView = memo(function GraphView({
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [hoverNode, setHoverNode] = useState<(NodeHit & { authors: string }) | null>(null);
   const wip = rows.row(0);
   const conflicted = wip?.kind === 'workingTree' && wip.conflicts > 0 ? wip.conflicts : 0;
   const columns = {
@@ -327,6 +330,7 @@ export const GraphView = memo(function GraphView({
         return;
       }
       patch({ scrollY: clampScroll(f.scrollY + e.deltaY * unit) });
+      setHoverNode(null);
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -559,6 +563,30 @@ export const GraphView = memo(function GraphView({
       if (index !== f.hover || !sameChip(hovered, f.hoverChip)) {
         patch({ hover: index, hoverChip: hovered });
       }
+      showAuthorsUnder(x, y, f);
+    };
+
+    const showAuthorsUnder = (x: number, y: number, f: Frame) => {
+      const g = graphGeometry(f.metrics, f.repo?.maxLane ?? 0, f.scrollX, f.cols);
+      const node = nodeHitAt(
+        f.metrics,
+        g,
+        f.scrollY,
+        f.repo?.count ?? 0,
+        (row) => f.rows.row(row)?.lane ?? null,
+        x,
+        y,
+      );
+      const row = node ? f.rows.row(node.row) : null;
+      if (!node || row?.kind !== 'commit') {
+        setHoverNode((now) => (now === null ? now : null));
+        return;
+      }
+      setHoverNode((now) =>
+        now && now.row === node.row && now.x === node.x && now.y === node.y
+          ? now
+          : { ...node, authors: authorsLine(row) },
+      );
     };
 
     const onDown = (e: MouseEvent) => {
@@ -595,7 +623,10 @@ export const GraphView = memo(function GraphView({
     const onUp = () => {
       dragRef.current = null;
     };
-    const onLeave = () => patch({ hover: null, hoverChip: null });
+    const onLeave = () => {
+      patch({ hover: null, hoverChip: null });
+      setHoverNode(null);
+    };
 
     const onDouble = (e: MouseEvent) => {
       const { x, y } = local(e);
@@ -636,6 +667,23 @@ export const GraphView = memo(function GraphView({
       tabIndex={0}
     >
       <canvas ref={canvasRef} className="absolute inset-0 block size-full" />
+      {hoverNode ? (
+        <Tooltip open>
+          <TooltipTrigger asChild>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute"
+              style={{
+                left: hoverNode.x - hoverNode.r,
+                top: hoverNode.y - hoverNode.r,
+                width: hoverNode.r * 2,
+                height: hoverNode.r * 2,
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent side="right">{hoverNode.authors}</TooltipContent>
+        </Tooltip>
+      ) : null}
 
       <div
         ref={inputRef}

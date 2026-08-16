@@ -9,3 +9,4 @@ export * from './wip';
 export * from './view';
 export * from './refTree';
 export * from './graphInput';
+export * from './authors';

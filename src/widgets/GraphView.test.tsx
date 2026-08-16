@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Profiler, useState } from 'react';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { GraphView } from './GraphView';
 import { showNativeMenu } from '@/features/menus';
 
@@ -12,10 +12,11 @@ vi.mock('@/features/menus', async (importOriginal) => ({
 beforeEach(() => {
   vi.mocked(showNativeMenu).mockClear();
 });
-import { CHUNK, RowCache } from '@/entities/graph';
+import { CHUNK, graphGeometry, layoutColumns, listWidth, RowCache, rowTop } from '@/entities/graph';
 import { METRICS_AVATARS } from '@/entities/graph';
 import '@/shared/config/i18n';
 import { newSession, type Session } from '@/entities/repo';
+import { TooltipProvider } from '@/shared/ui/tooltip';
 import type { RepoView, RowView, WindowView } from '@/shared/api/types';
 
 beforeAll(() => {
@@ -360,5 +361,67 @@ describe('scrolling the graph', () => {
       input.style.display,
       'a render from outside must not scroll the graph back to the top',
     ).toBe('none');
+  });
+});
+
+describe('hovering a commit node', () => {
+  const props = {
+    avatars: null,
+    redraw: 0,
+    metrics: METRICS_AVATARS,
+    pullHeads: new Set<string>(),
+    currentBranch: null,
+    onSelect: () => {},
+    onCheckoutRef: () => {},
+    onRun: () => {},
+    onConfirm: () => {},
+    onCopy: () => {},
+    onAsk: () => {},
+    onWorktree: () => {},
+    onOpenUrl: () => {},
+    onNeed: () => {},
+    message: '',
+    onMessage: () => {},
+    onCommit: () => {},
+    compact: false,
+    onCompact: () => {},
+  };
+
+  it('names the author and the co-authors from the trailers, like the reference client does', async () => {
+    const rows = new RowCache();
+    const filled = window();
+    filled.rows[2] = {
+      ...(row(2) as Extract<RowView, { kind: 'commit' }>),
+      body: 'Body\n\nCo-authored-by: Ada <ada@example.com>\n',
+    };
+    rows.put(0, filled);
+    const { container } = render(
+      <TooltipProvider>
+        <GraphView session={sessionWith(CHUNK)} rows={rows} {...props} />
+      </TooltipProvider>,
+    );
+    const host = container.querySelector<HTMLElement>('[tabindex="0"]')!;
+    const m = METRICS_AVATARS;
+    const g = graphGeometry(m, 4, 0, layoutColumns(listWidth(800, false), {}));
+
+    await act(async () => {
+      fireEvent.mouseMove(host, { clientX: g.nodeX(0), clientY: rowTop(m, 2, 0) + m.rowH / 2 });
+    });
+
+    expect(
+      (await screen.findAllByText('pr0d <p@example.com>, Ada <ada@example.com>')).length,
+      'the tooltip carries every person the commit belongs to',
+    ).toBeGreaterThan(0);
+
+    await act(async () => {
+      fireEvent.mouseMove(host, {
+        clientX: g.nodeX(0) + m.nodeR + 40,
+        clientY: rowTop(m, 2, 0) + m.rowH / 2,
+      });
+    });
+    expect(
+      screen.queryByText('pr0d <p@example.com>, Ada <ada@example.com>'),
+      'off the node the tooltip is gone',
+    ).toBeNull();
   });
 });

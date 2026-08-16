@@ -9,6 +9,7 @@ import {
   anchorAt,
   contentHeight,
   graphGeometry,
+  nodeHitAt,
   listWidth,
   maxScroll,
   vScrollThumb,
@@ -119,6 +120,37 @@ describe('centring the selected row', () => {
   it('clamps to the limits at the ends of the history instead of going past them', () => {
     expect(scrollToCenter(M, 0, M.rowH * 500, H, 1000)).toBe(0);
     expect(scrollToCenter(M, 999, 0, H, 1000)).toBe(maxScroll(M, 1000, H));
+  });
+});
+
+describe('the node under the cursor', () => {
+  const g = graphGeometry(M, 2, 0, COLS);
+  const laneOf = (row: number) => (row === 3 ? 1 : 0);
+  const centreY = (row: number) => HEADER_H + listTopInset(M) + row * M.rowH + M.rowH / 2;
+
+  it('hits the node inside its circle and reports where the circle is drawn', () => {
+    const hit = nodeHitAt(M, g, 0, 10, laneOf, g.nodeX(1) + M.nodeR - 1, centreY(3));
+
+    expect(hit?.row).toBe(3);
+    expect(hit?.x).toBe(g.nodeX(1));
+    expect(hit?.y).toBe(centreY(3));
+    expect(hit?.r).toBe(M.nodeR);
+  });
+
+  it('a point in the row but outside the circle is not the node: the row stays a row', () => {
+    expect(nodeHitAt(M, g, 0, 10, laneOf, g.nodeX(0) + M.nodeR + 2, centreY(0))).toBeNull();
+    expect(nodeHitAt(M, g, 0, 10, laneOf, g.nodeX(0), centreY(0) + M.nodeR + 2)).toBeNull();
+  });
+
+  it('follows the scroll: the same screen point hits a later row once scrolled', () => {
+    const scrolled = nodeHitAt(M, g, M.rowH * 2, 10, laneOf, g.nodeX(0), centreY(0));
+
+    expect(scrolled?.row).toBe(2);
+  });
+
+  it('nothing is hit in the header or past the history', () => {
+    expect(nodeHitAt(M, g, 0, 10, laneOf, g.nodeX(0), HEADER_H - 1)).toBeNull();
+    expect(nodeHitAt(M, g, 0, 1, laneOf, g.nodeX(0), centreY(5))).toBeNull();
   });
 });
 
