@@ -112,6 +112,57 @@
   padding-right: var(--scrollbar-width);
 }
 
+@utility conflict-line-a {
+  background: color-mix(in oklab, var(--status-ahead) 14%, transparent);
+}
+
+@utility conflict-line-b {
+  background: color-mix(in oklab, var(--status-modified) 16%, transparent);
+}
+
+@utility conflict-margin-a {
+  background: color-mix(in oklab, var(--status-ahead) 14%, transparent);
+  box-shadow: inset 3px 0 var(--status-ahead);
+}
+
+@utility conflict-margin-b {
+  background: color-mix(in oklab, var(--status-modified) 16%, transparent);
+  box-shadow: inset 3px 0 var(--status-modified);
+}
+
+@utility conflict-margin-base {
+  background: color-mix(in oklab, var(--ref-stash) 16%, transparent);
+  box-shadow: inset 3px 0 var(--ref-stash);
+}
+
+@utility conflict-line-base {
+  background: color-mix(in oklab, var(--ref-stash) 16%, transparent);
+}
+
+@utility gutter-mark-taken {
+  cursor: pointer;
+  background-color: var(--status-added);
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6.5' fill='white'/><path d='M5 8.2l2 2 4-4.2' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+    center / 16px 16px no-repeat;
+  mask-mode: luminance;
+}
+
+@utility gutter-mark-add {
+  cursor: pointer;
+  background-color: var(--status-added);
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6.5' fill='white'/><path d='M8 4.5v7M4.5 8h7' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'/></svg>")
+    center / 16px 16px no-repeat;
+  mask-mode: luminance;
+}
+
+@utility gutter-mark-remove {
+  cursor: pointer;
+  background-color: var(--status-deleted);
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6.5' fill='white'/><path d='M4.5 8h7' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'/></svg>")
+    center / 16px 16px no-repeat;
+  mask-mode: luminance;
+}
+
 [data-theme='linear-dark'] {
   --background: lch(2.595% 0.4 272);
   --card: lch(5.52% 0.4 272);

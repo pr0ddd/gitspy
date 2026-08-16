@@ -54,6 +54,12 @@ export function setUpMonaco(): void {
   if (!self.MonacoEnvironment) {
     self.MonacoEnvironment = { getWorker: (_id: string, label: string) => workerFor(label) };
   }
+  for (const defaults of [
+    monaco.typescript.typescriptDefaults,
+    monaco.typescript.javascriptDefaults,
+  ]) {
+    defaults.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true });
+  }
 
   const probe = document.createElement('span');
   probe.style.display = 'none';
