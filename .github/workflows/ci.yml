@@ -54,7 +54,7 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
 
       - name: Tests
-        run: cargo test --all-targets
+        run: cargo test --all-targets --no-fail-fast
 
   frontend:
     name: Frontend
