@@ -1,6 +1,3 @@
-// Проверка правила направлений: законные импорты вниз проходят,
-// вбок и вверх — падают. Запуск: node --test eslint-rules/*.test.mjs
-
 import { test } from 'node:test';
 import { RuleTester } from 'eslint';
 import { createRequire } from 'node:module';
@@ -12,7 +9,7 @@ const tester = new RuleTester({
   languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
 });
 
-test('направление импортов охраняется', () => {
+test('import direction is guarded', () => {
   tester.run('fsd-boundaries', rule, {
     valid: [
       {
