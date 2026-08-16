@@ -22,6 +22,7 @@ fn collect(spec: SpawnSpec) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+#[cfg(unix)]
 #[test]
 fn shell_gets_real_tty() {
     let out = collect(SpawnSpec {
@@ -36,6 +37,7 @@ fn shell_gets_real_tty() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn session_starts_in_requested_cwd() {
     let wanted = std::env::temp_dir()
@@ -49,6 +51,44 @@ fn session_starts_in_requested_cwd() {
     });
     assert!(
         out.contains(&format!("MARK_{}", wanted.display())),
+        "the session must start in the requested cwd, output: {out}"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn shell_gets_a_console_on_windows() {
+    let out = collect(SpawnSpec {
+        command: Some(
+            "if ([Console]::IsOutputRedirected) { Write-Output MARK_NO } else { Write-Output MARK_TTY }"
+                .into(),
+        ),
+        cwd: std::env::temp_dir(),
+        cols: 80,
+        rows: 24,
+    });
+    assert!(
+        out.contains("MARK_TTY"),
+        "ConPTY must give PowerShell a real console, output: {out}"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn session_starts_in_requested_cwd_on_windows() {
+    let wanted = std::env::temp_dir();
+    let out = collect(SpawnSpec {
+        command: Some("Write-Output MARK_$PWD".into()),
+        cwd: wanted.clone(),
+        cols: 80,
+        rows: 24,
+    });
+    let shown = wanted
+        .to_string_lossy()
+        .trim_end_matches(['\\', '/'])
+        .to_lowercase();
+    assert!(
+        out.to_lowercase().contains(&format!("mark_{shown}")),
         "the session must start in the requested cwd, output: {out}"
     );
 }
