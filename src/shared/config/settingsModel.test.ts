@@ -5,6 +5,7 @@ import {
   clampFontSize,
   clampTabSize,
   FONT_SIZE_LIMITS,
+  GRAPH_MINIMAP_DEFAULT,
   monospaceChoices,
 } from '@/shared/config/settingsModel';
 
@@ -36,5 +37,11 @@ describe('editor settings', () => {
       'Menlo',
       'Hack',
     ]);
+  });
+});
+
+describe('graph defaults', () => {
+  it('the minimap is off until the user turns it on: it costs width most repositories never repay', () => {
+    expect(GRAPH_MINIMAP_DEFAULT).toBe(false);
   });
 });
