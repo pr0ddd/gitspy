@@ -280,6 +280,13 @@ describe('a branch whose upstream is gone', () => {
     ).not.toHaveBeenCalled();
     expect(onCheckout).not.toHaveBeenCalled();
   });
+
+  it('on the checked-out branch the marker only informs: git cannot delete the current branch', () => {
+    draw([branch({ name: 'main', isHead: true, upstream: 'origin/main', gone: true })]);
+
+    expect(screen.queryByRole('button', { name: /upstream of main is gone/i })).toBeNull();
+    expect(screen.getByLabelText(/upstream branch is gone/i)).toBeTruthy();
+  });
 });
 
 describe('a branch whose upstream is gone', () => {

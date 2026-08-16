@@ -69,6 +69,15 @@ const capped = (count: number) => (count > CAP ? `${CAP}+` : `${count}`);
 
 function Tracking({ view, onDelete }: { view: RefView; onDelete: (ref: RefView) => void }) {
   const { t } = useTranslation();
+  if (view.gone && view.isHead) {
+    return (
+      <Hint text={t('branch.goneCurrent')}>
+        <span className="text-deleted flex shrink-0 items-center" aria-label={t('branch.gone')}>
+          <Icon.upstreamGone className="size-3" />
+        </span>
+      </Hint>
+    );
+  }
   if (view.gone) {
     return (
       <Hint text={t('branch.gone')}>

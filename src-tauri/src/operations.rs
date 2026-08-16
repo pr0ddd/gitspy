@@ -201,7 +201,7 @@ impl Operation {
                 args
             }
             Operation::BranchDelete { name } => {
-                let mut args = owned(&["branch", "-d"]);
+                let mut args = owned(&["branch", "-D"]);
                 args.push(name.clone());
                 args
             }
@@ -623,8 +623,8 @@ mod tests {
         );
         assert_eq!(
             Operation::BranchDelete { name: "old".into() }.args(),
-            ["branch", "-d", "old"],
-            "-d refuses to delete unmerged work: forcing the deletion is not our decision"
+            ["branch", "-D", "old"],
+            "the confirm bar already asked; -d would refuse every squash-merged branch as unmerged"
         );
         assert_eq!(
             Operation::BranchRename {
