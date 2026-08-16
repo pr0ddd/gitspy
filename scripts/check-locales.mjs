@@ -33,7 +33,7 @@ const load = (locale) => {
 const catalogues = new Map(locales.map((locale) => [locale, load(locale)]));
 const reference = catalogues.get(REFERENCE);
 if (!reference) {
-  console.error(`опорный каталог ${REFERENCE} не найден`);
+  console.error(`reference catalogue ${REFERENCE} not found`);
   process.exit(1);
 }
 
@@ -41,10 +41,11 @@ const problems = [];
 
 for (const [locale, catalogue] of catalogues) {
   for (const id of reference.keys()) {
-    if (!catalogue.has(id)) problems.push(`${locale}: нет ключа ${id}`);
+    if (!catalogue.has(id)) problems.push(`${locale}: key ${id} is missing`);
   }
   for (const id of catalogue.keys()) {
-    if (!reference.has(id)) problems.push(`${locale}: лишний ключ ${id}, его нет в ${REFERENCE}`);
+    if (!reference.has(id))
+      problems.push(`${locale}: stray key ${id}, ${REFERENCE} has no such key`);
   }
 
   const required = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
@@ -52,7 +53,7 @@ for (const [locale, catalogue] of catalogues) {
     if (!entry.plural) continue;
     for (const category of required) {
       if (!entry.categories.has(category)) {
-        problems.push(`${locale}: у ${id} нет формы _${category}`);
+        problems.push(`${locale}: ${id} has no _${category} form`);
       }
     }
   }
@@ -60,8 +61,8 @@ for (const [locale, catalogue] of catalogues) {
 
 if (problems.length) {
   for (const problem of problems) console.error(problem);
-  console.error(`\nнеполные переводы: ${problems.length}`);
+  console.error(`\nincomplete translations: ${problems.length}`);
   process.exit(1);
 }
 
-console.log(`переводы полны: ${locales.join(', ')} — ${reference.size} ключей`);
+console.log(`translations complete: ${locales.join(', ')} — ${reference.size} keys`);

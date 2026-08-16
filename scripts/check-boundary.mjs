@@ -19,7 +19,7 @@ for (const path of sources) {
   if (path === 'src/ipc.ts') continue;
   const text = readFileSync(join(root, path), 'utf8');
   if (/\binvoke\b/.test(text)) {
-    problems.push(`${path}: обращается к invoke мимо слоя IPC (src/ipc.ts)`);
+    problems.push(`${path}: calls invoke directly, bypassing the IPC layer (src/ipc.ts)`);
   }
 }
 
@@ -28,7 +28,7 @@ for (const path of sources) {
   const text = readFileSync(join(root, path), 'utf8');
   if (/hover:bg-fill-/.test(text)) {
     problems.push(
-      `${path}: собирает вид наведения классами мимо словаря — возьми NavItem/ListRow/Tab/Button или HOVER_FILL из src/parts.tsx`,
+      `${path}: builds the hover look out of raw classes, bypassing the vocabulary — take NavItem/ListRow/Tab/Button or HOVER_FILL from src/parts.tsx`,
     );
   }
 }
@@ -47,11 +47,11 @@ const untracked = execFileSync(
 
 const stale = [changed, untracked].filter(Boolean).join('\n');
 if (stale) {
-  problems.push(`типы границы разошлись с Rust, пересобери и закоммить:\n${stale}`);
+  problems.push(`boundary types have drifted from Rust, regenerate and commit them:\n${stale}`);
 }
 
 if (problems.length) {
   for (const problem of problems) console.error(problem);
   process.exit(1);
 }
-console.log(`граница цела: ${sources.length} файлов, invoke только в src/ipc.ts`);
+console.log(`boundary intact: ${sources.length} files, invoke only in src/ipc.ts`);

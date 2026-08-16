@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Системные зависимости Tauri
+      - name: Tauri system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -41,13 +41,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Форматирование
+      - name: Formatting
         run: cargo fmt --all -- --check
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Тесты
+      - name: Tests
         run: cargo test --all-targets
 
   frontend:
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Системные зависимости Tauri
+      - name: Tauri system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -78,16 +78,16 @@ jobs:
 
       - run: npm ci
 
-      - name: Полнота переводов
+      - name: Translation completeness
         run: npm run i18n:check
 
-      - name: Граница Rust и TypeScript
+      - name: Rust and TypeScript boundary
         run: npm run boundary:check
 
-      - name: Типы
+      - name: Types
         run: npx tsc --noEmit
 
-      - name: Тесты фронтенда
+      - name: Frontend tests
         run: npx vitest run
 
   mac:

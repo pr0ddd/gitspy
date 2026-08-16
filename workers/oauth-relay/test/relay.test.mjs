@@ -1,5 +1,3 @@
-// Контракт релея: обмен и refresh отвечают токен-сетом, всё прочее — отказ.
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { tokenSetOf } from '../src/index.js';
@@ -17,7 +15,7 @@ const post = (path, body) =>
     body: JSON.stringify(body),
   });
 
-test('токен-сет читается из ответа провайдера, мусор превращается в отказ', () => {
+test('reads the token set out of the provider response and turns junk into a refusal', () => {
   assert.deepEqual(tokenSetOf({ access_token: 'A', refresh_token: 'R', expires_in: 7200 }), {
     access: 'A',
     refresh: 'R',
@@ -26,11 +24,15 @@ test('токен-сет читается из ответа провайдера,
   assert.equal(tokenSetOf({ error: 'bad_verification_code' }), null);
 });
 
-test('обмен github уходит с секретом из env и возвращает токен', async (t) => {
+test('the github exchange sends the secret from env and returns a token', async (t) => {
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     assert.equal(url, 'https://github.com/login/oauth/access_token');
     const sent = JSON.parse(init.body);
-    assert.equal(sent.client_secret, 'gh-secret', 'секрет живёт в env воркера, не в приложении');
+    assert.equal(
+      sent.client_secret,
+      'gh-secret',
+      'the secret lives in the worker env, not in the app',
+    );
     assert.equal(sent.code, 'the-code');
     return new Response(JSON.stringify({ access_token: 'gh-token' }));
   });
@@ -40,7 +42,7 @@ test('обмен github уходит с секретом из env и возвр�
   assert.equal((await answer.json()).access, 'gh-token');
 });
 
-test('bitbucket refresh идёт basic-авторизацией и form-данными', async (t) => {
+test('the bitbucket refresh goes out with basic authorization and form data', async (t) => {
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     assert.equal(url, 'https://bitbucket.org/site/oauth2/access_token');
     assert.match(init.headers.Authorization, /^Basic /);
@@ -52,7 +54,7 @@ test('bitbucket refresh идёт basic-авторизацией и form-данн
   assert.equal((await answer.json()).refresh, 'bbr2');
 });
 
-test('чужие пути и глаголы получают отказ, а не молчание', async () => {
+test('unknown paths and verbs get a refusal rather than silence', async () => {
   const wrong = await worker.fetch(post('/exchange', { host: 'trello', code: 'x' }), env);
   assert.equal(wrong.status, 404);
   const get = await worker.fetch(new Request('https://relay.example/exchange'), env);

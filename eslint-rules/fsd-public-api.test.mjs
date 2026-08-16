@@ -1,6 +1,3 @@
-// Фасады слайсов: снаружи можно импортировать только корень слайса;
-// import type свободен, глубокий путь чинится автофиксом.
-
 import { test } from 'node:test';
 import { RuleTester } from 'eslint';
 import { createRequire } from 'node:module';
@@ -16,7 +13,7 @@ const tester = new RuleTester({
   },
 });
 
-test('фасады слайсов охраняются', () => {
+test('slice facades are guarded', () => {
   tester.run('fsd-public-api', rule, {
     valid: [
       {
