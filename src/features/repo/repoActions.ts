@@ -1,11 +1,6 @@
 import { useCallback } from 'react';
 import * as ipc from '@/ipc';
-import {
-  notifyCopied,
-  notifyError,
-  notifyOperation,
-  notifyOperationFailed,
-} from '@/toast';
+import { notifyCopied, notifyError, notifyOperation, notifyOperationFailed } from '@/toast';
 import { runRepoWork } from './repoWork';
 import type { Operation, RefView } from '@/types';
 

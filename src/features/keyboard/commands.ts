@@ -36,7 +36,12 @@ export type Command = {
 };
 
 export const COMMANDS: readonly Command[] = [
-  { id: 'commit', label: 'shortcuts.commit', group: 'repo', chords: [{ key: 'Enter', primary: true }] },
+  {
+    id: 'commit',
+    label: 'shortcuts.commit',
+    group: 'repo',
+    chords: [{ key: 'Enter', primary: true }],
+  },
   {
     id: 'stageCurrent',
     label: 'shortcuts.stageCurrent',
@@ -88,7 +93,12 @@ export const COMMANDS: readonly Command[] = [
     group: 'navigation',
     chords: [{ key: 'Home' }],
   },
-  { id: 'selectLast', label: 'shortcuts.selectLast', group: 'navigation', chords: [{ key: 'End' }] },
+  {
+    id: 'selectLast',
+    label: 'shortcuts.selectLast',
+    group: 'navigation',
+    chords: [{ key: 'End' }],
+  },
   {
     id: 'openSelected',
     label: 'shortcuts.openSelected',
@@ -123,16 +133,32 @@ export const COMMANDS: readonly Command[] = [
     id: 'zoomIn',
     label: 'shortcuts.zoomIn',
     group: 'ui',
-    chords: [{ key: '=', primary: true }, { key: '+', primary: true }],
+    chords: [
+      { key: '=', primary: true },
+      { key: '+', primary: true },
+    ],
   },
   {
     id: 'zoomOut',
     label: 'shortcuts.zoomOut',
     group: 'ui',
-    chords: [{ key: '-', primary: true }, { key: '_', primary: true }],
+    chords: [
+      { key: '-', primary: true },
+      { key: '_', primary: true },
+    ],
   },
-  { id: 'zoomReset', label: 'shortcuts.zoomReset', group: 'ui', chords: [{ key: '0', primary: true }] },
-  { id: 'closeTab', label: 'shortcuts.closeTab', group: 'ui', chords: [{ key: 'w', primary: true }] },
+  {
+    id: 'zoomReset',
+    label: 'shortcuts.zoomReset',
+    group: 'ui',
+    chords: [{ key: '0', primary: true }],
+  },
+  {
+    id: 'closeTab',
+    label: 'shortcuts.closeTab',
+    group: 'ui',
+    chords: [{ key: 'w', primary: true }],
+  },
   {
     id: 'shortcuts',
     label: 'shortcuts.shortcuts',

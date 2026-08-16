@@ -7,7 +7,7 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
   name,
   kind,
   commit: 0,
-  oid: "refoid",
+  oid: 'refoid',
   isHead: false,
   upstream: null,
   ahead: 0,
@@ -20,11 +20,8 @@ const measure = (text: string) => text.length * 7;
 
 const METRICS: ChipMetrics = { pad: 9, markSize: 13, pullSize: 11, gap: 4 };
 
-const place = (
-  refs: RefView[],
-  room = 400,
-  pullHeads: ReadonlySet<string> = new Set(),
-) => placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads).placed;
+const place = (refs: RefView[], room = 400, pullHeads: ReadonlySet<string> = new Set()) =>
+  placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads).placed;
 
 describe('узкая колонка', () => {
   it('первый чип сжимается в квадрат со значком, а не в пустую пилюлю', () => {
@@ -93,10 +90,10 @@ describe('раскладка чипов', () => {
     expect(placed.length, 'первый чип показан целиком').toBe(1);
     expect(more, 'остальные спрятаны за счётчиком').not.toBeNull();
     expect(more!.count).toBe(2);
-    expect(more!.chips.map((c) => c.name), 'счётчик помнит всех спрятанных').toEqual([
-      'second',
-      'third',
-    ]);
+    expect(
+      more!.chips.map((c) => c.name),
+      'счётчик помнит всех спрятанных',
+    ).toEqual(['second', 'third']);
     expect(more!.x, 'счётчик стоит сразу после последнего чипа').toBe(
       placed[0].x + placed[0].w + 4,
     );

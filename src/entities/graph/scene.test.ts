@@ -37,10 +37,7 @@ const COLS = layoutColumns(listWidth(WIDTH), {});
 describe('зазор между строками графа', () => {
   it('строка не заливается во всю высоту: соседние полосы разделены, как в GitKraken', () => {
     expect(rowBandHeight(M), 'полоса в 30px строке').toBe(24);
-    expect(
-      M.rowH - rowBandHeight(M),
-      'зазор — 21% шага строки, замерено по GitKraken',
-    ).toBe(6);
+    expect(M.rowH - rowBandHeight(M), 'зазор — 21% шага строки, замерено по GitKraken').toBe(6);
   });
 
   it('на плотной раскладке зазор ужимается вместе со строкой, а не остаётся прежним', () => {
@@ -60,10 +57,9 @@ describe('зазор между строками графа', () => {
   it('первая полоса отделена от шапки тем же зазором, что и соседние коммиты', () => {
     for (const m of [M, METRICS_COMPACT]) {
       const firstBandTop = rowTop(m, 0, 0) + rowBandInset(m);
-      expect(
-        firstBandTop - HEADER_H,
-        'от низа шапки до первой карточки — межкоммитный зазор',
-      ).toBe(m.rowH - rowBandHeight(m));
+      expect(firstBandTop - HEADER_H, 'от низа шапки до первой карточки — межкоммитный зазор').toBe(
+        m.rowH - rowBandHeight(m),
+      );
     }
   });
 });

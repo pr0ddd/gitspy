@@ -30,7 +30,9 @@ export function ChangelogView() {
                   </span>
                 ) : null}
               </div>
-              <p className="text-muted-foreground text-xs">{day.format(onLocalDay(release.date))}</p>
+              <p className="text-muted-foreground text-xs">
+                {day.format(onLocalDay(release.date))}
+              </p>
             </div>
             <Prose text={release.body} />
           </section>

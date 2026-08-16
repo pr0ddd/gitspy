@@ -68,9 +68,7 @@ describe('сборка Output из выбранных строк', () => {
 
   it('никого не выбрали — конфликтные места пустые, общие куски на месте', () => {
     const text = composeOutput(blocks, emptyPicks(blocks));
-    expect(text).toBe(
-      ['export function greet() {', '}', 'shared();', 'tail();'].join('\n'),
-    );
+    expect(text).toBe(['export function greet() {', '}', 'shared();', 'tail();'].join('\n'));
   });
 
   it('выбранные строки обеих сторон входят в порядке: сначала A, потом B', () => {

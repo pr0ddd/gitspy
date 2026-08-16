@@ -128,35 +128,35 @@ export function Settings({
           ))}
         </aside>
       ) : (
-      <aside
-        className="flex shrink-0 flex-col gap-0.5 px-2.5"
-        style={{ width: clampPanel('sidebar', width) }}
-      >
-        <div className="flex items-center gap-1 pb-2">
-          <span className="text-faint flex h-8 min-w-0 flex-1 items-center px-2 text-xs">
-            {t('settings.title')}
-          </span>
-          <Hint text={t('sidebar.collapse')}>
-            <Button
-              variant="field"
-              size="icon-sm"
-              aria-label={t('sidebar.collapse')}
-              onClick={onToggle}
-            >
-              <Icon.collapse className="size-4" />
-            </Button>
-          </Hint>
-        </div>
-        {SECTIONS.map(({ key, label, icon }) => (
-          <NavItem
-            key={key}
-            icon={icon}
-            label={t(label as 'settings.general')}
-            active={key === section}
-            onClick={() => setSection(key)}
-          />
-        ))}
-      </aside>
+        <aside
+          className="flex shrink-0 flex-col gap-0.5 px-2.5"
+          style={{ width: clampPanel('sidebar', width) }}
+        >
+          <div className="flex items-center gap-1 pb-2">
+            <span className="text-faint flex h-8 min-w-0 flex-1 items-center px-2 text-xs">
+              {t('settings.title')}
+            </span>
+            <Hint text={t('sidebar.collapse')}>
+              <Button
+                variant="field"
+                size="icon-sm"
+                aria-label={t('sidebar.collapse')}
+                onClick={onToggle}
+              >
+                <Icon.collapse className="size-4" />
+              </Button>
+            </Hint>
+          </div>
+          {SECTIONS.map(({ key, label, icon }) => (
+            <NavItem
+              key={key}
+              icon={icon}
+              label={t(label as 'settings.general')}
+              active={key === section}
+              onClick={() => setSection(key)}
+            />
+          ))}
+        </aside>
       )}
 
       <div className="bg-card relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border">
@@ -632,5 +632,3 @@ function IntegrationsSection({
     </div>
   );
 }
-
-

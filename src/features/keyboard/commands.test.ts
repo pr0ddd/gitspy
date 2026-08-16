@@ -48,9 +48,13 @@ describe('какая команда достаётся нажатию', () => {
 
   it('масштаб слушает оба написания плюса и минуса', () => {
     expect(commandFor(stroke('=', { metaKey: true }), null, true)?.id).toBe('zoomIn');
-    expect(commandFor(stroke('+', { metaKey: true, shiftKey: true }), null, true)?.id).toBe('zoomIn');
+    expect(commandFor(stroke('+', { metaKey: true, shiftKey: true }), null, true)?.id).toBe(
+      'zoomIn',
+    );
     expect(commandFor(stroke('-', { metaKey: true }), null, true)?.id).toBe('zoomOut');
-    expect(commandFor(stroke('_', { metaKey: true, shiftKey: true }), null, true)?.id).toBe('zoomOut');
+    expect(commandFor(stroke('_', { metaKey: true, shiftKey: true }), null, true)?.id).toBe(
+      'zoomOut',
+    );
     expect(commandFor(stroke('0', { metaKey: true }), null, true)?.id).toBe('zoomReset');
   });
 

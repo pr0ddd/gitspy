@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ListRow, NavItem, Tab } from '@/parts';
 
-const render = (ui: React.ReactElement) =>
-  bare(<TooltipProvider>{ui}</TooltipProvider>);
+const render = (ui: React.ReactElement) => bare(<TooltipProvider>{ui}</TooltipProvider>);
 
 describe('таб верхней полосы', () => {
   it('клик по табу выбирает его, крестик закрывает и не выбирает', () => {
@@ -29,7 +28,14 @@ describe('таб верхней полосы', () => {
 
   it('активный таб несёт заливку и всегда видимый крестик', () => {
     render(
-      <Tab icon="folder" label="wip" current closeLabel="Close" onSelect={() => {}} onClose={() => {}} />,
+      <Tab
+        icon="folder"
+        label="wip"
+        current
+        closeLabel="Close"
+        onSelect={() => {}}
+        onClose={() => {}}
+      />,
     );
     const close = screen.getByRole('button', { name: 'Close' });
     expect(close.className).toContain('opacity-100');

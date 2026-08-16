@@ -158,10 +158,9 @@ describe('перерисовка каркаса', () => {
 
     act(() => flip());
 
-    expect(
-      reads.mock.calls.length,
-      'тело графа не выполняется при перерисовке каркаса',
-    ).toBe(afterMount);
+    expect(reads.mock.calls.length, 'тело графа не выполняется при перерисовке каркаса').toBe(
+      afterMount,
+    );
   });
 });
 
@@ -186,8 +185,8 @@ describe('прокрутка графа', () => {
           onRun={() => {}}
           onCopy={() => {}}
           onAsk={() => {}}
-        onWorktree={() => {}}
-        onOpenUrl={() => {}}
+          onWorktree={() => {}}
+          onOpenUrl={() => {}}
           onNeed={() => {}}
           message=""
           onMessage={() => {}}
@@ -302,7 +301,6 @@ describe('прокрутка графа', () => {
     ]);
   });
 
-
   it('рендер App с новыми колбэками не сбрасывает прокрутку наверх', async () => {
     const rows = new RowCache();
     rows.put(0, workingTreeFirst());
@@ -351,9 +349,6 @@ describe('прокрутка графа', () => {
 
     rerender(view(() => {}, 1));
     await settleFrames();
-    expect(
-      input.style.display,
-      'чужой рендер не должен прокручивать граф к началу',
-    ).toBe('none');
+    expect(input.style.display, 'чужой рендер не должен прокручивать граф к началу').toBe('none');
   });
 });

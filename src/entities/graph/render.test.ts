@@ -95,7 +95,7 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
   name,
   kind,
   commit: 0,
-  oid: "refoid",
+  oid: 'refoid',
   isHead: false,
   upstream: null,
   ahead: 0,
@@ -114,7 +114,13 @@ const repo = (refs: RefView[]): RepoView => ({
   layoutMs: 0,
   minimap: [0, 0, 0],
   minimapColours: [1, 2, 3],
-  remotes: [{ name: 'origin', avatarUrl: 'https://github.com/facebook.png', webUrl: 'https://github.com/facebook/react' }],
+  remotes: [
+    {
+      name: 'origin',
+      avatarUrl: 'https://github.com/facebook.png',
+      webUrl: 'https://github.com/facebook/react',
+    },
+  ],
   refs,
 });
 
@@ -450,10 +456,9 @@ describe('метки на чипах', () => {
     const two = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-two');
     expect(one.length, 'первый чип в стопке с полным именем').toBeGreaterThan(0);
     expect(two.length, 'спрятанный чип в стопке с полным именем').toBeGreaterThan(0);
-    expect(
-      one[one.length - 1].y,
-      'стопка вертикальная — имена на разных строках',
-    ).not.toBe(two[two.length - 1].y);
+    expect(one[one.length - 1].y, 'стопка вертикальная — имена на разных строках').not.toBe(
+      two[two.length - 1].y,
+    );
   });
 
   it('наведённый чип раскрывается и рисуется поверх всего остального', () => {
@@ -496,7 +501,6 @@ describe('метки на чипах', () => {
     expect(laptop, 'метка-ноутбук на месте').toBeDefined();
     expect(laptop!.x, 'метка правее имени').toBeGreaterThan(name!.x);
   });
-
 });
 
 describe('строка WIP во время конфликтного слияния', () => {
@@ -506,10 +510,9 @@ describe('строка WIP во время конфликтного слияни
       inProgress: 'merge',
     });
 
-    expect(
-      painted.texts,
-      'баннер называет конфликты словами из перевода',
-    ).toContain('два конфликта на пути в main');
+    expect(painted.texts, 'баннер называет конфликты словами из перевода').toContain(
+      'два конфликта на пути в main',
+    );
     expect(
       painted.texts,
       'счётчики файлов при конфликте прячутся — строка говорит об одном',

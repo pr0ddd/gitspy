@@ -64,9 +64,8 @@ describe('счётчики WIP при скрытых колонках', () => {
     expect(wipBadgesX(cols), 'бейджи внутри колонки сообщения').toBeLessThan(
       cols.message.left + cols.message.width,
     );
-    expect(
-      wipInputWidth(cols),
-      'инпут короче колонки ровно на резерв бейджей',
-    ).toBe(cols.message.width - 24 - 150);
+    expect(wipInputWidth(cols), 'инпут короче колонки ровно на резерв бейджей').toBe(
+      cols.message.width - 24 - 150,
+    );
   });
 });

@@ -14,7 +14,14 @@ import {
   type HoverChip,
   type Metrics,
 } from '@/entities/graph';
-import { HEADER_H, minimapFraction, rowAtY, rowTop, scrollToCenter, scrollToReveal } from '@/entities/graph';
+import {
+  HEADER_H,
+  minimapFraction,
+  rowAtY,
+  rowTop,
+  scrollToCenter,
+  scrollToReveal,
+} from '@/entities/graph';
 import { chipsFor } from '@/entities/graph';
 import { pointerTarget, type PointerScene } from '@/entities/graph';
 import {

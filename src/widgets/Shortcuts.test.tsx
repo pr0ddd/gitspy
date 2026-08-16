@@ -25,7 +25,10 @@ describe('окно горячих клавиш', () => {
 
     fireEvent.change(filter(), { target: { value: 'stage' } });
 
-    expect(screen.getByText('Stage current file'), 'по слову stage команда обязана остаться').toBeTruthy();
+    expect(
+      screen.getByText('Stage current file'),
+      'по слову stage команда обязана остаться',
+    ).toBeTruthy();
     expect(screen.queryByText('Toggle terminal panel'), 'чужая команда уходит').toBeNull();
   });
 

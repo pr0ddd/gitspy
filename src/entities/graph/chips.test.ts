@@ -6,7 +6,7 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
   name,
   kind,
   commit: 0,
-  oid: "refoid",
+  oid: 'refoid',
   isHead: false,
   upstream: null,
   ahead: 0,
@@ -112,11 +112,6 @@ describe('чипы веток', () => {
       ref('branches', 'localBranch'),
       ref('master', 'localBranch', { isHead: true }),
     ]);
-    expect(shaped).toEqual([
-      '✓ master [local]',
-      'branches [local]',
-      'dev [remote]',
-      'v1 [tag]',
-    ]);
+    expect(shaped).toEqual(['✓ master [local]', 'branches [local]', 'dev [remote]', 'v1 [tag]']);
   });
 });

@@ -115,10 +115,7 @@ describe('кэш строк', () => {
     cache.replaceAll(window(0));
 
     const swapped = cache.row(5);
-    expect(
-      swapped?.kind === 'commit' && swapped.hash,
-      'новая полоса на месте',
-    ).toBe('hash-5');
+    expect(swapped?.kind === 'commit' && swapped.hash, 'новая полоса на месте').toBe('hash-5');
     expect(cache.row(3 * CHUNK + 1), 'глубокие полосы прошлой жизни выброшены').toBeNull();
     expect(
       cache.missing(3 * CHUNK, 3 * CHUNK + 10, CHUNK * 8),

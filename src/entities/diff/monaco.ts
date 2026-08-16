@@ -115,9 +115,7 @@ export function userEditorOptions() {
   const family = readPref<string>(SETTINGS.editorFont, '').trim();
   const size = clampFontSize(readPref<number>(SETTINGS.editorFontSize, FONT_SIZE_LIMITS.fallback));
   return {
-    fontFamily: family
-      ? `'${family}', ui-monospace, Menlo, monospace`
-      : EDITOR_BASE.fontFamily,
+    fontFamily: family ? `'${family}', ui-monospace, Menlo, monospace` : EDITOR_BASE.fontFamily,
     fontSize: size,
     lineHeight: Math.round(size * 1.55),
     lineNumbers: (readPref<boolean>(SETTINGS.editorLineNumbers, true)

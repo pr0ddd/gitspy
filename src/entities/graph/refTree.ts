@@ -88,4 +88,3 @@ export const flattenRefTree = (
     const row: FlatRef = { kind: 'folder', name: node.name, path: node.path, depth, open };
     return open ? [row, ...flattenRefTree(node.children, closed, depth + 1)] : [row];
   });
-

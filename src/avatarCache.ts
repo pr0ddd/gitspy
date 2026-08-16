@@ -19,10 +19,7 @@ export class AvatarCache {
     return this.load(urls, (url) => url);
   }
 
-  private load(
-    sources: Record<string, string>,
-    resolve: (value: string) => string,
-  ): Promise<void> {
+  private load(sources: Record<string, string>, resolve: (value: string) => string): Promise<void> {
     const settling: Promise<void>[] = [];
     for (const [name, source] of Object.entries(sources)) {
       const key = name.toLowerCase();

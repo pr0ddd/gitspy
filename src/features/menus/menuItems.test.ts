@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildChipMenu, buildCommitFileMenu, buildFileMenu, buildCommitMenu, type MenuContext } from './menuItems';
+import {
+  buildChipMenu,
+  buildCommitFileMenu,
+  buildFileMenu,
+  buildCommitMenu,
+  type MenuContext,
+} from './menuItems';
 import { chipsFor } from '@/entities/graph';
 import type { RefKind, RefView } from '@/types';
 
@@ -26,8 +32,7 @@ const chipOf = (r: RefView) => chipsFor([r], ['origin'])[0];
 
 const flat = (sections: ReturnType<typeof buildCommitMenu>) =>
   sections.flat().flatMap((i) => [i, ...(i.children ?? [])]);
-const ids = (sections: ReturnType<typeof buildCommitMenu>) =>
-  sections.flat().map((i) => i.id);
+const ids = (sections: ReturnType<typeof buildCommitMenu>) => sections.flat().map((i) => i.id);
 
 describe('меню локальной ветки', () => {
   it('несёт переключение, обновление, слияние, worktree, хирургию коммита и учёт', () => {
@@ -152,9 +157,7 @@ describe('меню коммита', () => {
     const onHead = buildCommitMenu('headoid', CTX);
     const edit = flatItem(onHead, 'editMessage');
     expect(
-      edit.action?.kind === 'ask' &&
-        edit.action.ask.kind === 'editMessage' &&
-        edit.action.ask.full,
+      edit.action?.kind === 'ask' && edit.action.ask.kind === 'editMessage' && edit.action.ask.full,
       'старое сообщение подставляется целиком, тело не теряется',
     ).toBe('тема\n\nтело');
 

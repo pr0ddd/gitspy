@@ -94,10 +94,7 @@ describe('перерисовка списков', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
 
-    expect(
-      drawn.branchRows,
-      'строки веток не перерисовываются, когда открыт другой вид',
-    ).toBe(0);
+    expect(drawn.branchRows, 'строки веток не перерисовываются, когда открыт другой вид').toBe(0);
   });
 });
 
@@ -239,7 +236,9 @@ describe('дерево и стрелки', () => {
 
 describe('ветка с исчезнувшим upstream', () => {
   it('остаётся в списке и не помечается словом, потому что ветка на месте', () => {
-    draw([branch({ name: 'invoices-pagination', gone: true, upstream: 'origin/invoices-pagination' })]);
+    draw([
+      branch({ name: 'invoices-pagination', gone: true, upstream: 'origin/invoices-pagination' }),
+    ]);
 
     expect(
       screen.getByText('invoices-pagination'),
