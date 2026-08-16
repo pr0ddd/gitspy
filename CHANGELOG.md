@@ -8,10 +8,9 @@ app under "What's new" and is the text of the GitHub release.
 
 ### New
 
-- A terminal lives in the app: PTY sessions in a dock over the graph, so a command
-  no longer means leaving the window. The dock has a fullscreen layout — session on
-  the left, the graph or the changes on the right — and moves between layouts
-  instead of snapping into place.
+- A terminal lives in the app: PTY sessions in a dock over the graph, with tabs
+  for several sessions per repository, so a command no longer means leaving the
+  window.
 - The toolbar starts with two breadcrumbs: the repository and the branch. The
   repository menu lists favorites and the last four opened, searches across
   everything you have ever opened, and ends in "View all repositories". The branch
@@ -64,8 +63,7 @@ app under "What's new" and is the text of the GitHub release.
   the collapse button in the diff takes you back to the graph.
 - Dragging a panel edge stays smooth. The grip no longer re-renders the whole app on
   every pointer move, the graph remeasures once per frame instead of many times, and
-  the minimap is rebuilt only when the height actually changes. The fullscreen split
-  resizes by the same grip the side panels have and remembers its width.
+  the minimap is rebuilt only when the height actually changes.
 - Pointer cursors are a theme rule now: every button, tab, option and switch shows
   a hand, disabled ones do not — instead of a class here and a missing one there.
 
