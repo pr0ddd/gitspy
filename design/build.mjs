@@ -18,7 +18,7 @@ const shared = new Map(
 const expand = (html) =>
   html.replace(/\{\{>\s*([\w-]+)\s*\}\}/g, (_, name) => {
     const partial = shared.get(name);
-    if (partial === undefined) throw new Error(`неизвестная часть: ${name}`);
+    if (partial === undefined) throw new Error(`unknown partial: ${name}`);
     return partial;
   });
 
@@ -34,7 +34,7 @@ mkdirSync(dist, { recursive: true });
 
 const page = (marker, body) => `${marker}
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -52,11 +52,11 @@ for (const file of readdirSync(cards).filter((f) => f.endsWith('.html'))) {
   const newline = source.indexOf('\n');
   const marker = source.slice(0, newline).trim();
   if (!marker.startsWith('<!-- @dsCard')) {
-    throw new Error(`${file}: первая строка обязана быть маркером @dsCard`);
+    throw new Error(`${file}: the first line must be an @dsCard marker`);
   }
   writeFileSync(join(dist, file), page(marker, expand(source.slice(newline + 1).trimEnd())));
   count += 1;
 }
 
 rmSync(compiled, { force: true });
-console.log(`собрано карточек: ${count}, css ${(css.length / 1024).toFixed(0)} КБ`);
+console.log(`cards built: ${count}, css ${(css.length / 1024).toFixed(0)} KB`);

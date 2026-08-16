@@ -6,25 +6,25 @@
       <button
         class="text-muted-foreground hover:bg-surface-hover flex h-9 w-full items-center gap-2 px-3"
       >
-        ← Выйти из настроек
+        ← Leave preferences
       </button>
       <div class="text-muted-foreground/60 px-3 py-2 text-xs tracking-wide uppercase">
-        Настройки
+        Preferences
       </div>
       <button
         class="bg-primary/15 border-l-primary text-foreground flex h-8 w-full items-center border-l-2 px-3 font-medium"
       >
-        Общие
+        General
       </button>
       <button
         class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3"
       >
-        Внешний вид
+        Appearance
       </button>
       <button
         class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3"
       >
-        Интеграции
+        Connections
       </button>
       <button
         class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3"
@@ -34,7 +34,7 @@
       <button
         class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3"
       >
-        Подпись коммитов
+        Commit signing
       </button>
       <button
         class="hover:bg-surface-hover flex h-8 w-full items-center border-l-2 border-transparent px-3"
@@ -44,54 +44,54 @@
     </aside>
 
     <div class="min-h-0 flex-1 overflow-hidden px-8 py-6">
-      <h1 class="mb-6 text-xl font-semibold tracking-tight">Общие</h1>
+      <h1 class="mb-6 text-xl font-semibold tracking-tight">General</h1>
       <div class="max-w-2xl space-y-5">
         <div class="grid grid-cols-[200px_1fr] items-start gap-4">
-          <label class="pt-1.5 text-right">Язык интерфейса</label>
+          <label class="pt-1.5 text-right">Interface language</label>
           <div>
             <select class="border-input h-8 w-64 rounded-md border bg-transparent px-2 text-sm">
-              <option>Русский</option>
               <option>English</option>
+              <option>Deutsch</option>
             </select>
             <p class="text-muted-foreground/70 mt-1 text-xs">
-              Словарь git не переводится: Pull, Push, Remote остаются как есть.
+              The git vocabulary is never translated: Pull, Push, Remote stay as they are.
             </p>
           </div>
         </div>
         <div class="grid grid-cols-[200px_1fr] items-start gap-4">
-          <label class="pt-0.5 text-right">Плотность</label>
+          <label class="pt-0.5 text-right">Density</label>
           <div class="border-input flex h-8 w-64 items-center overflow-hidden rounded-md border">
-            <button class="bg-primary text-primary-foreground h-full flex-1 text-sm">Плотно</button>
-            <button class="hover:bg-surface-hover h-full flex-1 text-sm">Свободнее</button>
+            <button class="bg-primary text-primary-foreground h-full flex-1 text-sm">Dense</button>
+            <button class="hover:bg-surface-hover h-full flex-1 text-sm">Roomier</button>
           </div>
         </div>
         <div class="grid grid-cols-[200px_1fr] items-start gap-4">
-          <label class="pt-0.5 text-right">Аватарки в графе</label>
+          <label class="pt-0.5 text-right">Avatars in the graph</label>
           <div><input type="checkbox" checked class="accent-primary mt-1" /></div>
         </div>
         <div class="grid grid-cols-[200px_1fr] items-start gap-4">
-          <label class="pt-1.5 text-right">Коммитов при открытии</label>
+          <label class="pt-1.5 text-right">Commits loaded on open</label>
           <div>
             <input
               value="2000"
               class="border-input h-8 w-64 rounded-md border bg-transparent px-2 text-sm"
             />
             <p class="text-muted-foreground/70 mt-1 text-xs">
-              Ноль — вся история. Открытие не делает сетевых вызовов ни при каком значении.
+              Zero means the whole history. Opening makes no network calls at any value.
             </p>
           </div>
         </div>
         <div class="grid grid-cols-[200px_1fr] items-start gap-4">
-          <label class="pt-1.5 text-right">Индекс commit-graph</label>
+          <label class="pt-1.5 text-right">commit-graph index</label>
           <div>
             <button
               class="border-input hover:bg-surface-hover h-8 rounded-md border px-3 text-sm opacity-50"
             >
-              Построить для этого репозитория
+              Build it for this repository
             </button>
             <p class="text-muted-foreground/70 mt-1 text-xs">
-              У свежего клона индекса нет, и чтение идёт в двенадцать раз медленнее. Появится вместе
-              со слоем операций.
+              A fresh clone has no index, and reading is twelve times slower. Arrives together with
+              the operations layer.
             </p>
           </div>
         </div>
