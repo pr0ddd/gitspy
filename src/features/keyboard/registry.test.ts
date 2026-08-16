@@ -10,27 +10,27 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('в какой области стоит фокус', () => {
-  it('поле ввода — текст: буквы там печатаются', () => {
+describe('which area the focus is in', () => {
+  it('treats a text field as the text area: letters are typed there', () => {
     const host = mount('<div data-area="files"><input /></div>');
     expect(areaOf(host.querySelector('input'))).toBe('text');
   });
 
-  it('дифф только для чтения — не текст: никто в него не печатает, стрелки и s/u должны работать', () => {
+  it('does not treat a read-only diff as text: nobody types into it, so arrows and s/u must work', () => {
     const host = mount(
       '<main><div class="monaco-editor"><textarea class="inputarea"></textarea></div></main>',
     );
     expect(areaOf(host.querySelector('textarea'))).not.toBe('text');
   });
 
-  it('редактируемый файл в Monaco — текст: там уже печатают', () => {
+  it('treats an editable file in Monaco as text: there people really do type', () => {
     const host = mount(
       '<main><div class="monaco-editor" data-editing="true"><textarea class="inputarea"></textarea></div></main>',
     );
     expect(areaOf(host.querySelector('textarea'))).toBe('text');
   });
 
-  it('фокус внутри диффа считается областью файлов: список рядом, по нему и ходят', () => {
+  it('counts focus inside the diff as the files area: the list is right beside it and that is what you move through', () => {
     const host = mount(
       '<main data-area="files"><div class="monaco-editor"><textarea></textarea></div></main>',
     );
@@ -38,20 +38,20 @@ describe('в какой области стоит фокус', () => {
   });
 });
 
-describe('граф', () => {
-  it('фокус на холсте графа — область graph', () => {
+describe('the graph', () => {
+  it('reports the graph area when the graph canvas holds the focus', () => {
     const host = mount('<div data-area="graph" tabindex="0"></div>');
     expect(areaOf(host)).toBe('graph');
   });
 
-  it('фокус на body — область не определена, решает запасная', () => {
+  it('reports no area when the focus sits on body, leaving the fallback to decide', () => {
     mount('<div data-area="graph" tabindex="0"></div>');
     expect(areaOf(document.body)).toBe(null);
   });
 });
 
-describe('дифф под фокусом', () => {
-  it('команда доходит, даже если редактор глотает keydown на своём узле: мы слушаем в фазе захвата', async () => {
+describe('the diff under focus', () => {
+  it('delivers the command even when the editor swallows keydown on its own node: we listen in the capture phase', async () => {
     const { renderHook } = await import('@testing-library/react');
     const { bindCommands, useKeyboard } = await import('./registry');
     const host = mount(
@@ -67,7 +67,7 @@ describe('дифф под фокусом', () => {
 
     area.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true, cancelable: true }));
 
-    expect(staged, 'stopPropagation на textarea Monaco не отрезает нашу команду').toBe(1);
+    expect(staged, 'stopPropagation on the Monaco textarea does not cut off our command').toBe(1);
     unbind();
   });
 });

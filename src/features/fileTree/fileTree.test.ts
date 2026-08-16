@@ -16,47 +16,47 @@ const shape = (nodes: ReturnType<typeof buildFileTree>): string[] =>
       : [`${node.name}/`, ...shape(node.children).map((s) => `  ${s}`)],
   );
 
-describe('дерево файлов рабочего копии', () => {
-  it('складывает файлы по каталогам, а не оставляет плоский список', () => {
+describe('file tree of the working tree', () => {
+  it('groups files into folders instead of leaving a flat list', () => {
     const tree = buildFileTree([entry('src/App.tsx'), entry('src/scene.ts'), entry('README.md')]);
 
     expect(shape(tree)).toEqual(['src/', '  App.tsx', '  scene.ts', 'README.md']);
   });
 
-  it('каталог-одиночка слипается с потомком, иначе панель уходит в лесенку', () => {
+  it('merges a lone folder into its only child, otherwise the pane turns into a staircase', () => {
     const tree = buildFileTree([entry('crates/gitspy-core/src/state.rs')]);
 
-    expect(shape(tree), 'три каталога без развилки — одна строка').toEqual([
+    expect(shape(tree), 'three folders with no fork between them become a single row').toEqual([
       'crates/gitspy-core/src/',
       '  state.rs',
     ]);
   });
 
-  it('развилка останавливает слипание: у каталога снова есть выбор', () => {
+  it('stops merging at a fork: the folder has more than one child again', () => {
     const tree = buildFileTree([entry('crates/core/a.rs'), entry('crates/repo/b.rs')]);
 
     expect(shape(tree)).toEqual(['crates/', '  core/', '    a.rs', '  repo/', '    b.rs']);
   });
 
-  it('каталоги идут раньше файлов на своём уровне', () => {
+  it('puts folders before files on the same level', () => {
     const tree = buildFileTree([entry('a.txt'), entry('zz/b.txt')]);
 
     expect(shape(tree)).toEqual(['zz/', '  b.txt', 'a.txt']);
   });
 
-  it('обратный порядок переворачивает и каталоги, и файлы внутри них', () => {
+  it('reverses both the folders and the files inside them', () => {
     const tree = buildFileTree([entry('src/a.ts'), entry('src/b.ts'), entry('docs/c.md')], true);
 
     expect(shape(tree)).toEqual(['src/', '  b.ts', '  a.ts', 'docs/', '  c.md']);
   });
 
-  it('плоский вид сортирует по всему пути, а не по имени файла', () => {
+  it('sorts the flat view by the whole path, not by the file name', () => {
     const sorted = sortedByPath([entry('src/z.ts'), entry('docs/a.md')]);
 
     expect(sorted.map((e) => e.path)).toEqual(['docs/a.md', 'src/z.ts']);
   });
 
-  it('обход дерева отдаёт ровно те же файлы, что вошли', () => {
+  it('walks the tree back to exactly the files that went in', () => {
     const paths = ['src/App.tsx', 'crates/core/src/lib.rs', 'README.md'];
 
     expect(
@@ -66,7 +66,7 @@ describe('дерево файлов рабочего копии', () => {
     ).toEqual([...paths].sort());
   });
 
-  it('каталоги перечисляются целыми путями: по ним и открывается свёрнутая ветка дерева', () => {
+  it('lists folders as whole paths: that is what a collapsed branch of the tree is keyed by', () => {
     const tree = buildFileTree([
       entry('src/app/App.tsx'),
       entry('docs/plan.md'),
@@ -76,7 +76,7 @@ describe('дерево файлов рабочего копии', () => {
     expect(foldersOf(tree)).toEqual(['docs', 'src/app']);
   });
 
-  it('свёрнутый каталог показывает, что внутри: по букве статуса со счётом', () => {
+  it('shows what is inside a collapsed folder as status letters with counts', () => {
     const tree = buildFileTree([
       entry('src/a.ts', 'M'),
       entry('src/b.ts', 'M'),
@@ -86,7 +86,7 @@ describe('дерево файлов рабочего копии', () => {
 
     expect(
       tallyByLetter(tree),
-      'неотслеживаемый файл считается добавленным, порядок букв — от добавленных к удалённым',
+      'an untracked file counts as added, and the letters run from added to deleted',
     ).toEqual([
       { letter: 'A', count: 1 },
       { letter: 'M', count: 2 },
