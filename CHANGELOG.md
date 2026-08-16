@@ -1,11 +1,8 @@
 # Changelog
 
 What changed in every released version of gitspy, written for the person using it.
-Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is also the text
-of the GitHub release. Lines land in `## Unreleased` and get their version and date
-when the tag is cut.
-
-## Unreleased
+Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
+app under "What's new" and is the text of the GitHub release.
 
 ## 1.0.6 — 2026-08-15
 
@@ -78,9 +75,8 @@ when the tag is cut.
   `git status` briefly takes the lock while it refreshes the index, and a click on
   a file that git had already moved ran `git add` on a path that no longer matched.
   Reads now run with `GIT_OPTIONAL_LOCKS=0`, and path operations go through a queue
-  that checks the fresh tree before calling git.
-- The `AcpConfigOptionView.ts did not match any files` error was the second half of
-  the same story: a stale operation reaching git.
+  that checks the fresh tree before calling git. The "did not match any files"
+  error some of you saw was the second half of the same story.
 
 ## 1.0.5 — 2026-08-07
 
@@ -165,8 +161,7 @@ when the tag is cut.
 
 ## 1.0.0 — 2026-08-05
 
-The first release, rebuilt from scratch on Tauri and Rust after the Electron
-prototype was thrown away.
+The first release: gitspy on Tauri and Rust.
 
 ### The graph
 
