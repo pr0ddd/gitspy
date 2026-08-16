@@ -105,7 +105,10 @@ function RepoPicker({
                 <button
                   key={repo.fullName}
                   onClick={() => onPick(repo)}
-                  className={cn(HOVER_FILL, 'flex h-8 w-full items-center gap-2 px-3 text-left text-xs')}
+                  className={cn(
+                    HOVER_FILL,
+                    'flex h-8 w-full items-center gap-2 px-3 text-left text-xs',
+                  )}
                 >
                   {repo.private ? (
                     <Icon.private className="text-faint size-3 shrink-0" />
@@ -284,12 +287,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
     const fallback = readPref<string>(SETTINGS.initBranch, '').trim();
     const wanted = branch.trim() || fallback;
     ipc
-      .initRepo(
-        `${parent}/${name.trim()}`,
-        wanted || null,
-        gitignore || null,
-        license || null,
-      )
+      .initRepo(`${parent}/${name.trim()}`, wanted || null, gitignore || null, license || null)
       .then((path) => {
         onOpenChange(false);
         onCloned(path);
@@ -349,7 +347,9 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
         <aside className="bg-fill-1 flex w-52 shrink-0 flex-col gap-px border-r p-2">
           <NavItem
             icon={mode === 'init' ? 'folder' : URL_TAB.icon}
-            label={mode === 'init' ? t('repoDialog.localOnly') : t(URL_TAB.label as 'repoDialog.withUrl')}
+            label={
+              mode === 'init' ? t('repoDialog.localOnly') : t(URL_TAB.label as 'repoDialog.withUrl')
+            }
             active={tab === (mode === 'init' ? 'local' : 'url')}
             onClick={() => setTab(mode === 'init' ? 'local' : 'url')}
           />
@@ -498,78 +498,78 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
               </div>
             </div>
           ) : (
-          <div className="space-y-4">
-            <Row label={t('repoDialog.where')}>
-              <div className="flex w-full gap-2">
-                <Input
-                  value={parent}
-                  onChange={(e) => setParent(e.target.value)}
-                  disabled={running}
-                  className="h-8 min-w-0 flex-1 text-xs"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={browse}
-                  disabled={running}
-                  className="shrink-0"
-                >
-                  {t('clone.browse')}
-                </Button>
-              </div>
-            </Row>
+            <div className="space-y-4">
+              <Row label={t('repoDialog.where')}>
+                <div className="flex w-full gap-2">
+                  <Input
+                    value={parent}
+                    onChange={(e) => setParent(e.target.value)}
+                    disabled={running}
+                    className="h-8 min-w-0 flex-1 text-xs"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={browse}
+                    disabled={running}
+                    className="shrink-0"
+                  >
+                    {t('clone.browse')}
+                  </Button>
+                </div>
+              </Row>
 
-            {tab === 'url' ? (
-              <Row label="URL">
-                <Input
-                  value={address}
-                  onChange={(e) => {
-                    setAddress(e.target.value);
-                    setName(directoryFromUrl(e.target.value));
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && start()}
-                  placeholder="https://github.com/owner/repo.git"
+              {tab === 'url' ? (
+                <Row label="URL">
+                  <Input
+                    value={address}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      setName(directoryFromUrl(e.target.value));
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && start()}
+                    placeholder="https://github.com/owner/repo.git"
+                    disabled={running}
+                    className="h-8 text-xs"
+                  />
+                </Row>
+              ) : (
+                <Row label={t('repoDialog.pick')}>
+                  <RepoPicker
+                    repos={repos}
+                    chosen={picked}
+                    onPick={(repo) => {
+                      setPicked(repo);
+                      if (repo) setName(repo.fullName.split('/')[1] ?? '');
+                    }}
+                  />
+                </Row>
+              )}
+
+              <Row label={t('repoDialog.fullPath')}>
+                <div className="flex w-full min-w-0 items-center gap-1.5">
+                  <span className="text-muted-foreground shrink truncate font-mono text-xs">
+                    {parent}/
+                  </span>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={running}
+                    placeholder={t('clone.directory')}
+                    className="h-8 w-56 text-xs"
+                  />
+                </div>
+              </Row>
+
+              <Row label={t('repoDialog.shallow')}>
+                <Checkbox
+                  checked={shallow}
+                  onCheckedChange={(next) => setShallow(next === true)}
                   disabled={running}
-                  className="h-8 text-xs"
+                  aria-label={t('repoDialog.shallow')}
                 />
               </Row>
-            ) : (
-              <Row label={t('repoDialog.pick')}>
-                <RepoPicker
-                  repos={repos}
-                  chosen={picked}
-                  onPick={(repo) => {
-                    setPicked(repo);
-                    if (repo) setName(repo.fullName.split('/')[1] ?? '');
-                  }}
-                />
-              </Row>
-            )}
-
-            <Row label={t('repoDialog.fullPath')}>
-              <div className="flex w-full min-w-0 items-center gap-1.5">
-                <span className="text-muted-foreground shrink truncate font-mono text-xs">
-                  {parent}/
-                </span>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={running}
-                  placeholder={t('clone.directory')}
-                  className="h-8 w-56 text-xs"
-                />
-              </div>
-            </Row>
-
-            <Row label={t('repoDialog.shallow')}>
-              <Checkbox
-                checked={shallow}
-                onCheckedChange={(next) => setShallow(next === true)}
-                disabled={running}
-                aria-label={t('repoDialog.shallow')}
-              />
-            </Row>
-          </div>
+            </div>
           )}
 
           <div className="mt-auto">

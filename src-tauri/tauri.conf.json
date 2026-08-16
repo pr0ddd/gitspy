@@ -23,9 +23,7 @@
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: asset: http://asset.localhost; worker-src 'self'; connect-src 'self' ipc: http://ipc.localhost; frame-src 'none'; object-src 'none'",
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "$APPDATA/avatars/*"
-        ]
+        "scope": ["$APPDATA/avatars/*"]
       }
     }
   },

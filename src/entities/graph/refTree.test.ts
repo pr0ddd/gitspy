@@ -28,13 +28,7 @@ describe('buildRefTree', () => {
 
   it('развилка останавливает слипание: у папки снова есть выбор', () => {
     const tree = buildRefTree([ref('deps/npm/webpack/dev/a'), ref('deps/npm/brunch/dev/b')]);
-    expect(shape(tree)).toEqual([
-      'deps/npm/',
-      '  brunch/dev/',
-      '    b',
-      '  webpack/dev/',
-      '    a',
-    ]);
+    expect(shape(tree)).toEqual(['deps/npm/', '  brunch/dev/', '    b', '  webpack/dev/', '    a']);
   });
 
   it('держит папки и листья в общем алфавитном порядке, не поднимая папки наверх', () => {
@@ -115,7 +109,11 @@ describe('flattenRefTree', () => {
 
   it('глубина растёт на уровень с каждой развилкой, а не с каждым сегментом имени', () => {
     const rows = flattenRefTree(buildRefTree([ref('a/b/target'), ref('a/other')]), new Set());
-    expect(rows.map((row) => `${row.depth}:${row.name}`)).toEqual(['0:a', '1:b', '2:target', '1:other']);
+    expect(rows.map((row) => `${row.depth}:${row.name}`)).toEqual([
+      '0:a',
+      '1:b',
+      '2:target',
+      '1:other',
+    ]);
   });
 });
-

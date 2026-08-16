@@ -1,5 +1,7 @@
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <div class="bg-surface-raised border-border text-muted-foreground flex h-6 shrink-0 items-center border-b text-2xs tracking-wide uppercase">
+  <div
+    class="bg-surface-raised border-border text-muted-foreground flex h-6 shrink-0 items-center border-b text-2xs tracking-wide uppercase"
+  >
     <span class="w-40 shrink-0 px-3">Branch / Tag</span>
     <span class="w-32 shrink-0">Graph</span>
     <span class="flex-1">Commit Message</span>
@@ -13,11 +15,25 @@
       <svg width="128" height="420" class="block">
         <g fill="none" stroke-width="2" stroke-linecap="round">
           <path d="M20 0 V420" stroke="var(--graph-1)" />
-          <path d="M20 45 Q20 60 34 60 T44 75 V165 Q44 180 30 180 T20 195" stroke="var(--graph-2)" />
-          <path d="M20 225 Q20 240 54 240 T68 255 V345 Q68 360 34 360 T20 375" stroke="var(--graph-3)" />
+          <path
+            d="M20 45 Q20 60 34 60 T44 75 V165 Q44 180 30 180 T20 195"
+            stroke="var(--graph-2)"
+          />
+          <path
+            d="M20 225 Q20 240 54 240 T68 255 V345 Q68 360 34 360 T20 375"
+            stroke="var(--graph-3)"
+          />
         </g>
         <g>
-          <circle cx="20" cy="15" r="6" fill="var(--surface)" stroke="var(--graph-1)" stroke-width="2" stroke-dasharray="3 2" />
+          <circle
+            cx="20"
+            cy="15"
+            r="6"
+            fill="var(--surface)"
+            stroke="var(--graph-1)"
+            stroke-width="2"
+            stroke-dasharray="3 2"
+          />
           <circle cx="20" cy="45" r="6" fill="var(--graph-1)" />
           <circle cx="44" cy="75" r="6" fill="var(--graph-2)" />
           <circle cx="20" cy="105" r="6" fill="var(--graph-1)" />
@@ -64,7 +80,9 @@
 
       <div class="hover:bg-surface-hover flex h-[30px] items-center border-l-2 border-transparent">
         <span class="flex w-40 shrink-0 items-center gap-1 px-3">
-          <span class="bg-ref-remote rounded-sm px-1.5 py-0.5 text-2xs text-white">origin/master</span>
+          <span class="bg-ref-remote rounded-sm px-1.5 py-0.5 text-2xs text-white"
+            >origin/master</span
+          >
         </span>
         <span class="w-32 shrink-0"></span>
         <span class="flex-1 truncate">Каркас приложения: вкладки и панели</span>

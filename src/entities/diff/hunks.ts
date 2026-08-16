@@ -40,8 +40,7 @@ export const hunkLineRange = (hunk: Hunk): { from: number; to: number } => {
   return { from, to: from + Math.max(1, hunk.newLines) - 1 };
 };
 
-export const isGitlinkDiff = (raw: string): boolean =>
-  /(^|\n)[-+]Subproject commit /.test(raw);
+export const isGitlinkDiff = (raw: string): boolean => /(^|\n)[-+]Subproject commit /.test(raw);
 
 export type HiddenSpan = { from: number; to: number };
 

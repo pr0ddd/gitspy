@@ -681,6 +681,10 @@ describe('S подряд', () => {
     press('s');
     await vi.waitFor(() => expect(picked).toEqual({ path: 'd.ts', staged: false }));
 
-    expect(staged, 'каждое нажатие стейджит ровно тот файл, что выбран').toEqual(['a.ts', 'b.ts', 'c.ts']);
+    expect(staged, 'каждое нажатие стейджит ровно тот файл, что выбран').toEqual([
+      'a.ts',
+      'b.ts',
+      'c.ts',
+    ]);
   });
 });

@@ -19,11 +19,11 @@ clients, so the app talks to it directly.
 
 Every request is `POST` with a JSON body; anything else is `404`.
 
-| Path        | Body                                          | Answer                                              |
-|-------------|-----------------------------------------------|-----------------------------------------------------|
-| `/exchange` | `{ "host": "github", "code": "…" }`           | `{ "access", "refresh", "expiresIn" }`              |
-| `/exchange` | `{ "host": "bitbucket", "code": "…" }`        | same                                                |
-| `/refresh`  | `{ "host": "bitbucket", "refresh": "…" }`     | same                                                |
+| Path        | Body                                      | Answer                                 |
+| ----------- | ----------------------------------------- | -------------------------------------- |
+| `/exchange` | `{ "host": "github", "code": "…" }`       | `{ "access", "refresh", "expiresIn" }` |
+| `/exchange` | `{ "host": "bitbucket", "code": "…" }`    | same                                   |
+| `/refresh`  | `{ "host": "bitbucket", "refresh": "…" }` | same                                   |
 
 `refresh` and `expiresIn` are `null` when the provider does not return
 them (GitHub does not). A provider refusal is `401 refused`; a malformed
@@ -37,12 +37,12 @@ relay changes that constant.
 
 Set with `wrangler secret put <NAME>` — never in `wrangler.toml`:
 
-| Name                       | Where it comes from                                    |
-|----------------------------|--------------------------------------------------------|
-| `GITHUB_CLIENT_ID`         | GitHub → Settings → Developer settings → OAuth Apps    |
-| `GITHUB_CLIENT_SECRET`     | same app                                                |
-| `BITBUCKET_CLIENT_ID`      | Bitbucket → Workspace settings → OAuth consumers        |
-| `BITBUCKET_CLIENT_SECRET`  | same consumer                                           |
+| Name                      | Where it comes from                                 |
+| ------------------------- | --------------------------------------------------- |
+| `GITHUB_CLIENT_ID`        | GitHub → Settings → Developer settings → OAuth Apps |
+| `GITHUB_CLIENT_SECRET`    | same app                                            |
+| `BITBUCKET_CLIENT_ID`     | Bitbucket → Workspace settings → OAuth consumers    |
+| `BITBUCKET_CLIENT_SECRET` | same consumer                                       |
 
 The GitHub OAuth App must have `http://127.0.0.1:53682/callback` as its
 authorization callback URL: the worker sends the same `redirect_uri` on

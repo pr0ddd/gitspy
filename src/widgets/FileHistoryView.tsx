@@ -316,7 +316,11 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
           <ul>
             {commits.map((commit) => (
               <li key={commit.hash}>
-                <ListRow tall current={commit.hash === entry?.hash} onClick={() => setChosen(commit.hash)}>
+                <ListRow
+                  tall
+                  current={commit.hash === entry?.hash}
+                  onClick={() => setChosen(commit.hash)}
+                >
                   <CommitAvatar avatars={avatars} email={commit.email} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm leading-tight font-normal">
@@ -341,9 +345,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
               <p className="border-added/50 text-added border-t px-2 py-1.5 text-2xs">
                 {t('history.added', { path: born.path })}
               </p>
-              <p className="text-muted-foreground py-1 text-center text-2xs">
-                {t('history.end')}
-              </p>
+              <p className="text-muted-foreground py-1 text-center text-2xs">{t('history.end')}</p>
             </>
           ) : null}
         </div>
@@ -365,4 +367,3 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
     </div>
   );
 }
-

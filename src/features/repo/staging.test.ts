@@ -153,6 +153,9 @@ describe('очередь помнит последний ответ git', () => 
     await queuePathOperation('/repo9', { kind: 'stage', paths: ['b.ts'] }, stale, perform);
     await queuePathOperation('/repo9', { kind: 'stage', paths: ['c.ts'] }, stale, perform);
 
-    expect(perform, 'все три файла ушли в git, хотя вызывающий трижды передал одно старое дерево').toHaveBeenCalledTimes(3);
+    expect(
+      perform,
+      'все три файла ушли в git, хотя вызывающий трижды передал одно старое дерево',
+    ).toHaveBeenCalledTimes(3);
   });
 });

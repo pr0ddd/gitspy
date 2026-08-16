@@ -26,19 +26,13 @@ import type { RowCache } from './rows';
 import { laneColour, laneColourAlpha, laneSoft, theme } from '@/theme';
 import type { Minimap } from './view';
 import { chipsFor, remoteAvatarKey, type Chip } from './chips';
-import {
-  moreLabel,
-  placeChips,
-  type ChipMetrics,
-  type PlacedChip,
-} from './chipLayout';
+import { moreLabel, placeChips, type ChipMetrics, type PlacedChip } from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
 import { wipBadgesX, wipContent } from './wip';
 import { canvasDensity } from '@/zoom';
 import { readPref } from '@/prefs';
 
 export type DescriptionMode = 'always' | 'hover' | 'never';
-
 
 const CORNER = 7;
 
@@ -518,8 +512,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.fillText(fitted, msgX, yc);
 
       const body = row.body;
-      const wanted =
-        descriptionMode === 'always' || (descriptionMode === 'hover' && i === hover);
+      const wanted = descriptionMode === 'always' || (descriptionMode === 'hover' && i === hover);
       if (wanted && body && fitted === subject) {
         const used = ctx.measureText(subject).width;
         const rest = subjMax - used - 10;
@@ -563,7 +556,10 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   ctx.textBaseline = 'middle';
   const chipM = chipMetricsFor(m);
   const measure = (text: string) => ctx.measureText(text).width;
-  const chips = chipsFor(labels, repo.remotes.map((r) => r.name));
+  const chips = chipsFor(
+    labels,
+    repo.remotes.map((r) => r.name),
+  );
   const { placed } = placeChips(
     chips,
     measure,

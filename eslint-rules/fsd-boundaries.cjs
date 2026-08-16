@@ -69,8 +69,7 @@ module.exports = {
       const to = classify(targetRel);
       if (!to) return;
 
-      const sameSlice =
-        from.layer === to.layer && from.slice !== null && from.slice === to.slice;
+      const sameSlice = from.layer === to.layer && from.slice !== null && from.slice === to.slice;
       if (sameSlice) return;
 
       if (RANK[to.layer] > RANK[from.layer]) {
