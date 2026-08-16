@@ -42,19 +42,18 @@ import {
   type DescriptionMode,
   type HideableColumn,
 } from '@/entities/graph';
-import type { AccountView, AiProviderId, AiServerView } from '@/shared/api/types';
-import { HOSTS, HostCard } from '@/widgets/HostConnect';
+import type { AiProviderId, AiServerView } from '@/shared/api/types';
+import { HostCard } from '@/widgets/HostConnect';
+import { HOSTS } from '@/entities/repo';
 
 type Props = {
   open: boolean;
-  account: AccountView | null;
   collapsed: boolean;
   zoom: number;
   onZoom: (zoom: number) => void;
   compact: boolean;
   onCompact: (compact: boolean) => void;
   onToggle: () => void;
-  onDisconnected: () => void;
 };
 
 type SectionKey = 'general' | 'interface' | 'editor' | 'integrations' | 'ai';
@@ -77,7 +76,7 @@ export function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[240px_1fr] items-start gap-x-8">
+    <div className="grid grid-cols-setting items-start gap-x-8">
       <span className="flex min-h-8 items-center justify-end text-right text-sm leading-snug">
         {label}
       </span>
@@ -91,17 +90,7 @@ export function SettingRow({
   );
 }
 
-export function Settings({
-  open,
-  account,
-  collapsed,
-  zoom,
-  onZoom,
-  compact,
-  onCompact,
-  onToggle,
-  onDisconnected,
-}: Props) {
+export function Settings({ open, collapsed, zoom, onZoom, compact, onCompact, onToggle }: Props) {
   const { t } = useTranslation();
   const [section, setSection] = usePref<SectionKey>('settings.section', 'general');
   const [width] = usePref<number>('sidebar.width', PANEL_LIMITS.sidebar.fallback);
@@ -187,7 +176,7 @@ export function Settings({
             ) : section === 'ai' ? (
               <AiSection />
             ) : (
-              <IntegrationsSection account={account} onDisconnected={onDisconnected} />
+              <IntegrationsSection />
             )}
           </div>
         </main>
@@ -473,11 +462,12 @@ function AiSection() {
             : t('settings.aiServerHint')
         }
       >
-        <div className="flex w-72 items-center gap-2">
+        <div className="flex w-full max-w-xl items-center gap-2">
           <Input
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder={AI_DEFAULT_URLS.ollama}
+            className="min-w-0 flex-1"
           />
           <Button variant="outline" size="sm" disabled={checking} onClick={() => void check(false)}>
             {checking ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
@@ -611,23 +601,12 @@ function EditorSection() {
   );
 }
 
-function IntegrationsSection({
-  account,
-  onDisconnected,
-}: {
-  account: AccountView | null;
-  onDisconnected: () => void;
-}) {
-  const { t } = useTranslation();
+function IntegrationsSection() {
   return (
     <div className="space-y-7">
       {HOSTS.map((host) => (
-        <SettingRow key={host.id} label={host.label} hint={t('settings.connectHint')}>
-          <HostCard
-            host={host}
-            seeded={host.id === 'github' ? account : null}
-            onDisconnected={onDisconnected}
-          />
+        <SettingRow key={host.id} label={host.label}>
+          <HostCard host={host} />
         </SettingRow>
       ))}
     </div>

@@ -20,14 +20,12 @@ import '@/shared/config/i18n';
 
 const shown = {
   open: true,
-  account: null,
   collapsed: false,
   zoom: 1,
   onZoom: () => {},
   compact: false,
   onCompact: () => {},
   onToggle: () => {},
-  onDisconnected: () => {},
 };
 
 describe('the settings page', () => {
