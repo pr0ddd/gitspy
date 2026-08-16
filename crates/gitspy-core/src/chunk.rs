@@ -23,7 +23,7 @@ impl Skeleton {
 }
 
 pub fn skeleton(topo: &Topology, chunk: usize) -> Skeleton {
-    assert!(chunk > 0, "размер полосы должен быть положительным");
+    assert!(chunk > 0, "chunk size must be positive");
 
     let total = topo.len();
     let mut state = LayoutState::new();
@@ -119,7 +119,7 @@ pub fn layout(topo: &Topology) -> Layout {
 }
 
 pub fn layout_chunked(topo: &Topology, chunk_size: usize) -> (Layout, Vec<Snapshot>) {
-    assert!(chunk_size > 0, "размер полосы должен быть положительным");
+    assert!(chunk_size > 0, "chunk size must be positive");
 
     let mut out = Layout::default();
     let mut snapshots = Vec::new();
@@ -188,7 +188,10 @@ mod tests {
         let whole = layout(&parsed.topology);
         for chunk_size in [1usize, 2, 3, 5, 6, 100] {
             let (chunked, _) = layout_chunked(&parsed.topology, chunk_size);
-            assert_eq!(chunked, whole, "разошлось при chunk_size = {chunk_size}");
+            assert_eq!(
+                chunked, whole,
+                "resuming from snapshots diverged from the whole run at chunk_size = {chunk_size}"
+            );
         }
     }
 

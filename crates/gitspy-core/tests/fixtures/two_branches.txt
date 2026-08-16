@@ -1,4 +1,4 @@
-# две ветки подряд: дорожка переиспользуется, цвет — нет
+# two branches one after another: the lane is reused, the colour is not
 m4: m3
 m3: m2, b1
 b1: m2

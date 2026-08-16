@@ -19,7 +19,7 @@ fn wide(n: usize, span: usize) -> Topology {
         ids.dedup();
         parents.push(ids);
     }
-    Topology::new(parents, vec![0; n]).expect("корректная топология")
+    Topology::new(parents, vec![0; n]).expect("valid topology")
 }
 
 fn main() {
@@ -45,8 +45,8 @@ fn main() {
 
         let segments: usize = whole.segments.iter().map(|s| s.len()).sum();
         println!(
-            "дорожек {:<4} сплошная {whole_ms:>6.0} мс ({segments} сегментов)  \
-скелет {skeleton_ms:>6.0} мс  окно из {} строк {window_ms:.2} мс",
+            "lanes {:<4} whole {whole_ms:>6.0} ms ({segments} segments)  \
+skeleton {skeleton_ms:>6.0} ms  window of {} rows {window_ms:.2} ms",
             skeleton.max_lane as usize + 1,
             window.len()
         );

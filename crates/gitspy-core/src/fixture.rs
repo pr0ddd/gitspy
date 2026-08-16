@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn ignores_comments_and_blank_lines() {
-        let p = parse("# заголовок\n\na: b\n\nb\n").unwrap();
+        let p = parse("# header\n\na: b\n\nb\n").unwrap();
         assert_eq!(p.names, vec!["a", "b"]);
     }
 

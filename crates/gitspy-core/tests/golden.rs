@@ -4,20 +4,23 @@ use std::path::Path;
 fn check(name: &str) {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let src = std::fs::read_to_string(dir.join(format!("{name}.txt")))
-        .unwrap_or_else(|e| panic!("не читается {name}.txt: {e}"));
-    let parsed = fixture::parse(&src).expect("фикстура разбирается");
+        .unwrap_or_else(|e| panic!("cannot read {name}.txt: {e}"));
+    let parsed = fixture::parse(&src).expect("fixture parses");
     let layout = chunk::layout(&parsed.topology);
     let actual = dump::render(&layout, &parsed.names);
 
     let golden_path = dir.join(format!("{name}.golden"));
     if std::env::var("UPDATE_GOLDEN").is_ok() {
-        std::fs::write(&golden_path, &actual).expect("golden записывается");
+        std::fs::write(&golden_path, &actual).expect("golden dump is written");
         return;
     }
     let expected = std::fs::read_to_string(&golden_path).unwrap_or_else(|e| {
-        panic!("не читается {name}.golden: {e}. Первый раз — запусти с UPDATE_GOLDEN=1")
+        panic!("cannot read {name}.golden: {e}. On the first run use UPDATE_GOLDEN=1")
     });
-    assert_eq!(actual, expected, "раскладка {name} разошлась с golden");
+    assert_eq!(
+        actual, expected,
+        "layout of {name} diverged from its golden dump"
+    );
 }
 
 #[test]

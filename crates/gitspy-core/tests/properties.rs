@@ -31,7 +31,7 @@ fn arb_topology() -> impl Strategy<Value = Topology> {
                 parents.push(known);
                 outside.push(outside_count);
             }
-            Topology::new(parents, outside).expect("генератор строит корректную топологию")
+            Topology::new(parents, outside).expect("the generator builds a valid topology")
         })
     })
 }
@@ -100,8 +100,8 @@ fn side_lane_violation(layout: &Layout) -> Option<String> {
             .collect();
         if awaiting.iter().any(is_side) && !is_side(&node_lane) {
             return Some(format!(
-                "строка {row}: узел сел на магистральную дорожку {node_lane}, \
-                 хотя его ждала боковая среди {awaiting:?}"
+                "row {row}: the node landed in the mainline lane {node_lane}, \
+                 although a side lane among {awaiting:?} was waiting for it"
             ));
         }
 
@@ -149,14 +149,14 @@ proptest! {
         let l = chunk::layout(&topo);
         for row in 0..l.len() {
             for (half, lanes) in [
-                ("верх", lanes_entering(&l, row)),
-                ("низ", lanes_leaving(&l, row)),
+                ("upper half", lanes_entering(&l, row)),
+                ("lower half", lanes_leaving(&l, row)),
             ] {
                 let unique = as_set(&lanes);
                 prop_assert_eq!(
                     unique.len(),
                     lanes.len(),
-                    "строка {} ({}) занимает дорожку дважды: {:?}",
+                    "row {} ({}) occupies a lane twice: {:?}",
                     row,
                     half,
                     lanes
@@ -172,7 +172,7 @@ proptest! {
             prop_assert_eq!(
                 l.rows[row].colour,
                 colour_of_lane(l.rows[row].lane),
-                "строка {}: цвет узла не совпал с цветом его дорожки",
+                "row {}: the node colour does not match the colour of its lane",
                 row
             );
             for segment in &l.segments[row] {
@@ -187,7 +187,7 @@ proptest! {
                 prop_assert_eq!(
                     colour,
                     colour_of_lane(lane),
-                    "строка {}: {:?} не в цвете своей дорожки {}",
+                    "row {}: {:?} is not painted in the colour of its lane {}",
                     row,
                     segment,
                     lane
@@ -245,7 +245,7 @@ proptest! {
             prop_assert_eq!(
                 branches,
                 expected,
-                "коммит {} имеет {} родителей, но {} ответвлений",
+                "commit {} has {} parents but {} branch segments",
                 commit,
                 total_parents,
                 branches
@@ -264,7 +264,7 @@ proptest! {
             for lane in leaving.difference(&entering) {
                 prop_assert!(
                     false,
-                    "линия на дорожке {} обрывается между строками {} и {}",
+                    "the line in lane {} breaks between rows {} and {}",
                     lane,
                     row,
                     row + 1
@@ -276,13 +276,13 @@ proptest! {
                 prop_assert_eq!(
                     *lane,
                     next.lane,
-                    "в строке {} дорожка {} возникла не под узлом",
+                    "in row {} lane {} appears somewhere other than under the node",
                     row + 1,
                     lane
                 );
                 prop_assert!(
                     !has_children.contains(&next.commit),
-                    "в строке {} новая линия открыта под коммитом, у которого есть потомки",
+                    "in row {} a new line is opened under a commit that already has children",
                     row + 1
                 );
             }
@@ -330,7 +330,7 @@ proptest! {
         prop_assert_eq!(skeleton.len(), whole.len());
         prop_assert_eq!(skeleton.max_lane, whole.max_lane);
         for (i, row) in whole.rows.iter().enumerate() {
-            prop_assert_eq!(skeleton.lanes[i], row.lane, "строка {}", i);
+            prop_assert_eq!(skeleton.lanes[i], row.lane, "row {}", i);
         }
     }
 }
