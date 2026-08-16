@@ -71,3 +71,27 @@ describe('the diff under focus', () => {
     unbind();
   });
 });
+
+describe('keys inside an overlay', () => {
+  it('a dialog keeps its keys: Escape closes it, and app shortcuts do not fire behind it', async () => {
+    const { renderHook } = await import('@testing-library/react');
+    const { bindCommands, useKeyboard, insideOverlay } = await import('./registry');
+    const host = mount(
+      '<div role="dialog" data-state="open"><input id="field" /></div><main data-area="graph"></main>',
+    );
+    const field = host.querySelector('input') as HTMLInputElement;
+    field.focus();
+    expect(insideOverlay(field)).toBe(true);
+
+    let closed = 0;
+    const unbind = bindCommands('app', { closeView: () => (closed += 1) });
+    renderHook(() => useKeyboard('graph'));
+
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    field.dispatchEvent(escape);
+
+    expect(closed, 'Escape belongs to the dialog while it is open').toBe(0);
+    expect(escape.defaultPrevented, 'and reaches it untouched').toBe(false);
+    unbind();
+  });
+});

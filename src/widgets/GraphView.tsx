@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   chipAt,
@@ -134,19 +134,22 @@ export const GraphView = memo(function GraphView({
   const [hoverNode, setHoverNode] = useState<(NodeHit & { authors: string }) | null>(null);
   const wip = rows.row(0);
   const conflicted = wip?.kind === 'workingTree' && wip.conflicts > 0 ? wip.conflicts : 0;
-  const columns = {
-    branchTag: GIT.branchTag,
-    graph: GIT.graph,
-    message: GIT.commitMessage,
-    author: t('column.author'),
-    date: t('column.date'),
-    sha: GIT.sha,
-    workingTree: GIT.workingTree,
-    inProgress: t('graph.inProgress'),
-    mergeConflicts: conflicted
-      ? t('graph.mergeConflicts', { count: conflicted, branch: currentBranch ?? '' })
-      : '',
-  };
+  const columns = useMemo(
+    () => ({
+      branchTag: GIT.branchTag,
+      graph: GIT.graph,
+      message: GIT.commitMessage,
+      author: t('column.author'),
+      date: t('column.date'),
+      sha: GIT.sha,
+      workingTree: GIT.workingTree,
+      inProgress: t('graph.inProgress'),
+      mergeConflicts: conflicted
+        ? t('graph.mergeConflicts', { count: conflicted, branch: currentBranch ?? '' })
+        : '',
+    }),
+    [t, conflicted, currentBranch],
+  );
   const frameRef = useRef<Frame>(emptyFrame(metrics, rows, columns));
   const rafRef = useRef<number | null>(null);
   const storedRef = useRef<StoredWidths>(loadWidths());
@@ -166,18 +169,6 @@ export const GraphView = memo(function GraphView({
     }
   }, [onNeed]);
 
-  const schedule = useCallback(() => {
-    needRows();
-
-    if (rafRef.current !== null) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      const canvas = canvasRef.current;
-      if (canvas) drawFrame(canvas, frameRef.current);
-      placeMessageInput();
-    });
-  }, [needRows]);
-
   const placeMessageInput = useCallback(() => {
     const box = inputRef.current;
     if (!box) return;
@@ -194,6 +185,18 @@ export const GraphView = memo(function GraphView({
     box.style.width = `${wipInputWidth(f.cols)}px`;
     box.style.height = `${f.metrics.rowH - 6}px`;
   }, []);
+
+  const schedule = useCallback(() => {
+    needRows();
+
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const canvas = canvasRef.current;
+      if (canvas) drawFrame(canvas, frameRef.current);
+      placeMessageInput();
+    });
+  }, [needRows, placeMessageInput]);
 
   const patch = useCallback(
     (next: Partial<Frame>) => {
@@ -248,7 +251,7 @@ export const GraphView = memo(function GraphView({
       hoverChip: sameRepo ? f.hoverChip : null,
     };
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
-  }, [session, redraw, pullHeads, patch, clampScroll]);
+  }, [session, rows, avatars, columns, redraw, pullHeads, patch, clampScroll]);
 
   useEffect(() => {
     frameRef.current = { ...frameRef.current, metrics };

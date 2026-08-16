@@ -1,17 +1,3 @@
-// Custom ESLint rule: enforces FSD layer direction inside src/.
-// Ranks, low -> high: foundation(0) entity(1) feature(2) widget(3) app(4).
-// A file may import a STRICTLY lower rank or its own slice (same
-// entities/<x> / features/<x> directory). Sideways (feature -> feature,
-// entity -> entity across slices) and upward imports are errors.
-// Widgets are the skeleton and compose one another; app is the top —
-// same-layer imports are legal there.
-//
-// Classification by path under src/:
-//   entities/<slice>/** -> entity   features/<slice>/** -> feature
-//   widgets/**          -> widget   app/**              -> app
-//   shared/**           -> foundation (rank 0); so is anything else left
-//   at the src/ root (global css, test setup).
-
 const path = require('path');
 
 const RANK = { foundation: 0, entity: 1, feature: 2, widget: 3, app: 4 };
@@ -43,7 +29,10 @@ function resolveImport(fromAbs, spec, srcRoot) {
 module.exports = {
   meta: {
     type: 'problem',
-    docs: { description: 'imports flow strictly down the FSD layers' },
+    docs: {
+      description:
+        'imports flow strictly down the FSD layers: shared (and anything left at the src root) < entities/<slice> < features/<slice> < widgets < app; a file may import a strictly lower layer or its own slice, widgets and app may import their own layer, entity→entity and feature→feature across slices is sideways and rejected',
+    },
     schema: [],
     messages: {
       upward:

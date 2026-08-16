@@ -21,6 +21,11 @@ export function bindCommands(scope: Scope, handlers: Handlers): () => void {
 
 const TEXT_FIELDS = 'input, textarea, [contenteditable="true"]';
 const EDITED_MONACO = '.monaco-editor[data-editing="true"]';
+const OVERLAYS =
+  '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"][data-radix-collection-item], [data-radix-popper-content-wrapper]';
+
+export const insideOverlay = (node: Element | null): boolean =>
+  node !== null && node.closest(OVERLAYS) !== null;
 
 export function areaOf(node: Element | null): Area | null {
   if (!node) return null;
@@ -66,6 +71,7 @@ export function useKeyboard(fallback: Area | null): void {
     const apple = onApple();
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      if (insideOverlay(document.activeElement)) return;
       const area = areaOf(document.activeElement) ?? at.current;
       const command = commandFor(event, area, apple);
       if (!command) return;

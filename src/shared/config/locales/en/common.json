@@ -384,6 +384,7 @@
   "start.searchRepos": "Search repositories",
   "start.star": "Add to favorites",
   "start.title": "Repositories",
+  "start.newTab": "New tab",
   "start.unstar": "Remove from favorites",
   "stash.create": "Stash",
   "stash.message": "Message, optional",

@@ -146,6 +146,12 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
 
   const commits = history ?? [];
   const entry = commits.find((c) => c.hash === chosen) ?? commits[0] ?? null;
+  const shown = entry
+    ? { hash: entry.hash, path: entry.path, oldPath: entry.oldPath ?? null }
+    : null;
+  const shownHash = shown?.hash ?? null;
+  const shownPath = shown?.path ?? null;
+  const shownOldPath = shown?.oldPath ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -163,13 +169,13 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
   }, [repo, path, from]);
 
   useEffect(() => {
-    if (!entry || !blaming) {
+    if (shownHash === null || shownPath === null || !blaming) {
       setBlame(null);
       return;
     }
     let cancelled = false;
     ipc
-      .blameFile(repo, entry.path, entry.hash)
+      .blameFile(repo, shownPath, shownHash)
       .then((spans) => {
         if (!cancelled) setBlame(spans);
       })
@@ -177,20 +183,20 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [repo, path, entry?.hash, blaming]);
+  }, [repo, shownPath, shownHash, blaming]);
 
   useEffect(() => {
-    if (!entry) return;
+    if (shownHash === null || shownPath === null) return;
     setUpMonaco();
     editors.current.forEach((editor) => editor.dispose());
     editors.current = [];
     setScrollTop(0);
 
     let cancelled = false;
-    const at = entry.path;
+    const at = shownPath;
     Promise.all([
-      ipc.diffSides(repo, entry.hash, at, entry.oldPath ?? null),
-      ipc.commitFileHunks(repo, entry.hash, at).catch(() => null),
+      ipc.diffSides(repo, shownHash, at, shownOldPath),
+      ipc.commitFileHunks(repo, shownHash, at).catch(() => null),
     ])
       .then(([sides, raw]) => {
         if (cancelled) return;
@@ -248,7 +254,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
       editors.current = [];
       diffEditor.current = null;
     };
-  }, [repo, path, entry?.hash, view]);
+  }, [repo, shownPath, shownHash, shownOldPath, view]);
 
   useEffect(() => {
     diffEditor.current?.updateOptions({

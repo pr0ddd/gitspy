@@ -245,6 +245,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
 
   const links = useConnections();
   const rejected = useHostRejected(tab);
+  const hostTab = HOSTS.find((h) => h.id === tab) ?? null;
   const connection = rejected ? null : (links.find((c) => c.id === tab) ?? null);
 
   useEffect(() => {
@@ -372,11 +373,9 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
           </DialogTitle>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {mode === 'init' && tab !== 'local' && !connection ? (
-              <div className="flex flex-1 flex-col justify-center gap-3">
-                <div>
-                  <HostCard host={HOSTS.find((h) => h.id === tab)!} />
-                </div>
+            {hostTab && !connection ? (
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <HostCard host={hostTab} />
               </div>
             ) : mode === 'init' ? (
               <div className="space-y-4">
@@ -484,12 +483,6 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
                   />
                 </Row>
               </div>
-            ) : tab !== 'url' && !connection ? (
-              <div className="flex flex-1 flex-col justify-center gap-3">
-                <div>
-                  <HostCard host={HOSTS.find((h) => h.id === tab)!} />
-                </div>
-              </div>
             ) : (
               <div className="space-y-4">
                 <Row label={t('repoDialog.where')}>
@@ -575,7 +568,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
                   <span className="tabular-nums">{step.overall}%</span>
                 </div>
               </div>
-            ) : mode === 'init' ? (
+            ) : hostTab && !connection ? null : mode === 'init' ? (
               <div className="flex justify-end">
                 <Button
                   onClick={tab === 'local' ? create : createRemote}

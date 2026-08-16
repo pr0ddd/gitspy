@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { Icon, type IconName } from '@/shared/ui/icons';
@@ -448,8 +448,10 @@ function AiSection() {
     }
   };
 
+  const probeOnOpen = useRef(check);
+  probeOnOpen.current = check;
   useEffect(() => {
-    void check(true);
+    void probeOnOpen.current(true);
   }, []);
 
   return (

@@ -1,10 +1,3 @@
-// Custom ESLint rule: cross-slice imports of entities/* and features/*
-// must target the slice ROOT ('@/entities/graph'), never a deep module
-// ('@/entities/graph/scene'). A slice may restructure its internals
-// without breaking consumers. `import type` is exempt: erased at compile
-// time, and routing types through fat barrels risks type-import cycles.
-// Autofix rewrites the deep path to the slice root.
-
 const path = require('path');
 
 function srcRelative(absPath) {
@@ -25,7 +18,10 @@ module.exports = {
   meta: {
     type: 'problem',
     fixable: 'code',
-    docs: { description: 'cross-slice imports go through the slice facade' },
+    docs: {
+      description:
+        "cross-slice imports of entities/* and features/* target the slice root ('@/entities/graph'), never a deep module, so a slice can restructure its internals; import type is exempt because it is erased and routing types through fat barrels risks type-import cycles; the autofix rewrites the deep path to the slice root",
+    },
     schema: [],
     messages: {
       deep: 'import the facade "@/{{slice}}" instead of its internals "{{spec}}"',

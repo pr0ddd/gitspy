@@ -112,6 +112,10 @@
   padding-right: var(--scrollbar-width);
 }
 
+@utility h-dialog-tall {
+  height: min(70vh, 34rem);
+}
+
 @utility conflict-line-a {
   background: color-mix(in oklab, var(--status-ahead) 14%, transparent);
 }
