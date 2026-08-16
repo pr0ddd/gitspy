@@ -25,7 +25,7 @@ jobs:
         os: [ubuntu-22.04, macos-14, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tauri system dependencies
         if: runner.os == 'Linux'
@@ -60,7 +60,7 @@ jobs:
     name: Frontend
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tauri system dependencies
         run: |
@@ -96,7 +96,7 @@ jobs:
     name: Licences of dependencies
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cargo dependencies
         uses: EmbarkStudios/cargo-deny-action@v2
