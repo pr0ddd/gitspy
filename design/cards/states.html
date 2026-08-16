@@ -2,27 +2,28 @@
 <div class="bg-surface text-foreground p-6 font-sans">
   <h2 class="mb-1 text-xl font-semibold tracking-tight">States</h2>
   <p class="text-muted-foreground mb-6">
-    Пустота — состояние, а не пробел. У каждого есть причина и, если уместно, действие.
+    Emptiness is a state, not a gap. Every empty state carries a reason and, where it fits, an
+    action.
   </p>
 
   <div class="grid grid-cols-2 gap-4">
     <div class="bg-card border-border rounded-md border p-4">
-      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Нет данных</h3>
-      <p class="text-muted-foreground/70">Пока ничего не открывали</p>
+      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">No data</h3>
+      <p class="text-muted-foreground/70">Nothing has been opened yet</p>
     </div>
 
     <div class="bg-card border-border rounded-md border p-4">
-      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Нет интеграции</h3>
-      <p class="text-muted-foreground/70 mb-2">GitLab не подключён</p>
+      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">No connection</h3>
+      <p class="text-muted-foreground/70 mb-2">GitLab is not connected</p>
       <button
         class="border-input hover:bg-surface-hover inline-flex h-7 items-center rounded-md border px-2.5 text-sm"
       >
-        Подключить
+        Connect
       </button>
     </div>
 
     <div class="bg-card border-border rounded-md border p-4">
-      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Загрузка</h3>
+      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Loading</h3>
       <div class="space-y-1.5">
         <div class="bg-surface-hover h-3 w-full animate-pulse rounded-sm"></div>
         <div class="bg-surface-hover h-3 w-4/5 animate-pulse rounded-sm"></div>
@@ -31,15 +32,15 @@
     </div>
 
     <div class="bg-card border-border rounded-md border p-4">
-      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Тост</h3>
+      <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Toast</h3>
       <div class="bg-popover border-border rounded-lg border p-3 shadow-lg">
-        <div class="text-sm font-medium">Скопировано</div>
+        <div class="text-sm font-medium">Copied</div>
         <div class="text-muted-foreground mt-0.5 font-mono text-xs break-all">
           4fccf89a3576fd466bd8d81
         </div>
       </div>
       <p class="text-muted-foreground/70 mt-2 text-xs">
-        Одна система на приложение: sonner, точка входа src/toast.ts.
+        One system for the whole app: sonner, the single entry point src/toast.ts.
       </p>
     </div>
   </div>

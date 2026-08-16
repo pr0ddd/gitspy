@@ -2,10 +2,10 @@
 <div class="bg-surface text-foreground p-6 font-sans">
   <h2 class="mb-1 text-xl font-semibold tracking-tight">Chips</h2>
   <p class="text-muted-foreground mb-6">
-    Цвет чипа кодирует вид ссылки, счётчика — направление расхождения.
+    A chip's colour encodes the kind of ref; a counter's colour encodes the direction of divergence.
   </p>
 
-  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Виды ссылок</h3>
+  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Ref kinds</h3>
   <div class="mb-6 flex flex-wrap items-center gap-1.5">
     <span class="bg-ref-local rounded-sm px-1.5 py-0.5 text-2xs text-white">✓ master</span>
     <span class="bg-ref-local rounded-sm px-1.5 py-0.5 text-2xs text-white">feature/graph</span>
@@ -15,7 +15,7 @@
   </div>
 
   <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">
-    Расхождение и незакоммиченное
+    Divergence and uncommitted changes
   </h3>
   <div class="mb-6 flex items-center gap-2">
     <span class="text-ahead inline-flex items-center gap-0.5 text-xs tabular-nums">↑55</span>
@@ -24,7 +24,7 @@
     <span class="text-added inline-flex items-center gap-0.5 text-xs tabular-nums">+3</span>
   </div>
 
-  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">Статус файла</h3>
+  <h3 class="text-muted-foreground mb-2 text-xs tracking-wide uppercase">File status</h3>
   <div class="space-y-0.5 font-mono text-xs">
     <div class="flex h-6 items-center gap-2">
       <span class="text-added w-3">+</span><span>crates/gitspy-repo/src/lib.rs</span>
