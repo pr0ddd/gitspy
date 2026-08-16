@@ -1,0 +1,16 @@
+name: Feature request
+description: Something gitspy should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do and where gitspy gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would expect
+      description: How it could look or behave. Screenshots from other tools are welcome.

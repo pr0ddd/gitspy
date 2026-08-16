@@ -1,290 +1,300 @@
 # gitspy
 
-Настольный клиент git: граф истории как в GitKraken, плюс своё. Tauri 2,
-интерфейс на React и canvas, чтение репозитория на Rust через gix.
+A desktop git client: the commit graph the way GitKraken draws it, plus our
+own ideas. Tauri 2, the interface in React and canvas, the repository read in
+Rust through gix, every state question and every write through system git.
 
-## Команды
+## Commands
 
 ```bash
-npm run app                 # приложение целиком (Tauri + Vite)
-npm run build               # полнота переводов, типы, сборка фронтенда
-npm run i18n:check          # только полнота переводов
-cargo test                  # все тесты Rust
-cargo test -p gitspy-repo   # тесты одного крейта
+npm run app                 # the whole app (Tauri + Vite)
+npm run build               # translations, boundary types, Prettier, ESLint, tsc, vitest, bundle
+npm run i18n:check          # translation completeness only
+npm run format              # Prettier over the tree
+npm run licenses:check      # npm dependency licences
+cargo test                  # every Rust test
+cargo test -p gitspy-repo   # one crate
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all
+cargo deny check licenses   # cargo dependency licences (deny.toml)
 
-cargo run -q --release -p gitspy-repo --example dump_repo -- <путь> <сколько>
+cargo run -q --release -p gitspy-repo --example dump_repo -- <path> <count>
 ```
 
-`dump_repo` — основной измеритель: печатает число коммитов, дорожек, внешних
-родителей и время чтения с раскладкой. Любое утверждение о производительности
-или о форме графа подтверждается его выводом на настоящем репозитории, а не
-рассуждением.
+`dump_repo` is the measuring stick: it prints the number of commits, lanes and
+outside parents and the time to read and lay out. Any claim about performance
+or the shape of the graph is backed by its output on a real repository, not by
+reasoning.
 
-## Слои
+## Layers
 
-| Слой                 | Что делает                                                                   | Чего не знает             |
-| -------------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| `crates/gitspy-core` | Раскладка графа: топология → дорожки, цвета, сегменты                        | Что такое git, gix и диск |
-| `crates/gitspy-repo` | Объекты через gix: порядок обхода, родители, метаданные коммитов             | Как это рисуется          |
-| `crates/gitspy-exec` | Системный git с обезвреженным окружением: состояние репозитория и все записи | Что именно за операция    |
-| `src-tauri`          | Границы: команды Tauri, состояние открытого репозитория                      | Алгоритмы                 |
-| `src`                | Отрисовка на canvas, прокрутка, взаимодействие                               | Как устроен git           |
+| Layer                 | What it does                                                                   | What it does not know      |
+| --------------------- | ------------------------------------------------------------------------------ | -------------------------- |
+| `crates/gitspy-core`  | Graph layout: topology → lanes, colours, segments                              | What git, gix or a disk is |
+| `crates/gitspy-repo`  | Objects through gix: walk order, parents, commit metadata                      | How any of it is drawn     |
+| `crates/gitspy-exec`  | System git with a defused environment: repository state and every write        | Which operation it is      |
+| `crates/gitspy-hosts` | GitHub, GitLab, Bitbucket behind one `Host` enum                               | The app around it          |
+| `crates/gitspy-term`  | PTY sessions                                                                   | What runs inside them      |
+| `crates/gitspy-ai`    | Commit messages from a local model                                             | The working tree           |
+| `src-tauri`           | The boundary: Tauri commands, open repositories, watchers, the operation queue | Algorithms                 |
+| `src`                 | Canvas rendering, scrolling, interaction                                       | How git works              |
 
-`gitspy-core` не зависит ни от gix, ни от Tauri — его тесты гоняются на
-синтетических топологиях без единого репозитория на диске.
+`gitspy-core` depends neither on gix nor on Tauri — its tests run on synthetic
+topologies without a single repository on disk.
 
-## Код
+## Code
 
-**Комментариев в коде нет.** Ни `//`, ни `///`, ни `//!`, ни `/* */`.
+**There are no comments in the code.** Not `//`, not `///`, not `//!`, not
+`/* */`.
 
-Это не запрет объяснять, а требование объяснять надёжнее. Комментарий не
-проверяется ничем и через полгода врёт. Поэтому «почему» живёт там, где
-за ним следят:
+This is not a ban on explaining; it is a demand to explain more reliably. A
+comment is checked by nothing and lies within six months. So the "why" lives
+where something watches over it:
 
-| Что объяснить                       | Где                                                             |
-| ----------------------------------- | --------------------------------------------------------------- |
-| Почему код такой                    | Имя функции. Не помещается в имя — функция делает слишком много |
-| Какое поведение и почему именно оно | Имя теста плюс сообщение в `assert`                             |
-| Почему выбрано это решение          | Спека в `docs/superpowers/specs/`                               |
-| Что было сломано и как чинили       | Сообщение коммита                                               |
+| What to explain                       | Where                                                                                                       |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Why the code is the way it is         | The function's name. If it does not fit a name, the function does too much                                  |
+| Which behaviour, and why exactly that | The test's name plus the message in its `assert`                                                            |
+| Why this design and not another       | The commit message; a larger design is written up before the work and its decisions land in names and tests |
+| What was broken and how it was fixed  | The commit message                                                                                          |
 
-Правило замыкается так: тянет написать комментарий — значит, нужно выделить
-функцию с говорящим именем или дописать тест с говорящим именем.
+The rule closes on itself: the urge to write a comment means a function with a
+telling name has to be extracted, or a test with a telling name written.
 
-**Язык.** Идентификаторы английские. Проза — сообщения `assert`, спеки,
-планы — русская. **Коммиты английские**, см. раздел «Коммиты». Строк, которые
-видит пользователь, в коде нет вообще: только ключи i18n.
+**Language.** Identifiers, prose, assert messages, test names and commit
+messages are English. There are no user-visible strings in the code at all:
+only i18n keys.
 
-## Интерфейс
+## Interface
 
-Каркас: вкладки репозиториев, панель действий, слева ссылки, в центре граф
-на canvas, справа подробности.
+The skeleton: repository tabs, an action bar, refs on the left, the graph on
+canvas in the middle, details on the right.
 
-**Фронтенд разложен по слоям FSD**, импорт — только строго вниз, между
-слайсами — только через фасад `index.ts` слайса (это сторожит ESLint):
+**The frontend is laid out in Feature-Sliced layers**; imports go strictly
+downwards, and between slices only through the slice's `index.ts` facade
+(ESLint guards both):
 
-| Слой                                                                         | Что там                                                                   | Примеры                                                                             |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| фундамент — `shared/` (`api`, `ui`, `lib`, `config`) и shadcn в `shared/ui/` | ipc, types, icons, theme, prefs, i18n, toast, словарь `parts.tsx`, shadcn | ничего не импортирует сверху                                                        |
-| `entities/`                                                                  | предметные слайсы без React-каркаса                                       | `graph` (scene, render, chips…), `repo` (session, repoData), `diff` (monaco, hunks) |
-| `features/`                                                                  | поведение поверх сущностей                                                | `search`, `updater`, `menus`, `repo` (загрузка, операции, черновик коммита)         |
-| `widgets/`                                                                   | компоненты каркаса, по файлу на часть                                     | GraphView, Sidebar, Toolbar, Settings…                                              |
-| `app/`                                                                       | `App.tsx` — только композиция и состояние сессий, `main.tsx`              |                                                                                     |
+| Layer                                                 | What lives there                                                                 | Examples                                                                                  |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| foundation — `shared/` (`api`, `ui`, `lib`, `config`) | ipc, types, icons, theme, prefs, i18n, toast, the `parts.tsx` vocabulary, shadcn | imports nothing from above                                                                |
+| `entities/`                                           | domain slices without React scaffolding                                          | `graph` (scene, render, chips…), `repo` (session, confirm, pulls), `diff` (monaco, hunks) |
+| `features/`                                           | behaviour on top of entities                                                     | `search`, `updater`, `menus`, `repo` (loading, operations, commit draft)                  |
+| `widgets/`                                            | skeleton components, one file per part                                           | GraphView, Sidebar, Toolbar, Settings…                                                    |
+| `app/`                                                | `App.tsx` — composition and session state only, `main.tsx`                       |                                                                                           |
 
-### shadcn и токены
+### shadcn and tokens
 
-**Интерфейс собирается из каноничных компонентов shadcn.** Они лежат в
-`src/shared/ui/` и правятся только для добавления варианта — не для
-частной подгонки под один экран. Нужен другой вид кнопки — это новый вариант
-в `cva`, а не класс поверх.
+**The interface is assembled from canonical shadcn components.** They live in
+`src/shared/ui/` and are edited only to add a variant — never to bend one for
+a single screen. A different-looking button is a new `cva` variant, not a
+class on top.
 
-**Своих стилевых файлов нет.** Ни `styles.css` с рукописными классами, ни
-`className` с частными значениями вроде `p-[7px]` или `text-[#7b8798]`.
-Оформление — утилиты Tailwind, привязанные к теме.
+**There are no style files of our own.** No `styles.css` with hand-written
+classes, no `className` with private values like `p-[7px]` or
+`text-[#7b8798]`. Looks are Tailwind utilities bound to the theme.
 
-**Повторяющиеся части каркаса — в `src/shared/ui/parts.tsx`, и только там.**
-`ListRow` (строка любого списка, h-6), `SectionHeader` (заголовок секции, h-7),
-`PanelBar` (шапка боковой панели, h-8), `ViewBar` (шапка основного вида, h-9),
-`InlineNote` и `PanelNote` (пустые состояния), `FilePath` (каталог+имя).
-Новый список или шапка начинается с этих частей; собрать строку заново из
-голых утилит — значит завести второй, чуть другой вариант той же вещи, и
-ровно от этого словарь и защищает. Приглушённый текст — `text-muted-foreground`
-без самодельных степеней прозрачности; компактные кнопки — варианты `2xs`/`xs`
-в `cva`, а не `className` поверх.
+**Recurring parts of the skeleton live in `src/shared/ui/parts.tsx`, and only
+there.** `ListRow` (a row of any list, h-6), `SectionHeader` (a section
+heading, h-7), `PanelBar` (the head of a side panel, h-8), `ViewBar` (the head
+of the main view, h-9), `InlineNote` and `PanelNote` (empty states),
+`FilePath` (directory + name). A new list or heading starts from these parts;
+assembling a row again from bare utilities means creating a second, slightly
+different variant of the same thing, and that is exactly what the vocabulary
+protects against. Muted text is `text-muted-foreground` without home-made
+opacity; compact buttons are the `2xs`/`xs` sizes in `cva`, not a `className`
+on top.
 
-**Все значения живут в `src/index.css` и больше нигде.** Это единственный
-источник: переменные shadcn (`--background`, `--primary`, `--border`, `--ring`
-и прочие), наши смысловые цвета git (`--status-added`, `--status-deleted`,
-`--status-ahead`…), цвета видов ссылок и палитра графа. Правка одного значения
-обязана менять всё приложение разом — если для смены цвета кнопки надо трогать
-сто мест, система сломана.
+**Every value lives in `src/index.css` and nowhere else.** It is the single
+source: the shadcn variables (`--background`, `--primary`, `--border`,
+`--ring` and the rest), our git colours with meaning (`--status-added`,
+`--status-deleted`, `--status-ahead`…), the colours of ref kinds and the graph
+palette. Changing one value must change the whole app at once — if recolouring
+a button means touching a hundred places, the system is broken.
 
-**Отдельно про canvas.** Граф рисуется вручную, но цвета берёт из тех же
-переменных через `getComputedStyle`, а не из зашитого массива. Иначе правка
-токена меняет интерфейс и не меняет граф — ровно та рассинхронизация, ради
-избавления от которой всё это и заведено.
+**The canvas separately.** The graph is drawn by hand, but takes its colours
+from the same variables through `getComputedStyle`, not from a baked-in
+array. Otherwise editing a token changes the interface and not the graph —
+exactly the drift all of this exists to remove.
 
-### Иконки
+### Icons
 
-Пак — `lucide-react`, штатный для shadcn. Компоненты **не импортируют из него
-напрямую**: есть `src/shared/ui/icons.ts`, где иконки названы по смыслу — `Icon.branch`,
-`Icon.stash`, `Icon.pull`. Сменить пак значит поправить один файл, а не сорок
-мест использования.
+The pack is `lucide-react`, shadcn's own. Components **do not import from it
+directly**: `src/shared/ui/icons.ts` names icons by meaning — `Icon.branch`,
+`Icon.stash`, `Icon.pull`. Changing the pack means editing one file, not forty
+call sites.
 
-Иконка идёт рядом с текстом, а не вместо него, кроме случаев, где место
-физически кончилось (закрыть вкладку, добавить). Размер — `size-3` в плотных
-строках, `size-3.5` в кнопках и заголовках.
+An icon goes next to text, not instead of it, except where room has physically
+run out (close a tab, add). Sizes: `size-3` in dense rows, `size-3.5` in
+buttons and headings.
 
-### Движение
+### Motion
 
-`tw-animate-css` анимирует состояния Radix через `data-state`: выпадающие
-меню, диалоги, подсказки, сворачивание секций. Это канон shadcn, и для них
-JS не нужен.
+`tw-animate-css` animates Radix states through `data-state`: dropdown menus,
+dialogs, tooltips, collapsing sections. That is shadcn canon and needs no JS.
 
-`motion` берёт то, чего CSS не умеет: переезд элемента на новое место,
-переупорядочивание списка, прерываемое движение под жестом — перетаскивание
-разделителей, мини-карта.
+`motion` takes what CSS cannot: an element moving to a new place, a list
+reordering, interruptible movement under a gesture — dragging dividers, the
+minimap.
 
-**Анимируются только `transform` и `opacity`.** Всё остальное — ширина,
-высота, `top`, `left` — заставляет браузер пересчитывать раскладку и роняет
-кадры. Именно это, а не выбор библиотеки, определяет, будет приложение
-плавным или дёрганым.
+**Only `transform` and `opacity` are animated.** Everything else — width,
+height, `top`, `left` — makes the browser recompute layout and drops frames.
+That, not the choice of library, decides whether the app feels smooth or
+jerky.
 
-Плавность графа даёт не библиотека, а цикл `requestAnimationFrame` и
-отсутствие React-рендеров при прокрутке. Это проверяется тестом в четвёртой
-фазе.
+The graph's smoothness comes not from a library but from a
+`requestAnimationFrame` loop and the absence of React renders while scrolling.
+A test guards it (see Tests).
 
-Открытых репозиториев может быть несколько. Состояние сессии живёт во
-фронтенде, а Rust держит по открытому репозиторию на путь — каждая команда
-принимает `repo`. Единственного открытого репозитория не существует ни на
-одном уровне: это ровно та неявность, которую потом пришлось бы вносить
-через все команды разом.
+Several repositories can be open. Session state lives in the frontend, and
+Rust keeps one open repository per path — every command takes `repo`. A single
+"the open repository" exists at no level: that is exactly the implicitness
+that would later have to be threaded through every command at once.
 
-**Тосты — одна система на всё приложение.** Библиотека `sonner`, единственная
-точка входа `src/shared/ui/toast.ts`, `<Toaster>` смонтирован один раз в `App`.
-Компоненты не зовут `sonner` напрямую и не заводят своих уведомлений.
-Ошибки идут туда же: отдельного красного баннера нет.
+**Toasts are one system for the whole app.** The library is `sonner`, the one
+entry point is `src/shared/ui/toast.ts`, `<Toaster>` is mounted once in
+`App`. Components do not call `sonner` and do not invent notifications of
+their own. Errors go the same way: there is no separate red banner.
 
-**Типы границы генерируются из Rust.** Структуры в `src-tauri/src/views.rs`
-и `recent.rs` помечены `#[derive(TS)]`, `cargo test -p gitspy-app` пишет их
-в `src/shared/api/generated/`. Руками эти файлы не правятся, а `src/shared/api/types.ts` только
-переэкспортирует их и добавляет числовые коды.
+**Boundary types are generated from Rust.** Structures in
+`src-tauri/src/views.rs` and `recent.rs` carry `#[derive(TS)]`;
+`cargo test -p gitspy-app` writes them into `src/shared/api/generated/`. Those
+files are never edited by hand; `src/shared/api/types.ts` only re-exports them
+and adds numeric codes.
 
-`npm run boundary:check` на каждой сборке пересобирает типы и падает, если
-результат разошёлся с закоммиченным. Переименовал поле в Rust и забыл про
-фронтенд — сборка красная, а не чёрное окно.
+`npm run boundary:check` regenerates the types on every build and fails if the
+result differs from what is committed. Rename a field in Rust and forget the
+frontend — the build goes red instead of the window going black.
 
-**Весь `invoke` живёт в `src/shared/api/ipc.ts`.** Это тоже проверяет
-`boundary:check`: обращение к `invoke` из любого другого файла роняет
-сборку. Компоненты вызывают функции оттуда,
-а не Tauri напрямую.
+**Every `invoke` lives in `src/shared/api/ipc.ts`.** `boundary:check` guards
+that too: an `invoke` from any other file fails the build. Components call
+functions from there, not Tauri directly.
 
-Чего нет, того не рисуем. Список файлов коммита и стейдж придут своими
-фазами; до тех пор на их месте стоит честная подпись, а не выдуманные
-данные.
+What does not exist is not drawn: an honest empty-state note, never invented
+data.
 
-### Дизайн-система
+### Design system
 
-Живёт в Claude Design, проект «gitspy — Design System». Исходники карточек —
-`design/cards/*.html`, сборка `node design/build.mjs`, результат в
-`design/dist/` (в git не хранится).
+The cards live in `design/cards/*.html`, built by `node design/build.mjs` into
+`design/dist/` (not in git).
 
-Карточки собираются из **тех же токенов и тех же классов Tailwind**, что и
-приложение: `design/preview.css` импортирует `src/theme.css`. Поэтому правка
-токена меняет и приложение, и систему — второго источника правды нет.
-Рисовать карточку отдельными стилями нельзя: она перестанет быть описанием
-того, что в коде.
+The cards are assembled from **the same tokens and the same Tailwind classes**
+as the app: `design/preview.css` imports `src/theme.css`. So editing a token
+changes both the app and the system — there is no second source of truth. A
+card must not be drawn with styles of its own: it would stop describing what is
+in the code.
 
-### Операции записи
+### Write operations
 
-**Владение разделено по фактам, а не по вкусу.** `gix` отвечает за объекты
-навалом — обход истории и метаданные коммитов; это единственная работа, где
-библиотека выигрывает у процесса (окно в 60 строк: 0.13 мс против 10). Всё
-состояние репозитория — какие есть ссылки, куда указывают, какая текущая, кто
-кого отслеживает, что в рабочем дереве — спрашивается у системного `git`, потому
-что в вопросах состояния он эталон, а наше тихое расхождение с терминалом в
-тестах невидимо: оба ответа выглядят правдоподобно.
+**Ownership is split by facts, not by taste.** `gix` handles objects in bulk —
+walking history and reading commit metadata; that is the only job where the
+library beats the process (a 60-row window: 0.13 ms against 10). All
+repository state — which refs exist, where they point, which is current, who
+tracks whom, what is in the working tree — is asked of system `git`, because
+on state it is the reference, and a quiet disagreement between us and the
+terminal is invisible in tests: both answers look plausible.
 
-Основание не скорость: `git for-each-ref` на react стоит 18.8 мс против 13.2 у
-чтения через gix, а на маленьком quesk — 27.1, потому что платим за запуск
-процесса, а не за ссылки. Основание в том, что один вызов отдаёт строго больше
-и уносит 64 строки ручных починок. Подробности — в спеке
-`2026-08-03-branches-design.md`.
+The reason is not speed: `git for-each-ref` on react costs 18.8 ms against
+13.2 for reading through gix, and on the small quesk 27.1, because we pay for
+starting a process, not for the refs. The reason is that one call returns
+strictly more and removes 64 lines of hand-made repairs.
 
-Весь запуск git идёт через `gitspy-exec`.
+Every git process goes through `gitspy-exec`.
 
-**Хостинги — через один enum `Host`** в `gitspy-hosts`: каждая возможность
-(вход, аккаунт, репы, пуллы, аватарки коммитов, кред-хелпер) реализована у
-каждого провайдера, `if host == …` вне диспатча Host — запрещён. Вход
-описывается данными (`ConnectStartView`): device-код, браузерный PKCE или
-форма токена — фронт рендерит их одним компонентом. Подключения — список в
-storage, совпадение репозитория с подключением — `matches_remote` по хосту
-remote-URL. Спека: `2026-08-06-host-providers-design.md`.
+**Hosts go through one `Host` enum** in `gitspy-hosts`: every capability
+(sign-in, account, repositories, pull requests, commit avatars, credential
+helper) is implemented by every provider, and `if host == …` outside the Host
+dispatch is forbidden. Sign-in is described by data (`ConnectStartView`): a
+device code, a browser PKCE flow or a token form — the frontend renders them
+with one component. Connections are a list in storage; a repository is matched
+to a connection by `matches_remote` on the host of the remote URL. Client ids
+are compiled in; the secrets sit in the relay worker (`workers/oauth-relay`).
 
-**Окружение обезвреживается, и это проверено тестами.** `GIT_TERMINAL_PROMPT=0`,
-редактор и пейджер заглушены, `GIT_ASKPASS` и `SSH_ASKPASS` уводят запрос
-учётных данных к нам, `ssh` идёт с `BatchMode=yes`. Без этого git при первом
-же приватном репозитории ждёт человека у терминала, которого нет, и операция
-висит вечно без единого признака.
+**The environment is defused, and tests prove it.** `GIT_TERMINAL_PROMPT=0`,
+editor and pager stubbed, `GIT_ASKPASS` and `SSH_ASKPASS` route credential
+requests to us, `ssh` runs with `BatchMode=yes`. Without this, git waits for a
+person at a terminal that does not exist on the first private repository, and
+the operation hangs forever without a sign.
 
-Наследованные `GIT_DIR`, `GIT_WORK_TREE` и прочие вычищаются: иначе операция
-уйдёт не в тот репозиторий.
+Inherited `GIT_DIR`, `GIT_WORK_TREE` and the rest are scrubbed: otherwise the
+operation lands in the wrong repository.
 
-**Операции — закрытый список** (`Operation` в `src-tauri/src/operations.rs`),
-а не произвольная строка от фронтенда. По одной операции на репозиторий
-одновременно: очередь держит полосу на путь.
+**Operations are a closed list** (`Operation` in `src-tauri/src/operations.rs`),
+not an arbitrary string from the frontend. One operation per repository at a
+time: the queue holds a lane per path. Destructive operations go through the
+confirm bar (`entities/repo/confirm.ts` says which ones); the only forced push
+is `PushForceWithLease`, offered only after the remote rejected an ordinary
+push.
 
-**Инвалидация одна на всех.** Наблюдатель за `.git` шлёт `repo:changed`, и
-приложение перечитывает репозиторий — неважно, наша это была операция или
-коммит из терминала мимо нас.
+**Invalidation is one for all.** The `.git` watcher emits `repo:changed`, and
+the app re-reads the repository — whether it was our operation or a commit
+from a terminal behind our back.
 
 ## i18n
 
-Язык пока один: `en`. Механика оставлена целиком — библиотека `i18next` с
-`react-i18next`, каталоги в `src/shared/config/locales/<язык>/<пространство>.json`,
-пространства `common` и `errors`; новый язык — это новый каталог плюс запись
-в `LOCALES`, а не переписывание компонентов.
+One language so far: `en`. The machinery is complete — `i18next` with
+`react-i18next`, catalogues in
+`src/shared/config/locales/<language>/<namespace>.json`, namespaces `common`
+and `errors`; a new language is a new catalogue plus an entry in `LOCALES`, not
+a rewrite of components.
 
-Ключи английские, плоские, через точку по смыслу: `repo.open`, `graph.lanes`.
-Разделитель ключей у i18next отключён, поэтому точка — часть имени, а не
-вложенность. Множественное число — суффиксами i18next (`_one`, `_other`),
-числа и даты — через `Intl` (`{{count, number}}`), а не руками.
+Keys are English, flat, dotted by meaning: `repo.open`, `graph.lanes`. The
+i18next key separator is off, so the dot is part of the name, not nesting.
+Plurals use i18next suffixes (`_one`, `_other`); numbers and dates go through
+`Intl` (`{{count, number}}`), never by hand.
 
-Полноту стережёт `npm run i18n:check` на каждой сборке: он сверяет наборы
-ключей всех языков с опорным и требует у каждого множественного ключа все
-формы, которых требует язык по CLDR.
+`npm run i18n:check` guards completeness on every build: it compares the key
+sets of all languages with the reference and demands every plural form CLDR
+requires for the language.
 
-**Rust человеческого текста не отдаёт.** Ошибка на границе — это код и
-параметры, а не готовая фраза:
+**Rust returns no human text.** An error at the boundary is a code and
+parameters, not a ready phrase:
 
 ```rust
 { "code": "repo.open", "params": { "path": "/…" }, "detail": "…" }
 ```
 
-`detail` — техническая строка от gix, она не переводится и показывается
-как подробность. Всё, что видит пользователь, собирает фронтенд по коду.
+`detail` is a technical string from gix or git; it is not translated and is
+shown as the detail. Everything the user sees is assembled by the frontend
+from the code.
 
-Причина жёсткая: переведи бэкенд — и язык приложения станет свойством
-процесса, а не настройкой. Переключить его без перезапуска станет нельзя.
+The reason is hard: translate the backend and the app's language becomes a
+property of the process instead of a setting. It could no longer be switched
+without a restart.
 
-## Тесты
+## Tests
 
-**Слой чтения проверяется против настоящего git.** Не «мы думаем, что
-правильно», а «совпадает с эталоном»: `crates/gitspy-repo/tests/support`
-собирает фикстуры настоящим git с фиксированными датами и отключённым
-пользовательским конфигом, а тест сверяет наш вывод с `git log --date-order`,
-`git for-each-ref` и прочим. Всё, что можно спросить у git, спрашивается
-у git.
+**The reading layer is checked against real git.** Not "we think it is right"
+but "it matches the reference": `crates/gitspy-repo/tests/support` builds
+fixtures with real git, fixed dates and the user's config disabled, and the
+test compares our output with `git log --date-order`, `git for-each-ref` and
+the rest. Whatever git can be asked, git is asked.
 
-**Фронтенд проверяется на чистой части.** Вся геометрия — видимый диапазон,
-положение дорожек, прижатие узлов к краю, тени, попадание клика, якорь
-прокрутки — живёт в `src/entities/graph/scene.ts` без единого обращения к canvas и
-покрыта тестами. `src/entities/graph/render.ts` только кладёт краску по посчитанному.
+**The frontend is tested on its pure part.** All geometry — the visible range,
+lane positions, nodes pinned to the edge, shadows, hit testing, the scroll
+anchor — lives in `src/entities/graph/scene.ts` without a single canvas call
+and is covered by tests. `src/entities/graph/render.ts` only lays paint where
+the numbers say.
 
-Отдельный тест держит плавность: **при прокрутке не должно происходить ни
-одного React-рендера**. Он меряет коммиты через `Profiler` и дожимает их
-через `act` — без этого он проходил бы и на сломанном коде, что я и
-проверил мутацией.
+A separate test holds the smoothness: **not one React render may happen while
+scrolling**. It measures commits through `Profiler` and flushes them through
+`act` — without that it would pass on broken code too, verified by mutation.
 
-**Раскладка проверяется свойствами и эталонными дампами.** `proptest` гоняет
-инварианты на случайных топологиях; golden-тесты хранят текстовый дамп
-раскладки. Дамп текстовый, а не картинка из символов: диф по нему читается.
+**Layout is checked by properties and golden dumps.** `proptest` runs
+invariants on random topologies; golden tests keep a textual dump of the
+layout. Textual, not a picture made of characters: a diff over it reads.
 
-Правило на дефекты: сначала тест, который падает по той же причине, что и
-настоящая ошибка, и только потом починка. Тест, который зеленеет и до
-исправления, ничего не сторожит.
+The rule for defects: first a test that fails for the same reason as the real
+error, only then the fix. A test that is green before the fix guards nothing.
 
-Известное расхождение с git: при точном совпадении времени коммиттера порядок
-внутри группы у нас свой. Топологию это не задевает, и семантика
-`--date-order` не нарушена — у git этот порядок задаёт его внутренняя куча.
+Known difference from git: when committer times are exactly equal, the order
+inside the group is ours. Topology is untouched and `--date-order` semantics
+hold — in git that order is set by its internal heap.
 
-## Коммиты
+## Commits
 
-**Сообщение целиком по-английски** — и заголовок, и тело. Заголовок в
-повелительном наклонении или как утверждение о том, что стало. В теле — что
-было сломано, почему и чем подтверждено, с числами:
+**The message is entirely English** — subject and body. The subject is
+imperative or a statement of what is now true. The body says what was broken,
+why, and what confirms the fix, with numbers:
 
 ```
 Kahn re-sort: same order as git log --date-order
@@ -292,13 +302,19 @@ Kahn re-sort: same order as git log --date-order
 react: outside parents 191 → 0, lanes 218 → 99, layout 22.4 → 7.7 ms
 ```
 
-Числа обязательны, если менялась производительность или форма графа.
+Numbers are mandatory when performance or the shape of the graph changed.
 
-**Трейлеров в коммитах нет.** Ни `Co-Authored-By`, ни `Generated with`, ни
-любых других: авторство коммита задаёт `git config user.name`, и второй
-источник этой правды не нужен.
+**No trailers in commits.** No `Co-Authored-By`, no `Generated with`, nothing
+else: authorship is set by `git config user.name`, and a second source of that
+truth is not needed.
 
-## Где что записано
+## Where things are written down
 
-- `docs/superpowers/specs/2026-08-01-gitspy-rearchitecture-design.md` — архитектура и принятые решения
-- `docs/superpowers/plans/2026-08-02-phases.md` — фазы разработки, текущий план работ
+- `README.md` — what gitspy is, downloads, building from source
+- `CONTRIBUTING.md` — the short version of this file for a first pull request
+- `SECURITY.md` — reporting, what the app touches
+- `CHANGELOG.md` — every version, in words for the person using it; the
+  section is also the release text and the in-app "What's new"
+- `.github/RELEASE_CHECKLIST.md` — the manual pass on three systems before a
+  draft release is published
+- `workers/oauth-relay/README.md` — the relay's contract and secrets
