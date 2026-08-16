@@ -276,7 +276,7 @@ mod tests {
         }
         std::thread::sleep(FRAME_WAIT * 6);
         pump.stop();
-        flusher.join().expect("поток дожатия завершается");
+        flusher.join().expect("the flusher thread finishes");
 
         let delivered = seen
             .lock()
@@ -285,11 +285,11 @@ mod tests {
         assert_eq!(
             delivered.len(),
             produced.len(),
-            "ни один байт вывода не теряется между читателем и дожатием"
+            "not a single output byte is lost between the reader and the flusher"
         );
         assert_eq!(
             delivered, produced,
-            "кадры двух потоков склеиваются в тот же поток байтов, что дал PTY"
+            "the frames of the two threads join back into the same byte stream the PTY produced"
         );
     }
 
@@ -301,13 +301,13 @@ mod tests {
         assert_eq!(
             pump.unacked.load(Ordering::SeqCst),
             0,
-            "подтверждение фронтенда снимает счётчик неподтверждённого"
+            "an acknowledgement from the frontend clears the unacknowledged counter"
         );
         pump.drop_ack(4096);
         assert_eq!(
             pump.unacked.load(Ordering::SeqCst),
             0,
-            "лишнее подтверждение не уводит счётчик в минус"
+            "an extra acknowledgement does not take the counter below zero"
         );
     }
 }

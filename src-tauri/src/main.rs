@@ -101,7 +101,7 @@ fn main() {
             }
         })
         .build(tauri::generate_context!())
-        .expect("приложение запускается")
+        .expect("the app starts up")
         .run(show_window_on_reopen)
 }
 

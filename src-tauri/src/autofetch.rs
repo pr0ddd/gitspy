@@ -73,7 +73,7 @@ mod tests {
     fn a_busy_lane_is_left_alone() {
         assert!(
             should_skip(true, true),
-            "фоновая задача встала бы поперёк push, начатого человеком"
+            "a background task would get in the way of a push the user started"
         );
     }
 
@@ -81,7 +81,7 @@ mod tests {
     fn a_repository_without_remotes_is_never_fetched() {
         assert!(
             should_skip(false, false),
-            "фетчить нечего и не у кого, а процесс git всё равно стоил бы двадцать миллисекунд"
+            "there is nothing to fetch and nobody to fetch from, yet the git process would still cost twenty milliseconds"
         );
     }
 
@@ -92,12 +92,12 @@ mod tests {
 
     #[test]
     fn a_minute_is_the_measured_default_and_zero_never_becomes_a_busy_loop() {
-        assert_eq!(DEFAULT_MINUTES, 1, "замерено по журналам GitKraken");
+        assert_eq!(DEFAULT_MINUTES, 1, "measured from the GitKraken logs");
         assert_eq!(interval(DEFAULT_MINUTES), Duration::from_secs(60));
         assert_eq!(
             interval(0),
             Duration::from_secs(60),
-            "нулевой интервал крутил бы фетч без остановки"
+            "a zero interval would spin the fetch without ever stopping"
         );
     }
 
@@ -106,15 +106,15 @@ mod tests {
         assert!(due(Duration::from_secs(60), 1));
         assert!(
             !due(Duration::from_secs(59), 1),
-            "рано: минута ещё не прошла"
+            "too early: the minute has not passed yet"
         );
         assert!(
             !due(Duration::from_secs(3600), 0),
-            "ноль — это выключено, а не «фетчить всегда»"
+            "zero means switched off, not \"fetch always\""
         );
         assert!(
             due(Duration::from_secs(300), 5),
-            "смена настройки действует со следующего тика, без перезапуска"
+            "a changed setting takes effect from the next tick, with no restart"
         );
     }
 }

@@ -51,13 +51,13 @@ mod tests {
         let t0 = Instant::now();
         assert!(
             b.push(b"ab", t0).is_none(),
-            "маленький кусок не уходит сразу"
+            "a small chunk is not sent right away"
         );
         let sent = b.push(b"cd", t0 + Duration::from_millis(9));
         assert_eq!(
             sent.as_deref(),
             Some(&b"abcd"[..]),
-            "по дедлайну уходит всё накопленное"
+            "everything collected is sent once the deadline passes"
         );
     }
 
@@ -68,7 +68,7 @@ mod tests {
         assert_eq!(
             sent.as_deref(),
             Some(&b"0123456789"[..]),
-            "переполнение уходит немедленно"
+            "an overflowing chunk is sent immediately"
         );
     }
 
@@ -79,8 +79,8 @@ mod tests {
         assert_eq!(
             b.flush().as_deref(),
             Some(&b"xy"[..]),
-            "flush отдаёт остаток"
+            "flush hands over the leftovers"
         );
-        assert!(b.flush().is_none(), "второй flush пуст");
+        assert!(b.flush().is_none(), "the second flush is empty");
     }
 }

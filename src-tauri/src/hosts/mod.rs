@@ -647,7 +647,7 @@ mod tests {
         assert_eq!(
             hosts.already_browsing("gitlab").as_deref(),
             Some("https://gitlab.com/oauth/x"),
-            "повторное нажатие не должно плодить слушателей и вкладок"
+            "pressing again must not spawn more listeners and browser tabs"
         );
         hosts.stop_waiting("gitlab");
         assert_eq!(hosts.already_browsing("gitlab"), None);
@@ -671,7 +671,7 @@ mod tests {
         assert!(hosts.known_account("github").is_none());
         assert!(
             hosts.known_repos("github").is_none(),
-            "оставленный список показал бы чужие репозитории после смены аккаунта"
+            "a list left behind would show someone else's repositories after the account changes"
         );
     }
 
@@ -681,7 +681,7 @@ mod tests {
         assert!(known_def("github").is_ok());
         assert!(
             known_def("gitlab").is_ok(),
-            "gitlab — полноправный провайдер, а не особый случай"
+            "gitlab is a full provider, not a special case"
         );
     }
 }

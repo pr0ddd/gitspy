@@ -442,7 +442,10 @@ pub struct Queue {
 
 impl Queue {
     pub fn lane(&self, repo: &str) -> Arc<Mutex<()>> {
-        let mut lanes = self.lanes.lock().expect("очередь операций не отравлена");
+        let mut lanes = self
+            .lanes
+            .lock()
+            .expect("the operations queue is not poisoned");
         lanes.entry(repo.to_string()).or_default().clone()
     }
 }
@@ -481,7 +484,7 @@ pub fn run(
         }
     }
 
-    Ok(last.expect("у операции есть хотя бы одна команда"))
+    Ok(last.expect("an operation has at least one command"))
 }
 
 pub fn commit_args(message: &str, amend: bool) -> Vec<String> {
@@ -511,7 +514,7 @@ mod tests {
         assert_eq!(
             Operation::PullFfOnly.args(),
             ["pull", "--ff-only", "--progress"],
-            "ff-only не создаёт merge-коммита, --no-edit ему не нужен"
+            "ff-only creates no merge commit, so it has no use for --no-edit"
         );
         assert_eq!(
             Operation::PullRebase.args(),
@@ -526,7 +529,7 @@ mod tests {
         assert_eq!(
             Operation::DiscardAll.commands(),
             vec![vec!["reset", "--hard", "HEAD"], vec!["clean", "-fd"]],
-            "reset вернёт отслеживаемые файлы, но новые останутся лежать без clean"
+            "reset restores tracked files, but new ones stay behind without clean"
         );
     }
 
@@ -535,7 +538,7 @@ mod tests {
         assert_eq!(
             Operation::Fetch.commands(),
             vec![Operation::Fetch.args()],
-            "команд у операции столько, сколько она правда запускает"
+            "an operation has as many commands as it really runs"
         );
     }
 
@@ -544,7 +547,7 @@ mod tests {
         assert_eq!(
             Operation::Pull.args(),
             ["pull", "--no-edit", "--progress"],
-            "без --no-edit git зовёт редактор, которого нет, и бросает слияние незавершённым"
+            "without --no-edit git calls an editor that is not there and leaves the merge unfinished"
         );
     }
 
@@ -554,7 +557,7 @@ mod tests {
         assert_eq!(
             Operation::MergeContinue.args(),
             ["commit", "--no-edit"],
-            "git сам приготовил MERGE_MSG, а редактор у нас обезврежен — берём сообщение как есть"
+            "git has already prepared MERGE_MSG and our editor is neutered, so the message is taken as it is"
         );
         assert_eq!(Operation::MergeAbort.label(), "operation.mergeAbort");
         assert_eq!(Operation::MergeContinue.label(), "operation.mergeContinue");
@@ -570,7 +573,7 @@ mod tests {
             }
             .args(),
             ["checkout", "-m", "--", "a.ts"],
-            "git reset тут стирает стадии слияния навсегда, а checkout -m их возвращает"
+            "git reset here erases the merge stages for good, while checkout -m brings them back"
         );
     }
 
@@ -584,7 +587,7 @@ mod tests {
         assert_eq!(
             Operation::Revert { hash: hash.clone() }.args(),
             ["revert", "--no-edit", "abc123"],
-            "редактор обезврежен, сообщение ревёрта должно собраться без него"
+            "the editor is neutered, so the revert message has to be composed without it"
         );
         assert_eq!(
             Operation::Reset {
@@ -617,7 +620,7 @@ mod tests {
         assert_eq!(
             Operation::BranchDelete { name: "old".into() }.args(),
             ["branch", "-d", "old"],
-            "-d отказывается удалять неслитое — принудительное удаление не наше решение"
+            "-d refuses to delete unmerged work: forcing the deletion is not our decision"
         );
         assert_eq!(
             Operation::BranchRename {
@@ -645,7 +648,7 @@ mod tests {
             }
             .args(),
             ["commit", "--amend", "--only", "-m", "better"],
-            "без --only заготовленный индекс тихо въехал бы в чужой коммит"
+            "without --only the staged index would quietly ride into someone else's commit"
         );
     }
 
@@ -669,7 +672,7 @@ mod tests {
             }
             .args(),
             ["rebase", "--onto", "abc123^", "abc123"],
-            "иначе выбросить середину истории без интерактивного ребейза нельзя"
+            "otherwise there is no way to drop a commit from the middle of the history without an interactive rebase"
         );
     }
 
@@ -678,11 +681,11 @@ mod tests {
         assert_eq!(
             Operation::AnnotatedTagAt {
                 name: "v1".into(),
-                message: "релиз".into(),
+                message: "release".into(),
                 hash: "abc".into()
             }
             .args(),
-            ["tag", "-a", "v1", "-m", "релиз", "abc"]
+            ["tag", "-a", "v1", "-m", "release", "abc"]
         );
     }
 
@@ -696,7 +699,7 @@ mod tests {
             }
             .args(),
             ["fetch", ".", "branches:old"],
-            "точка значит этот же репозиторий — локальный fast-forward без checkout"
+            "a dot means this same repository: a local fast-forward without a checkout"
         );
         assert_eq!(
             Operation::FetchInto {
@@ -754,7 +757,7 @@ mod tests {
                 into: "b".into()
             }
             .reaches_the_network(),
-            "локальный fast-forward в сеть не ходит и токена не требует"
+            "a local fast-forward never goes to the network and needs no token"
         );
     }
 
@@ -781,7 +784,7 @@ mod tests {
         assert_eq!(
             commit_args("better words", true),
             ["commit", "--amend", "-m", "better words"],
-            "без --amend история получила бы второй коммит вместо исправленного"
+            "without --amend the history would get a second commit instead of a corrected one"
         );
     }
 
@@ -790,7 +793,7 @@ mod tests {
         assert_eq!(
             Operation::Fetch.args(),
             ["fetch", "--all", "--progress"],
-            "удаление отслеживающих ссылок настраивается в fetch.prune, а не нами"
+            "deleting tracking refs is configured through fetch.prune, not by us"
         );
     }
 
@@ -801,7 +804,7 @@ mod tests {
             !args
                 .iter()
                 .any(|a| a.contains("rebase") || a.contains("ff")),
-            "подставленный флаг тихо меняет поведение, настроенное человеком"
+            "a flag slipped in quietly changes the behaviour the user configured"
         );
     }
 
@@ -830,7 +833,7 @@ mod tests {
         ] {
             assert!(
                 !operation.args().iter().any(|a| a.starts_with("--force")),
-                "кнопка, которая иногда делает force, однажды сотрёт чужую работу"
+                "a button that sometimes forces will one day wipe out someone else's work"
             );
         }
     }
@@ -850,19 +853,19 @@ mod local_tests {
     #[test]
     fn a_new_branch_switches_only_when_asked() {
         let stay = Operation::Branch {
-            name: "тема".to_string(),
+            name: "topic".to_string(),
             checkout: false,
         };
-        assert_eq!(stay.args(), ["branch", "тема"]);
+        assert_eq!(stay.args(), ["branch", "topic"]);
 
         let go = Operation::Branch {
-            name: "тема".to_string(),
+            name: "topic".to_string(),
             checkout: true,
         };
         assert_eq!(
             go.args(),
-            ["checkout", "-b", "тема"],
-            "иначе создание ветки молча уводит с текущей"
+            ["checkout", "-b", "topic"],
+            "otherwise creating a branch silently takes the user off the current one"
         );
     }
 
@@ -874,7 +877,7 @@ mod local_tests {
         assert_eq!(
             quiet.args(),
             ["stash", "push"],
-            "пустое -m сделало бы стеш без подписи вместо стеша по умолчанию"
+            "an empty -m would make an unlabelled stash instead of the default one"
         );
     }
 
@@ -887,7 +890,7 @@ mod local_tests {
         assert_eq!(
             go.args(),
             ["checkout", "-b", "dev/x", "--track", "origin/dev/x"],
-            "без --track ветка создалась бы без upstream, и стрелок у неё не было бы"
+            "without --track the branch would be created with no upstream and would show no ahead/behind arrows"
         );
     }
 
@@ -900,7 +903,7 @@ mod local_tests {
             Some(Operation::Checkout {
                 branch: "dev/x".to_string()
             }),
-            "checkout -b на существующей ветке падает"
+            "checkout -b fails on a branch that already exists"
         );
     }
 
@@ -918,7 +921,7 @@ mod local_tests {
                 upstream: "origin/builds/facebook-fbsource".to_string(),
                 local: "builds/facebook-fbsource".to_string(),
             }),
-            "резать до первого слэша значило бы потерять builds/"
+            "cutting at the first slash would lose builds/"
         );
     }
 
@@ -928,7 +931,7 @@ mod local_tests {
         assert_eq!(
             checkout_for("origin/main", RefKindView::RemoteBranch, &[], &remotes),
             None,
-            "угадав remote, мы создали бы ветку с именем origin/main целиком"
+            "guessing the remote would create a branch named origin/main in full"
         );
     }
 
@@ -946,7 +949,7 @@ mod local_tests {
                 upstream: "origin/mirror/main".to_string(),
                 local: "main".to_string(),
             }),
-            "иначе короткий remote съел бы имя длинного"
+            "otherwise the shorter remote name would eat into the longer one"
         );
     }
 
@@ -977,7 +980,7 @@ mod local_tests {
                 branch: "master".to_string(),
             },
             Operation::Branch {
-                name: "тема".to_string(),
+                name: "topic".to_string(),
                 checkout: true,
             },
             Operation::Stash {
@@ -987,7 +990,7 @@ mod local_tests {
         ] {
             assert!(
                 !operation.reaches_the_network(),
-                "{operation:?} не ходит в сеть, токен ему незачем"
+                "{operation:?} does not reach the network and has no use for a token"
             );
         }
     }
@@ -1010,7 +1013,7 @@ mod pull_tests {
                 ],
                 vec!["checkout".to_string(), "pr/37184".to_string()],
             ],
-            "ветки форка в origin нет, достижима только через pull/N/head"
+            "the fork branch is not in origin and is reachable only through pull/N/head"
         );
     }
 
@@ -1023,7 +1026,7 @@ mod pull_tests {
         );
         assert!(
             !steps.iter().flatten().any(|arg| arg.contains("pull/")),
-            "с настоящей ветки можно пушить, копия pr/N этого не умеет"
+            "a real branch can be pushed to, a pr/N copy cannot"
         );
     }
 }

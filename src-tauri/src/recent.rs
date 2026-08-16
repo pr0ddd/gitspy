@@ -127,44 +127,44 @@ mod tests {
 
     #[test]
     fn a_shorter_list_does_not_leave_the_tail_of_the_longer_one_behind() {
-        let dir = tempfile::tempdir().expect("временный каталог");
+        let dir = tempfile::tempdir().expect("temp directory");
         for path in ["/one", "/two", "/three"] {
             remember(dir.path(), path);
         }
         let long = std::fs::metadata(file(dir.path()))
-            .expect("файл есть")
+            .expect("the file is there")
             .len();
 
         forget(dir.path(), "/two");
         forget(dir.path(), "/three");
 
-        let text = std::fs::read_to_string(file(dir.path())).expect("файл читается");
+        let text = std::fs::read_to_string(file(dir.path())).expect("the file reads back");
         assert!(
             (text.len() as u64) < long,
-            "файл обязан стать короче, иначе поверх длинного списка лежит короткий"
+            "the file has to get shorter, otherwise the short list is written over the long one"
         );
         assert!(
             serde_json::from_str::<Vec<RecentRepo>>(&text).is_ok(),
-            "остаток прежней записи делает список нечитаемым, и вся история пропадает молча"
+            "a leftover tail of the previous write makes the list unparsable and the whole history disappears silently"
         );
         assert_eq!(list(dir.path()).len(), 1);
     }
 
     #[test]
     fn favorite_survives_reopening_the_repository() {
-        let dir = tempfile::tempdir().expect("временный каталог");
+        let dir = tempfile::tempdir().expect("temp directory");
         remember(dir.path(), "/one");
         favorite(dir.path(), "/one", true);
         remember(dir.path(), "/one");
         assert!(
             list(dir.path())[0].favorite,
-            "повторное открытие не должно снимать звезду"
+            "reopening must not clear the star"
         );
     }
 
     #[test]
     fn favorite_toggles_both_ways() {
-        let dir = tempfile::tempdir().expect("временный каталог");
+        let dir = tempfile::tempdir().expect("temp directory");
         remember(dir.path(), "/one");
         assert!(favorite(dir.path(), "/one", true)[0].favorite);
         assert!(!favorite(dir.path(), "/one", false)[0].favorite);
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn favorites_are_not_evicted_by_the_limit() {
-        let dir = tempfile::tempdir().expect("временный каталог");
+        let dir = tempfile::tempdir().expect("temp directory");
         remember(dir.path(), "/keep");
         favorite(dir.path(), "/keep", true);
         for i in 0..30 {
@@ -180,22 +180,22 @@ mod tests {
         }
         assert!(
             list(dir.path()).iter().any(|e| e.path == "/keep"),
-            "звезда обязана защищать запись от вытеснения из хвоста"
+            "a star has to protect an entry from being evicted off the tail"
         );
     }
 
     #[test]
     fn nothing_temporary_is_left_lying_next_to_the_list() {
-        let dir = tempfile::tempdir().expect("временный каталог");
+        let dir = tempfile::tempdir().expect("temp directory");
         remember(dir.path(), "/one");
 
         let stray: Vec<String> = std::fs::read_dir(dir.path())
-            .expect("каталог читается")
+            .expect("the directory reads back")
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().to_string())
             .filter(|name| name != FILE)
             .collect();
 
-        assert!(stray.is_empty(), "остались файлы: {stray:?}");
+        assert!(stray.is_empty(), "files left behind: {stray:?}");
     }
 }

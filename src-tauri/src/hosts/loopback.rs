@@ -30,7 +30,7 @@ fn bind_with_patience() -> std::io::Result<TcpListener> {
             }
         }
     }
-    Err(last.expect("после неудачных попыток остаётся последняя ошибка"))
+    Err(last.expect("after the failed attempts the last error is still there"))
 }
 
 const DONE_PAGE: &str = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n<html><body style=\"font-family:system-ui;background:#111;color:#ddd;display:flex;align-items:center;justify-content:center;height:100vh\"><p>gitspy is connected - you can close this tab.</p></body></html>";
@@ -121,17 +121,18 @@ mod tests {
 
     #[test]
     fn a_new_sign_in_replaces_the_stale_listener_instead_of_dying_on_the_port() {
-        let _stale = listen_once("gone".into()).expect("первый слушатель поднимается");
-        let fresh =
-            listen_once("wanted".into()).expect("брошенный вход не должен навсегда занимать порт");
+        let _stale = listen_once("gone".into()).expect("the first listener comes up");
+        let fresh = listen_once("wanted".into())
+            .expect("an abandoned sign-in must not hold the port forever");
 
-        let mut stream = TcpStream::connect(("127.0.0.1", PORT)).expect("порт слушается");
+        let mut stream =
+            TcpStream::connect(("127.0.0.1", PORT)).expect("the port is being listened on");
         stream
             .write_all(b"GET /callback?code=c0de&state=wanted HTTP/1.1\r\n\r\n")
-            .expect("запрос уходит");
+            .expect("the request goes out");
         let code = fresh
             .recv_timeout(Duration::from_secs(2))
-            .expect("код доходит до нового слушателя");
+            .expect("the code reaches the new listener");
         assert_eq!(code, "c0de");
     }
 
@@ -140,7 +141,7 @@ mod tests {
         assert_eq!(
             parse_callback("GET /callback?code=abc%2F1&state=st+x HTTP/1.1"),
             Some(("abc/1".to_string(), "st x".to_string())),
-            "percent- и plus-кодирование обязаны разворачиваться"
+            "percent- and plus-encoding have to be decoded"
         );
     }
 

@@ -137,17 +137,17 @@ mod tests {
     fn a_repository_read_once_is_not_read_again_until_git_changes() {
         let state = AppState::default();
 
-        assert!(state.needs_reading("/r"), "первый раз читать обязаны");
+        assert!(state.needs_reading("/r"), "the first read has to happen");
         state.remember_read("/r");
         assert!(
             !state.needs_reading("/r"),
-            "повторное открытие вкладки не должно стоить нового обхода истории"
+            "reopening the tab must not cost another walk over the history"
         );
 
         state.mark_stale("/r");
         assert!(
             state.needs_reading("/r"),
-            "после коммита из терминала прочитанное больше не годится"
+            "after a commit made from the terminal what we read is no longer good"
         );
     }
 
@@ -157,7 +157,10 @@ mod tests {
         state.remember_read("/one");
         state.mark_stale("/one");
         assert!(state.needs_reading("/one"));
-        assert!(state.needs_reading("/two"), "о втором мы ничего не знаем");
+        assert!(
+            state.needs_reading("/two"),
+            "we know nothing about the second one"
+        );
     }
 }
 
@@ -174,17 +177,17 @@ mod release_guards {
         let tauri_line = manifest
             .lines()
             .find(|line| line.trim_start().starts_with("tauri = "))
-            .expect("зависимость tauri объявлена");
+            .expect("the tauri dependency is declared");
         assert!(
             !tauri_line.contains("devtools"),
-            "фича `devtools` у tauri включает инспектор и в релизе; \
-             отладочное окно открывает только код под cfg(debug_assertions)"
+            "the `devtools` feature of tauri turns the inspector on in release builds too; \
+             only code under cfg(debug_assertions) may open the debug window"
         );
 
         let config = include_str!("../tauri.conf.json");
         assert!(
             !config.contains("\"devtools\": true"),
-            "tauri.conf.json не должен включать devtools для окна — иначе они окажутся в проде"
+            "tauri.conf.json must not enable devtools for the window, otherwise they ship to production"
         );
     }
 }
