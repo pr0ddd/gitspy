@@ -197,7 +197,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     file.current = created;
     if (editing) {
       created.getDomNode()?.setAttribute('data-editing', 'true');
-      created.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveEdited);
+      created.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveLatest.current());
     }
 
     return () => {
@@ -344,6 +344,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     setEditing(false);
   }, [target]);
 
+  const saveLatest = useRef(() => {});
   const saveEdited = () => {
     const content = file.current?.getValue();
     if (content === undefined || target.kind !== 'workingTree') return;
@@ -355,6 +356,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
       })
       .catch(notifyError);
   };
+  saveLatest.current = saveEdited;
 
   return (
     <div data-area="files" className="flex min-h-0 min-w-0 flex-1 flex-col">

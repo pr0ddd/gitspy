@@ -309,9 +309,10 @@ export function StartPage({
   }, []);
 
   const connection = links.find((c) => c.id === source) ?? null;
+  const connectionId = connection?.id ?? null;
 
   useEffect(() => {
-    if (!connection) {
+    if (connectionId === null) {
       setRepos([]);
       return;
     }
@@ -319,17 +320,17 @@ export function StartPage({
     setBusy(true);
     setFailed(false);
     ipc
-      .hostRepos(connection.id, false)
+      .hostRepos(connectionId, false)
       .then((found) => alive && setRepos(found))
       .catch((error: unknown) => {
-        noteHostError(connection.id, error);
+        noteHostError(connectionId, error);
         if (alive) setFailed(true);
       })
       .finally(() => alive && setBusy(false));
     return () => {
       alive = false;
     };
-  }, [connection?.id]);
+  }, [connectionId]);
 
   const refresh = () => {
     if (!connection) return;

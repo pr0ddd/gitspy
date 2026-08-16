@@ -67,7 +67,7 @@ export function Shortcuts({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex h-[min(70vh,34rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+        className="flex h-dialog-tall flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
       >
         <div className="bg-surface-raised flex h-11 shrink-0 items-center gap-2 border-b px-3">
           <DialogTitle className="flex shrink-0 items-center gap-2 text-sm">

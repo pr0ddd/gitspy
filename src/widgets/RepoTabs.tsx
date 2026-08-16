@@ -16,6 +16,7 @@ type Props = {
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
   onStart: () => void;
+  onCloseStart: () => void;
   onView: (view: ViewTab) => void;
   onCloseView: (view: ViewTab) => void;
 };
@@ -28,10 +29,13 @@ export function RepoTabs({
   onActivate,
   onClose,
   onStart,
+  onCloseStart,
   onView,
   onCloseView,
 }: Props) {
   const { t } = useTranslation();
+  const startTabShown =
+    active === null && view === null && (sessions.length > 0 || views.length > 0);
 
   return (
     <nav
@@ -61,6 +65,16 @@ export function RepoTabs({
           onClose={() => onCloseView(open)}
         />
       ))}
+      {startTabShown ? (
+        <Tab
+          icon="folder"
+          label={t('start.newTab')}
+          current
+          closeLabel={t('repo.close')}
+          onSelect={onStart}
+          onClose={onCloseStart}
+        />
+      ) : null}
       <Hint text={t('start.title')}>
         <Button
           variant="ghost"

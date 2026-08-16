@@ -105,7 +105,11 @@ export default function App() {
     setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
   const tabs = useViewTabs();
-  const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string } | null>(null);
+  const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string; open: boolean }>({
+    mode: 'clone',
+    url: '',
+    open: false,
+  });
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
   const sidebarCollapsed = railed || main.kind !== 'graph';
   const readyUpdate = useReadyUpdate();
@@ -420,6 +424,11 @@ export default function App() {
             tabs.leave();
             dispatch({ kind: 'activate', path: null });
           }}
+          onCloseStart={() => {
+            const last = sessions[sessions.length - 1];
+            if (last) dispatch({ kind: 'activate', path: last.path });
+            else if (tabs.views[0]) tabs.open(tabs.views[0]);
+          }}
           onView={tabs.open}
           onCloseView={tabs.close}
         />
@@ -495,8 +504,8 @@ export default function App() {
               onOpenPath={openPath}
               onForget={forget}
               onFavorite={favorite}
-              onClone={(url) => setAdding({ mode: 'clone', url })}
-              onCreate={() => setAdding({ mode: 'init', url: '' })}
+              onClone={(url) => setAdding({ mode: 'clone', url, open: true })}
+              onCreate={() => setAdding({ mode: 'init', url: '', open: true })}
               onConnect={() => tabs.open('settings')}
             />
           ) : (
@@ -670,10 +679,10 @@ export default function App() {
         <Shortcuts open={helpOpen} onOpenChange={setHelpOpen} />
 
         <RepoDialog
-          open={adding !== null}
-          mode={adding?.mode ?? 'clone'}
-          url={adding?.url ?? ''}
-          onOpenChange={(next) => !next && setAdding(null)}
+          open={adding.open}
+          mode={adding.mode}
+          url={adding.url}
+          onOpenChange={(next) => !next && setAdding((now) => ({ ...now, open: false }))}
           onCloned={openPath}
         />
 
