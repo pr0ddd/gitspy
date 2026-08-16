@@ -6,7 +6,7 @@ use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
     build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
     BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
-    FoundCommitView, RepoPassportView, RepoView, TipView, WindowView, WorkingTreeView,
+    FoundCommitView, RepoPassportView, RepoView, Timings, TipView, WindowView, WorkingTreeView,
     WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
@@ -24,8 +24,7 @@ struct Opened {
     remotes: Vec<crate::views::RemoteView>,
     skeleton: Skeleton,
     minimap: Vec<u32>,
-    read_ms: f64,
-    layout_ms: f64,
+    timings: Timings,
 }
 
 fn head_oid_of(git: &Git, path: &Path, refs: &[gitspy_exec::refs::RefLine]) -> Option<String> {
@@ -94,8 +93,7 @@ fn open_on_a_blocking_thread(path: PathBuf, git: Git) -> Result<Opened, ErrorVie
         remotes: crate::views::build_remote_views(git.remote_urls(&path)),
         skeleton,
         minimap,
-        read_ms,
-        layout_ms,
+        timings: Timings { read_ms, layout_ms },
     })
 }
 
@@ -123,8 +121,7 @@ pub async fn open_repo(
         opened.remotes.clone(),
         &opened.skeleton,
         opened.minimap,
-        opened.read_ms,
-        opened.layout_ms,
+        opened.timings,
     );
 
     let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;

@@ -635,7 +635,12 @@ pub fn build_ref_views(refs: &[RefLine], rows: &HashMap<String, u32>) -> Vec<Ref
         .collect()
 }
 
-#[allow(clippy::too_many_arguments)]
+#[derive(Debug, Clone, Copy)]
+pub struct Timings {
+    pub read_ms: f64,
+    pub layout_ms: f64,
+}
+
 pub fn build_repo_view(
     path: &str,
     history: &History,
@@ -643,8 +648,7 @@ pub fn build_repo_view(
     remotes: Vec<RemoteView>,
     skeleton: &Skeleton,
     minimap: Vec<u32>,
-    read_ms: f64,
-    layout_ms: f64,
+    timings: Timings,
 ) -> RepoView {
     RepoView {
         path: path.to_string(),
@@ -652,8 +656,8 @@ pub fn build_repo_view(
         max_lane: skeleton.max_lane,
         head: history.head,
         truncated: history.truncated,
-        read_ms,
-        layout_ms,
+        read_ms: timings.read_ms,
+        layout_ms: timings.layout_ms,
         minimap,
         minimap_colours: gitspy_core::chunk::minimap_colours(),
         remotes,
