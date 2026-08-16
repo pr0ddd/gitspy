@@ -1,4 +1,5 @@
 import type { RemoteView } from '@/shared/api/types';
+import type { IconName } from '@/shared/ui/icons';
 
 export type HostKind = 'github' | 'gitlab' | 'bitbucket';
 
@@ -7,6 +8,12 @@ export const HOST_LABEL: Readonly<Record<HostKind, string>> = {
   gitlab: 'GitLab',
   bitbucket: 'Bitbucket',
 };
+
+export const HOSTS: ReadonlyArray<{ id: HostKind; label: string; icon: IconName }> = [
+  { id: 'github', label: HOST_LABEL.github, icon: 'github' },
+  { id: 'gitlab', label: HOST_LABEL.gitlab, icon: 'gitlab' },
+  { id: 'bitbucket', label: HOST_LABEL.bitbucket, icon: 'bitbucket' },
+];
 
 const MARKERS: ReadonlyArray<readonly [HostKind, string]> = [
   ['github', 'github.com'],

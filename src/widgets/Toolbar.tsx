@@ -12,7 +12,7 @@ import {
 import { Hint, Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 import { usePref } from '@/shared/lib/prefs';
-import { useRepoWork } from '@/features/repo';
+import { pushFor, useRepoWork } from '@/features/repo';
 import { SearchField } from '@/shared/ui/parts';
 import type { Operation, WorkingTreeView } from '@/shared/api/types';
 import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/shared/config/vocabulary';
@@ -34,15 +34,6 @@ type Props = {
   onStep: (delta: number) => void;
   onPickFound: (index: number) => void;
   start?: React.ReactNode;
-};
-
-export const pushFor = (tree: WorkingTreeView | null): Operation | null => {
-  if (!tree?.branch) return null;
-  if (tree.upstream) return { kind: 'push' };
-
-  const [remote] = tree.remotes;
-  if (!remote) return null;
-  return { kind: 'pushSetUpstream', remote, branch: tree.branch };
 };
 
 const pullOperation = (mode: PullMode): Operation =>

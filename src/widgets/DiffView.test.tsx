@@ -122,6 +122,7 @@ vi.mock('@/entities/diff', async () => ({
   ...(await vi.importActual<object>('@/entities/diff/diff')),
   ...(await vi.importActual<object>('@/entities/diff/hunks')),
   ...(await vi.importActual<object>('@/entities/diff/attach')),
+  ...(await vi.importActual<object>('@/entities/diff/target')),
   DIFF_EDITOR_BASE: {},
   EDITOR_BASE: {},
   languageOf: () => 'plaintext',
@@ -161,7 +162,8 @@ vi.mock('@/shared/api/ipc', async (importOriginal) => ({
 }));
 import '@/shared/config/i18n';
 import { TooltipProvider } from '@/shared/ui/tooltip';
-import { DiffView, sameDiffTarget, type DiffTarget } from './DiffView';
+import { DiffView } from './DiffView';
+import { sameDiffTarget, type DiffTarget } from '@/entities/diff';
 import type { ChangedFileView } from '@/shared/api/types';
 
 beforeEach(() => {
