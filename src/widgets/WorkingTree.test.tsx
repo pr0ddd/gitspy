@@ -20,7 +20,8 @@ vi.mock('@/ipc', async (importOriginal) => ({
 import '../i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { WorkingTree } from './WorkingTree';
-import type { Operation, PathOperation, WorkingTreeView } from '@/types';
+import type { PathOperation, WorkingTreeView } from '@/types';
+import type { Confirmation } from '@/entities/repo';
 import type { Picked } from '@/entities/repo';
 import { useKeyboard } from '@/features/keyboard';
 
@@ -44,7 +45,7 @@ const treeWith = (staged: number): WorkingTreeView => ({
 });
 
 type Extra = Partial<{
-  onConfirm: (operation: Operation) => void;
+  onConfirm: (confirmation: Confirmation) => void;
   onRun: (operation: PathOperation) => Promise<WorkingTreeView | null> | void;
   description: string;
   amend: boolean;
@@ -123,10 +124,10 @@ describe('the generate message button', () => {
 
 describe('the header of the working tree panel', () => {
   it('the trash button does not discard the changes itself, it asks for confirmation', () => {
-    const asked: Operation[] = [];
+    const asked: Confirmation[] = [];
     let ranStraightAway = 0;
     const { getByRole } = draw(treeWith(2), '', () => {}, {
-      onConfirm: (operation) => asked.push(operation),
+      onConfirm: (confirmation) => asked.push(confirmation),
       onRun: () => {
         ranStraightAway += 1;
       },
@@ -135,7 +136,7 @@ describe('the header of the working tree panel', () => {
     fireEvent.click(getByRole('button', { name: /discard all changes/i }));
 
     expect(asked, 'pressing the trash button hands the operation over for confirmation').toEqual([
-      { kind: 'discardAll' },
+      { kind: 'operation', operation: { kind: 'discardAll' } },
     ]);
     expect(ranStraightAway, 'nothing runs until it is confirmed').toBe(0);
   });

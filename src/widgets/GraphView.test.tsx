@@ -128,6 +128,7 @@ describe('re-rendering the app shell', () => {
     onSelect: () => {},
     onCheckoutRef: () => {},
     onRun: () => {},
+    onConfirm: () => {},
     onCopy: () => {},
     onAsk: () => {},
     onWorktree: () => {},
@@ -183,6 +184,7 @@ describe('scrolling the graph', () => {
           onSelect={() => {}}
           onCheckoutRef={() => {}}
           onRun={() => {}}
+          onConfirm={() => {}}
           onCopy={() => {}}
           onAsk={() => {}}
           onWorktree={() => {}}
@@ -231,6 +233,7 @@ describe('scrolling the graph', () => {
         onSelect={() => {}}
         onCheckoutRef={() => {}}
         onRun={() => {}}
+        onConfirm={() => {}}
         onCopy={() => {}}
         onAsk={() => {}}
         onWorktree={() => {}}
@@ -265,6 +268,7 @@ describe('scrolling the graph', () => {
         onSelect={() => {}}
         onCheckoutRef={() => {}}
         onRun={(operation) => ran.push(operation)}
+        onConfirm={() => {}}
         onCopy={() => {}}
         onAsk={() => {}}
         onWorktree={() => {}}
@@ -319,6 +323,7 @@ describe('scrolling the graph', () => {
         onSelect={() => {}}
         onCheckoutRef={() => {}}
         onRun={() => {}}
+        onConfirm={() => {}}
         onCopy={() => {}}
         onAsk={() => {}}
         onWorktree={() => {}}

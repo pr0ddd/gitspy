@@ -1,32 +1,43 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import type { Operation } from '@/types';
+import { confirmationOf, type Confirmation, type Effect } from '@/entities/repo';
 
 type Props = {
-  operation: Operation | null;
-  onConfirm: (operation: Operation) => void;
+  confirmation: Confirmation | null;
+  onChoice: (effect: Effect) => void;
   onCancel: () => void;
 };
 
-export function ConfirmBar({ operation, onConfirm, onCancel }: Props) {
+export function ConfirmBar({ confirmation, onChoice, onCancel }: Props) {
   const { t } = useTranslation();
 
   useEffect(() => {
-    if (!operation) return;
+    if (!confirmation) return;
     const escape = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
-  }, [operation, onCancel]);
+  }, [confirmation, onCancel]);
 
-  if (!operation) return null;
+  if (!confirmation) return null;
+  const text = confirmationOf(confirmation);
 
   return (
-    <div className="bg-primary/15 animate-in fade-in flex h-12 shrink-0 items-center justify-center gap-3 px-4 duration-150">
-      <span className="text-sm">{t(`confirm.${operation.kind}` as 'confirm.discardAll')}</span>
-      <Button size="sm" variant="destructive" onClick={() => onConfirm(operation)}>
-        {t(`confirm.${operation.kind}Action` as 'confirm.discardAllAction')}
-      </Button>
+    <div
+      role="alertdialog"
+      className="bg-primary/15 animate-in fade-in flex h-12 shrink-0 items-center justify-center gap-3 px-4 duration-150"
+    >
+      <span className="text-sm">{t(text.message as 'confirm.branchDelete', text.params)}</span>
+      {text.choices.map((choice) => (
+        <Button
+          key={choice.label}
+          size="sm"
+          variant={choice.tone === 'destructive' ? 'destructive' : 'default'}
+          onClick={() => onChoice(choice.effect)}
+        >
+          {t(choice.label as 'confirm.discardAllAction')}
+        </Button>
+      ))}
       <Button size="sm" variant="secondary" onClick={onCancel}>
         {t('ask.cancel')}
       </Button>

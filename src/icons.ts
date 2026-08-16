@@ -17,6 +17,7 @@ import {
   GitCommitHorizontal,
   GitPullRequest,
   Cloud,
+  CloudOff,
   CircleArrowUp,
   Plus,
   RefreshCw,
@@ -87,6 +88,7 @@ const BitbucketMark = brand(
 export const Icon = {
   branch: GitBranch,
   remote: Cloud,
+  upstreamGone: CloudOff,
   worktree: FolderTree,
   stash: Archive,
   tag: Tag,

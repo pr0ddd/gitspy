@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ask } from '@tauri-apps/plugin-dialog';
 import { usePref } from '@/prefs';
 import * as ipc from '@/ipc';
 import { buildFileMenu, type MenuAction } from '@/features/menus';
@@ -24,7 +23,7 @@ import {
   type FileNode,
 } from '@/features/fileTree';
 import { subjectLeft, useGenerateCommit, useRepoWork } from '@/features/repo';
-import { pickAfterMove, samePick, type Picked } from '@/entities/repo';
+import { pickAfterMove, samePick, type Confirmation, type Picked } from '@/entities/repo';
 import { useCommands } from '@/features/keyboard';
 import { rovingTabIndex, stepped } from '@/roving';
 import type { Operation, PathOperation, StatusEntryView, WorkingTreeView } from '@/types';
@@ -47,7 +46,7 @@ type Props = {
   onCommit: () => void;
   onRun: (operation: PathOperation) => Promise<WorkingTreeView | null>;
   onOperation: (operation: Operation) => void;
-  onConfirm: (operation: Operation) => void;
+  onConfirm: (confirmation: Confirmation) => void;
   onOpen: (path: string, status: string, staged: boolean) => void;
   onCopy: (text: string) => void;
   onHistory: (path: string) => void;
@@ -768,12 +767,7 @@ export function WorkingTree(props: Props) {
             .workingTreeHunks(repo, action.path, action.staged)
             .then(onCopy)
             .catch(notifyError);
-        else if (action.kind === 'deleteFile')
-          void ask(t('menu.deleteFileAsk', { path: action.path }), { kind: 'warning' }).then(
-            (sure) => {
-              if (sure) void ipc.removePath(repo, action.path).catch(notifyError);
-            },
-          );
+        else if (action.kind === 'confirm') onConfirm(action.confirmation);
       },
     ).catch(notifyError);
   };
@@ -896,7 +890,7 @@ export function WorkingTree(props: Props) {
         view={view}
         descending={descending}
         allClosed={folds.allClosed}
-        onDiscardAll={() => onConfirm({ kind: 'discardAll' })}
+        onDiscardAll={() => onConfirm({ kind: 'operation', operation: { kind: 'discardAll' } })}
         onView={setView}
         onOrder={setDescending}
         onFoldAll={folds.foldAll}

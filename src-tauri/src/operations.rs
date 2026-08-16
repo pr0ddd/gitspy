@@ -26,6 +26,7 @@ pub enum Operation {
     PullFfOnly,
     PullRebase,
     Push,
+    PushForceWithLease,
     PushSetUpstream {
         remote: String,
         branch: String,
@@ -165,6 +166,7 @@ impl Operation {
             Operation::PullFfOnly => owned(&["pull", "--ff-only", "--progress"]),
             Operation::PullRebase => owned(&["pull", "--rebase", "--progress"]),
             Operation::Push => owned(&["push", "--progress"]),
+            Operation::PushForceWithLease => owned(&["push", "--force-with-lease", "--progress"]),
             Operation::PushSetUpstream { remote, branch } => {
                 let mut args = owned(&["push", "--progress", "--set-upstream"]);
                 args.push(remote.clone());
@@ -326,6 +328,7 @@ impl Operation {
             Operation::Fetch => "operation.fetch",
             Operation::Pull | Operation::PullFfOnly | Operation::PullRebase => "operation.pull",
             Operation::Push | Operation::PushSetUpstream { .. } => "operation.push",
+            Operation::PushForceWithLease => "operation.pushForceWithLease",
             Operation::Checkout { .. } | Operation::CheckoutTracking { .. } => "operation.checkout",
             Operation::Branch { .. } | Operation::BranchAt { .. } => "operation.branch",
             Operation::BranchDelete { .. } => "operation.branchDelete",
@@ -360,6 +363,7 @@ impl Operation {
             | Operation::PullFfOnly
             | Operation::PullRebase
             | Operation::Push
+            | Operation::PushForceWithLease
             | Operation::PushSetUpstream { .. }
             | Operation::PushBranch { .. }
             | Operation::PushDelete { .. } => true,
@@ -821,12 +825,16 @@ mod tests {
     }
 
     #[test]
-    fn no_operation_forces_a_push() {
+    fn the_everyday_pushes_never_force() {
         for operation in [
             Operation::Fetch,
             Operation::Pull,
             Operation::Push,
             Operation::PushSetUpstream {
+                remote: "origin".to_string(),
+                branch: "master".to_string(),
+            },
+            Operation::PushBranch {
                 remote: "origin".to_string(),
                 branch: "master".to_string(),
             },
@@ -836,6 +844,20 @@ mod tests {
                 "a button that sometimes forces will one day wipe out someone else's work"
             );
         }
+    }
+
+    #[test]
+    fn the_explicit_force_push_forces_only_with_lease() {
+        let args = Operation::PushForceWithLease.args();
+        assert!(
+            args.iter().any(|a| a == "--force-with-lease"),
+            "the operation the user confirms in the bar is the only one that overwrites the remote"
+        );
+        assert!(
+            !args.iter().any(|a| a == "--force" || a == "-f"),
+            "with lease git refuses if origin moved since our last fetch, so someone else's push survives"
+        );
+        assert!(Operation::PushForceWithLease.reaches_the_network());
     }
 
     #[test]

@@ -1,4 +1,5 @@
 import type { Chip } from '@/entities/graph';
+import { isDangerous, isDangerousPath, type Confirmation } from '@/entities/repo';
 import type { Ask } from './ask';
 import type { PathOperation, Operation, RefView } from '@/types';
 import type { HideableColumn } from '@/entities/graph';
@@ -17,7 +18,7 @@ export type MenuAction =
   | { kind: 'reveal'; path: string }
   | { kind: 'copyPatch'; path: string; staged: boolean }
   | { kind: 'copyCommitPatch'; commit: string; path: string }
-  | { kind: 'deleteFile'; path: string }
+  | { kind: 'confirm'; confirmation: Confirmation }
   | { kind: 'toggleColumn'; column: HideableColumn }
   | { kind: 'toggleCompact' }
   | { kind: 'resetLayout' };
@@ -26,7 +27,6 @@ export type MenuItem = {
   readonly id: string;
   readonly label: string;
   readonly params?: Record<string, string>;
-  readonly danger?: boolean;
   readonly checked?: boolean;
   readonly action?: MenuAction;
   readonly children?: MenuItem[];
@@ -56,6 +56,16 @@ const splitByRemote = (
 const webUrlOf = (remote: string | null, ctx: MenuContext): string | null =>
   ctx.remotes.find((r) => r.name === remote)?.webUrl ?? null;
 
+const runOrConfirm = (operation: Operation): MenuAction =>
+  isDangerous(operation)
+    ? { kind: 'confirm', confirmation: { kind: 'operation', operation } }
+    : { kind: 'run', operation };
+
+const pathRunOrConfirm = (operation: PathOperation): MenuAction =>
+  isDangerousPath(operation)
+    ? { kind: 'confirm', confirmation: { kind: 'pathOperation', operation } }
+    : { kind: 'pathRun', operation };
+
 const resetSubmenu = (hash: string, current: string): MenuItem => ({
   id: 'reset',
   label: 'menu.reset',
@@ -63,8 +73,7 @@ const resetSubmenu = (hash: string, current: string): MenuItem => ({
   children: (['soft', 'mixed', 'hard'] as const).map((mode) => ({
     id: `reset${mode[0].toUpperCase()}${mode.slice(1)}`,
     label: `menu.reset${mode[0].toUpperCase()}${mode.slice(1)}`,
-    danger: mode === 'hard',
-    action: { kind: 'run', operation: { kind: 'reset', hash, mode } },
+    action: runOrConfirm({ kind: 'reset', hash, mode }),
   })),
 });
 
@@ -102,8 +111,7 @@ const surgery = (hash: string, withDrop: boolean, ctx: MenuContext): MenuSection
         {
           id: 'drop',
           label: 'menu.drop',
-          danger: true,
-          action: { kind: 'run' as const, operation: { kind: 'drop' as const, hash } },
+          action: runOrConfirm({ kind: 'drop', hash }),
         },
         ...(ctx.currentBranch
           ? [
@@ -273,11 +281,7 @@ export function buildChipMenu(chip: Chip, ctx: MenuContext): MenuSection[] {
                 id: 'delete',
                 label: 'menu.delete',
                 params: { name: chip.name },
-                danger: true,
-                action: {
-                  kind: 'run' as const,
-                  operation: { kind: 'branchDelete' as const, name: main.name },
-                },
+                action: runOrConfirm({ kind: 'branchDelete', name: main.name }),
               },
             ]),
       ]
@@ -287,15 +291,11 @@ export function buildChipMenu(chip: Chip, ctx: MenuContext): MenuSection[] {
             id: 'deleteRemote',
             label: 'menu.deleteRemote',
             params: { name: remotePart.rest, remote: remotePart.remote },
-            danger: true,
-            action: {
-              kind: 'run',
-              operation: {
-                kind: 'pushDelete',
-                remote: remotePart.remote,
-                branch: remotePart.rest,
-              },
-            },
+            action: runOrConfirm({
+              kind: 'pushDelete',
+              remote: remotePart.remote,
+              branch: remotePart.rest,
+            }),
           },
         ]
       : [];
@@ -434,8 +434,7 @@ export function buildFileMenu(entry: FileMenuEntry): MenuSection[] {
       {
         id: 'discard',
         label: 'menu.discardChanges',
-        danger: true,
-        action: { kind: 'pathRun', operation: { kind: 'discard', paths: [path] } },
+        action: pathRunOrConfirm({ kind: 'discard', paths: [path] }),
       },
       { id: 'ignore', label: 'menu.ignore', children: ignoreChildren },
       {
@@ -457,8 +456,7 @@ export function buildFileMenu(entry: FileMenuEntry): MenuSection[] {
       {
         id: 'deleteFile',
         label: 'menu.deleteFile',
-        danger: true,
-        action: { kind: 'deleteFile', path },
+        action: { kind: 'confirm', confirmation: { kind: 'deleteFile', path } },
       },
     ],
   ];

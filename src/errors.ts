@@ -19,6 +19,9 @@ const isErrorView = (value: unknown): value is ErrorView =>
 export const isNotOpen = (error: unknown): boolean =>
   isErrorView(error) && error.code === 'repo.notOpen';
 
+export const isRejectedPush = (error: unknown): boolean =>
+  isErrorView(error) && error.code === 'exec.rejected';
+
 function withoutHintNoise(detail: string): string {
   const essence = detail
     .split('\n')

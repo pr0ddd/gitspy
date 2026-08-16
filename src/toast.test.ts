@@ -24,6 +24,7 @@ const EVERY_KIND: Record<Operation['kind'], null> = {
   pullFfOnly: null,
   pullRebase: null,
   push: null,
+  pushForceWithLease: null,
   pushSetUpstream: null,
   checkout: null,
   checkoutTracking: null,
