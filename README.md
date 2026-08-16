@@ -5,10 +5,8 @@
 <h1 align="center">gitspy</h1>
 
 <p align="center">
-  An open-source alternative to GitKraken: the same kind of commit graph,
-  staging, diffs, merge-conflict editor and host integrations — free,
-  AGPL-licensed, no account, no telemetry, and native (Rust + Tauri) instead
-  of a bundled browser.
+  A free, open-source alternative to GitKraken.<br />
+  Commit graph, staging, diffs, a merge conflict editor and GitHub / GitLab / Bitbucket sign-in — in a native app.
 </p>
 
 <p align="center">
@@ -19,85 +17,72 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/graph.png" width="900" alt="gitspy: the commit graph, the working tree with staged files, and the details pane" />
+  <img src="docs/screenshots/graph.png" width="900" alt="gitspy showing a commit graph, the working tree and commit details" />
 </p>
 
 ## Why gitspy
 
-- **The graph you already know how to read.** Lanes, branch and tag chips
-  with leader lines, avatars, a minimap; drawn on canvas on its own animation
-  frame, so a million-commit history scrolls without the interface
-  re-rendering.
-- **Free and yours.** AGPL-3.0. No licence key, no seat, no sign-in to use
-  it, no usage data leaving your machine. Sign in to a host only if you want
-  its pull requests and repositories.
-- **A real merge tool.** Three Monaco editors — yours, theirs, output — with
-  checkboxes per block, marks per line, syntax highlighting, synchronised
-  scrolling; the output is exactly what gets saved.
-- **Native and light.** Rust reads the repository (gix for objects, system
-  git for state and every write, with a defused environment that can never
-  prompt), Tauri hosts the interface. Installers are 20-something megabytes,
-  not a browser.
-- **Honest about danger.** Every destructive action — drop, hard reset,
-  delete branch, discard — goes through one confirm bar; force push is
-  offered only after the remote rejected an ordinary push, and only with
-  lease.
+- **Free.** No licence, no seat, no account. AGPL-3.0.
+- **Private.** No telemetry. The app talks to the network only when you ask it
+  to (and to check for updates).
+- **Fast.** Written in Rust and Tauri, not a bundled browser. Repositories with
+  hundreds of thousands of commits open and scroll smoothly.
+- **The graph you know.** Branch and tag labels on the commits, avatars, a
+  minimap, resizable columns — the layout GitKraken users are used to.
+- **A proper merge tool.** Yours, theirs and the result side by side, with
+  syntax highlighting; pick whole blocks or single lines, edit the result by
+  hand, save.
+- **Safe by default.** Every destructive action asks first. Force push is
+  offered only after a normal push was rejected, and only with `--force-with-lease`.
 
-## What it does
+## What you get
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/diff-hunks.png" alt="Hunk view of a diff with stage buttons per hunk" /></td>
-    <td width="50%"><img src="docs/screenshots/conflicts.png" alt="The merge conflict editor: A, B and the output on Monaco" /></td>
+    <td width="50%"><img src="docs/screenshots/diff-hunks.png" alt="A diff in hunk view with stage and discard buttons on each hunk" /></td>
+    <td width="50%"><img src="docs/screenshots/conflicts.png" alt="The merge conflict editor with both sides and the result" /></td>
   </tr>
   <tr>
-    <td>Diff in hunk view — stage or discard by hunk</td>
-    <td>Merge conflicts on Monaco</td>
+    <td>Stage or discard by hunk</td>
+    <td>Merge conflicts, side by side</td>
   </tr>
 </table>
 
-- **Graph and history.** Commit search, file history for any path, blame,
-  the commit's files with inline, split and hunk diffs; switching files
-  never jumps the line-number column. Columns resize, hide and reorder.
-- **Working tree.** Staging by file and by hunk, path and tree views, a
-  commit box that can amend and push after commit — and, if you point it at
-  Ollama or LM Studio, a commit message written by a local model from what
-  you staged.
-- **Branches, tags, stashes, worktrees.** A tree on the left, checkout by
-  double-click, upstream and ahead/behind read from git itself, a marker on
-  branches whose remote is gone with one-click cleanup.
-- **Hosts.** GitHub, GitLab, Bitbucket: sign in, browse the repository's pull
-  requests, check one out, clone from your account or create a repository on
-  the host. Client ids are compiled in; the secrets stay on a
-  [small relay](workers/oauth-relay/README.md) that stores nothing.
-- **Terminal.** A PTY dock over the graph running your login shell
-  (PowerShell or cmd on Windows), with tabs for several sessions per
-  repository.
-- **Updates itself** from GitHub Releases, verified against the key compiled
-  into the app.
+- **Graph & history** — search commits, see a file's history and blame, open a
+  commit's files in inline, split or hunk view.
+- **Working tree** — stage by file or by hunk, path or tree view, amend, push
+  after commit. Optionally, a local model (Ollama or LM Studio) writes the
+  commit message from what you staged.
+- **Branches, tags, stashes, worktrees** — a tree on the left, checkout by
+  double-click, ahead/behind counts, a marker on branches whose remote is
+  gone with one-click cleanup.
+- **GitHub, GitLab, Bitbucket** — sign in, see the repository's pull requests
+  and check them out, clone from your account, create a repository on the
+  host.
+- **Terminal** — a shell in a dock under the graph, several tabs per
+  repository. PowerShell or cmd on Windows.
+- **Updates** — the app updates itself from GitHub Releases.
 
 ## Not there yet
 
-Things GitKraken users will look for that gitspy does not have today, so
-nobody has to discover them the hard way:
+What GitKraken users will look for that gitspy does not have today:
 
-- Interactive rebase and dragging branches or commits on the graph.
-- Submodules and Git LFS in the interface (git itself handles them; gitspy
-  shows the results).
-- Commit signing and SSH key management screens.
+- Interactive rebase; dragging branches or commits on the graph.
+- Submodule and Git LFS screens (git handles them, gitspy just shows the
+  result).
+- Commit signing and SSH key management.
 - Issue trackers, teams, cloud patches, AI beyond the local commit message.
 - A signed Windows build (SmartScreen warns until there is a certificate).
 
-If one of these is what keeps you on GitKraken, say so in an
-[issue](https://github.com/pr0ddd/gitspy/issues/new/choose) — that is how
-the list gets shorter.
+If one of these is why you stay on GitKraken,
+[open an issue](https://github.com/pr0ddd/gitspy/issues/new/choose) — that
+is how the list gets shorter.
 
 ## Download
 
-Builds for every platform are on the
-[latest release](https://github.com/pr0ddd/gitspy/releases/latest).
+Get the [latest release](https://github.com/pr0ddd/gitspy/releases/latest):
 
-| Platform             | Get                                        |
+| Platform             | File                                       |
 | -------------------- | ------------------------------------------ |
 | macOS, Apple Silicon | `gitspy_<version>_aarch64.dmg`             |
 | macOS, Intel         | `gitspy_<version>_x64.dmg`                 |
@@ -105,53 +90,49 @@ Builds for every platform are on the
 | Windows              | `gitspy_<version>_x64-setup.exe` or `.msi` |
 
 macOS builds are signed and notarised. The Windows build is not signed yet, so
-SmartScreen warns on first start — that is the missing certificate, not the
-app. Once installed, gitspy updates itself: it reads `latest.json` from the
-releases page, downloads the new version in the background and offers a
-restart in the bottom bar.
+SmartScreen will warn once. Updates arrive on their own: the app downloads a
+new version in the background and offers a restart.
 
 ## Status
 
-gitspy was built and used daily on macOS; the Linux and Windows builds ship
-from the same source through CI and have had far less time in front of
-people. Please [report](https://github.com/pr0ddd/gitspy/issues/new/choose)
-what you hit — the terminal output of the same git operation helps most.
+gitspy has been used daily on macOS for a while. The Linux and Windows builds
+come from the same code but have had far less use — please
+[report](https://github.com/pr0ddd/gitspy/issues/new/choose) anything odd; the
+output of the same git command in a terminal helps most.
 
 ## Build from source
 
-Rust 1.85+, Node 22+, and on Linux the Tauri system packages
-(`libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
-libxdo-dev libssl-dev patchelf`).
+You need Rust 1.85+, Node 22+, and on Linux the Tauri packages
+(`libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf`).
 
 ```bash
 npm ci
-npm run app                    # the app in development mode
-npm run build                  # every frontend gate + the bundle
-cargo test                     # every Rust test
-cargo clippy --all-targets -- -D warnings
-npm run tauri build            # installers for the platform you are on
+npm run app            # run in development mode
+npm run tauri build    # build the installer for your platform
 ```
 
-## How it is put together
+`npm run build` and `cargo test` run the checks CI runs.
 
-| Crate / directory     | Role                                                                        |
-| --------------------- | --------------------------------------------------------------------------- |
-| `crates/gitspy-core`  | Graph layout: topology to lanes, colours and segments; knows nothing of git |
-| `crates/gitspy-repo`  | Reads objects through gix: walk order, parents, commit metadata             |
-| `crates/gitspy-exec`  | Runs system git with a defused environment; every write and all state       |
-| `crates/gitspy-hosts` | GitHub, GitLab, Bitbucket behind one `Host` enum                            |
-| `crates/gitspy-term`  | PTY sessions                                                                |
-| `crates/gitspy-ai`    | Local-model commit messages                                                 |
-| `src-tauri`           | The boundary: Tauri commands, open repositories, watchers                   |
-| `src`                 | Canvas rendering, panels, interaction — Feature-Sliced Design layers        |
+## Under the hood
 
-The rules the code follows — no comments, tests before fixes, one set of
-theme tokens, everything user-visible through i18n — are in
-[CLAUDE.md](CLAUDE.md), which is also the contract for contributions; the
-short version is [CONTRIBUTING.md](CONTRIBUTING.md).
+| Part                  | Does                                                             |
+| --------------------- | ---------------------------------------------------------------- |
+| `crates/gitspy-core`  | Lays out the graph (lanes, colours, lines); knows nothing of git |
+| `crates/gitspy-repo`  | Reads commits and objects through gix                            |
+| `crates/gitspy-exec`  | Runs system git for repository state and every write             |
+| `crates/gitspy-hosts` | GitHub, GitLab and Bitbucket APIs                                |
+| `crates/gitspy-term`  | Terminal sessions                                                |
+| `crates/gitspy-ai`    | Commit messages from a local model                               |
+| `src-tauri`           | The Tauri app: commands, open repositories, file watching        |
+| `src`                 | The interface: React, canvas, Monaco                             |
+
+Reads go through [gix](https://github.com/GitoxideLabs/gitoxide); anything
+that changes the repository or answers a question about its state goes through
+your own installed git, so what gitspy shows is what `git status` says.
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The
+detailed rules the code follows are in [CLAUDE.md](CLAUDE.md).
 
 ## Licence
 
-gitspy is free software under the
-[GNU Affero General Public License v3.0](LICENSE). Dependencies are held to a
-permissive-only policy in CI (`deny.toml`, `npm run licenses:check`).
+[GNU Affero General Public License v3.0](LICENSE).
