@@ -193,9 +193,9 @@ export function Toolbar({
   }, [search]);
 
   return (
-    <div className="@container flex h-12 shrink-0 items-center gap-2 px-2">
-      <div className="@6xl:w-64 flex w-52 min-w-0 shrink-0 items-center">{start}</div>
-      <div className="flex min-w-0 flex-1 items-center justify-center">
+    <div className="@container grid h-12 shrink-0 grid-cols-toolbar items-center gap-2 px-2">
+      <div className="flex min-w-0 items-center">{start}</div>
+      <div className="flex min-w-0 items-center justify-center">
         <div className="bg-control-fill flex items-center gap-0.5 rounded-lg p-0.5">
           <ExchangeDeck
             tree={tree}
@@ -233,59 +233,61 @@ export function Toolbar({
         </div>
       </div>
 
-      <div className="@6xl:w-64 relative flex w-52 shrink-0 items-center">
-        <SearchField
-          value={search}
-          fieldRef={field}
-          placeholder={t('search.placeholder')}
-          onChange={(text) => {
-            setListing(true);
-            onSearch(text);
-          }}
-          onFocus={() => setListing(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setListing(false);
-            if (e.key === 'Enter') onStep(e.shiftKey ? -1 : 1);
-          }}
-          trailing={
-            search.trim() ? (
-              <>
-                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                  {found.length ? `${at + 1}/${found.length}` : t('search.none')}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t('search.previous')}
-                  disabled={!found.length}
-                  onClick={() => onStep(-1)}
-                >
-                  <Icon.up />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={t('search.next')}
-                  disabled={!found.length}
-                  onClick={() => onStep(1)}
-                >
-                  <Icon.down />
-                </Button>
-              </>
-            ) : null
-          }
-        />
-        {listing && preview.length > 0 ? (
-          <SearchResults
-            commits={preview}
-            total={found.length}
-            at={found[at] ?? -1}
-            onPick={(index) => {
-              setListing(false);
-              onPickFound(index);
+      <div className="flex min-w-0 items-center justify-end">
+        <div className="relative flex w-full max-w-64 items-center">
+          <SearchField
+            value={search}
+            fieldRef={field}
+            placeholder={t('search.placeholder')}
+            onChange={(text) => {
+              setListing(true);
+              onSearch(text);
             }}
+            onFocus={() => setListing(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setListing(false);
+              if (e.key === 'Enter') onStep(e.shiftKey ? -1 : 1);
+            }}
+            trailing={
+              search.trim() ? (
+                <>
+                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                    {found.length ? `${at + 1}/${found.length}` : t('search.none')}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={t('search.previous')}
+                    disabled={!found.length}
+                    onClick={() => onStep(-1)}
+                  >
+                    <Icon.up />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={t('search.next')}
+                    disabled={!found.length}
+                    onClick={() => onStep(1)}
+                  >
+                    <Icon.down />
+                  </Button>
+                </>
+              ) : null
+            }
           />
-        ) : null}
+          {listing && preview.length > 0 ? (
+            <SearchResults
+              commits={preview}
+              total={found.length}
+              at={found[at] ?? -1}
+              onPick={(index) => {
+                setListing(false);
+                onPickFound(index);
+              }}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );
