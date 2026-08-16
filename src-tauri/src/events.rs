@@ -26,7 +26,7 @@ mod tests {
     fn event_names_are_written_for_the_frontend() {
         let target = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/generated/events.ts");
         std::fs::write(target, frontend_module())
-            .expect("файл событий пишется рядом с типами границы");
+            .expect("the events file is written next to the boundary types");
     }
 
     #[test]
@@ -37,7 +37,7 @@ mod tests {
             };
             assert!(
                 value.contains(':'),
-                "имя события без пространства столкнётся с чужим: {line}"
+                "an event name without a namespace will collide with someone else's: {line}"
             );
         }
     }

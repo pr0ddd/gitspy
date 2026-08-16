@@ -138,7 +138,7 @@ pub struct LicenseView {
 #[tauri::command]
 pub async fn template_catalog(app: tauri::AppHandle) -> Result<TemplateCatalogView, ErrorView> {
     {
-        let known = KNOWN_CATALOG.lock().expect("каталог не отравлен");
+        let known = KNOWN_CATALOG.lock().expect("catalog mutex is not poisoned");
         if let Some(found) = known.as_ref() {
             return Ok(found.clone());
         }
@@ -163,7 +163,7 @@ pub async fn template_catalog(app: tauri::AppHandle) -> Result<TemplateCatalogVi
         gitignores,
         licenses,
     };
-    *KNOWN_CATALOG.lock().expect("каталог не отравлен") = Some(catalog.clone());
+    *KNOWN_CATALOG.lock().expect("catalog mutex is not poisoned") = Some(catalog.clone());
     Ok(catalog)
 }
 

@@ -48,21 +48,21 @@ mod tests {
     use tempfile::TempDir;
 
     fn repo(gitignore: &str) -> TempDir {
-        let dir = TempDir::new().expect("временный каталог");
-        std::fs::create_dir_all(dir.path().join(".git")).expect("каталог");
-        std::fs::write(dir.path().join(".gitignore"), gitignore).expect("файл");
+        let dir = TempDir::new().expect("temp directory");
+        std::fs::create_dir_all(dir.path().join(".git")).expect("directory");
+        std::fs::write(dir.path().join(".gitignore"), gitignore).expect("file");
         dir
     }
 
     #[test]
     fn a_built_bundle_does_not_wake_the_application() {
         let dir = repo("target/\nnode_modules/\ndist\n");
-        std::fs::create_dir_all(dir.path().join("target/debug")).expect("каталог");
+        std::fs::create_dir_all(dir.path().join("target/debug")).expect("directory");
         let ignores = Ignores::at(dir.path());
 
         assert!(
             ignores.hides(&dir.path().join("target/debug/gitspy-app")),
-            "сборка писала бы события тысячами"
+            "a build would emit events by the thousand"
         );
         assert!(ignores.hides(&dir.path().join("dist/index.js")));
         assert!(!ignores.hides(&dir.path().join("src/main.rs")));
@@ -73,21 +73,21 @@ mod tests {
         let dir = repo("");
         assert!(
             Ignores::at(dir.path()).hides(&dir.path().join(".git/index")),
-            "за .git следит отдельный наблюдатель, иначе одно изменение придёт дважды"
+            "a separate watcher looks after .git, otherwise one change would arrive twice"
         );
     }
 
     #[test]
     fn a_path_from_another_repository_is_not_ours_to_report() {
         let dir = repo("");
-        assert!(Ignores::at(dir.path()).hides(Path::new("/tmp/чужое/file.txt")));
+        assert!(Ignores::at(dir.path()).hides(Path::new("/tmp/elsewhere/file.txt")));
     }
 
     #[test]
     fn rules_come_from_the_repository_rather_than_from_a_list_in_the_code() {
-        let dir = repo("секрет.txt\n");
+        let dir = repo("secret.txt\n");
         let ignores = Ignores::at(dir.path());
-        assert!(ignores.hides(&dir.path().join("секрет.txt")));
+        assert!(ignores.hides(&dir.path().join("secret.txt")));
         assert!(!ignores.hides(&dir.path().join("target/debug/app")));
     }
 }

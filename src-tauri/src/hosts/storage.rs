@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn a_remembered_account_is_read_back_without_asking_github() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         save(
             dir.path(),
             "github",
@@ -177,20 +177,20 @@ mod tests {
         assert_eq!(
             read(dir.path(), "github").account.map(|a| a.login),
             Some("pr0d".to_string()),
-            "иначе стартовая страница пошла бы в сеть за тем, что уже знает"
+            "otherwise the start page would go to the network for what it already knows"
         );
     }
 
     #[test]
     fn nothing_remembered_is_an_empty_answer_rather_than_a_failure() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         let known = read(dir.path(), "github");
         assert!(known.account.is_none() && known.repos.is_empty());
     }
 
     #[test]
     fn neighbouring_repositories_do_not_share_a_pull_cache() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         let known = KnownPulls {
             pulls: Vec::new(),
             truncated: true,
@@ -201,13 +201,13 @@ mod tests {
         assert!(read_pulls(dir.path(), "github", "facebook", "react").is_some());
         assert!(
             read_pulls(dir.path(), "github", "pr0ddd", "gitspy").is_none(),
-            "иначе PR одного репозитория показались бы в другом"
+            "otherwise the pull requests of one repository would show up in another"
         );
     }
 
     #[test]
     fn forgetting_a_host_leaves_its_neighbour_alone() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         save(
             dir.path(),
             "github",
@@ -232,10 +232,10 @@ mod tests {
 
     #[test]
     fn a_plain_old_token_reads_as_an_access_only_set() {
-        let dir = TempDir::new().expect("временный каталог");
+        let dir = TempDir::new().expect("temp directory");
         secrets(dir.path())
             .write("github", "gho_plain")
-            .expect("пишется");
+            .expect("written");
         assert_eq!(
             read_tokens(dir.path(), "github"),
             Some(StoredTokens {
@@ -243,25 +243,25 @@ mod tests {
                 refresh: None,
                 expires_at: None,
             }),
-            "старый токен-строка не должен пропасть при переходе на токен-сеты"
+            "an old plain-string token must not be lost when moving to token sets"
         );
     }
 
     #[test]
     fn a_token_set_round_trips_with_refresh_and_expiry() {
-        let dir = TempDir::new().expect("временный каталог");
+        let dir = TempDir::new().expect("temp directory");
         let wanted = StoredTokens {
             access: "bb".into(),
             refresh: Some("bbr".into()),
             expires_at: Some(1234567),
         };
-        save_tokens(dir.path(), "bitbucket", &wanted).expect("пишется");
+        save_tokens(dir.path(), "bitbucket", &wanted).expect("written");
         assert_eq!(read_tokens(dir.path(), "bitbucket"), Some(wanted));
     }
 
     #[test]
     fn an_old_lone_github_account_reads_as_a_connection() {
-        let dir = TempDir::new().expect("временный каталог");
+        let dir = TempDir::new().expect("temp directory");
         save(
             dir.path(),
             "github",
@@ -285,13 +285,13 @@ mod tests {
                 base_url: "https://github.com".into(),
                 login: "pr0ddd".into(),
             }],
-            "старый одиночный аккаунт не должен пропасть при обновлении приложения"
+            "an old lone account must not be lost when the app is updated"
         );
     }
 
     #[test]
     fn the_connection_list_round_trips() {
-        let dir = TempDir::new().expect("временный каталог");
+        let dir = TempDir::new().expect("temp directory");
         let wanted = vec![Connection {
             id: "gitlab".into(),
             kind: HostKind::GitLab,

@@ -75,7 +75,7 @@ fn changes(repo: &Path, ignores: &Ignores, events: &[DebouncedEvent]) -> Vec<Cha
 impl Watchers {
     pub fn watch(&self, repo: &Path, mut changed: impl FnMut(Change) + Send + 'static) {
         let key = repo.display().to_string();
-        let mut open = self.open.lock().expect("наблюдатели не отравлены");
+        let mut open = self.open.lock().expect("the watchers map is not poisoned");
         if open.contains_key(&key) {
             return;
         }
@@ -120,7 +120,7 @@ impl Watchers {
     }
 
     pub fn forget(&self, repo: &str) {
-        let mut open = self.open.lock().expect("наблюдатели не отравлены");
+        let mut open = self.open.lock().expect("the watchers map is not poisoned");
         open.remove(repo);
     }
 }
@@ -158,7 +158,7 @@ mod tests {
         assert_eq!(
             what_changed(repo, Path::new("/r/src/App.tsx")),
             Some(Change::WorkingTree),
-            "правка файла не должна стоить перечитывания истории"
+            "editing a file must not cost a re-read of the history"
         );
     }
 
@@ -168,12 +168,12 @@ mod tests {
         assert_eq!(
             what_changed(repo, Path::new("/r/.git/FETCH_HEAD")),
             None,
-            "git пишет FETCH_HEAD на каждый фетч, даже пустой, а фетч теперь идёт по таймеру"
+            "git writes FETCH_HEAD on every fetch, even an empty one, and the fetch now runs on a timer"
         );
         assert_eq!(
             what_changed(repo, Path::new("/r/.git/logs/HEAD")),
             None,
-            "рефлог движется вслед за ссылками, а не вместо них"
+            "the reflog moves after the refs, not instead of them"
         );
     }
 
@@ -185,7 +185,7 @@ mod tests {
                 Path::new("/r/.git/refs/remotes/origin/main")
             ),
             Some(Change::Git),
-            "иначе чужой коммит никогда не доедет до графа"
+            "otherwise someone else's commit would never reach the graph"
         );
     }
 
@@ -204,7 +204,7 @@ mod tests {
         assert_eq!(
             what_changed(Path::new("/r"), Path::new("/store/worktrees/r/HEAD")),
             Some(Change::Git),
-            "у рабочей копии git-каталог лежит вне её, и это по-прежнему история"
+            "a worktree keeps its git directory outside itself, and that is still history"
         );
     }
 
@@ -225,9 +225,9 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn an_edited_file_reaches_the_application_without_reopening_the_repository() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
-        std::fs::create_dir_all(dir.path().join(".git")).expect("каталог");
-        std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("файл");
+        let dir = tempfile::TempDir::new().expect("temp directory");
+        std::fs::create_dir_all(dir.path().join(".git")).expect("directory");
+        std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("file");
 
         let (say, seen) = std::sync::mpsc::channel();
         let watchers = Watchers::default();
@@ -235,30 +235,30 @@ mod tests {
             let _ = say.send(change);
         });
 
-        std::fs::write(dir.path().join("readme.md"), "правка").expect("файл");
+        std::fs::write(dir.path().join("readme.md"), "an edit").expect("file");
         assert_eq!(
             waited_for(&seen),
             Some(Change::WorkingTree),
-            "правка файла обязана доходить сама, иначе счётчик стоит до переоткрытия"
+            "an edit to a file has to arrive on its own, otherwise the counters stand still until the repository is reopened"
         );
     }
 
     #[cfg(target_os = "macos")]
     #[test]
     fn subscribing_does_not_walk_the_tree_no_matter_how_many_files_it_holds() {
-        let empty = tempfile::TempDir::new().expect("временный каталог");
-        std::fs::create_dir_all(empty.path().join(".git")).expect("каталог");
+        let empty = tempfile::TempDir::new().expect("temp directory");
+        std::fs::create_dir_all(empty.path().join(".git")).expect("directory");
 
-        let crowded = tempfile::TempDir::new().expect("временный каталог");
-        std::fs::create_dir_all(crowded.path().join(".git")).expect("каталог");
+        let crowded = tempfile::TempDir::new().expect("temp directory");
+        std::fs::create_dir_all(crowded.path().join(".git")).expect("directory");
         for pack in 0..200 {
             let dir = crowded
                 .path()
                 .join("node_modules")
                 .join(format!("pkg{pack}"));
-            std::fs::create_dir_all(&dir).expect("каталог");
+            std::fs::create_dir_all(&dir).expect("directory");
             for file in 0..100 {
-                std::fs::write(dir.join(format!("f{file}.js")), "x").expect("файл");
+                std::fs::write(dir.join(format!("f{file}.js")), "x").expect("file");
             }
         }
 
@@ -273,16 +273,16 @@ mod tests {
 
         assert!(
             crowded_took < baseline * 3 + Duration::from_millis(20),
-            "подписка обязана быть мгновенной, а не обходом дерева: quesk с 751 тысячей файлов ждал 15 секунд; пустой {baseline:?}, набитый {crowded_took:?}"
+            "subscribing has to be instant rather than a walk over the tree: quesk with 751 thousand files waited 15 seconds; empty {baseline:?}, crowded {crowded_took:?}"
         );
     }
 
     #[test]
     fn a_build_into_an_ignored_folder_wakes_nobody() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
-        std::fs::create_dir_all(dir.path().join(".git")).expect("каталог");
-        std::fs::create_dir_all(dir.path().join("target")).expect("каталог");
-        std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("файл");
+        let dir = tempfile::TempDir::new().expect("temp directory");
+        std::fs::create_dir_all(dir.path().join(".git")).expect("directory");
+        std::fs::create_dir_all(dir.path().join("target")).expect("directory");
+        std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("file");
 
         let (say, seen) = std::sync::mpsc::channel();
         let watchers = Watchers::default();
@@ -292,12 +292,12 @@ mod tests {
         stragglers_from_setup_drained(&seen);
 
         for i in 0..20 {
-            std::fs::write(dir.path().join("target").join(format!("out{i}")), "x").expect("файл");
+            std::fs::write(dir.path().join("target").join(format!("out{i}")), "x").expect("file");
         }
         assert_eq!(
             seen.recv_timeout(Duration::from_secs(2)).ok(),
             None,
-            "сборка писала бы события тысячами и дёргала git status на каждое"
+            "a build would emit events by the thousand and run git status on every one of them"
         );
     }
 }

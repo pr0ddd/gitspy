@@ -267,13 +267,13 @@ mod tests {
 
     #[test]
     fn a_kept_image_is_found_again_by_its_email() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         let mut index = Index::default();
         keep_image(dir.path(), "pavel@example.com", b"png", &mut index);
         save_index(dir.path(), &index);
 
         let back = read_index(dir.path());
-        let name = back.files.get("pavel@example.com").expect("запомнено");
+        let name = back.files.get("pavel@example.com").expect("remembered");
         assert!(root(dir.path()).join(name).exists());
     }
 
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn a_refusal_is_remembered_so_the_host_is_not_asked_twice() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         let mut index = Index::default();
         index.refused.push("nobody@example.com".to_string());
         save_index(dir.path(), &index);
@@ -295,53 +295,52 @@ mod tests {
 
     #[test]
     fn refusals_of_an_older_resolver_are_retried_and_files_are_kept() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
-        std::fs::create_dir_all(dir.path().join("avatars")).expect("каталог аватарок");
-        std::fs::write(dir.path().join("avatars").join("x.img"), b"png")
-            .expect("картинка на диске");
+        let dir = tempfile::TempDir::new().expect("temp directory");
+        std::fs::create_dir_all(dir.path().join("avatars")).expect("avatars directory");
+        std::fs::write(dir.path().join("avatars").join("x.img"), b"png").expect("image on disk");
         std::fs::write(
             dir.path().join("avatars").join("index.json"),
             r#"{"files":{"a@e":"x.img"},"refused":["b@e"]}"#,
         )
-        .expect("старый индекс без версии");
+        .expect("old index without a version");
 
         let back = read_index(dir.path());
         assert!(
             back.refused.is_empty(),
-            "старые отказы делались слабым резолвером и заслуживают второй попытки"
+            "refusals recorded by the weaker resolver deserve a second attempt"
         );
         assert_eq!(
             back.files.get("a@e").map(String::as_str),
             Some("x.img"),
-            "скачанные картинки переживают смену резолвера"
+            "downloaded images survive a resolver change"
         );
     }
 
     #[test]
     fn an_entry_whose_file_vanished_is_forgotten_so_the_picture_is_fetched_again() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         let mut index = Index::default();
         keep_image(dir.path(), "kept@e", b"png", &mut index);
         keep_image(dir.path(), "lost@e", b"png", &mut index);
         save_index(dir.path(), &index);
 
-        let lost = root(dir.path()).join(index.files.get("lost@e").expect("записан"));
-        std::fs::remove_file(lost).expect("картинка исчезла мимо нас");
+        let lost = root(dir.path()).join(index.files.get("lost@e").expect("recorded"));
+        std::fs::remove_file(lost).expect("image vanished behind our back");
 
         let back = read_index(dir.path());
         assert!(
             !back.files.contains_key("lost@e"),
-            "индекс без файла обещает картинку, которой нет: фронт получит битый путь, а резолвер сочтёт email известным и никогда не скачает заново"
+            "an entry without a file promises an image that is not there: the frontend gets a broken path and the resolver treats the email as known and never downloads it again"
         );
         assert!(
             back.files.contains_key("kept@e"),
-            "уцелевшие картинки чистка не задевает"
+            "the cleanup leaves surviving images alone"
         );
     }
 
     #[test]
     fn wiping_removes_everything_downloaded() {
-        let dir = tempfile::TempDir::new().expect("временный каталог");
+        let dir = tempfile::TempDir::new().expect("temp directory");
         let mut index = Index::default();
         keep_image(dir.path(), "a@e", b"png", &mut index);
         save_index(dir.path(), &index);

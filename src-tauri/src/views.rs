@@ -168,7 +168,7 @@ mod ref_view_tests {
         let rows = HashMap::new();
         assert!(
             build_ref_views(&[line("main", 0, 0, false)], &rows).is_empty(),
-            "ссылка без строки нарисовалась бы указывающей в никуда"
+            "a ref without a row would be drawn pointing at nothing"
         );
     }
 
@@ -194,7 +194,7 @@ mod ref_view_tests {
         assert_eq!(
             built.len(),
             2,
-            "строки схлопываются по oid, ссылки схлопываться не должны"
+            "rows collapse by oid, refs must not collapse"
         );
     }
 }
@@ -769,11 +769,11 @@ mod working_tree_view_tests {
         assert_eq!(
             view.in_progress.as_deref(),
             Some("merge"),
-            "без этого панели не из чего показать плашку слияния"
+            "without this the panels have nothing to show the merge banner from"
         );
         assert_eq!(
             view.conflicts, 1,
-            "готовность продолжить слияние определяется числом конфликтов"
+            "whether the merge can be continued is decided by the number of conflicts"
         );
     }
 
@@ -792,7 +792,9 @@ mod working_tree_view_tests {
             subject: "Merge branch 'feature'".to_string(),
         };
         let view = build_working_tree(WorkingTree::default(), vec![], Some(heading));
-        let merging = view.merging.expect("панель слияния без заголовка слепа");
+        let merging = view
+            .merging
+            .expect("a merge panel without a heading is blind");
         assert_eq!(merging.from.as_deref(), Some("feature"));
         assert_eq!(merging.subject, "Merge branch 'feature'");
     }

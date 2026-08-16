@@ -231,7 +231,7 @@ pub async fn run_operation(
     let credential_app = app.clone();
 
     let outcome = on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         let owned = wants_network
             .then(|| hosts::credential_for(&credential_app, &git.remote_urls(&path)))
             .flatten();
@@ -347,7 +347,7 @@ pub async fn stage(
     let path = PathBuf::from(&repo);
 
     on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         let args: Vec<String> = operation.args();
         let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
 
@@ -370,7 +370,7 @@ pub async fn commit(
     let path = PathBuf::from(&repo);
 
     let tree = on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         let args = operations::commit_args(&message, amend);
         let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
         git.run(&path, &borrowed, &Cancel::new(), &mut |_| {})
@@ -522,7 +522,7 @@ pub async fn apply_hunk(
     let repo_path = PathBuf::from(&repo);
 
     on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         git.apply_patch(&repo_path, &patch, cached, reverse)
             .map_err(exec_error)?;
         read_working_tree(&git, &repo_path)
@@ -602,7 +602,7 @@ pub async fn write_file(
     let repo_path = PathBuf::from(&repo);
 
     on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         git.write_file(&repo_path, &path, &content)
             .map_err(exec_error)?;
         read_working_tree(&git, &repo_path)
@@ -647,7 +647,7 @@ pub async fn resolve_conflict(
     let repo_path = PathBuf::from(&repo);
 
     on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         git.resolve_file(&repo_path, &path, &content)
             .map_err(exec_error)?;
         read_working_tree(&git, &repo_path)
@@ -670,7 +670,7 @@ pub async fn checkout_pull(
     let credential_app = app.clone();
 
     on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         let owned = hosts::credential_for(&credential_app, &git.remote_urls(&path));
         let credential = owned.as_ref().map(|c| gitspy_exec::Credential {
             url: &c.url,
@@ -718,7 +718,7 @@ pub async fn checkout_ref(
     state.cancel_autofetch(&repo);
     let lane = state.queue.lane(&repo);
     on_reader(move || {
-        let _held = lane.lock().expect("полоса очереди не отравлена");
+        let _held = lane.lock().expect("the queue lane is not poisoned");
         operations::run(&git, &path, operation, None, &Cancel::new(), &mut |_| {})
             .map_err(exec_error)
             .map(|_| ())
