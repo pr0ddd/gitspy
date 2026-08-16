@@ -1,4 +1,5 @@
 use crate::pulls::{Comment, PullDetail, PullSummary};
+use crate::relay::TokenSet;
 use crate::{classify, github::Repo, Account, Error};
 use serde::Deserialize;
 
@@ -198,11 +199,26 @@ struct WireToken {
     access_token: String,
     #[serde(default)]
     refresh_token: Option<String>,
+    #[serde(default)]
+    expires_in: Option<u64>,
 }
 
-pub fn parse_token(body: &str) -> Result<(String, Option<String>), Error> {
+pub fn parse_token(body: &str) -> Result<TokenSet, Error> {
     let wire: WireToken = serde_json::from_str(body).map_err(unexpected)?;
-    Ok((wire.access_token, wire.refresh_token))
+    Ok(TokenSet {
+        access: wire.access_token,
+        refresh: wire.refresh_token,
+        expires_in: wire.expires_in,
+    })
+}
+
+pub fn refresh_form(refresh: &str) -> [(&'static str, String); 4] {
+    [
+        ("client_id", CLIENT_ID.to_string()),
+        ("grant_type", "refresh_token".to_string()),
+        ("refresh_token", refresh.to_string()),
+        ("redirect_uri", REDIRECT.to_string()),
+    ]
 }
 
 pub struct GitLab {
@@ -257,21 +273,26 @@ impl GitLab {
         Ok(body)
     }
 
-    pub async fn exchange_code(
-        &self,
-        code: &str,
-        verifier: &str,
-    ) -> Result<(String, Option<String>), Error> {
+    pub async fn exchange_code(&self, code: &str, verifier: &str) -> Result<TokenSet, Error> {
+        self.token_request(&[
+            ("client_id", CLIENT_ID.to_string()),
+            ("code", code.to_string()),
+            ("grant_type", "authorization_code".to_string()),
+            ("redirect_uri", REDIRECT.to_string()),
+            ("code_verifier", verifier.to_string()),
+        ])
+        .await
+    }
+
+    pub async fn refresh(&self, refresh: &str) -> Result<TokenSet, Error> {
+        self.token_request(&refresh_form(refresh)).await
+    }
+
+    async fn token_request(&self, form: &[(&str, String)]) -> Result<TokenSet, Error> {
         let response = self
             .client
             .post(format!("{}/oauth/token", self.base_url))
-            .form(&[
-                ("client_id", CLIENT_ID),
-                ("code", code),
-                ("grant_type", "authorization_code"),
-                ("redirect_uri", REDIRECT),
-                ("code_verifier", verifier),
-            ])
+            .form(form)
             .send()
             .await
             .map_err(|e| Error::Network {
@@ -577,9 +598,35 @@ mod tests {
 
     #[test]
     fn parse_token_reads_access_and_refresh() {
-        let (access, refresh) =
+        let set =
             parse_token(r#"{"access_token":"A","refresh_token":"R"}"#).expect("the token parses");
+        let (access, refresh) = (set.access, set.refresh);
         assert_eq!(access, "A");
         assert_eq!(refresh.as_deref(), Some("R"));
+    }
+
+    #[test]
+    fn the_token_lifetime_is_kept_because_gitlab_tokens_die_after_two_hours() {
+        let set = parse_token(r#"{"access_token":"A","refresh_token":"R","expires_in":7200}"#)
+            .expect("the token parses");
+        assert_eq!(set.expires_in, Some(7200));
+    }
+
+    #[test]
+    fn a_public_pkce_client_refreshes_with_its_id_and_redirect_and_no_secret() {
+        let form = refresh_form("R");
+        let of = |key: &str| {
+            form.iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, v)| v.as_str())
+        };
+        assert_eq!(of("grant_type"), Some("refresh_token"));
+        assert_eq!(of("refresh_token"), Some("R"));
+        assert_eq!(of("client_id"), Some(CLIENT_ID));
+        assert_eq!(of("redirect_uri"), Some(REDIRECT));
+        assert!(
+            of("client_secret").is_none(),
+            "there is no secret in a desktop binary"
+        );
     }
 }

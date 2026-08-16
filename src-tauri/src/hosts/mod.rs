@@ -126,15 +126,38 @@ pub fn token(app: &tauri::AppHandle, host: &str) -> Option<String> {
     storage::read_tokens(&dir, host).map(|set| set.access)
 }
 
+const EXPIRY_MARGIN_SECONDS: i64 = 60;
+
+pub fn access_is_stale(expires_at: Option<i64>, refreshable: bool, now: i64) -> bool {
+    expires_at
+        .map(|at| at - EXPIRY_MARGIN_SECONDS <= now)
+        .unwrap_or(refreshable)
+}
+
+async fn renewed_tokens(
+    app: &tauri::AppHandle,
+    host: &str,
+    refresh: &str,
+) -> Option<relay::TokenSet> {
+    let connection = connection_of(app, host)?;
+    match connection.kind {
+        HostKind::GitLab => gitlab::GitLab::new(&connection.base_url)
+            .ok()?
+            .refresh(refresh)
+            .await
+            .ok(),
+        HostKind::GitHub | HostKind::Bitbucket => relay::refresh(host, refresh).await.ok(),
+    }
+}
+
 pub async fn fresh_access(app: &tauri::AppHandle, host: &str) -> Option<String> {
     let dir = data_dir(app).ok()?;
     let set = storage::read_tokens(&dir, host)?;
-    let stale = set.expires_at.map(|at| at <= now_unix()).unwrap_or(false);
-    if !stale {
+    if !access_is_stale(set.expires_at, set.refresh.is_some(), now_unix()) {
         return Some(set.access);
     }
     let refresh = set.refresh.clone()?;
-    let renewed = relay::refresh(host, &refresh).await.ok()?;
+    let renewed = renewed_tokens(app, host, &refresh).await?;
     let mut stored = stored_tokens_of(&renewed);
     if stored.refresh.is_none() {
         stored.refresh = Some(refresh);
@@ -177,15 +200,12 @@ async fn finish_browser_connect(
     let tokens = match kind {
         HostKind::GitLab => {
             let client = gitlab::GitLab::new(base_url).map_err(host_error)?;
-            let (access, refresh) = client
-                .exchange_code(&code, &verifier)
-                .await
-                .map_err(host_error)?;
-            storage::StoredTokens {
-                access,
-                refresh,
-                expires_at: None,
-            }
+            stored_tokens_of(
+                &client
+                    .exchange_code(&code, &verifier)
+                    .await
+                    .map_err(host_error)?,
+            )
         }
         HostKind::GitHub => {
             stored_tokens_of(&relay::exchange("github", &code).await.map_err(host_error)?)
@@ -639,6 +659,28 @@ pub async fn pull_card(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_token_counts_as_stale_a_minute_before_it_expires() {
+        assert!(!access_is_stale(Some(2_000), false, 1_000));
+        assert!(
+            access_is_stale(Some(1_050), false, 1_000),
+            "a request in flight must not cross the expiry: refresh a minute early"
+        );
+        assert!(access_is_stale(Some(900), false, 1_000));
+    }
+
+    #[test]
+    fn a_token_of_unknown_lifetime_is_refreshed_when_it_can_be_and_trusted_when_it_cannot() {
+        assert!(
+            access_is_stale(None, true, 1_000),
+            "tokens stored before lifetimes were kept: one refresh tells us the real expiry"
+        );
+        assert!(
+            !access_is_stale(None, false, 1_000),
+            "a classic GitHub token has no lifetime and no refresh; only the host can reject it"
+        );
+    }
 
     #[test]
     fn a_second_press_reuses_the_same_browser_url() {
