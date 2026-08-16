@@ -91,8 +91,8 @@ mod tests {
         assert_eq!(
             env.set.get("GIT_OPTIONAL_LOCKS").map(String::as_str),
             Some("0"),
-            "git status обновляет индекс и на миллисекунды берёт index.lock; \
-             попавший в это окно git add падает с «Unable to create index.lock»"
+            "git status refreshes the index and takes index.lock for milliseconds; \
+             a git add landing in that window fails with \"Unable to create index.lock\""
         );
     }
 
@@ -117,10 +117,10 @@ mod tests {
     #[test]
     fn ssh_does_not_fall_back_to_asking_a_human() {
         let env = environment(None);
-        let command = env.set.get("GIT_SSH_COMMAND").expect("команда ssh задана");
+        let command = env.set.get("GIT_SSH_COMMAND").expect("ssh command is set");
         assert!(
             command.contains("BatchMode=yes"),
-            "ssh не должен ждать ввода: {command}"
+            "ssh must never wait for input: {command}"
         );
     }
 
@@ -130,7 +130,7 @@ mod tests {
         for name in ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] {
             assert!(
                 env.removed.iter().any(|removed| removed == name),
-                "{name} обязан вычищаться: иначе операция уйдёт не в тот репозиторий"
+                "{name} must be cleared: otherwise the operation goes to the wrong repository"
             );
         }
     }

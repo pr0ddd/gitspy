@@ -16,25 +16,25 @@ fn run(dir: &Path, args: &[&str]) -> String {
         .env("GIT_COMMITTER_NAME", "Test")
         .env("GIT_COMMITTER_EMAIL", "test@example.com")
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
 fn write(dir: &Path, path: &str, text: &str) {
-    std::fs::write(dir.join(path), text).expect("файл");
+    std::fs::write(dir.join(path), text).expect("file written");
 }
 
 fn repo() -> TempDir {
-    let dir = TempDir::new().expect("временный каталог");
+    let dir = TempDir::new().expect("temp directory");
     run(dir.path(), &["init", "-b", "main"]);
-    write(dir.path(), "base.txt", "основа\n");
+    write(dir.path(), "base.txt", "base\n");
     run(dir.path(), &["add", "-A"]);
-    run(dir.path(), &["commit", "-m", "начало"]);
+    run(dir.path(), &["commit", "-m", "start"]);
     dir
 }
 
 fn git() -> Git {
-    Git::discover().expect("git найден")
+    Git::discover().expect("git found")
 }
 
 fn named<'a>(
@@ -44,7 +44,7 @@ fn named<'a>(
     found
         .iter()
         .find(|r| r.name == name)
-        .unwrap_or_else(|| panic!("ссылка {name} не найдена"))
+        .unwrap_or_else(|| panic!("ref {name} not found"))
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn only_the_checked_out_branch_is_marked_head() {
     let dir = repo();
     run(dir.path(), &["branch", "other"]);
 
-    let found = git().refs(dir.path()).expect("ссылки читаются");
+    let found = git().refs(dir.path()).expect("refs read");
     let marked: Vec<&str> = found
         .iter()
         .filter(|r| r.is_head)
@@ -62,7 +62,7 @@ fn only_the_checked_out_branch_is_marked_head() {
     assert_eq!(
         marked,
         ["main"],
-        "две ветки на одном коммите — галка обязана быть одна"
+        "two branches on one commit: exactly one of them may be marked as HEAD"
     );
 }
 
@@ -71,57 +71,60 @@ fn detached_head_marks_nothing() {
     let dir = repo();
     run(dir.path(), &["checkout", "--detach"]);
 
-    let found = git().refs(dir.path()).expect("ссылки читаются");
+    let found = git().refs(dir.path()).expect("refs read");
 
     assert!(
         !found.iter().any(|r| r.is_head),
-        "стоя вне ветки, нельзя быть ни на одной из них"
+        "with a detached HEAD no branch is checked out, so none may be marked"
     );
 }
 
 #[test]
 fn an_annotated_tag_resolves_to_its_commit() {
     let dir = repo();
-    run(dir.path(), &["tag", "-a", "heavy", "-m", "подпись"]);
+    run(dir.path(), &["tag", "-a", "heavy", "-m", "annotation"]);
 
-    let head = git().head_oid(dir.path()).expect("HEAD существует");
-    let found = git().refs(dir.path()).expect("ссылки читаются");
+    let head = git().head_oid(dir.path()).expect("HEAD exists");
+    let found = git().refs(dir.path()).expect("refs read");
 
     assert_eq!(
         named(&found, "heavy").oid,
         head,
-        "тег обязан указывать на коммит, а не на объект тега"
+        "a tag must point at the commit, not at the tag object"
     );
 }
 
 #[test]
 fn a_tag_pointing_at_a_blob_does_not_break_the_read() {
     let dir = repo();
-    write(dir.path(), "loose.txt", "просто содержимое\n");
+    write(dir.path(), "loose.txt", "just some contents\n");
     let blob = run(dir.path(), &["hash-object", "-w", "loose.txt"]);
-    run(dir.path(), &["tag", "-a", "onblob", "-m", "подпись", &blob]);
+    run(
+        dir.path(),
+        &["tag", "-a", "onblob", "-m", "annotation", &blob],
+    );
 
-    let found = git().refs(dir.path()).expect("ссылки читаются");
+    let found = git().refs(dir.path()).expect("refs read");
 
     assert!(
         !found.iter().any(|r| r.name == "onblob"),
-        "git log --all такие ссылки молча пропускает, и мы обязаны так же"
+        "git log --all skips such refs silently, and so must we"
     );
     assert!(
         found.iter().any(|r| r.name == "main"),
-        "одна негодная ссылка не отменяет остальные"
+        "one unusable ref does not cancel the rest"
     );
 }
 
 #[test]
 fn every_stash_entry_is_visible_not_just_the_top() {
     let dir = repo();
-    for text in ["второе\n", "третье\n"] {
+    for text in ["second\n", "third\n"] {
         write(dir.path(), "base.txt", text);
         run(dir.path(), &["stash"]);
     }
 
-    let found = git().refs(dir.path()).expect("ссылки читаются");
+    let found = git().refs(dir.path()).expect("refs read");
     let stashes: Vec<&str> = found
         .iter()
         .filter(|r| r.kind == RefKind::Stash)
@@ -131,7 +134,7 @@ fn every_stash_entry_is_visible_not_just_the_top() {
     assert_eq!(
         stashes,
         ["stash@{0}", "stash@{1}"],
-        "refs/stash указывает только на верхнюю запись, остальные лежат в её рефлоге"
+        "refs/stash points only at the top entry, the rest live in its reflog"
     );
 }
 
@@ -139,36 +142,36 @@ fn every_stash_entry_is_visible_not_just_the_top() {
 fn a_repository_without_stashes_still_reads() {
     let dir = repo();
 
-    let found = git().refs(dir.path()).expect("ссылки читаются");
+    let found = git().refs(dir.path()).expect("refs read");
 
     assert!(
         found.iter().all(|r| r.kind != RefKind::Stash),
-        "пустой список стешей не должен превращаться в одну пустую запись"
+        "an empty stash list must not turn into a single empty entry"
     );
 }
 
 fn diverged() -> (TempDir, std::path::PathBuf) {
-    let holder = TempDir::new().expect("временный каталог");
+    let holder = TempDir::new().expect("temp directory");
     let upstream = holder.path().join("upstream");
     let clone = holder.path().join("clone");
 
-    std::fs::create_dir(&upstream).expect("каталог для источника");
+    std::fs::create_dir(&upstream).expect("directory for the upstream");
     run(&upstream, &["init", "-b", "main"]);
-    write(&upstream, "base.txt", "основа\n");
+    write(&upstream, "base.txt", "base\n");
     run(&upstream, &["add", "-A"]);
-    run(&upstream, &["commit", "-m", "начало"]);
+    run(&upstream, &["commit", "-m", "start"]);
 
     run(
         holder.path(),
-        &["clone", upstream.to_str().expect("путь в utf-8"), "clone"],
+        &["clone", upstream.to_str().expect("path is utf-8"), "clone"],
     );
 
-    write(&upstream, "base.txt", "работа на сервере\n");
-    run(&upstream, &["commit", "-am", "чужая работа"]);
+    write(&upstream, "base.txt", "work done on the server\n");
+    run(&upstream, &["commit", "-am", "someone else's work"]);
 
-    write(&clone, "mine.txt", "моя работа\n");
+    write(&clone, "mine.txt", "my work\n");
     run(&clone, &["add", "-A"]);
-    run(&clone, &["commit", "-m", "моя работа"]);
+    run(&clone, &["commit", "-m", "my work"]);
     run(&clone, &["fetch"]);
 
     (holder, clone)
@@ -178,7 +181,7 @@ fn diverged() -> (TempDir, std::path::PathBuf) {
 fn tracking_counts_match_what_git_itself_reports() {
     let (_holder, clone) = diverged();
 
-    let found = git().refs(&clone).expect("ссылки читаются");
+    let found = git().refs(&clone).expect("refs read");
     let main = named(&found, "main");
 
     let counted = run(
@@ -186,17 +189,25 @@ fn tracking_counts_match_what_git_itself_reports() {
         &["rev-list", "--left-right", "--count", "main...origin/main"],
     );
     let mut numbers = counted.split_whitespace();
-    let ahead: u32 = numbers.next().expect("ahead есть").parse().expect("число");
-    let behind: u32 = numbers.next().expect("behind есть").parse().expect("число");
+    let ahead: u32 = numbers
+        .next()
+        .expect("ahead present")
+        .parse()
+        .expect("a number");
+    let behind: u32 = numbers
+        .next()
+        .expect("behind present")
+        .parse()
+        .expect("a number");
 
     assert!(
         ahead > 0 && behind > 0,
-        "фикстура обязана разойтись в обе стороны: на нулях этот тест зеленел бы и на разборе, который всегда возвращает нули"
+        "the fixture must diverge in both directions: with zeroes this test would pass even for a parser that always returns zeroes"
     );
     assert_eq!(
         (main.ahead, main.behind),
         (ahead, behind),
-        "стрелки обязаны совпадать с независимым ответом самого git"
+        "the ahead/behind counts must match what git itself answers"
     );
     assert_eq!(main.upstream.as_deref(), Some("origin/main"));
 }
@@ -206,10 +217,10 @@ fn an_upstream_that_disappeared_is_reported_as_gone_not_as_zeroes() {
     let (_holder, clone) = diverged();
     run(&clone, &["update-ref", "-d", "refs/remotes/origin/main"]);
 
-    let found = git().refs(&clone).expect("ссылки читаются");
+    let found = git().refs(&clone).expect("refs read");
 
     assert!(
         named(&found, "main").gone,
-        "нули значили бы «сверено и совпало», а сверять уже не с чем"
+        "zeroes would mean \"compared and equal\", but there is nothing left to compare against"
     );
 }

@@ -41,7 +41,7 @@ pub fn parse(raw: &str, requested_path: &str) -> Vec<FileCommit> {
         };
         if let Some(status_token) = tokens.peek() {
             if header_of(status_token).is_none() && !status_token.is_empty() {
-                let status_token = tokens.next().expect("peek видел токен");
+                let status_token = tokens.next().expect("peek saw this token");
                 commit.status = status_token
                     .trim_start_matches('\n')
                     .chars()

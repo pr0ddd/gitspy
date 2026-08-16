@@ -239,10 +239,10 @@ mod tests {
 
     #[test]
     fn an_untracked_file_is_unstaged() {
-        let tree = parse("? новый файл.txt\0");
+        let tree = parse("? café notes.txt\0");
         assert_eq!(tree.unstaged(), 1);
         assert_eq!(tree.entries[0].letter, '?');
-        assert_eq!(tree.entries[0].path, "новый файл.txt");
+        assert_eq!(tree.entries[0].path, "café notes.txt");
     }
 
     #[test]
@@ -263,10 +263,10 @@ mod tests {
 
     #[test]
     fn a_tracked_path_with_spaces_is_not_cut_short() {
-        let tree = parse("1 .M N... 100644 100644 100644 aaa bbb папка с пробелами/файл.txt\0");
+        let tree = parse("1 .M N... 100644 100644 100644 aaa bbb dossier café/résumé final.txt\0");
         assert_eq!(
-            tree.entries[0].path, "папка с пробелами/файл.txt",
-            "путь идёт до конца записи, а не до первого пробела"
+            tree.entries[0].path, "dossier café/résumé final.txt",
+            "the path runs to the end of the record, not to the first space"
         );
     }
 
@@ -318,7 +318,7 @@ mod tests {
         let counts = tree.change_counts();
         assert_eq!(
             counts.added, 2,
-            "новый в индексе и неотслеживаемый — оба добавленные"
+            "a file new in the index and an untracked file both count as added"
         );
         assert_eq!(counts.modified, 1);
         assert_eq!(counts.deleted, 1);
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(
             tree.change_counts().modified,
             2,
-            "сверено с GitKraken на живом дереве: 21 в индексе + 21 рядом = 42"
+            "checked against GitKraken on a live tree: 21 staged + 21 unstaged = 42"
         );
     }
 
@@ -348,7 +348,10 @@ mod tests {
 
         let counts = tree.change_counts();
         assert_eq!(counts.added, 1);
-        assert_eq!(counts.modified, 1, "каждая запись статуса — своя единица");
+        assert_eq!(
+            counts.modified, 1,
+            "every status record counts as one of its own"
+        );
     }
 
     #[test]

@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(
             of(stderr),
             Some(Refusal::CheckoutBlocked),
-            "человеку надо предложить стеш, а не разрешение конфликта"
+            "the user has to be offered a stash, not conflict resolution"
         );
     }
 
@@ -83,7 +83,7 @@ mod tests {
         assert_eq!(
             of(stderr),
             None,
-            "иначе человеку советуют не то, что с ним случилось"
+            "otherwise the user is advised about something other than what happened"
         );
     }
 
@@ -102,7 +102,7 @@ mod tests {
         assert_eq!(
             of(stderr),
             Some(Refusal::PullDiverged),
-            "стена hint-ов от git нечитаема, человеку нужен выбор merge или rebase"
+            "the wall of git hints is unreadable, the user needs a choice between merge and rebase"
         );
     }
 }
