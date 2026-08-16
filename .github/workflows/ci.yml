@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-22.04", "windows-latest"]') || fromJSON('["ubuntu-22.04"]') }}
+        os: [ubuntu-22.04, macos-14, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
