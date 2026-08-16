@@ -26,6 +26,12 @@ logs
 .env
 .env.*
 !.env.example
+*.pem
+*.p12
+*.key
+
+# Cloudflare worker state
+.wrangler/
 
 # Brainstorming scratch
 .superpowers/
