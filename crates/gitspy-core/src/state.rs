@@ -274,7 +274,7 @@ mod tests {
         assert_eq!(rows[2].kind, NodeKind::Root);
         assert!(
             crossings(&segs).iter().all(|s| s.is_empty()),
-            "в линейной истории дорожки не пересекаются: только связь по своей"
+            "linear history has no crossings: every commit is linked only along its own lane"
         );
     }
 
@@ -285,7 +285,7 @@ mod tests {
         assert_eq!(
             segs[0],
             vec![Segment::StemDown { lane: 0, colour: 0 }],
-            "над верхушкой дорожки линии нет, а к родителю вниз — есть"
+            "there is no line above the tip of a lane, but there is one going down to the parent"
         );
         assert_eq!(
             segs[1],
@@ -293,12 +293,12 @@ mod tests {
                 Segment::StemUp { lane: 0, colour: 0 },
                 Segment::StemDown { lane: 0, colour: 0 }
             ],
-            "коммит в середине цепочки связан с соседями в обе стороны"
+            "a commit in the middle of a chain is linked to its neighbours in both directions"
         );
         assert_eq!(
             segs[2],
             vec![Segment::StemUp { lane: 0, colour: 0 }],
-            "корню некуда идти вниз"
+            "a root has no parent to go down to"
         );
     }
 
@@ -364,9 +364,9 @@ mod tests {
         let b1 = rows[2];
         let a1 = rows[4];
         assert_eq!(b1.lane, 1);
-        assert_eq!(a1.lane, 1, "вторая ветка переиспользует дорожку 1");
+        assert_eq!(a1.lane, 1, "the second branch reuses lane 1");
         assert_eq!(b1.colour, 1);
-        assert_eq!(a1.colour, 1, "и получает тот же цвет, что и первая");
+        assert_eq!(a1.colour, 1, "and gets the same colour as the first one");
 
         for row in rows.iter().filter(|r| r.lane == 0) {
             assert_eq!(row.colour, 0);
@@ -415,7 +415,7 @@ mod tests {
     #[test]
     fn landing_commit_goes_to_the_side_lane_not_the_leftmost() {
         let (rows, segs) = run("a: w, s\nw: s\ns\n");
-        assert_eq!(rows[0].lane, 0, "мерж на магистрали");
+        assert_eq!(rows[0].lane, 0, "the merge sits on the mainline");
         assert_eq!(
             crossings(&segs)[0],
             vec![Segment::Branch {
@@ -424,11 +424,8 @@ mod tests {
                 colour: 1
             }]
         );
-        assert_eq!(rows[1].lane, 0, "первый родитель продолжает магистраль");
-        assert_eq!(
-            rows[2].lane, 1,
-            "s приземляется в боковой дорожке, а не в нулевой"
-        );
+        assert_eq!(rows[1].lane, 0, "the first parent continues the mainline");
+        assert_eq!(rows[2].lane, 1, "s lands in the side lane, not in lane 0");
         assert_eq!(
             crossings(&segs)[2],
             vec![Segment::Merge {
@@ -446,7 +443,7 @@ mod tests {
         assert_eq!(
             rows.iter().map(|r| r.lane).collect::<Vec<_>>(),
             vec![0, 0, 1, 0, 1, 0],
-            "ствол держится нулевой дорожки на всём протяжении"
+            "the trunk holds lane 0 the whole way down"
         );
     }
 

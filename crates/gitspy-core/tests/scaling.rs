@@ -25,7 +25,7 @@ fn branchy(n: usize) -> Topology {
         ids.dedup();
         parents.push(ids);
     }
-    Topology::new(parents, vec![0; n]).expect("генератор строит корректную топологию")
+    Topology::new(parents, vec![0; n]).expect("the generator builds a valid topology")
 }
 
 fn wide(n: usize, span: usize) -> Topology {
@@ -45,7 +45,7 @@ fn wide(n: usize, span: usize) -> Topology {
         ids.dedup();
         parents.push(ids);
     }
-    Topology::new(parents, vec![0; n]).expect("генератор строит корректную топологию")
+    Topology::new(parents, vec![0; n]).expect("the generator builds a valid topology")
 }
 
 fn fastest_layout(topo: &Topology) -> Duration {
@@ -57,7 +57,7 @@ fn fastest_layout(topo: &Topology) -> Duration {
             started.elapsed()
         })
         .min()
-        .expect("хотя бы один прогон")
+        .expect("at least one run")
 }
 
 #[test]
@@ -73,11 +73,11 @@ fn layout_stays_linear_in_the_number_of_commits() {
 
     assert!(
         ratio < LINEAR_RATIO_LIMIT,
-        "удвоение истории замедлило раскладку в {ratio:.2} раза \
-         ({SMALL} — {small_time:?}, {LARGE} — {large_time:?}). \
-         Порог {LINEAR_RATIO_LIMIT}: линейный алгоритм даёт около двух, \
-         квадратичный около четырёх. Отношение сравнивается внутри одного \
-         запуска, поэтому от скорости машины не зависит."
+        "doubling the history made layout {ratio:.2} times slower \
+         ({SMALL}: {small_time:?}, {LARGE}: {large_time:?}). \
+         The limit is {LINEAR_RATIO_LIMIT}: a linear algorithm gives about two, \
+         a quadratic one about four. The ratio is measured within a single \
+         run, so it does not depend on the speed of the machine."
     );
 }
 
@@ -98,9 +98,9 @@ fn layout_stays_linear_in_the_width_of_the_graph() {
 
     assert!(
         slowdown < widening * WIDTH_RATIO_SLACK,
-        "граф шире в {widening:.1} раза, а раскладка медленнее в {slowdown:.1} \
-         ({narrow_lanes} дорожек — {narrow_time:?}, {broad_lanes} — {broad_time:?}). \
-         На каждой строке выдаётся по сегменту на открытую дорожку, поэтому рост \
-         линеен по ширине; квадратичный означает лишний проход по дорожкам."
+        "the graph is {widening:.1} times wider, but layout is {slowdown:.1} times slower \
+         ({narrow_lanes} lanes: {narrow_time:?}, {broad_lanes} lanes: {broad_time:?}). \
+         Every row emits one segment per open lane, so the cost grows linearly \
+         with the width; quadratic growth means an extra pass over the lanes."
     );
 }

@@ -31,7 +31,7 @@ pub fn render(layout: &Layout, names: &[String]) -> String {
             row.colour,
             kind_name(row.kind)
         )
-        .expect("запись в String не отказывает");
+        .expect("writing to a String never fails");
 
         let segments = &layout.segments[i];
         if !segments.is_empty() {
@@ -57,7 +57,7 @@ pub fn render(layout: &Layout, names: &[String]) -> String {
                     .filter(|s| matches!(s, Segment::StemUp { .. } | Segment::StemDown { .. })),
             );
             let rendered: Vec<String> = ordered.iter().map(|s| segment_text(s)).collect();
-            write!(out, "  {}", rendered.join(" | ")).expect("запись в String не отказывает");
+            write!(out, "  {}", rendered.join(" | ")).expect("writing to a String never fails");
         }
         out.push('\n');
     }
