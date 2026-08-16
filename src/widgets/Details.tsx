@@ -31,7 +31,7 @@ type Props = {
   rows: RowCache;
   pending: number;
   conflicts: number;
-  pulls: PullView[];
+  pulls: readonly PullView[];
   picked: Picked | null;
   diffOpen: boolean;
   onPick: (picked: Picked | null) => void;
