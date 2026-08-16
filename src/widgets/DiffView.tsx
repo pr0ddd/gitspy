@@ -20,7 +20,7 @@ import { DiffToolbar } from './DiffToolbar';
 import { ViewBar } from '@/shared/ui/parts';
 import { shortenDirectory, splitPath } from '@/shared/lib/paths';
 import { cn } from '@/shared/lib/utils';
-import { editorOptionsFor, type DiffMode } from '@/entities/diff';
+import { editorOptionsFor, sameDiffTarget, type DiffMode, type DiffTarget } from '@/entities/diff';
 import { usePref } from '@/shared/lib/prefs';
 import {
   hiddenSpans,
@@ -30,7 +30,7 @@ import {
   type Hunk,
   type UnifiedDiff,
 } from '@/entities/diff';
-import type { ChangedFileView, PathOperation, WorkingTreeView } from '@/shared/api/types';
+import type { PathOperation, WorkingTreeView } from '@/shared/api/types';
 import { Hint } from '@/shared/ui/tooltip';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -46,21 +46,7 @@ const STATUS_STYLE: Record<string, string> = {
 const HUNK_BAR_HEIGHT = 44;
 const DIFF_WAIT_LIMIT_MS = 1000;
 
-export type DiffTarget =
-  | { kind: 'commit'; commit: string; file: ChangedFileView }
-  | { kind: 'workingTree'; path: string; status: string; staged: boolean };
-
 const lineTally = (text: string): number => text.split('\n').length;
-
-export const sameDiffTarget = (left: DiffTarget, right: DiffTarget): boolean => {
-  if (left.kind === 'commit' && right.kind === 'commit') {
-    return left.commit === right.commit && left.file.path === right.file.path;
-  }
-  if (left.kind === 'workingTree' && right.kind === 'workingTree') {
-    return left.path === right.path && left.staged === right.staged;
-  }
-  return false;
-};
 
 type Loaded = {
   for: DiffTarget;

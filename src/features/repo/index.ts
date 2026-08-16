@@ -7,3 +7,4 @@ export * from './commitMessage';
 export * from './repoData';
 export * from './staging';
 export * from './dropRepo';
+export * from './push';
