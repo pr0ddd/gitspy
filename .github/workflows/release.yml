@@ -35,7 +35,7 @@ jobs:
 
       - name: Create the draft release
         id: create
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           result-encoding: string
           script: |
