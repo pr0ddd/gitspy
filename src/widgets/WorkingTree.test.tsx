@@ -323,7 +323,10 @@ describe('the panel during a merge', () => {
           onDescription={() => {}}
           onAmend={() => {}}
           onCommit={over.onCommit ?? (() => {})}
-          onRun={(operation) => Promise.resolve(over.onRun?.(operation) ?? null)}
+          onRun={(operation) => {
+            over.onRun?.(operation);
+            return Promise.resolve(null);
+          }}
           onOperation={(operation) => over.onOperation?.(operation)}
           onConfirm={() => {}}
           onOpen={() => {}}

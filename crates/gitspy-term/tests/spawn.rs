@@ -93,7 +93,10 @@ fn session_starts_in_requested_cwd_on_windows() {
         rows: 24,
     });
     let shown = wanted
+        .canonicalize()
+        .expect("temp dir resolves")
         .to_string_lossy()
+        .trim_start_matches(r"\\?\")
         .trim_end_matches(['\\', '/'])
         .to_lowercase();
     assert!(
