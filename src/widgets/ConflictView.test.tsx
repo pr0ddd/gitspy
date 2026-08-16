@@ -1,20 +1,171 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
+
+type FakeDecoration = {
+  range: { startLineNumber: number };
+  options: {
+    className?: string;
+    marginClassName?: string;
+    glyphMarginClassName?: string;
+    linesDecorationsClassName?: string;
+    isWholeLine?: boolean;
+  };
+};
+
+const fake = vi.hoisted(() => {
+  type Listener = (event: unknown) => void;
+  type Editor = {
+    name: string;
+    value: string;
+    scrollTop: number;
+    decorations: FakeDecoration[];
+    zones: Array<{ afterLineNumber: number; heightInLines: number }>;
+    mouseDown: Listener[];
+    mouseMove: Listener[];
+    scroll: Listener[];
+    revealed: number[];
+    disposed: boolean;
+  };
+  const editors: Editor[] = [];
+  const makeEditor = (options: {
+    model: { value: string; language: string };
+    readOnly: boolean;
+  }) => {
+    const self: Editor = {
+      name: `editor${editors.length}`,
+      value: options.model.value,
+      scrollTop: 0,
+      decorations: [],
+      zones: [],
+      mouseDown: [],
+      mouseMove: [],
+      scroll: [],
+      revealed: [],
+      disposed: false,
+    };
+    editors.push(self);
+    const model = {
+      getValue: () => self.value,
+      setValue: (next: string) => {
+        self.value = next;
+      },
+      dispose: () => {},
+    };
+    return {
+      getModel: () => model,
+      getValue: () => self.value,
+      getScrollTop: () => self.scrollTop,
+      setScrollTop: (top: number) => {
+        self.scrollTop = top;
+        self.scroll.forEach((l) => l({ scrollTop: top, scrollTopChanged: true }));
+      },
+      onDidScrollChange: (l: Listener) => {
+        self.scroll.push(l);
+        return { dispose: () => {} };
+      },
+      onMouseDown: (l: Listener) => {
+        self.mouseDown.push(l);
+        return { dispose: () => {} };
+      },
+      onMouseMove: (l: Listener) => {
+        self.mouseMove.push(l);
+        return { dispose: () => {} };
+      },
+      onMouseLeave: () => ({ dispose: () => {} }),
+      createDecorationsCollection: () => ({
+        set: (next: FakeDecoration[]) => {
+          self.decorations = next;
+        },
+      }),
+      changeViewZones: (
+        callback: (accessor: {
+          addZone: (zone: { afterLineNumber: number; heightInLines: number }) => string;
+          removeZone: (id: string) => void;
+        }) => void,
+      ) => {
+        const kept = self.zones;
+        self.zones = [];
+        callback({
+          addZone: (zone) => {
+            self.zones.push({
+              afterLineNumber: zone.afterLineNumber,
+              heightInLines: zone.heightInLines,
+            });
+            return `z${self.zones.length}`;
+          },
+          removeZone: () => {
+            kept.length = 0;
+          },
+        });
+      },
+      revealLineInCenter: (line: number) => {
+        self.revealed.push(line);
+      },
+      revealLineNearTop: (line: number) => {
+        self.revealed.push(line);
+      },
+      getDomNode: () => document.createElement('div'),
+      getOption: () => 20,
+      getTopForLineNumber: (line: number) => (line - 1) * 20,
+      dispose: () => {
+        self.disposed = true;
+      },
+    };
+  };
+  return {
+    editors,
+    makeEditor,
+    reset: () => {
+      editors.length = 0;
+    },
+  };
+});
+
+vi.mock('@/entities/diff', async () => ({
+  ...(await vi.importActual<object>('@/entities/diff/conflictFile')),
+  ...(await vi.importActual<object>('@/entities/diff/conflictLayout')),
+  ...(await vi.importActual<object>('@/entities/diff/conflict')),
+  EDITOR_BASE: {},
+  languageOf: () => 'typescript',
+  setUpMonaco: () => {},
+  userEditorOptions: () => ({}),
+  monaco: {
+    editor: {
+      create: (
+        _host: unknown,
+        options: { model: { value: string; language: string }; readOnly: boolean },
+      ) => fake.makeEditor(options),
+      createModel: (value: string, language: string) => ({ value, language }),
+      MouseTargetType: { GUTTER_GLYPH_MARGIN: 2, GUTTER_LINE_DECORATIONS: 4 },
+      TrackedRangeStickiness: { NeverGrowsWhenTypingAtEdges: 1 },
+      EditorOption: { lineHeight: 0 },
+    },
+    Range: class {
+      constructor(
+        public startLineNumber: number,
+        public startColumn: number,
+        public endLineNumber: number,
+        public endColumn: number,
+      ) {}
+    },
+  },
+}));
+vi.mock('@/shared/api/ipc', () => ({
+  conflictFile: vi.fn(),
+  resolveConflict: vi.fn(),
+}));
+
 import '@/shared/config/i18n';
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { workStore } from '@/entities/repo';
 import { ConflictView } from './ConflictView';
 import * as ipc from '@/shared/api/ipc';
 
-vi.mock('@/shared/api/ipc', () => ({
-  conflictFile: vi.fn(),
-  resolveConflict: vi.fn(),
-}));
-
 const MERGED = [
   'top();',
   '<<<<<<< HEAD',
   'ours();',
+  'ours2();',
   '||||||| base',
   'base();',
   '=======',
@@ -25,7 +176,7 @@ const MERGED = [
 
 const file = {
   base: 'top();\nbase();\nbottom();\n',
-  ours: 'top();\nours();\nbottom();\n',
+  ours: 'top();\nours();\nours2();\nbottom();\n',
   theirs: 'top();\ntheirs();\nbottom();\n',
   merged: MERGED,
 };
@@ -44,93 +195,177 @@ const draw = (onResolved: (tree: unknown) => void = () => {}) =>
     </TooltipProvider>,
   );
 
-const output = (view: ReturnType<typeof draw>) => within(view.getByRole('region'));
+const [A, B, OUT] = [0, 1, 2];
+const editor = (which: number) => fake.editors[which];
+const gutter = (which: number, type: number, line: number) =>
+  act(() => {
+    editor(which).mouseDown.forEach((l) => l({ target: { type, position: { lineNumber: line } } }));
+  });
+const settle = () => act(async () => {});
 
-describe('resolving conflicts by picking lines', () => {
-  beforeEach(() => {
-    vi.mocked(ipc.conflictFile).mockResolvedValue(file as never);
-    vi.mocked(ipc.resolveConflict).mockClear();
+beforeEach(() => {
+  fake.reset();
+  vi.mocked(ipc.conflictFile).mockResolvedValue(file);
+  vi.mocked(ipc.resolveConflict).mockReset();
+});
+
+describe('the conflict view on Monaco', () => {
+  it('opens three editors: each side as a whole text, the output as what will be saved', async () => {
+    draw();
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+
+    expect(editor(A).value).toBe('top();\nours();\nours2();\nbottom();');
+    expect(editor(B).value).toBe('top();\ntheirs();\nbottom();');
+    expect(editor(OUT).value, 'nothing picked yet: the block shows the base version').toBe(
+      'top();\nbase();\nbottom();',
+    );
   });
 
-  it('keeps the base in the output while nothing is picked, not either side', async () => {
+  it('tints the conflict lines of a side from the gutter to the text and puts a checkbox beside the block, centred on it', async () => {
     const view = draw();
-    await waitFor(() => expect(view.getAllByText('top();').length).toBeGreaterThan(0));
-    expect(output(view).queryByText('ours();')).toBeNull();
-    expect(output(view).queryByText('theirs();')).toBeNull();
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+    await settle();
+
+    const box = view.getByRole('checkbox', { name: /take conflict 1 from a/i });
+    expect(box.getAttribute('aria-checked')).toBe('false');
     expect(
-      output(view).getByText('base();'),
-      'an unresolved spot shows the common ancestor, the way GitKraken shows it in purple',
-    ).toBeTruthy();
-  });
-
-  it('a click on the line itself takes it into the output, a click in the output removes it', async () => {
-    const view = draw();
-    await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
-
-    fireEvent.click(view.getByText('ours();'));
+      (box as HTMLElement).style.top,
+      'lines 2-3 at 20px each: the block spans 20..60, its centre is 40, the 14px box starts at 33',
+    ).toBe('33px');
+    const lines = editor(A).decorations.filter((d) => d.options.className === 'conflict-line-a');
+    expect(lines.map((d) => d.range.startLineNumber)).toEqual([2, 3]);
     expect(
-      output(view).getByText('ours();'),
-      'the whole line is the click target, not just the checkbox',
-    ).toBeTruthy();
-
-    fireEvent.click(output(view).getByText('ours();'));
-    expect(output(view).queryByText('ours();')).toBeNull();
-  });
-
-  it('the checkbox on a line of a side puts that line into the output, a second click removes it', async () => {
-    const view = draw();
-    await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
-
-    const boxes = view.getAllByRole('checkbox');
-    fireEvent.click(boxes[1]);
+      lines.every(
+        (d) => d.options.isWholeLine && d.options.marginClassName === 'conflict-margin-a',
+      ),
+      'the tint runs from the very left, gutter included, with the bar on the margin only',
+    ).toBe(true);
     expect(
-      output(view).getByText('ours();'),
-      'a picked line has to appear in the output',
-    ).toBeTruthy();
-
-    fireEvent.click(view.getAllByRole('checkbox')[1]);
-    expect(output(view).queryByText('ours();')).toBeNull();
+      lines.every((d) => d.options.linesDecorationsClassName === undefined),
+      'a line nobody took carries no mark until hovered',
+    ).toBe(true);
+    expect(
+      lines.every((d) => d.options.isWholeLine && d.options.className === 'conflict-line-a'),
+    ).toBe(true);
   });
 
-  it('the checkbox in the header of a side takes all of its conflicting lines', async () => {
+  it('a click on the line mark takes that line into the output; a click on the block box takes the whole block', async () => {
     const view = draw();
-    await waitFor(() => expect(view.getAllByText('theirs();').length).toBe(1));
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+    await settle();
 
-    fireEvent.click(view.getAllByRole('checkbox')[2]);
-    expect(output(view).getByText('theirs();')).toBeTruthy();
+    await gutter(A, 4, 3);
+    expect(editor(OUT).value).toBe('top();\nours2();\nbottom();');
+    expect(
+      editor(A).decorations.find((d) => d.range.startLineNumber === 3)?.options
+        .linesDecorationsClassName,
+    ).toBe('gutter-mark-taken');
+
+    const boxB = () => view.getByRole('checkbox', { name: /take conflict 1 from b/i });
+    fireEvent.click(boxB());
+    expect(editor(OUT).value, 'the block box takes every line of that side').toBe(
+      'top();\nours2();\ntheirs();\nbottom();',
+    );
+    expect(boxB().getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(boxB());
+    expect(editor(OUT).value, 'the second click on a full box drops the block').toBe(
+      'top();\nours2();\nbottom();',
+    );
   });
 
-  it('saving sends exactly the assembled output and hands the working tree back up', async () => {
+  it('a click on a mark in the output sends the line back', async () => {
+    const view = draw();
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+    await settle();
+    fireEvent.click(view.getByRole('checkbox', { name: /take conflict 1 from a/i }));
+    expect(editor(OUT).value).toBe('top();\nours();\nours2();\nbottom();');
+
+    await gutter(OUT, 4, 3);
+    expect(editor(OUT).value).toBe('top();\nours();\nbottom();');
+  });
+
+  it('scrolling one pane scrolls the other two', async () => {
+    draw();
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+
+    editor(B).scrollTop = 120;
+    editor(B).scroll.forEach((l) => l({ scrollTop: 120, scrollTopChanged: true }));
+
+    expect([editor(A).scrollTop, editor(OUT).scrollTop]).toEqual([120, 120]);
+  });
+
+  it('the header checkbox of a side takes every conflicting line of that side', async () => {
+    const view = draw();
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+    await settle();
+
+    fireEvent.click(view.getByRole('checkbox', { name: /take every line from b/i }));
+    expect(editor(OUT).value).toBe('top();\ntheirs();\nbottom();');
+  });
+
+  it('saving sends what the output editor holds — including edits made by hand — and hands the tree back', async () => {
     const tree = { conflicts: 0 };
     vi.mocked(ipc.resolveConflict).mockResolvedValue(tree as never);
     let resolved: unknown = null;
     const view = draw((next) => (resolved = next));
-    await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+    await settle();
+    await gutter(A, 2, 2);
+    editor(OUT).value = 'top();\nours();\nours2();\nhand-edited();\nbottom();';
 
-    fireEvent.click(view.getAllByRole('checkbox')[1]);
-    fireEvent.click(view.getByRole('button', { name: /mark resolved/i }));
+    fireEvent.click(view.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => expect(resolved).toBe(tree));
-    expect(
-      vi.mocked(ipc.resolveConflict).mock.calls[0],
-      'what reaches the disk is exactly what the person assembled out of the lines',
-    ).toEqual(['/r', 'greeting.ts', 'top();\nours();\nbottom();']);
+    expect(vi.mocked(ipc.resolveConflict).mock.calls[0]).toEqual([
+      '/r',
+      'greeting.ts',
+      'top();\nours();\nours2();\nhand-edited();\nbottom();',
+    ]);
   });
 
   it('holds the repository lane while the save is running', async () => {
     workStore.setState({ works: new Map() });
     vi.mocked(ipc.resolveConflict).mockReturnValue(new Promise(() => {}) as never);
     const view = draw();
-    await waitFor(() => expect(view.getAllByText('ours();').length).toBe(1));
+    await waitFor(() => expect(fake.editors.length).toBe(3));
 
-    fireEvent.click(view.getByRole('button', { name: /mark resolved/i }));
+    fireEvent.click(view.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() =>
-      expect(
-        workStore.getState().works.get('/r'),
-        'a write to the working tree has to hold the lane of the repository',
-      ).toEqual({ kind: 'resolveConflict', target: 'greeting.ts' }),
+      expect(workStore.getState().works.get('/r')).toEqual({
+        kind: 'resolveConflict',
+        target: 'greeting.ts',
+      }),
     );
     workStore.setState({ works: new Map() });
+  });
+});
+
+describe('hovering a conflict line', () => {
+  it('offers a plus on a line not taken and a minus on a taken one, in that pane only', async () => {
+    draw();
+    await waitFor(() => expect(fake.editors.length).toBe(3));
+    await settle();
+
+    await act(() => {
+      editor(A).mouseMove.forEach((l) => l({ target: { position: { lineNumber: 2 } } }));
+    });
+    expect(
+      editor(A).decorations.find((d) => d.range.startLineNumber === 2)?.options
+        .linesDecorationsClassName,
+    ).toBe('gutter-mark-add');
+
+    await gutter(A, 4, 2);
+    expect(
+      editor(A).decorations.find((d) => d.range.startLineNumber === 2)?.options
+        .linesDecorationsClassName,
+      'once taken, hovering offers to remove',
+    ).toBe('gutter-mark-remove');
+    expect(
+      editor(B).decorations.find((d) => d.range.startLineNumber === 2)?.options
+        .linesDecorationsClassName,
+      'the other pane is not hovered',
+    ).toBeUndefined();
   });
 });

@@ -4,3 +4,4 @@ export * from './conflict';
 export * from './hunks';
 export * from './conflictFile';
 export * from './attach';
+export * from './conflictLayout';

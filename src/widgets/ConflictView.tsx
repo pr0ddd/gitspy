@@ -1,21 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Hint } from '@/shared/ui/tooltip';
-import { cn } from '@/shared/lib/utils';
 import * as ipc from '@/shared/api/ipc';
 import { runRepoWork, useRepoWork } from '@/features/repo';
 import { notifyError } from '@/shared/ui/toast';
 import { Icon } from '@/shared/ui/icons';
-import { SectionHeader, ViewBar } from '@/shared/ui/parts';
+import { ResizeGrip, SectionHeader, ViewBar } from '@/shared/ui/parts';
 import { shortenDirectory, splitPath } from '@/shared/lib/paths';
+import { useShareUnderCursor } from '@/shared/lib/resize';
 import {
-  composeOutput,
+  blockState,
+  EDITOR_BASE,
   emptyPicks,
+  gutterTarget,
+  languageOf,
+  monaco,
+  outputLayout,
+  paneLayout,
   parseConflictFile,
+  setUpMonaco,
+  userEditorOptions,
+  withBlock,
+  withEverySide,
+  withLine,
   type ConflictBlock,
+  type ConflictSide,
+  type OutputLayout,
+  type PaneLayout,
   type Picks,
 } from '@/entities/diff';
 import type { ConflictFileView, WorkingTreeView } from '@/shared/api/types';
@@ -29,135 +43,104 @@ type Props = {
   onResolved: (tree: WorkingTreeView) => void;
 };
 
-type Side = 'a' | 'b';
-
-const SIDE_ROW: Record<Side, string> = {
-  a: 'border-ahead bg-ahead/20',
-  b: 'border-modified bg-modified/20',
+const SIDE_LINE: Record<ConflictSide | 'base', string> = {
+  a: 'conflict-line-a',
+  b: 'conflict-line-b',
+  base: 'conflict-line-base',
 };
 
-const SIDE_TEXT: Record<Side, string> = {
-  a: 'text-ahead',
-  b: 'text-modified',
+const SIDE_MARGIN: Record<ConflictSide | 'base', string> = {
+  a: 'conflict-margin-a',
+  b: 'conflict-margin-b',
+  base: 'conflict-margin-base',
 };
 
-function Row({
-  no,
-  text,
-  tint,
-  mark,
-  picked,
-  onToggle,
-}: {
-  no: number | null;
-  text: string;
-  tint?: string;
-  mark?: string;
-  picked?: boolean;
-  onToggle?: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div
-      onClick={onToggle}
-      role={onToggle ? 'button' : undefined}
-      className={cn('group flex h-5 items-center gap-1.5 border-l-2 border-transparent pr-2', tint)}
-    >
-      <span className="text-muted-foreground w-6 shrink-0 text-right font-mono text-2xs select-none">
-        {mark ?? no ?? ''}
-      </span>
-      {onToggle ? (
-        <>
-          <Checkbox
-            checked={picked === true}
-            onCheckedChange={onToggle}
-            onClick={(e) => e.stopPropagation()}
-            className="size-3.5"
-          />
-          <Hint text={picked ? t('conflict.dontTakeLine') : t('conflict.takeLine')}>
-            <span className="invisible shrink-0 group-hover:visible">
-              {picked ? (
-                <Icon.remove className="text-deleted size-3.5" />
-              ) : (
-                <Icon.add className="text-added size-3.5" />
-              )}
-            </span>
-          </Hint>
-        </>
-      ) : (
-        <span className="w-3.5 shrink-0" />
-      )}
-      <span className="min-w-0 flex-1 truncate font-mono text-xs whitespace-pre select-none">
-        {text || ' '}
-      </span>
-    </div>
-  );
+const CONFLICT_EDITOR = {
+  ...EDITOR_BASE,
+  glyphMargin: false,
+  lineDecorationsWidth: 18,
+  folding: false,
+  stickyScroll: { enabled: false },
+  minimap: { enabled: false },
+  renderLineHighlight: 'none',
+  occurrencesHighlight: 'off',
+  selectionHighlight: false,
+  scrollbar: { alwaysConsumeMouseWheel: false },
+} as const;
+
+type Editors = {
+  a: monaco.editor.IStandaloneCodeEditor;
+  b: monaco.editor.IStandaloneCodeEditor;
+  out: monaco.editor.IStandaloneCodeEditor;
+};
+
+const OUTPUT_SHARE = { fallback: 0.4, min: 0.2, max: 0.75 } as const;
+const SIDE_B_SHARE = { fallback: 0.5, min: 0.25, max: 0.75 } as const;
+
+const markClass = (taken: boolean, hovered: boolean): string | undefined =>
+  hovered
+    ? taken
+      ? 'gutter-mark-remove'
+      : 'gutter-mark-add'
+    : taken
+      ? 'gutter-mark-taken'
+      : undefined;
+
+function sideDecorations(
+  blocks: readonly ConflictBlock[],
+  side: ConflictSide,
+  pane: PaneLayout,
+  picks: Picks,
+  hoveredLine: number | null,
+): monaco.editor.IModelDeltaDecoration[] {
+  const decorations: monaco.editor.IModelDeltaDecoration[] = [];
+  for (const place of pane.places) {
+    const block = blocks[place.at];
+    if (block?.kind !== 'conflict') continue;
+    const chosen = picks[place.at]?.[side] ?? new Set<number>();
+    for (let line = place.from; line <= place.to; line++) {
+      const index = line - place.from;
+      decorations.push({
+        range: new monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: true,
+          className: SIDE_LINE[side],
+          marginClassName: SIDE_MARGIN[side],
+          linesDecorationsClassName: markClass(chosen.has(index), hoveredLine === line),
+        },
+      });
+    }
+  }
+  return decorations;
 }
 
-function SidePane({
-  side,
-  branch,
-  blocks,
-  picks,
-  onToggle,
-  onAll,
-  refFor,
-}: {
-  side: Side;
-  branch: string | null;
-  blocks: ConflictBlock[];
-  picks: Picks;
-  onToggle: (block: number, line: number) => void;
-  onAll: (take: boolean) => void;
-  refFor: (el: HTMLDivElement | null) => void;
-}) {
-  const { t } = useTranslation();
-  const lines =
-    side === 'a'
-      ? (b: ConflictBlock & { kind: 'conflict' }) => b.ours
-      : (b: ConflictBlock & { kind: 'conflict' }) => b.theirs;
-  const chosen = (at: number) => (side === 'a' ? picks[at]?.a : picks[at]?.b) ?? new Set();
-  const every = blocks.every(
-    (block, at) => block.kind !== 'conflict' || lines(block).every((_, i) => chosen(at).has(i)),
-  );
+function outputDecorations(
+  out: OutputLayout,
+  hoveredLine: number | null,
+): monaco.editor.IModelDeltaDecoration[] {
+  return out.origins.map((origin) => ({
+    range: new monaco.Range(origin.line, 1, origin.line, 1),
+    options: {
+      isWholeLine: true,
+      className: SIDE_LINE[origin.side],
+      marginClassName: SIDE_MARGIN[origin.side],
+      linesDecorationsClassName:
+        origin.side === 'base' ? undefined : markClass(true, hoveredLine === origin.line),
+    },
+  }));
+}
 
-  let no = 0;
-  return (
-    <div className="flex min-h-0 min-w-0 flex-col">
-      <SectionHeader>
-        <Checkbox
-          checked={every}
-          onCheckedChange={(next) => onAll(next === true)}
-          className="size-3.5"
-        />
-        <Badge className="bg-fill-2 text-muted-foreground text-2xs rounded-md px-2 py-0.5">
-          {side === 'a' ? t('conflict.sideA') : t('conflict.sideB')}
-        </Badge>
-        <span className="min-w-0 flex-1 truncate text-left">{branch ?? ''}</span>
-      </SectionHeader>
-      <div ref={refFor} className="min-h-0 flex-1 overflow-auto py-1">
-        {blocks.map((block, at) => {
-          if (block.kind === 'common') {
-            return block.lines.map((line, i) => <Row key={`${at}:${i}`} no={++no} text={line} />);
-          }
-          return (
-            <div key={at} data-conflict={at}>
-              {lines(block).map((line, i) => (
-                <Row
-                  key={i}
-                  no={++no}
-                  text={line}
-                  tint={SIDE_ROW[side]}
-                  picked={chosen(at).has(i)}
-                  onToggle={() => onToggle(at, i)}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function boxCentres(
+  editor: monaco.editor.IStandaloneCodeEditor,
+  pane: PaneLayout,
+): Array<{ at: number; centre: number }> {
+  const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
+  const scrollTop = editor.getScrollTop();
+  return pane.places.map((place) => {
+    const top = editor.getTopForLineNumber(Math.max(1, place.from));
+    const height = Math.max(1, place.to - place.from + 1) * lineHeight;
+    return { at: place.at, centre: top + height / 2 - scrollTop };
+  });
 }
 
 export function ConflictView({ repo, path, from, into, onClose, onResolved }: Props) {
@@ -171,7 +154,55 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
     [blocks],
   );
   const [shown, setShown] = useState(0);
-  const panes = useRef<(HTMLDivElement | null)[]>([null, null, null]);
+  const outputShare = useShareUnderCursor(
+    'conflict.output.share',
+    OUTPUT_SHARE.fallback,
+    OUTPUT_SHARE.min,
+    OUTPUT_SHARE.max,
+  );
+  const sideBShare = useShareUnderCursor(
+    'conflict.sideB.share',
+    SIDE_B_SHARE.fallback,
+    SIDE_B_SHARE.min,
+    SIDE_B_SHARE.max,
+  );
+  const outputPane = useRef<HTMLDivElement | null>(null);
+  const sideBPane = useRef<HTMLDivElement | null>(null);
+  const hosts = useRef<{
+    a: HTMLDivElement | null;
+    b: HTMLDivElement | null;
+    out: HTMLDivElement | null;
+  }>({
+    a: null,
+    b: null,
+    out: null,
+  });
+  const editors = useRef<Editors | null>(null);
+  const decorations = useRef<{
+    a: monaco.editor.IEditorDecorationsCollection | null;
+    b: monaco.editor.IEditorDecorationsCollection | null;
+    out: monaco.editor.IEditorDecorationsCollection | null;
+  }>({ a: null, b: null, out: null });
+  const [hovered, setHovered] = useState<{ pane: ConflictSide | 'out'; line: number } | null>(null);
+  const [boxes, setBoxes] = useState<Record<ConflictSide, Array<{ at: number; centre: number }>>>({
+    a: [],
+    b: [],
+  });
+  const picksRef = useRef(picks);
+  picksRef.current = picks;
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
+
+  const layouts = useMemo(
+    () => ({
+      a: paneLayout(blocks, 'a'),
+      b: paneLayout(blocks, 'b'),
+      out: outputLayout(blocks, picks),
+    }),
+    [blocks, picks],
+  );
+  const layoutsRef = useRef(layouts);
+  layoutsRef.current = layouts;
 
   useEffect(() => {
     let cancelled = false;
@@ -191,48 +222,235 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
     setShown(0);
   }, [blocks]);
 
-  const toggle = (side: Side, block: number, line: number) =>
-    setPicks((prev) => {
-      const pick = prev[block] ?? { a: new Set<number>(), b: new Set<number>() };
-      const next = new Set(pick[side]);
-      if (next.has(line)) next.delete(line);
-      else next.add(line);
-      return { ...prev, [block]: { ...pick, [side]: next } };
-    });
+  const onGutter = useCallback(
+    (side: ConflictSide | 'out', kind: 'glyph' | 'line', line: number) => {
+      const now = layoutsRef.current;
+      const currentBlocks = blocksRef.current;
+      if (side === 'out') {
+        const origin = now.out.origins.find((o) => o.line === line);
+        if (!origin || origin.side === 'base') return;
+        const from = origin.side;
+        setPicks((prev) => withLine(prev, from, origin.at, origin.index));
+        return;
+      }
+      const hit = gutterTarget(now[side], line);
+      if (!hit) return;
+      const block = currentBlocks[hit.at];
+      if (block?.kind !== 'conflict') return;
+      if (kind === 'glyph' || hit.index === null) return;
+      setPicks((prev) => withLine(prev, side, hit.at, hit.index as number));
+    },
+    [],
+  );
 
-  const takeAll = (side: Side, take: boolean) =>
-    setPicks((prev) => {
-      const next: Picks = { ...prev };
-      blocks.forEach((block, at) => {
-        if (block.kind !== 'conflict') return;
-        const pick = next[at] ?? { a: new Set<number>(), b: new Set<number>() };
-        const lines = side === 'a' ? block.ours : block.theirs;
-        next[at] = {
-          ...pick,
-          [side]: take ? new Set(lines.map((_, i) => i)) : new Set<number>(),
-        };
+  useEffect(() => {
+    const a = hosts.current.a;
+    const b = hosts.current.b;
+    const out = hosts.current.out;
+    if (!file || !a || !b || !out) return;
+    setUpMonaco();
+    const language = languageOf(path);
+    const options = { ...CONFLICT_EDITOR, ...userEditorOptions() };
+    const created: Editors = {
+      a: monaco.editor.create(a, {
+        ...options,
+        readOnly: true,
+        model: monaco.editor.createModel(layoutsRef.current.a.text, language),
+      }),
+      b: monaco.editor.create(b, {
+        ...options,
+        readOnly: true,
+        model: monaco.editor.createModel(layoutsRef.current.b.text, language),
+      }),
+      out: monaco.editor.create(out, {
+        ...options,
+        readOnly: false,
+        model: monaco.editor.createModel(layoutsRef.current.out.text, language),
+      }),
+    };
+    editors.current = created;
+    decorations.current = {
+      a: created.a.createDecorationsCollection(),
+      b: created.b.createDecorationsCollection(),
+      out: created.out.createDecorationsCollection(),
+    };
+    created.out.getDomNode()?.setAttribute('data-editing', 'true');
+
+    const listeners: monaco.IDisposable[] = [];
+    let syncing = false;
+    const all = [created.a, created.b, created.out];
+    for (const editor of all) {
+      listeners.push(
+        editor.onDidScrollChange((event) => {
+          if (!event.scrollTopChanged) return;
+          if (!syncing) {
+            syncing = true;
+            for (const other of all) {
+              if (other !== editor && other.getScrollTop() !== event.scrollTop) {
+                other.setScrollTop(event.scrollTop);
+              }
+            }
+            syncing = false;
+          }
+          setBoxes({
+            a: boxCentres(created.a, layoutsRef.current.a),
+            b: boxCentres(created.b, layoutsRef.current.b),
+          });
+        }),
+      );
+    }
+    const gutterOf = (side: ConflictSide | 'out', editor: monaco.editor.IStandaloneCodeEditor) =>
+      editor.onMouseDown((event) => {
+        const line = event.target.position?.lineNumber;
+        if (!line) return;
+        if (event.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
+          onGutter(side, 'glyph', line);
+        } else if (event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS) {
+          onGutter(side, 'line', line);
+        }
       });
-      return next;
-    });
+    listeners.push(
+      gutterOf('a', created.a),
+      gutterOf('b', created.b),
+      gutterOf('out', created.out),
+    );
+    const hoverOf = (pane: ConflictSide | 'out', editor: monaco.editor.IStandaloneCodeEditor) => [
+      editor.onMouseMove((event) => {
+        const line = event.target.position?.lineNumber ?? null;
+        setHovered((now) =>
+          line === null
+            ? now?.pane === pane
+              ? null
+              : now
+            : now?.pane === pane && now.line === line
+              ? now
+              : { pane, line },
+        );
+      }),
+      editor.onMouseLeave(() => setHovered((now) => (now?.pane === pane ? null : now))),
+    ];
+    listeners.push(
+      ...hoverOf('a', created.a),
+      ...hoverOf('b', created.b),
+      ...hoverOf('out', created.out),
+    );
+
+    const firstPlace = layoutsRef.current.a.places[0];
+    if (firstPlace) created.a.revealLineNearTop(Math.max(1, firstPlace.from - 2));
+
+    return () => {
+      for (const listener of listeners) listener.dispose();
+      for (const editor of all) {
+        editor.getModel()?.dispose();
+        editor.dispose();
+      }
+      editors.current = null;
+      decorations.current = { a: null, b: null, out: null };
+    };
+  }, [file, path, onGutter]);
+
+  useEffect(() => {
+    const created = editors.current;
+    if (!created) return;
+    const outModel = created.out.getModel();
+    if (outModel && outModel.getValue() !== layouts.out.text) outModel.setValue(layouts.out.text);
+    const hoverIn = (pane: ConflictSide | 'out') => (hovered?.pane === pane ? hovered.line : null);
+    decorations.current.a?.set(sideDecorations(blocks, 'a', layouts.a, picks, hoverIn('a')));
+    decorations.current.b?.set(sideDecorations(blocks, 'b', layouts.b, picks, hoverIn('b')));
+    decorations.current.out?.set(outputDecorations(layouts.out, hoverIn('out')));
+    setBoxes({ a: boxCentres(created.a, layouts.a), b: boxCentres(created.b, layouts.b) });
+  }, [blocks, layouts, picks, file, hovered]);
 
   const goto = (step: number) => {
     if (!conflicts.length) return;
     const next = (shown + step + conflicts.length) % conflicts.length;
     setShown(next);
-    for (const pane of panes.current) {
-      pane
-        ?.querySelector(`[data-conflict="${conflicts[next]}"]`)
-        ?.scrollIntoView({ block: 'center' });
-    }
+    const at = conflicts[next];
+    const created = editors.current;
+    if (!created) return;
+    const place = layouts.a.places.find((p) => p.at === at);
+    if (place) created.a.revealLineInCenter(Math.max(1, place.from));
   };
 
   const save = () => {
+    const text = editors.current?.out.getValue() ?? layouts.out.text;
     void runRepoWork(repo, { kind: 'resolveConflict', target: path }, () =>
-      ipc.resolveConflict(repo, path, composeOutput(blocks, picks)).then(onResolved),
+      ipc.resolveConflict(repo, path, text).then(onResolved),
     );
   };
 
-  let outNo = 0;
+  const everyOn = (side: ConflictSide) =>
+    blocks.every(
+      (block, at) => block.kind !== 'conflict' || blockState(block, side, picks, at) === 'all',
+    );
+
+  const pane = (side: ConflictSide, branch: string | null) => (
+    <div
+      ref={side === 'b' ? sideBPane : undefined}
+      className={
+        side === 'a'
+          ? 'flex min-h-0 min-w-0 flex-1 flex-col'
+          : 'border-border relative flex min-h-0 shrink-0 flex-col border-l'
+      }
+      style={side === 'b' ? { width: `${sideBShare.shown * 100}%` } : undefined}
+    >
+      {side === 'b' ? (
+        <ResizeGrip
+          name="conflict-sides"
+          label={t('conflict.resizeSides')}
+          edge="left"
+          onStart={sideBShare.begin}
+          onMove={(delta) => sideBShare.moved(sideBPane.current, delta, 'x')}
+          onEnd={sideBShare.commit}
+        />
+      ) : null}
+      <SectionHeader>
+        <Checkbox
+          checked={everyOn(side)}
+          onCheckedChange={(next) =>
+            setPicks((prev) => withEverySide(prev, blocks, side, next === true))
+          }
+          className="size-3.5"
+          aria-label={t(side === 'a' ? 'conflict.takeAllA' : 'conflict.takeAllB')}
+        />
+        <Badge className="bg-fill-2 text-muted-foreground text-2xs rounded-md px-2 py-0.5">
+          {side === 'a' ? t('conflict.sideA') : t('conflict.sideB')}
+        </Badge>
+        <span className="min-w-0 flex-1 truncate text-left">{branch ?? ''}</span>
+      </SectionHeader>
+      <div className="flex min-h-0 flex-1">
+        <div className="relative w-6 shrink-0 overflow-hidden">
+          {boxes[side].map((box) => {
+            const block = blocks[box.at];
+            if (block?.kind !== 'conflict') return null;
+            const state = blockState(block, side, picks, box.at);
+            return (
+              <Checkbox
+                key={box.at}
+                className="absolute left-1.5 size-3.5"
+                style={{ top: box.centre - 7 }}
+                checked={state === 'all' ? true : state === 'some' ? 'indeterminate' : false}
+                onCheckedChange={() =>
+                  setPicks((prev) => withBlock(prev, blocks, side, box.at, state !== 'all'))
+                }
+                aria-label={t(side === 'a' ? 'conflict.takeBlockA' : 'conflict.takeBlockB', {
+                  n: conflicts.indexOf(box.at) + 1,
+                })}
+              />
+            );
+          })}
+        </div>
+        <div
+          ref={(el) => {
+            hosts.current[side] = el;
+          }}
+          data-area="text"
+          className="min-h-0 min-w-0 flex-1"
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <ViewBar>
@@ -253,8 +471,8 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
           disabled={!file || work !== null}
           onClick={save}
         >
-          <Icon.resolve className="size-3.5" />
-          {t('conflict.markResolved')}
+          <Icon.save className="size-3.5" />
+          {t('conflict.save')}
         </Button>
 
         <Hint text={t('diff.close')}>
@@ -264,32 +482,24 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
         </Hint>
       </ViewBar>
 
-      <div className="border-border grid min-h-0 flex-1 grid-cols-2 [&>*:first-child]:border-r [&>*:first-child]:border-border">
-        <SidePane
-          side="a"
-          branch={into}
-          blocks={blocks}
-          picks={picks}
-          onToggle={(block, line) => toggle('a', block, line)}
-          onAll={(take) => takeAll('a', take)}
-          refFor={(el) => {
-            panes.current[0] = el;
-          }}
-        />
-        <SidePane
-          side="b"
-          branch={from}
-          blocks={blocks}
-          picks={picks}
-          onToggle={(block, line) => toggle('b', block, line)}
-          onAll={(take) => takeAll('b', take)}
-          refFor={(el) => {
-            panes.current[1] = el;
-          }}
-        />
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {pane('a', into)}
+        {pane('b', from)}
       </div>
 
-      <div className="border-border flex min-h-0 flex-1 flex-col border-t">
+      <div
+        ref={outputPane}
+        className="border-border relative flex min-h-0 shrink-0 flex-col border-t"
+        style={{ height: `${outputShare.shown * 100}%` }}
+      >
+        <ResizeGrip
+          name="conflict-output"
+          label={t('conflict.resizeOutput')}
+          edge="top"
+          onStart={outputShare.begin}
+          onMove={(delta) => outputShare.moved(outputPane.current, delta, 'y')}
+          onEnd={outputShare.commit}
+        />
         <SectionHeader>
           <span className="min-w-0 flex-1 truncate text-left">{t('conflict.output')}</span>
           <span className="normal-case tabular-nums">
@@ -306,62 +516,13 @@ export function ConflictView({ repo, path, from, into, onClose, onResolved }: Pr
         </SectionHeader>
         <div
           ref={(el) => {
-            panes.current[2] = el;
+            hosts.current.out = el;
           }}
           role="region"
           aria-label={t('conflict.output')}
-          className="min-h-0 flex-1 overflow-auto py-1"
-        >
-          {blocks.map((block, at) => {
-            if (block.kind === 'common') {
-              return block.lines.map((line, i) => (
-                <Row key={`${at}:${i}`} no={++outNo} text={line} />
-              ));
-            }
-            const pick = picks[at] ?? { a: new Set<number>(), b: new Set<number>() };
-            const untouched = pick.a.size === 0 && pick.b.size === 0;
-            return (
-              <div key={at} data-conflict={at}>
-                {untouched
-                  ? block.base.map((line, i) => (
-                      <Row
-                        key={`base:${i}`}
-                        no={null}
-                        text={line}
-                        tint="border-ref-stash bg-ref-stash/20"
-                      />
-                    ))
-                  : null}
-                {block.ours.map((line, i) =>
-                  pick.a.has(i) ? (
-                    <Row
-                      key={`a:${i}`}
-                      no={++outNo}
-                      mark={t('conflict.sideA')}
-                      text={line}
-                      tint={cn(SIDE_ROW.a, SIDE_TEXT.a)}
-                      picked
-                      onToggle={() => toggle('a', at, i)}
-                    />
-                  ) : null,
-                )}
-                {block.theirs.map((line, i) =>
-                  pick.b.has(i) ? (
-                    <Row
-                      key={`b:${i}`}
-                      no={++outNo}
-                      mark={t('conflict.sideB')}
-                      text={line}
-                      tint={cn(SIDE_ROW.b, SIDE_TEXT.b)}
-                      picked
-                      onToggle={() => toggle('b', at, i)}
-                    />
-                  ) : null,
-                )}
-              </div>
-            );
-          })}
-        </div>
+          data-area="text"
+          className="min-h-0 flex-1"
+        />
       </div>
     </div>
   );
