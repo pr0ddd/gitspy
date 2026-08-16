@@ -47,7 +47,6 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "signingIdentity": "Developer ID Application: Siarhei Harayeu (BSX2745G5P)",
       "hardenedRuntime": true
     }
   }
