@@ -393,6 +393,7 @@ function Section({
 function PanelHead({
   count,
   branch,
+  merging,
   busy,
   view,
   descending,
@@ -404,6 +405,7 @@ function PanelHead({
 }: {
   count: number;
   branch: string | null;
+  merging: string | null;
   busy: boolean;
   view: FileView;
   descending: boolean;
@@ -431,12 +433,29 @@ function PanelHead({
           </Button>
         </Hint>
         <span className="text-muted-foreground flex min-w-0 flex-1 items-center justify-center gap-1.5">
-          <span className="truncate">{t('workingTree.changesOn', { count })}</span>
-          {branch ? (
-            <Chip filled title={branch}>
-              <span className="truncate">{branch}</span>
-            </Chip>
-          ) : null}
+          {merging ? (
+            <>
+              <span className="shrink-0">{t('workingTree.merging')}</span>
+              <Chip filled title={merging}>
+                <span className="truncate">{merging}</span>
+              </Chip>
+              <span className="shrink-0">{t('workingTree.into')}</span>
+              {branch ? (
+                <Chip filled="current" title={branch}>
+                  <span className="truncate">{branch}</span>
+                </Chip>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <span className="truncate">{t('workingTree.changesOn', { count })}</span>
+              {branch ? (
+                <Chip filled title={branch}>
+                  <span className="truncate">{branch}</span>
+                </Chip>
+              ) : null}
+            </>
+          )}
         </span>
       </PanelBar>
 
@@ -480,32 +499,6 @@ function PanelHead({
         </span>
       </PanelBar>
     </>
-  );
-}
-
-function MergeHeading({ from, into }: { from: string | null; into: string | null }) {
-  const { t } = useTranslation();
-  return (
-    <div className="text-muted-foreground flex h-8 shrink-0 items-center justify-center gap-1.5 text-xs">
-      {t('workingTree.merging')}
-      {from ? (
-        <Chip>
-          {from.includes('/') ? (
-            <Icon.remote className="size-3" />
-          ) : (
-            <Icon.branch className="size-3" />
-          )}
-          {from}
-        </Chip>
-      ) : null}
-      {t('workingTree.into')}
-      {into ? (
-        <Chip head>
-          <Icon.branch className="size-3" />
-          {into}
-        </Chip>
-      ) : null}
-    </div>
   );
 }
 
@@ -605,123 +598,105 @@ function MessageFields({
   );
 }
 
-function MergingPanel({
-  repo,
-  tree,
+function CommitBox({
   message,
   description,
   onMessage,
   onDescription,
+  onHotkey,
+  generateHint,
+  generateReady,
+  generating,
+  onGenerate,
+  amend,
+  pushAfter,
+  onPushAfter,
+  merging,
+  committable,
+  busy,
+  committing,
   onCommit,
-  onRun,
-  onOperation,
-  onOpen,
-  picked,
-  onPick,
-}: Omit<Props, 'amend' | 'previous' | 'onAmend'>) {
+  onAbort,
+}: {
+  message: string;
+  description: string;
+  onMessage: (text: string) => void;
+  onDescription: (text: string) => void;
+  onHotkey: (e: React.KeyboardEvent) => void;
+  generateHint: string;
+  generateReady: boolean;
+  generating: boolean;
+  onGenerate: () => void;
+  amend: {
+    checked: boolean;
+    disabled: boolean;
+    hint: string | null;
+    onToggle: (next: boolean) => void;
+  };
+  pushAfter: boolean;
+  onPushAfter: (next: boolean) => void;
+  merging: boolean;
+  committable: boolean;
+  busy: boolean;
+  committing: boolean;
+  onCommit: () => void;
+  onAbort: () => void;
+}) {
   const { t } = useTranslation();
-  const busy = useRepoWork(repo) !== null;
-  const openAt = (entry: StatusEntryView) => {
-    onPick({ path: entry.path, staged: entry.staged });
-    onOpen(entry.path, entry.letter, entry.staged);
-  };
-  const conflicted = tree.entries.filter((e) => !e.staged && e.letter === 'U');
-  const pending = tree.entries.filter((e) => !e.staged && e.letter !== 'U');
-  const resolved = tree.entries.filter((e) => e.staged);
-  const committable = message.trim().length > 0 && conflicted.length === 0;
-
-  const commitOnHotkey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && committable) onCommit();
-  };
-
+  const amendRow = (
+    <label
+      className={cn(
+        'text-muted-foreground flex items-center gap-2 text-xs',
+        amend.disabled && 'opacity-50',
+      )}
+    >
+      <Checkbox
+        checked={amend.checked}
+        disabled={amend.disabled}
+        onCheckedChange={(next) => amend.onToggle(next === true)}
+        aria-label={t('workingTree.amend')}
+      />
+      {t('workingTree.amend')}
+    </label>
+  );
   return (
-    <div data-area="files" className="flex min-h-0 flex-1 flex-col">
-      {conflicted.length > 0 ? (
-        <div className="text-conflict flex h-8 shrink-0 items-center justify-center gap-1.5 text-xs font-medium">
-          <Icon.conflict className="size-3.5" />
-          {t('workingTree.mergeDetected')}
-        </div>
-      ) : null}
-      <MergeHeading from={tree.merging?.from ?? null} into={tree.branch} />
-
-      <Section
-        id="conflicted"
-        title={t('workingTree.conflicted')}
-        count={conflicted.length}
-        action={t('workingTree.markAllResolved')}
-        actionTone="added"
-        entries={conflicted}
-        rowAction={{ label: t('conflict.markResolved'), icon: 'down' }}
-        view="path"
-        descending={false}
-        selectedPath={picked && !picked.staged ? picked.path : null}
-        onAll={() => onRun({ kind: 'stage', paths: conflicted.map((e) => e.path) })}
-        onRow={(path) => onRun({ kind: 'stage', paths: [path] })}
-        onOpen={openAt}
+    <div className="flex shrink-0 flex-col gap-2 p-3">
+      <MessageFields
+        message={message}
+        description={description}
+        onMessage={onMessage}
+        onDescription={onDescription}
+        onHotkey={onHotkey}
+        generateHint={generateHint}
+        generateReady={generateReady}
+        generating={generating}
+        onGenerate={onGenerate}
       />
-
-      {pending.length > 0 ? (
-        <>
-          <Section
-            id="unstaged"
-            title={t('workingTree.unstaged')}
-            count={pending.length}
-            action={t('workingTree.stageAll')}
-            actionTone="added"
-            entries={pending}
-            rowAction={{ label: t('workingTree.stage'), icon: 'down' }}
-            view="path"
-            descending={false}
-            selectedPath={picked && !picked.staged ? picked.path : null}
-            onAll={() => onRun({ kind: 'stage', paths: pending.map((e) => e.path) })}
-            onRow={(path) => onRun({ kind: 'stage', paths: [path] })}
-            onOpen={openAt}
-          />
-        </>
-      ) : null}
-
-      <Section
-        id="resolved"
-        last
-        title={t('workingTree.resolved')}
-        count={resolved.length}
-        action={t('conflict.unresolveAll')}
-        actionTone="deleted"
-        entries={resolved}
-        rowAction={{ label: t('conflict.unresolve'), icon: 'up' }}
-        view="path"
-        descending={false}
-        selectedPath={picked?.staged ? picked.path : null}
-        onAll={() => onRun({ kind: 'unresolve', paths: resolved.map((e) => e.path) })}
-        onRow={(path) => onRun({ kind: 'unresolve', paths: [path] })}
-        onOpen={openAt}
-      />
-
-      <div className="flex shrink-0 flex-col gap-2 p-3">
-        <MessageFields
-          message={message}
-          description={description}
-          onMessage={onMessage}
-          onDescription={onDescription}
-          onHotkey={commitOnHotkey}
-          generateHint={t('workingTree.generateNeedsStaged')}
-          generateReady={false}
-          generating={false}
-          onGenerate={() => {}}
+      {amend.hint ? <Hint text={amend.hint}>{amendRow}</Hint> : amendRow}
+      <label className="text-muted-foreground flex items-center gap-2 text-xs">
+        <Checkbox
+          checked={pushAfter}
+          onCheckedChange={(next) => onPushAfter(next === true)}
+          aria-label={t('workingTree.pushAfter')}
         />
+        {t('workingTree.pushAfter')}
+      </label>
+      {merging ? (
         <div className="flex gap-2">
           <Button className="flex-1" disabled={!committable || busy} onClick={onCommit}>
+            {committing ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
             {t('workingTree.commitAndMerge')}
           </Button>
-          <Button
-            variant="destructive"
-            disabled={busy}
-            onClick={() => onOperation({ kind: 'mergeAbort' })}
-          >
+          <Button variant="destructive" disabled={busy} onClick={onAbort}>
             {t('workingTree.abortMerge')}
           </Button>
         </div>
-      </div>
+      ) : (
+        <Button disabled={!committable || busy} onClick={onCommit}>
+          {committing ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
+          {t('workingTree.commit')}
+        </Button>
+      )}
     </div>
   );
 }
@@ -783,7 +758,12 @@ export function WorkingTree(props: Props) {
 
   const staged = tree.entries.filter((e) => e.staged);
   const unstaged = tree.entries.filter((e) => !e.staged);
-  const committable = message.trim().length > 0 && (staged.length > 0 || amend);
+  const resolving = tree.merging !== null && tree.conflicts > 0;
+  const conflicted = resolving ? unstaged.filter((e) => e.letter === 'U') : [];
+  const pending = resolving ? unstaged.filter((e) => e.letter !== 'U') : unstaged;
+  const committable = tree.merging
+    ? message.trim().length > 0 && conflicted.length === 0
+    : message.trim().length > 0 && (staged.length > 0 || amend);
 
   const ai = useGenerateCommit({
     repo,
@@ -840,7 +820,10 @@ export function WorkingTree(props: Props) {
     moveAcross(path, false, unstagedOrder, { kind: 'stage', paths: [path] });
 
   const unstageAt = (path: string) =>
-    moveAcross(path, true, stagedOrder, { kind: 'unstage', paths: [path] });
+    moveAcross(path, true, stagedOrder, {
+      kind: resolving ? 'unresolve' : 'unstage',
+      paths: [path],
+    });
 
   const openPicked = () => {
     const entry =
@@ -864,8 +847,6 @@ export function WorkingTree(props: Props) {
       if (picked?.staged) unstageAt(picked.path);
     },
   });
-
-  if (tree.merging && tree.conflicts > 0) return <MergingPanel {...props} />;
 
   const toggleAmend = (next: boolean) => {
     if (next && previous) {
@@ -891,6 +872,7 @@ export function WorkingTree(props: Props) {
       <PanelHead
         count={tree.entries.length}
         branch={tree.branch}
+        merging={tree.merging?.from ?? null}
         busy={busy}
         view={view}
         descending={descending}
@@ -901,104 +883,101 @@ export function WorkingTree(props: Props) {
         onFoldAll={folds.foldAll}
       />
 
-      <Section
-        id="unstaged"
-        title={t('workingTree.unstaged')}
-        count={unstaged.length}
-        action={t('workingTree.stageAll')}
-        actionTone="added"
-        entries={unstaged}
-        rowAction={{ label: t('workingTree.stage'), icon: 'down' }}
-        view={view}
-        descending={descending}
-        selectedPath={picked && !picked.staged ? picked.path : null}
-        folds={folds}
-        onMenu={openFileMenu}
-        onAll={() => onRun({ kind: 'stageAll' })}
-        onRow={stageAt}
-        onOpen={openAt}
-      />
+      {resolving ? (
+        <Section
+          id="conflicted"
+          title={t('workingTree.conflicted')}
+          count={conflicted.length}
+          action={t('workingTree.markAllResolved')}
+          actionTone="added"
+          entries={conflicted}
+          rowAction={{ label: t('conflict.markResolved'), icon: 'down' }}
+          view={view}
+          descending={descending}
+          selectedPath={picked && !picked.staged ? picked.path : null}
+          folds={folds}
+          onMenu={openFileMenu}
+          onAll={() => onRun({ kind: 'stage', paths: conflicted.map((e) => e.path) })}
+          onRow={stageAt}
+          onOpen={openAt}
+        />
+      ) : null}
+
+      {resolving && pending.length === 0 ? null : (
+        <Section
+          id="unstaged"
+          title={t('workingTree.unstaged')}
+          count={pending.length}
+          action={t('workingTree.stageAll')}
+          actionTone="added"
+          entries={pending}
+          rowAction={{ label: t('workingTree.stage'), icon: 'down' }}
+          view={view}
+          descending={descending}
+          selectedPath={picked && !picked.staged ? picked.path : null}
+          folds={folds}
+          onMenu={openFileMenu}
+          onAll={() =>
+            resolving
+              ? onRun({ kind: 'stage', paths: pending.map((e) => e.path) })
+              : onRun({ kind: 'stageAll' })
+          }
+          onRow={stageAt}
+          onOpen={openAt}
+        />
+      )}
 
       <Section
-        id="staged"
+        id={resolving ? 'resolved' : 'staged'}
         last
-        title={t('workingTree.staged')}
+        title={t(resolving ? 'workingTree.resolved' : 'workingTree.staged')}
         count={staged.length}
-        action={t('workingTree.unstageAll')}
+        action={t(resolving ? 'conflict.unresolveAll' : 'workingTree.unstageAll')}
         actionTone="deleted"
         entries={staged}
-        rowAction={{ label: t('workingTree.unstage'), icon: 'up' }}
+        rowAction={{
+          label: t(resolving ? 'conflict.unresolve' : 'workingTree.unstage'),
+          icon: 'up',
+        }}
         view={view}
         descending={descending}
         selectedPath={picked?.staged ? picked.path : null}
         folds={folds}
         onMenu={openFileMenu}
-        onAll={() => onRun({ kind: 'unstageAll' })}
+        onAll={() =>
+          resolving
+            ? onRun({ kind: 'unresolve', paths: staged.map((e) => e.path) })
+            : onRun({ kind: 'unstageAll' })
+        }
         onRow={unstageAt}
         onOpen={openAt}
       />
 
-      <div className="flex shrink-0 flex-col gap-2 p-3">
-        <MessageFields
-          message={message}
-          description={description}
-          onMessage={onMessage}
-          onDescription={onDescription}
-          onHotkey={commitOnHotkey}
-          generateHint={generateHint}
-          generateReady={ai.readiness === 'ready'}
-          generating={ai.generating}
-          onGenerate={ai.generate}
-        />
-        {tree.merging ? null : (
-          <label
-            className={cn(
-              'text-muted-foreground flex items-center gap-2 text-xs',
-              !previous && 'opacity-50',
-            )}
-          >
-            <Checkbox
-              checked={amend}
-              disabled={!previous}
-              onCheckedChange={(next) => toggleAmend(next === true)}
-              aria-label={t('workingTree.amend')}
-            />
-            {t('workingTree.amend')}
-          </label>
-        )}
-        <label className="text-muted-foreground flex items-center gap-2 text-xs">
-          <Checkbox
-            checked={pushAfter}
-            onCheckedChange={(next) => setPushAfter(next === true)}
-            aria-label={t('workingTree.pushAfter')}
-          />
-          {t('workingTree.pushAfter')}
-        </label>
-        {tree.merging ? (
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              disabled={message.trim().length === 0 || busy}
-              onClick={onCommit}
-            >
-              {committing ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
-              {t('workingTree.commitAndMerge')}
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={busy}
-              onClick={() => props.onOperation({ kind: 'mergeAbort' })}
-            >
-              {t('workingTree.abortMerge')}
-            </Button>
-          </div>
-        ) : (
-          <Button disabled={!committable || busy} onClick={onCommit}>
-            {committing ? <Icon.waiting className="size-3.5 animate-spin" /> : null}
-            {t('workingTree.commit')}
-          </Button>
-        )}
-      </div>
+      <CommitBox
+        message={message}
+        description={description}
+        onMessage={onMessage}
+        onDescription={onDescription}
+        onHotkey={commitOnHotkey}
+        generateHint={generateHint}
+        generateReady={ai.readiness === 'ready'}
+        generating={ai.generating}
+        onGenerate={ai.generate}
+        amend={{
+          checked: amend,
+          disabled: !previous || tree.merging !== null,
+          hint: tree.merging ? t('workingTree.amendDuringMerge') : null,
+          onToggle: toggleAmend,
+        }}
+        pushAfter={pushAfter}
+        onPushAfter={setPushAfter}
+        merging={tree.merging !== null}
+        committable={committable}
+        busy={busy}
+        committing={committing}
+        onCommit={onCommit}
+        onAbort={() => props.onOperation({ kind: 'mergeAbort' })}
+      />
     </div>
   );
 }

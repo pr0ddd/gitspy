@@ -283,7 +283,7 @@ export function Chip({
   children,
 }: {
   head?: boolean;
-  filled?: boolean;
+  filled?: boolean | 'current';
   title?: string;
   onClick?: () => void;
   children: React.ReactNode;
@@ -296,7 +296,7 @@ export function Chip({
       className={cn(
         'inline-flex h-6 max-w-full items-center gap-1.5 rounded-md px-2 text-xs',
         filled
-          ? 'bg-ref-local/25 text-foreground'
+          ? cn('text-foreground', filled === 'current' ? 'bg-ref-current/25' : 'bg-ref-local/25')
           : cn(
               'border-chip-border bg-chip-background border',
               head ? 'border-primary/50 text-foreground' : 'text-muted-foreground',

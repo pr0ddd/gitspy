@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { drawFrame, METRICS_AVATARS, type Frame } from './index';
 import { layoutColumns } from './columns';
-import { rowBandHeight } from './scene';
+import { listWidth, rowBandHeight } from './scene';
 import { RowCache } from './rows';
 import type { AvatarCache } from '@/shared/ui/avatarCache';
 import { GLYPH } from './glyphs';
@@ -529,6 +529,19 @@ describe('the WIP row during a conflicted merge', () => {
     expect(painted.texts, 'no state badges on the band, only the warning').not.toContain(
       'merge in progress',
     );
+
+    const cols = layoutColumns(1200, {});
+    const band = painted.filledRects.find(
+      (r) => r.x === cols.message.left && r.h === rowBandHeight(METRICS_AVATARS),
+    );
+    expect(
+      band,
+      'the band starts at the message column and is exactly as tall as a row band',
+    ).toBeDefined();
+    expect(
+      band?.w,
+      'and it runs to the right edge of the list, like the selection band, not a few pixels short',
+    ).toBe(listWidth(1200, false) - cols.message.left);
   });
 
   it('without conflicts the WIP row stays counters', () => {

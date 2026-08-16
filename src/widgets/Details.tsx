@@ -214,7 +214,6 @@ export function Details({
     <Shell>
       {conflicts > 0 ? (
         <PanelBanner
-          tone="conflict"
           label={t('conflict.inWorkingDirectory', { count: conflicts })}
           action={t('conflict.view')}
           onClick={onOpenWorkingTree}
