@@ -1,8 +1,3 @@
-// OAuth relay: GitHub and Bitbucket refuse to hand out tokens without a
-// client secret, and a desktop binary cannot keep one. The app sends the
-// authorization code here; this worker holds the secrets in its env and
-// answers with the token set. It stores nothing.
-
 export function tokenSetOf(raw) {
   if (!raw.access_token) return null;
   return {
