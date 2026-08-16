@@ -168,8 +168,8 @@ mod tests {
 
     #[test]
     fn paths_with_spaces_survive_because_the_separator_is_nul() {
-        let files = parse_name_status("A\0папка с пробелами/файл.txt\0");
-        assert_eq!(files[0].path, "папка с пробелами/файл.txt");
+        let files = parse_name_status("A\0dossier café/résumé final.txt\0");
+        assert_eq!(files[0].path, "dossier café/résumé final.txt");
     }
 
     #[test]

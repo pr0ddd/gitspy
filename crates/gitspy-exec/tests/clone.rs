@@ -17,7 +17,7 @@ fn run(dir: &Path, args: &[&str]) {
         .env("GIT_AUTHOR_DATE", "1577836800 +0000")
         .env("GIT_COMMITTER_DATE", "1577836800 +0000")
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     assert!(
         out.status.success(),
         "git {args:?}: {}",
@@ -26,22 +26,22 @@ fn run(dir: &Path, args: &[&str]) {
 }
 
 fn source() -> TempDir {
-    let dir = TempDir::new().expect("временный каталог");
+    let dir = TempDir::new().expect("temp directory");
     run(dir.path(), &["init", "-b", "main"]);
-    std::fs::write(dir.path().join("readme.md"), "привет").expect("файл пишется");
+    std::fs::write(dir.path().join("readme.md"), "hello").expect("file written");
     run(dir.path(), &["add", "-A"]);
-    run(dir.path(), &["commit", "-m", "первый"]);
+    run(dir.path(), &["commit", "-m", "first"]);
     dir
 }
 
 #[test]
 fn a_clone_leaves_a_working_repository_at_the_chosen_path() {
     let from = source();
-    let into = TempDir::new().expect("временный каталог");
-    let destination = into.path().join("копия");
+    let into = TempDir::new().expect("temp directory");
+    let destination = into.path().join("copy");
 
     Git::discover()
-        .expect("git найден")
+        .expect("git found")
         .clone_into(
             &from.path().display().to_string(),
             &destination,
@@ -50,28 +50,28 @@ fn a_clone_leaves_a_working_repository_at_the_chosen_path() {
             &Cancel::new(),
             &mut |_| {},
         )
-        .expect("клонирование проходит");
+        .expect("clone succeeds");
 
     assert!(
         destination.join(".git").exists(),
-        "клон кладётся ровно туда, куда попросили, а не в текущий каталог"
+        "the clone lands exactly where it was asked to, not in the current directory"
     );
     assert!(
         destination.join("readme.md").exists(),
-        "рабочее дерево разложено, а не оставлено пустым"
+        "the working tree is checked out, not left empty"
     );
 }
 
 #[test]
 fn a_clone_into_a_taken_path_fails_instead_of_mixing_two_repositories() {
     let from = source();
-    let into = TempDir::new().expect("временный каталог");
-    let destination = into.path().join("занято");
-    std::fs::create_dir_all(&destination).expect("каталог");
-    std::fs::write(destination.join("своё.txt"), "не трогать").expect("файл пишется");
+    let into = TempDir::new().expect("temp directory");
+    let destination = into.path().join("taken");
+    std::fs::create_dir_all(&destination).expect("directory created");
+    std::fs::write(destination.join("theirs.txt"), "do not touch").expect("file written");
 
     let failed = Git::discover()
-        .expect("git найден")
+        .expect("git found")
         .clone_into(
             &from.path().display().to_string(),
             &destination,
@@ -82,62 +82,67 @@ fn a_clone_into_a_taken_path_fails_instead_of_mixing_two_repositories() {
         )
         .is_err();
 
-    assert!(failed, "git отказывается клонировать в непустую папку");
+    assert!(failed, "git refuses to clone into a non-empty directory");
     assert!(
-        destination.join("своё.txt").exists(),
-        "чужие файлы остаются на месте"
+        destination.join("theirs.txt").exists(),
+        "files that were already there stay untouched"
     );
 }
 
 #[test]
 fn init_makes_a_repository_where_there_was_none() {
-    let dir = TempDir::new().expect("временный каталог");
-    let at = dir.path().join("новый");
-    std::fs::create_dir_all(&at).expect("каталог");
+    let dir = TempDir::new().expect("temp directory");
+    let at = dir.path().join("fresh");
+    std::fs::create_dir_all(&at).expect("directory created");
 
     Git::discover()
-        .expect("git найден")
+        .expect("git found")
         .init(&at, None)
-        .expect("репозиторий создаётся");
+        .expect("repository is created");
 
     assert!(
         at.join(".git").exists(),
-        "создание отдаётся git, а не выкладывается нами руками"
+        "creating the repository is left to git, not laid out by hand"
     );
 }
 
 #[test]
 fn init_names_the_first_branch_when_the_user_chose_one() {
-    let dir = TempDir::new().expect("временный каталог");
+    let dir = TempDir::new().expect("temp directory");
     let at = dir.path().join("named");
-    std::fs::create_dir_all(&at).expect("каталог");
+    std::fs::create_dir_all(&at).expect("directory created");
 
-    let git = Git::discover().expect("git найден");
-    git.init(&at, Some("trunk")).expect("репозиторий создаётся");
+    let git = Git::discover().expect("git found");
+    git.init(&at, Some("trunk")).expect("repository is created");
 
     let head = std::process::Command::new("git")
-        .args(["-C", at.to_str().expect("путь"), "symbolic-ref", "HEAD"])
+        .args([
+            "-C",
+            at.to_str().expect("path is utf-8"),
+            "symbolic-ref",
+            "HEAD",
+        ])
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     assert_eq!(
         String::from_utf8_lossy(&head.stdout).trim(),
         "refs/heads/trunk",
-        "имя первой ветки из настройки обязано дойти до git init -b"
+        "the first branch name from the settings has to reach git init -b"
     );
 }
 
 #[test]
 fn a_shallow_clone_brings_one_commit_of_history() {
     let from = source();
-    std::fs::write(from.path().join("second.md"), "ещё").expect("файл пишется");
+    std::fs::write(from.path().join("second.md"), "more").expect("file written");
     run(from.path(), &["add", "-A"]);
-    run(from.path(), &["commit", "-m", "второй"]);
+    run(from.path(), &["commit", "-m", "second"]);
 
-    let into = TempDir::new().expect("временный каталог");
+    let into = TempDir::new().expect("temp directory");
     let destination = into.path().join("shallow-copy");
 
     Git::discover()
-        .expect("git найден")
+        .expect("git found")
         .clone_into(
             &format!("file://{}", from.path().display()),
             &destination,
@@ -146,42 +151,42 @@ fn a_shallow_clone_brings_one_commit_of_history() {
             &Cancel::new(),
             &mut |_| {},
         )
-        .expect("клон проходит");
+        .expect("clone succeeds");
 
     let out = Command::new("git")
         .arg("-C")
         .arg(&destination)
         .args(["rev-list", "--count", "HEAD"])
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     assert_eq!(
         String::from_utf8_lossy(&out.stdout).trim(),
         "1",
-        "--depth 1 обязан отрезать историю до одного коммита"
+        "--depth 1 has to cut the history down to a single commit"
     );
 }
 
 #[test]
 fn templates_land_in_history_as_the_first_commit() {
-    let dir = TempDir::new().expect("временный каталог");
-    let git = Git::discover().expect("git найден");
-    git.init(dir.path(), Some("main")).expect("init проходит");
-    std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("файл пишется");
+    let dir = TempDir::new().expect("temp directory");
+    let git = Git::discover().expect("git found");
+    git.init(dir.path(), Some("main")).expect("init succeeds");
+    std::fs::write(dir.path().join(".gitignore"), "target/\n").expect("file written");
 
     run(dir.path(), &["config", "user.name", "Test"]);
     run(dir.path(), &["config", "user.email", "test@example.com"]);
     git.first_commit(dir.path(), "Initial commit")
-        .expect("первый коммит проходит");
+        .expect("first commit succeeds");
 
     let out = Command::new("git")
         .arg("-C")
         .arg(dir.path())
         .args(["log", "--format=%s", "-1"])
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     assert_eq!(
         String::from_utf8_lossy(&out.stdout).trim(),
         "Initial commit",
-        "шаблоны попадают в историю, а не валяются незакоммиченными"
+        "the templates land in the history instead of lying around uncommitted"
     );
 }

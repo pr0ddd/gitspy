@@ -18,7 +18,7 @@ fn run(dir: &Path, args: &[&str]) -> String {
         .env("GIT_AUTHOR_DATE", "1577836800 +0000")
         .env("GIT_COMMITTER_DATE", "1577836800 +0000")
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     assert!(
         out.status.success(),
         "git {args:?}: {}",
@@ -30,13 +30,13 @@ fn run(dir: &Path, args: &[&str]) -> String {
 fn write(dir: &Path, path: &str, text: &str) {
     let full = dir.join(path);
     if let Some(parent) = full.parent() {
-        std::fs::create_dir_all(parent).expect("каталог");
+        std::fs::create_dir_all(parent).expect("parent directory created");
     }
-    std::fs::write(full, text).expect("файл пишется");
+    std::fs::write(full, text).expect("file written");
 }
 
 fn repo() -> TempDir {
-    let dir = TempDir::new().expect("временный каталог");
+    let dir = TempDir::new().expect("temp directory");
     run(dir.path(), &["init", "-b", "main"]);
     dir
 }
@@ -48,18 +48,18 @@ fn commit(dir: &Path, message: &str) -> String {
 }
 
 fn git() -> Git {
-    Git::discover().expect("git найден")
+    Git::discover().expect("git found")
 }
 
 #[test]
 fn an_added_file_is_reported_as_added_with_its_line_count() {
     let dir = repo();
-    write(dir.path(), "a.txt", "одна\nдве\nтри\n");
-    let hash = commit(dir.path(), "первый");
+    write(dir.path(), "a.txt", "one\ntwo\nthree\n");
+    let hash = commit(dir.path(), "first");
 
     let files = git()
         .commit_files(dir.path(), &hash)
-        .expect("файлы читаются");
+        .expect("commit files read");
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].status, Status::Added);
     assert_eq!(files[0].path, "a.txt");
@@ -70,19 +70,19 @@ fn an_added_file_is_reported_as_added_with_its_line_count() {
 #[test]
 fn a_rename_keeps_both_paths_and_is_not_two_separate_changes() {
     let dir = repo();
-    write(dir.path(), "old.txt", "строка\n".repeat(20).as_str());
-    commit(dir.path(), "первый");
+    write(dir.path(), "old.txt", "line\n".repeat(20).as_str());
+    commit(dir.path(), "first");
 
     run(dir.path(), &["mv", "old.txt", "new.txt"]);
-    let hash = commit(dir.path(), "переименование");
+    let hash = commit(dir.path(), "rename");
 
     let files = git()
         .commit_files(dir.path(), &hash)
-        .expect("файлы читаются");
+        .expect("commit files read");
     assert_eq!(
         files.len(),
         1,
-        "переименование — одно изменение, а не удаление плюс добавление"
+        "a rename is one change, not a deletion plus an addition"
     );
     assert_eq!(files[0].status, Status::Renamed);
     assert_eq!(files[0].old_path.as_deref(), Some("old.txt"));
@@ -93,66 +93,69 @@ fn a_rename_keeps_both_paths_and_is_not_two_separate_changes() {
 fn a_binary_file_has_no_line_counts() {
     let dir = repo();
     std::fs::write(dir.path().join("logo.bin"), [0u8, 159, 146, 150, 0, 1, 2])
-        .expect("двоичный файл");
-    let hash = commit(dir.path(), "двоичный");
+        .expect("binary file written");
+    let hash = commit(dir.path(), "binary");
 
     let files = git()
         .commit_files(dir.path(), &hash)
-        .expect("файлы читаются");
+        .expect("commit files read");
     assert_eq!(files[0].path, "logo.bin");
-    assert!(files[0].is_binary(), "у двоичного файла строк не считают");
+    assert!(
+        files[0].is_binary(),
+        "a binary file has no lines to count, so git reports none"
+    );
 }
 
 #[test]
-fn a_path_with_spaces_and_cyrillics_survives() {
+fn a_path_with_spaces_and_non_ascii_survives() {
     let dir = repo();
-    write(dir.path(), "папка с пробелами/файл.txt", "текст\n");
-    let hash = commit(dir.path(), "путь с пробелами");
+    write(dir.path(), "café dossier/résumé.txt", "text\n");
+    let hash = commit(dir.path(), "path with spaces and non-ASCII");
 
     let files = git()
         .commit_files(dir.path(), &hash)
-        .expect("файлы читаются");
-    assert_eq!(files[0].path, "папка с пробелами/файл.txt");
+        .expect("commit files read");
+    assert_eq!(files[0].path, "café dossier/résumé.txt");
 }
 
 #[test]
 fn a_merge_is_compared_against_its_first_parent() {
     let dir = repo();
-    write(dir.path(), "base.txt", "основа\n");
-    commit(dir.path(), "основа");
+    write(dir.path(), "base.txt", "base\n");
+    commit(dir.path(), "base");
 
     run(dir.path(), &["checkout", "-b", "side"]);
-    write(dir.path(), "side.txt", "боковой\n");
-    commit(dir.path(), "боковой");
+    write(dir.path(), "side.txt", "side\n");
+    commit(dir.path(), "side");
 
     run(dir.path(), &["checkout", "main"]);
-    write(dir.path(), "main.txt", "основной\n");
-    commit(dir.path(), "основной");
+    write(dir.path(), "main.txt", "main\n");
+    commit(dir.path(), "main");
 
     run(dir.path(), &["merge", "--no-ff", "--no-edit", "side"]);
     let hash = run(dir.path(), &["rev-parse", "HEAD"]);
 
     let files = git()
         .commit_files(dir.path(), &hash)
-        .expect("мерж читается");
+        .expect("merge commit read");
     let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
     assert_eq!(
         paths,
         vec!["side.txt"],
-        "мерж показывает то, что принёс, а не всю ветку"
+        "a merge shows what it brought in, not everything on the merged branch"
     );
 }
 
 #[test]
 fn the_first_commit_shows_everything_it_introduced() {
     let dir = repo();
-    write(dir.path(), "a.txt", "а\n");
-    write(dir.path(), "b.txt", "б\n");
-    let hash = commit(dir.path(), "начало");
+    write(dir.path(), "a.txt", "a\n");
+    write(dir.path(), "b.txt", "b\n");
+    let hash = commit(dir.path(), "start");
 
     let files = git()
         .commit_files(dir.path(), &hash)
-        .expect("корневой коммит читается");
+        .expect("root commit read");
     let mut paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
     paths.sort();
     assert_eq!(paths, vec!["a.txt", "b.txt"]);
@@ -161,32 +164,34 @@ fn the_first_commit_shows_everything_it_introduced() {
 #[test]
 fn file_contents_come_back_for_both_sides_of_a_change() {
     let dir = repo();
-    write(dir.path(), "a.txt", "было\n");
-    let before = commit(dir.path(), "было");
-    write(dir.path(), "a.txt", "стало\n");
-    let after = commit(dir.path(), "стало");
+    write(dir.path(), "a.txt", "before\n");
+    let before = commit(dir.path(), "before");
+    write(dir.path(), "a.txt", "after\n");
+    let after = commit(dir.path(), "after");
 
     let git = git();
     assert_eq!(
-        git.file_at(dir.path(), &before, "a.txt").expect("старое"),
-        "было"
+        git.file_at(dir.path(), &before, "a.txt")
+            .expect("old side read"),
+        "before"
     );
     assert_eq!(
-        git.file_at(dir.path(), &after, "a.txt").expect("новое"),
-        "стало"
+        git.file_at(dir.path(), &after, "a.txt")
+            .expect("new side read"),
+        "after"
     );
 }
 
 #[test]
 fn a_file_that_did_not_exist_yet_reads_as_empty_rather_than_failing() {
     let dir = repo();
-    write(dir.path(), "a.txt", "а\n");
-    let first = commit(dir.path(), "первый");
-    write(dir.path(), "b.txt", "б\n");
-    commit(dir.path(), "второй");
+    write(dir.path(), "a.txt", "a\n");
+    let first = commit(dir.path(), "first");
+    write(dir.path(), "b.txt", "b\n");
+    commit(dir.path(), "second");
 
     let text = git()
         .file_at(dir.path(), &first, "b.txt")
-        .expect("не ошибка, а пустота");
-    assert_eq!(text, "", "у добавленного файла нет старой стороны");
+        .expect("a missing path is emptiness, not an error");
+    assert_eq!(text, "", "an added file has no old side");
 }

@@ -126,7 +126,11 @@ mod tests {
             stage: Stage::Updating,
             percent: 100,
         };
-        assert_eq!(full.overall(), 100, "готовый клон показывает сто процентов");
+        assert_eq!(
+            full.overall(),
+            100,
+            "a finished clone shows a hundred percent"
+        );
 
         let mut previous = 0;
         for stage in [
@@ -140,7 +144,7 @@ mod tests {
             let start = Step { stage, percent: 0 }.overall();
             assert!(
                 start >= previous,
-                "шкала не едет назад при переходе к {stage:?}"
+                "the bar never moves backwards on the switch to {stage:?}"
             );
             previous = Step {
                 stage,
@@ -155,7 +159,7 @@ mod tests {
         assert_eq!(
             parse("Receiving objects:  3"),
             None,
-            "обрывок без процента дал бы скачок шкалы на три процента и назад"
+            "a fragment without a percent sign would jump the bar to three percent and back"
         );
     }
 
@@ -168,7 +172,7 @@ mod tests {
                 "Receiving objects:  10% (27/270)",
                 "Receiving objects:  20% (54/270)"
             ],
-            "без разреза по возврату каретки прогресс приходит одной строкой в конце"
+            "without splitting on carriage returns the whole progress arrives as one line at the end"
         );
     }
 }

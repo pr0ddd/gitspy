@@ -18,16 +18,16 @@ fn run_as(dir: &Path, who: &str, args: &[&str]) -> String {
         .env("GIT_COMMITTER_NAME", "Test")
         .env("GIT_COMMITTER_EMAIL", "test@example.com")
         .output()
-        .expect("git запускается");
+        .expect("git runs");
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
 fn write(dir: &Path, path: &str, text: &str) {
-    std::fs::write(dir.join(path), text).expect("файл");
+    std::fs::write(dir.join(path), text).expect("file written");
 }
 
 fn renamed_repo() -> TempDir {
-    let dir = TempDir::new().expect("временный каталог");
+    let dir = TempDir::new().expect("temp directory");
     run_as(dir.path(), "Ann", &["init", "-b", "main"]);
     write(dir.path(), "old.txt", "one\ntwo\n");
     run_as(dir.path(), "Ann", &["add", "-A"]);
@@ -42,7 +42,7 @@ fn renamed_repo() -> TempDir {
 }
 
 fn git() -> Git {
-    Git::discover().expect("git найден")
+    Git::discover().expect("git found")
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn the_file_history_follows_the_rename_back_to_the_birth_of_the_file() {
     let dir = renamed_repo();
     let history = git()
         .file_history(dir.path(), "new.txt", None)
-        .expect("история файла читается");
+        .expect("file history read");
 
     assert_eq!(
         history
@@ -58,20 +58,23 @@ fn the_file_history_follows_the_rename_back_to_the_birth_of_the_file() {
             .map(|c| c.subject.as_str())
             .collect::<Vec<_>>(),
         ["shout", "rename", "grow", "start"],
-        "--follow обязан протянуть историю сквозь переименование"
+        "--follow has to carry the history through the rename"
     );
     assert_eq!(history[0].author, "Bob");
-    assert_eq!(history[3].status, 'A', "первый коммит файла — его рождение");
+    assert_eq!(
+        history[3].status, 'A',
+        "the first commit of a file is its birth"
+    );
     assert_eq!(
         history[1].old_path.as_deref(),
         Some("old.txt"),
-        "у переименования панели нужно старое имя"
+        "for a rename the pane needs the old name"
     );
     assert_eq!(history[0].old_path, None);
-    assert!(history[0].time > 0, "время нужно для подписи даты");
+    assert!(history[0].time > 0, "the date label needs the time");
     assert_eq!(
         history[3].path, "old.txt",
-        "дифф старого коммита идёт по имени файла в том коммите"
+        "the diff of an old commit goes by the name the file had in that commit"
     );
     assert_eq!(history[0].path, "new.txt");
     assert_eq!(history[1].path, "new.txt");
@@ -89,22 +92,22 @@ fn history_opened_from_a_commit_of_an_unmerged_branch_sees_its_file() {
 
     let from_head = git()
         .file_history(dir.path(), "only-here.txt", None)
-        .expect("история от HEAD читается");
+        .expect("history from HEAD read");
     assert!(
         from_head.is_empty(),
-        "от HEAD файла чужой ветки не видно — потому истории и нужен стартовый коммит"
+        "from HEAD a file of another branch is invisible, which is why the history needs a starting commit"
     );
 
     let history = git()
         .file_history(dir.path(), "only-here.txt", Some(&tip))
-        .expect("история от коммита ветки читается");
+        .expect("history from the branch commit read");
     assert_eq!(
         history
             .iter()
             .map(|c| c.subject.as_str())
             .collect::<Vec<_>>(),
         ["branch-only file"],
-        "история, открытая из коммита, обязана идти от этого коммита, а не от HEAD"
+        "a history opened from a commit has to walk from that commit, not from HEAD"
     );
 }
 
@@ -113,7 +116,7 @@ fn blame_spans_group_neighbouring_lines_of_one_commit() {
     let dir = renamed_repo();
     let spans = git()
         .blame_file(dir.path(), "new.txt", None)
-        .expect("blame читается");
+        .expect("blame read");
 
     assert_eq!(
         spans
@@ -121,7 +124,7 @@ fn blame_spans_group_neighbouring_lines_of_one_commit() {
             .map(|s| (s.summary.as_str(), s.start_line, s.lines))
             .collect::<Vec<_>>(),
         [("shout", 1, 1), ("start", 2, 1), ("grow", 3, 1)],
-        "каждая строка помнит коммит, который её тронул, соседи одного коммита слипаются"
+        "every line remembers the commit that touched it, and neighbouring lines of one commit merge into a single span"
     );
     assert_eq!(spans[0].author, "Bob");
     assert_eq!(spans[1].author, "Ann");
@@ -133,14 +136,14 @@ fn blame_at_an_old_commit_sees_the_file_before_the_shout() {
     let grow = run_as(dir.path(), "Ann", &["rev-parse", "HEAD~2"]);
     let spans = git()
         .blame_file(dir.path(), "old.txt", Some(&grow))
-        .expect("blame старого среза читается");
+        .expect("blame of the old snapshot read");
     assert_eq!(
         spans
             .iter()
             .map(|s| (s.summary.as_str(), s.lines))
             .collect::<Vec<_>>(),
         [("start", 2), ("grow", 1)],
-        "на срезе grow первые две строки из start слипаются в один спан"
+        "at the grow snapshot the first two lines from start merge into a single span"
     );
 }
 
@@ -155,14 +158,14 @@ fn a_merge_that_brought_changes_into_the_file_is_part_of_its_history() {
 
     let history = git()
         .file_history(dir.path(), "new.txt", None)
-        .expect("история файла читается");
+        .expect("file history read");
     let subjects: Vec<&str> = history.iter().map(|c| c.subject.as_str()).collect();
     assert!(
         subjects[0].starts_with("Merge"),
-        "git log без --full-history молча прячет мерджи, а the reference client их показывает: {subjects:?}"
+        "git log without --full-history silently hides merges, while the reference client shows them: {subjects:?}"
     );
     assert_eq!(
         history[0].path, "new.txt",
-        "у мерджа нет своего name-status, путь наследуется от соседей"
+        "a merge has no name-status of its own, so the path is inherited from its neighbours"
     );
 }

@@ -586,7 +586,7 @@ impl Git {
         child
             .stdin
             .take()
-            .expect("stdin запрошен")
+            .expect("stdin was piped")
             .write_all(patch.as_bytes())
             .map_err(spawn_error)?;
 
@@ -776,7 +776,7 @@ impl Git {
                 detail: e.to_string(),
             })?;
 
-        let mut stderr = child.stderr.take().expect("stderr запрошен");
+        let mut stderr = child.stderr.take().expect("stderr was piped");
         let mut said = Vec::new();
         let mut buffer = [0u8; 4096];
         let mut last = None;
@@ -855,8 +855,8 @@ impl Git {
             detail: e.to_string(),
         })?;
 
-        let stdout = child.stdout.take().expect("stdout запрошен");
-        let stderr = child.stderr.take().expect("stderr запрошен");
+        let stdout = child.stdout.take().expect("stdout was piped");
+        let stderr = child.stderr.take().expect("stderr was piped");
 
         let collected_err = std::thread::scope(|scope| {
             let err = scope.spawn(|| {
@@ -927,7 +927,7 @@ mod tests {
         let helper = helper_for("https://github.com", "x-access-token");
         assert!(
             helper.starts_with("credential.https://github.com.helper="),
-            "без привязки к адресу токен github ушёл бы и на чужой https-хост"
+            "without binding to the address the github token would go to a foreign https host too"
         );
     }
 
@@ -936,7 +936,7 @@ mod tests {
         let helper = helper_for("https://github.com", "x-access-token");
         assert!(
             helper.contains("$GITSPY_HOST_TOKEN") && !helper.contains("gho_"),
-            "командную строку видит любой ps, поэтому секрет идёт окружением"
+            "any ps sees the command line, so the secret travels through the environment"
         );
     }
 
@@ -949,7 +949,7 @@ mod tests {
         assert_eq!(
             rejected.code(),
             "exec.rejected",
-            "иначе человек читает «git failed» и не знает, что делать"
+            "otherwise the user reads \"git failed\" and has no idea what to do"
         );
 
         let unknown = Error::Failed {

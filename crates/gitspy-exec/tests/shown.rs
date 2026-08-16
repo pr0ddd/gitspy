@@ -15,22 +15,22 @@ fn run(dir: &Path, args: &[&str]) {
         .env("GIT_COMMITTER_NAME", "Ann")
         .env("GIT_COMMITTER_EMAIL", "ann@example.com")
         .status()
-        .expect("git запускается")
+        .expect("git runs")
         .success();
-    assert!(ok, "подготовка фикстуры: git {args:?}");
+    assert!(ok, "fixture setup: git {args:?}");
 }
 
 fn repo_with_a_commit() -> TempDir {
-    let dir = TempDir::new().expect("временный каталог");
+    let dir = TempDir::new().expect("temp directory");
     run(dir.path(), &["init", "-b", "main"]);
-    std::fs::write(dir.path().join("a.txt"), "hi\n").expect("файл");
+    std::fs::write(dir.path().join("a.txt"), "hi\n").expect("file written");
     run(dir.path(), &["add", "-A"]);
     run(dir.path(), &["commit", "-q", "-m", "one"]);
     dir
 }
 
 fn git() -> Git {
-    Git::discover().expect("git найден")
+    Git::discover().expect("git found")
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn a_path_missing_from_the_ref_reads_as_empty() {
     let dir = repo_with_a_commit();
     let text = git()
         .file_at(dir.path(), "HEAD", "missing.txt")
-        .expect("отсутствие файла в ревизии — не ошибка, а пустая сторона диффа");
+        .expect("a file missing from a revision is not an error, it is the empty side of the diff");
     assert_eq!(text, "");
 }
 
@@ -46,12 +46,12 @@ fn a_path_missing_from_the_ref_reads_as_empty() {
 fn a_broken_git_config_surfaces_as_an_error_not_as_an_empty_file() {
     let dir = repo_with_a_commit();
     let config = dir.path().join(".git").join("config");
-    let mut text = std::fs::read_to_string(&config).expect("конфиг читается");
+    let mut text = std::fs::read_to_string(&config).expect("config read");
     text.push_str("[gpg\n");
-    std::fs::write(&config, text).expect("конфиг пишется");
+    std::fs::write(&config, text).expect("config written");
 
     assert!(
         git().file_at(dir.path(), "HEAD", "a.txt").is_err(),
-        "git отказал не из-за отсутствия файла — пустой дифф скрыл бы поломку, как это было с битым gpg.format"
+        "git refused for a reason other than a missing file: an empty diff would hide the breakage, the way it did with a broken gpg.format"
     );
 }

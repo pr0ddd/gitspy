@@ -148,11 +148,17 @@ mod tests {
         ]);
         let parsed = parse_for_each_ref(&raw);
         assert_eq!(parsed.len(), 1);
-        assert_eq!(parsed[0].name, "main", "имя показывается коротким");
+        assert_eq!(
+            parsed[0].name, "main",
+            "the name is shown in its short form"
+        );
         assert_eq!(parsed[0].full_name, "refs/heads/main");
         assert_eq!(parsed[0].kind, RefKind::LocalBranch);
         assert_eq!(parsed[0].oid, "aaa");
-        assert!(parsed[0].is_head, "звёздочка в %(HEAD) значит текущая");
+        assert!(
+            parsed[0].is_head,
+            "an asterisk in %(HEAD) means this is the current branch"
+        );
         assert_eq!(parsed[0].upstream.as_deref(), Some("origin/main"));
     }
 
@@ -171,7 +177,7 @@ mod tests {
         let parsed = parse_for_each_ref(&raw);
         assert_eq!(
             parsed[0].oid, "commitoid",
-            "иначе тег указывал бы на объект тега, а не на коммит"
+            "otherwise the tag would point at the tag object instead of the commit"
         );
         assert_eq!(parsed[0].kind, RefKind::Tag);
     }
@@ -190,7 +196,7 @@ mod tests {
         ]);
         assert!(
             parse_for_each_ref(&raw).is_empty(),
-            "такой oid в вершинах обхода роняет чтение всего репозитория"
+            "such an oid among the walk tips breaks reading the whole repository"
         );
     }
 
@@ -223,7 +229,7 @@ mod tests {
         ]);
         assert!(
             parse_for_each_ref(&raw).is_empty(),
-            "origin/HEAD это указатель на ветку по умолчанию, а не ветка"
+            "origin/HEAD is a pointer to the default branch, not a branch of its own"
         );
     }
 
@@ -249,7 +255,7 @@ mod tests {
         let raw = line(&["", "refs/notes/commits", "commit", "aaa", "", "", "", ""]);
         assert!(
             parse_for_each_ref(&raw).is_empty(),
-            "заметки в граф не добавляем, решение записано в плане фаз"
+            "notes are kept out of the graph, the decision is recorded in the phase plan"
         );
     }
 
@@ -258,7 +264,7 @@ mod tests {
         assert_eq!(
             parse_track(""),
             (0, 0, false),
-            "пусто значит сверено и совпало"
+            "empty means the branch was compared with its upstream and is in sync"
         );
         assert_eq!(parse_track("ahead 2"), (2, 0, false));
         assert_eq!(parse_track("behind 3"), (0, 3, false));
@@ -266,7 +272,7 @@ mod tests {
         assert_eq!(
             parse_track("gone"),
             (0, 0, true),
-            "upstream настроен, но его больше нет"
+            "the upstream is configured but no longer exists"
         );
     }
 
@@ -286,11 +292,11 @@ mod tests {
         let raw = line(&["", "refs/stash", "commit", "aaa", "", "", "", ""]);
         assert!(
             parse_for_each_ref(&raw).is_empty(),
-            "остальные записи достижимы только через рефлог"
+            "the remaining entries are reachable only through the reflog"
         );
         assert!(
             mentions_stash(&raw),
-            "но знать о её наличии надо, чтобы не звать git зря"
+            "but its presence still has to be known, so git is not called for nothing"
         );
     }
 
@@ -298,11 +304,7 @@ mod tests {
     fn every_stash_entry_becomes_a_ref_of_its_own() {
         let raw = "aaa\tstash@{0}\tWIP on main: 1234567 subject\nbbb\tstash@{1}\tWIP on main: 1234567 subject";
         let parsed = parse_stash_list(raw);
-        assert_eq!(
-            parsed.len(),
-            2,
-            "видеть только stash@{{0}} — это старый дефект"
-        );
+        assert_eq!(parsed.len(), 2, "seeing only stash@{{0}} is the old defect");
         assert_eq!(parsed[0].name, "stash@{0}");
         assert_eq!(parsed[0].oid, "aaa");
         assert_eq!(parsed[1].kind, RefKind::Stash);
