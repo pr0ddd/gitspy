@@ -56,7 +56,9 @@ const BAND_TINT_HOVER = 18;
 const BAND_TINT_SELECTED = 50;
 const STACK_PAD = 4;
 const STACK_GAP = 2;
-const STACK_TINT = 0.55;
+const STACK_TINT = 18;
+const CHIP_TINT = 28;
+const CHIP_TINT_HEAD = 45;
 
 const CHIP_PAD = 9;
 const MARK_GAP = 4;
@@ -414,10 +416,10 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       );
       if (!placed.length && !more) return;
       for (const one of placed) {
-        drawChip(ctx, one, y, chipH, chipM, t, frame.avatars, remoteAvatarUrls, false);
+        drawChip(ctx, one, y, chipH, chipM, t, frame.avatars, remoteAvatarUrls, row.colour, false);
       }
       if (more) {
-        ctx.fillStyle = t.refSoft[more.chips[0].kind];
+        ctx.fillStyle = laneColourAlpha(row.colour, CHIP_TINT);
         roundRect(ctx, more.x, y - chipH / 2, more.w, chipH, 6);
         ctx.fill();
         ctx.fillStyle = t.subject;
@@ -571,7 +573,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 }
 
 function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
-  const { repo, hoverChip, metrics: m, scrollY, height } = frame;
+  const { repo, rows, hoverChip, metrics: m, scrollY, height } = frame;
   if (!repo || !hoverChip) return;
 
   const dpr = canvasDensity();
@@ -601,29 +603,26 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   const y = Math.round(shift + (hoverChip.row - first) * m.rowH + m.rowH / 2);
   const remoteAvatarUrls = new Map(repo.remotes.map((r) => [r.name, r.avatarUrl]));
   const chipH = m.rowH - 6;
+  const lane = rows.row(hoverChip.row)?.colour ?? 0;
 
   ctx.save();
   ctx.shadowColor = theme().shade;
   ctx.shadowBlur = 8;
 
   if (hoverChip.at === 'more' || more !== null) {
-    const rows = chips.map((chip) => fullPlacement(chip, measure, chipM, frame.pullHeads));
-    const panelW = Math.max(...rows.map((row) => row.fullW)) + STACK_PAD * 2;
-    const panelH = rows.length * chipH + (rows.length - 1) * STACK_GAP + STACK_PAD * 2;
+    const stack = chips.map((chip) => fullPlacement(chip, measure, chipM, frame.pullHeads));
+    const panelW = Math.max(...stack.map((row) => row.fullW)) + STACK_PAD * 2;
+    const panelH = stack.length * chipH + (stack.length - 1) * STACK_GAP + STACK_PAD * 2;
     const t = theme();
-    const lead = rows[0].chip;
     ctx.fillStyle = t.panel;
     roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
     ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
-    ctx.save();
-    ctx.globalAlpha = STACK_TINT;
-    ctx.fillStyle = lead.isHead ? t.primarySoft : t.refSoft[lead.kind];
+    ctx.fillStyle = laneColourAlpha(lane, STACK_TINT);
     roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
     ctx.fill();
-    ctx.restore();
-    rows.forEach((row, i) => {
+    stack.forEach((row, i) => {
       drawChip(
         ctx,
         row,
@@ -633,13 +632,16 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
         theme(),
         frame.avatars,
         remoteAvatarUrls,
+        lane,
         true,
         i > 0,
       );
     });
   } else {
     const one = placed[hoverChip.at];
-    if (one) drawChip(ctx, one, y, chipH, chipM, theme(), frame.avatars, remoteAvatarUrls, true);
+    if (one) {
+      drawChip(ctx, one, y, chipH, chipM, theme(), frame.avatars, remoteAvatarUrls, lane, true);
+    }
   }
   ctx.restore();
 }
@@ -675,6 +677,7 @@ function drawChip(
   t: ReturnType<typeof theme>,
   avatars: AvatarCache | null,
   remoteAvatarUrls: ReadonlyMap<string, string | null>,
+  lane: number,
   expanded: boolean,
   flat = false,
 ): void {
@@ -691,7 +694,7 @@ function drawChip(
   }
 
   if (!flat) {
-    ctx.fillStyle = chip.isHead ? t.primarySoft : t.refSoft[chip.kind];
+    ctx.fillStyle = laneColourAlpha(lane, chip.isHead ? CHIP_TINT_HEAD : CHIP_TINT);
     roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
     ctx.fill();
   }
