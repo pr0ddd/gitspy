@@ -118,7 +118,7 @@ fn the_merged_text_is_rebuilt_with_diff3_so_the_base_is_always_visible() {
         .expect("the merged text is rebuilt from the index stages");
     assert!(
         merged.contains("|||||||"),
-        "without the base the view has nothing to show the unresolved conflict with, the way the reference client does"
+        "without the base the view has nothing to show for an unresolved conflict"
     );
     assert!(merged.contains("our version"));
     assert!(merged.contains("their version"));

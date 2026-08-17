@@ -39,6 +39,18 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
+    "publisher": "Pavel Erohovets",
+    "copyright": "© 2026 Pavel Erohovets",
+    "category": "DeveloperTool",
+    "shortDescription": "A free, open-source git client",
+    "longDescription": "Commit graph, staging, diffs, a merge conflict editor and GitHub, GitLab and Bitbucket sign-in, in a native app.",
+    "homepage": "https://github.com/pr0ddd/gitspy",
+    "license": "AGPL-3.0-only",
+    "licenseFile": "../LICENSE",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../THIRD-PARTY.md": "THIRD-PARTY.md"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

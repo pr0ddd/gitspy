@@ -103,7 +103,7 @@ const draw = (
     </TooltipProvider>,
   );
 
-const row = (name: string) => screen.getByText(name).closest('button') as HTMLElement;
+const row = (name: string) => screen.getByText(name).closest('[role="option"]') as HTMLElement;
 
 describe('redrawing the lists', () => {
   it('switching the view does not redraw the rows it does not touch', () => {
@@ -124,7 +124,7 @@ describe('the visible window of the list', () => {
     draw(thousand());
 
     expect(
-      document.querySelectorAll('button').length,
+      document.querySelectorAll('[role="option"]').length,
       'only the window of visible rows is drawn, not the whole list',
     ).toBeLessThan(120);
   });
@@ -262,12 +262,16 @@ describe('a branch whose upstream is gone', () => {
     draw([branch({ name: 'feature', upstream: 'origin/feature', gone: true })]);
 
     expect(
-      screen.getByRole('button', { name: /upstream of feature is gone/i }),
+      screen.getByRole('button', { name: /delete feature, its upstream is gone/i }),
       'the marker names the branch and what it offers to do',
     ).toBeTruthy();
     expect(row('feature').textContent, 'no ahead/behind numbers next to a gone upstream').toBe(
       'feature',
     );
+    expect(
+      document.querySelector('button button'),
+      'the marker is a real button, so the row around it cannot be one',
+    ).toBeNull();
   });
 
   it('clicking the marker asks to delete the branch instead of deleting it', () => {
@@ -280,7 +284,7 @@ describe('a branch whose upstream is gone', () => {
       onConfirm: (confirmation) => asked.push(confirmation),
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /upstream of feature is gone/i }));
+    fireEvent.click(screen.getByRole('button', { name: /delete feature, its upstream is gone/i }));
 
     expect(asked, 'the deletion goes through the confirm bar').toEqual([
       { kind: 'operation', operation: { kind: 'branchDelete', name: 'feature' } },
@@ -295,7 +299,7 @@ describe('a branch whose upstream is gone', () => {
   it('on the checked-out branch the marker only informs: git cannot delete the current branch', () => {
     draw([branch({ name: 'main', isHead: true, upstream: 'origin/main', gone: true })]);
 
-    expect(screen.queryByRole('button', { name: /upstream of main is gone/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /delete main, its upstream is gone/i })).toBeNull();
     expect(screen.getByLabelText(/upstream branch is gone/i)).toBeTruthy();
   });
 });
@@ -312,7 +316,7 @@ describe('a branch whose upstream is gone', () => {
     ).toBeTruthy();
     expect(
       screen.queryByText('gone'),
-      'a red label on every other row is noise, and the reference client does not draw it either',
+      'a red label on every other row is noise, so the word is not drawn',
     ).toBeNull();
   });
 
@@ -333,7 +337,7 @@ describe('the pull requests pane', () => {
 
     expect(
       screen.queryByRole('button', { name: /pull requests/i }),
-      'like the reference client: the section is not offered where it cannot apply',
+      'the section is not offered where it cannot apply',
     ).toBeNull();
     expect(
       screen.getByRole('button', { name: /^local$/i }).getAttribute('aria-pressed'),

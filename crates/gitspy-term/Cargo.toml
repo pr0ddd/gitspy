@@ -1,9 +1,13 @@
 [package]
 name = "gitspy-term"
 version = "0.1.0"
-edition = "2021"
+description = "PTY sessions for the gitspy terminal"
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+authors.workspace = true
+publish.workspace = true
 
 [dependencies]
 portable-pty = "0.9"

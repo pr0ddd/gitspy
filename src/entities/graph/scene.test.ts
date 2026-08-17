@@ -36,12 +36,9 @@ const colsWith = (graph: number) => layoutColumns(listWidth(WIDTH), { graph });
 const COLS = layoutColumns(listWidth(WIDTH), {});
 
 describe('the gap between graph rows', () => {
-  it('does not fill the row to its full height: neighbouring bands stay apart, as in the reference client', () => {
+  it('does not fill the row to its full height: neighbouring bands stay apart', () => {
     expect(rowBandHeight(M), 'the band inside a 30px row').toBe(24);
-    expect(
-      M.rowH - rowBandHeight(M),
-      'the gap is 21% of the row step, measured against the reference client',
-    ).toBe(6);
+    expect(M.rowH - rowBandHeight(M), 'the gap is 21% of the row step').toBe(6);
   });
 
   it('shrinks the gap together with the row on the compact layout instead of keeping it as it was', () => {

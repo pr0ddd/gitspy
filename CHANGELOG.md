@@ -9,10 +9,13 @@ app under "What's new" and is the text of the GitHub release.
 ### Open source
 
 - gitspy is open source under the AGPL-3.0: the code is at
-  github.com/pr0ddd/gitspy, releases are built there for macOS (Apple Silicon and
-  Intel), Linux (AppImage, deb, rpm) and Windows (installer and msi), and the app
-  updates itself from GitHub Releases. This is the first version with Linux and
-  Windows builds; the Windows build is not signed yet, so SmartScreen warns once.
+  https://github.com/pr0ddd/gitspy, releases are built there for macOS (Apple
+  Silicon and Intel), Linux (AppImage, deb, rpm) and Windows (installer and msi),
+  and the app updates itself from GitHub Releases. This is the first version with
+  Linux and Windows builds; the Windows build is not signed yet, so SmartScreen
+  warns once. A copy of 1.0.x will not find this update on its own — the old
+  update address is gone; download 1.1.0 once from Releases and it updates itself
+  from there on.
 - On Windows the terminal opens PowerShell (or cmd when there is none) through
   ConPTY; the terminal on every system starts your own login shell.
 
@@ -47,8 +50,9 @@ app under "What's new" and is the text of the GitHub release.
 - The pull requests tab is there only when the repository lives on a host you can
   sign in to; without an account it says so instead of loading forever.
 - GitLab tokens are refreshed on their own, a minute before they expire, so the
-  connection no longer drops after two hours. A host that rejects its token says
-  "Reconnect" in Settings rather than failing quietly.
+  connection no longer drops after two hours. A host that rejects its saved
+  sign-in says so in Settings and offers to sign in again, rather than failing
+  quietly.
 - The toolbar adapts to the window width instead of overlapping, the window has
   a minimum size of 960×600, the minimap is off by default, and Settings sit on
   the left with the width they need.

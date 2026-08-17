@@ -326,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn a_partially_staged_file_counts_on_both_sides_like_reference_does() {
+    fn a_partially_staged_file_counts_on_both_sides() {
         let tree = tree_of(vec![
             entry(Side::Staged, 'M', "same.rs"),
             entry(Side::Unstaged, 'M', "same.rs"),
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(
             tree.change_counts().modified,
             2,
-            "checked against the reference client on a live tree: 21 staged + 21 unstaged = 42"
+            "a file staged in part is one entry on each side: 21 staged + 21 unstaged = 42"
         );
     }
 

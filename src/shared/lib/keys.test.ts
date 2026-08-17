@@ -3,8 +3,10 @@ import {
   applePlatform,
   chordKeys,
   chordLabel,
+  desktopOf,
   keyLabel,
   matchesChord,
+  primaryModifier,
   type Stroke,
 } from '@/shared/lib/keys';
 
@@ -105,6 +107,21 @@ describe('platform detection', () => {
     expect(applePlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe(true);
     expect(applePlatform('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe(false);
     expect(applePlatform('Mozilla/5.0 (X11; Linux x86_64)')).toBe(false);
+  });
+
+  it('the three desktops are told apart, so a menu can name the file manager of each', () => {
+    expect(desktopOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('apple');
+    expect(desktopOf('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe('windows');
+    expect(desktopOf('Mozilla/5.0 (X11; Linux x86_64)')).toBe('linux');
+  });
+
+  it('an agent naming neither Apple nor Windows counts as Linux, the remaining desktop we ship on', () => {
+    expect(desktopOf('')).toBe('linux');
+  });
+
+  it('the primary modifier is written as the glyph on a Mac and as a word elsewhere', () => {
+    expect(primaryModifier(true)).toBe('⌘');
+    expect(primaryModifier(false)).toBe('Ctrl');
   });
 });
 

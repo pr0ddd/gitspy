@@ -5,7 +5,7 @@ import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { cn } from '@/shared/lib/utils';
-import { GIT } from '@/shared/config/vocabulary';
+import { chordKeys, onApple } from '@/shared/lib/keys';
 import { Icon } from '@/shared/ui/icons';
 import { InlineNote, ListRow, NavItem, SectionHeader } from '@/shared/ui/parts';
 import { clampPanel, PANEL_LIMITS } from '@/shared/lib/resize';
@@ -15,6 +15,7 @@ import * as ipc from '@/shared/api/ipc';
 import { notifyError } from '@/shared/ui/toast';
 import { relativeTime } from '@/shared/lib/time';
 import { Hint } from '@/shared/ui/tooltip';
+import { hostLabelOf, HOSTS } from '@/entities/repo';
 import { hostKindOf, splitListing, splitRecent } from '@/features/repo';
 import { noteHostError, useConnections } from '@/features/hosts';
 import { StartEmpty } from './StartEmpty';
@@ -32,6 +33,11 @@ type Props = {
 };
 
 type Source = 'all' | 'favorites' | string;
+
+const SEARCH_CHORD = { key: 'k', primary: true };
+
+const searchChordLabel = (apple: boolean): string =>
+  chordKeys(SEARCH_CHORD, apple).join(apple ? '' : '+');
 
 const shorten = (path: string) => {
   const match = path.match(/^\/(?:Users|home)\/[^/]+(\/.*)?$/);
@@ -232,6 +238,7 @@ function HostRepoRow({
   onStar: (fullName: string, next: boolean) => void;
   onClone: (url: string) => void;
 }) {
+  const { t } = useTranslation();
   const [owner, name] = repo.fullName.split('/');
   return (
     <ListRow as="div" tall title={repo.description ?? repo.fullName}>
@@ -249,7 +256,7 @@ function HostRepoRow({
         onClick={() => onClone(repo.cloneUrl)}
         className="shrink-0"
       >
-        {GIT.clone}
+        {t('repoDialog.clone')}
       </Button>
       <span className="text-faint text-2xs w-22 shrink-0 text-right">
         {repo.pushedAt ? relativeTime(Date.parse(repo.pushedAt) / 1000, now, language) : ''}
@@ -373,6 +380,9 @@ export function StartPage({
 
   const local = source === 'all' || source === 'favorites';
   const nothingOpenedYet = local && recent.length === 0;
+  const searchChord = searchChordLabel(onApple());
+  const hostName = hostLabelOf(connection?.kind ?? source);
+  const HostMark = Icon[(connection?.kind ?? source) as 'github'] ?? Icon.host;
 
   const row = (entry: RecentRepo) => (
     <RepoRow
@@ -420,7 +430,7 @@ export function StartPage({
           {links.length === 0 ? (
             <SourceRow
               chosen={false}
-              label="GitHub · GitLab"
+              label={HOSTS.map((known) => known.label).join(' · ')}
               connect
               badge={<Icon.github className="text-muted-foreground size-3" />}
               onPick={onConnect}
@@ -467,7 +477,7 @@ export function StartPage({
                   className="h-8 w-full pr-12 pl-8 text-xs"
                 />
                 <kbd className="text-faint text-2xs border-button-border pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm border px-1.5 py-px">
-                  ⌘K
+                  {searchChord}
                 </kbd>
               </div>
               {local ? (
@@ -478,7 +488,7 @@ export function StartPage({
                   </Button>
                   <Button variant="action" size="xs" onClick={() => onClone('')}>
                     <Icon.clone className="size-3.5" />
-                    {GIT.clone}
+                    {t('repoDialog.clone')}
                   </Button>
                   <Button variant="action" size="xs" onClick={onCreate}>
                     <Icon.add className="size-3.5" />
@@ -535,14 +545,16 @@ export function StartPage({
               ) : !connection ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                   <span className="bg-fill-2 flex size-10 items-center justify-center rounded-xl">
-                    <Icon.github className="text-muted-foreground size-5" />
+                    <HostMark className="text-muted-foreground size-5" />
                   </span>
-                  <p className="text-sm font-medium">{t('start.notConnected')}</p>
+                  <p className="text-sm font-medium">
+                    {t('start.notConnected', { host: hostName })}
+                  </p>
                   <p className="text-faint max-w-60 text-xs leading-relaxed">
                     {t('host.connectHint')}
                   </p>
                   <Button size="xs" onClick={onConnect}>
-                    {t('settings.connect')}
+                    {t('settings.connect', { host: hostName })}
                   </Button>
                 </div>
               ) : (
@@ -592,7 +604,9 @@ export function StartPage({
                     </p>
                   ) : null}
                   {!busy && failed ? (
-                    <p className="text-muted-foreground px-2 py-3 text-xs">{t('host.failed')}</p>
+                    <p className="text-muted-foreground px-2 py-3 text-xs">
+                      {t('host.failed', { host: hostName })}
+                    </p>
                   ) : null}
                   {!busy &&
                   !failed &&

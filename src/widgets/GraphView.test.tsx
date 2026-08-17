@@ -387,7 +387,7 @@ describe('hovering a commit node', () => {
     onCompact: () => {},
   };
 
-  it('names the author and the co-authors from the trailers, like the reference client does', async () => {
+  it('names the author and the co-authors from the trailers', async () => {
     const rows = new RowCache();
     const filled = window();
     filled.rows[2] = {

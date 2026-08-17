@@ -264,7 +264,7 @@ describe('a frame painted end to end', () => {
 });
 
 describe('badges on chips', () => {
-  it('marks a local branch with the laptop glyph, and it sits right of the name as in the reference client', () => {
+  it('marks a local branch with the laptop glyph, and it sits to the right of the name', () => {
     const painted = paint([ref('wip', 'localBranch')]);
 
     const laptop = painted.strokedGlyphs.find((g) => g.d === GLYPH.local.d);
@@ -329,7 +329,7 @@ describe('badges on chips', () => {
 
     const laptop = painted.strokedGlyphs.find((g) => g.d === GLYPH.local.d);
     const pull = painted.strokedGlyphs.find((g) => g.d === GLYPH.pull.d);
-    expect(pull, 'an open pull request is marked with a badge, as in the reference client').toBeDefined();
+    expect(pull, 'an open pull request is marked with a badge').toBeDefined();
     expect(pull!.x, 'the pull request badge comes last in the tail').toBeGreaterThan(laptop!.x);
   });
 
@@ -350,7 +350,7 @@ describe('badges on chips', () => {
     expect(texts, 'the deleted count stands next to the minus').toContain('3');
     expect(
       strokedGlyphs.some((g) => g.d === GLYPH.modified.d),
-      'the pencil marks modified files, as in the reference client',
+      'the pencil marks modified files',
     ).toBe(true);
     expect(
       strokedGlyphs.some((g) => g.d === GLYPH.added.d),

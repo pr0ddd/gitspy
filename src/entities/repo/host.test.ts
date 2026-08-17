@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hostBotOf, hostOf } from '@/entities/repo';
+import { hostBotOf, hostLabelOf, hostOf, hostOfUrl } from '@/entities/repo';
 import type { RemoteView } from '@/shared/api/types';
 
 const remote = (webUrl: string | null): RemoteView => ({ name: 'origin', avatarUrl: null, webUrl });
@@ -19,6 +19,23 @@ describe('host detection from a remote', () => {
 
   it('the host comes from the first remote that is recognised', () => {
     expect(hostOf([remote(null), remote('https://github.com/x/y')])).toBe('github');
+  });
+
+  it('a bare web URL is enough, so a menu built from a link can name the host it opens', () => {
+    expect(hostOfUrl('https://gitlab.com/pr0d/gitspy')).toBe('gitlab');
+    expect(hostOfUrl('https://git.example.com/x')).toBeNull();
+  });
+});
+
+describe('naming a host', () => {
+  it('the three known hosts get their own spelling', () => {
+    expect(hostLabelOf('github')).toBe('GitHub');
+    expect(hostLabelOf('gitlab')).toBe('GitLab');
+    expect(hostLabelOf('bitbucket')).toBe('Bitbucket');
+  });
+
+  it('an unknown connection is named by its own id rather than by a guessed host', () => {
+    expect(hostLabelOf('gitlab.corp.dev')).toBe('gitlab.corp.dev');
   });
 });
 

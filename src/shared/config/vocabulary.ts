@@ -1,3 +1,7 @@
+import type { IconName } from '@/shared/ui/icons';
+
+import type { Operation } from '@/shared/api/types';
+
 export const KEYS = {
   command: '⌘',
   ctrl: 'Ctrl',
@@ -18,33 +22,6 @@ export const KEYS = {
   right: '→',
 } as const;
 
-export const GIT = {
-  local: 'Local',
-  remote: 'Remote',
-  worktrees: 'Worktrees',
-  tags: 'Tags',
-  pullRequests: 'Pull Requests',
-  issues: 'Issues',
-  commit: 'Commit',
-  branch: 'Branch',
-  clone: 'Clone',
-  fetch: 'Fetch',
-  pull: 'Pull',
-  push: 'Push',
-  stash: 'Stash',
-  pop: 'Pop',
-  terminal: 'Terminal',
-  graph: 'Graph',
-  branchTag: 'Branch / Tag',
-  commitMessage: 'Commit Message',
-  sha: 'SHA',
-  workingTree: '// WIP',
-} as const;
-
-import type { IconName } from '@/shared/ui/icons';
-
-import type { Operation } from '@/shared/api/types';
-
 export type ExchangeMove = 'fetch' | 'pull' | 'push';
 
 export const EXCHANGE_ACTIONS: ReadonlyArray<{
@@ -52,9 +29,9 @@ export const EXCHANGE_ACTIONS: ReadonlyArray<{
   label: string;
   icon: IconName;
 }> = [
-  { move: 'fetch', label: GIT.fetch, icon: 'fetch' },
-  { move: 'pull', label: GIT.pull, icon: 'pull' },
-  { move: 'push', label: GIT.push, icon: 'push' },
+  { move: 'fetch', label: 'toolbar.fetch', icon: 'fetch' },
+  { move: 'pull', label: 'toolbar.pull', icon: 'pull' },
+  { move: 'push', label: 'toolbar.push', icon: 'push' },
 ];
 
 export const TOOLBAR_ACTIONS: ReadonlyArray<{
@@ -64,10 +41,10 @@ export const TOOLBAR_ACTIONS: ReadonlyArray<{
   asks?: 'branch' | 'stash';
   terminal?: true;
 }> = [
-  { label: GIT.branch, icon: 'branch', asks: 'branch' },
-  { label: GIT.stash, icon: 'stash', asks: 'stash' },
-  { label: GIT.pop, icon: 'stash', operation: { kind: 'stashPop' } },
-  { label: GIT.terminal, icon: 'terminal', terminal: true },
+  { label: 'toolbar.branch', icon: 'branch', asks: 'branch' },
+  { label: 'toolbar.stash', icon: 'stash', asks: 'stash' },
+  { label: 'toolbar.pop', icon: 'stash', operation: { kind: 'stashPop' } },
+  { label: 'toolbar.terminal', icon: 'terminal', terminal: true },
 ];
 
 export type PullMode = 'fetch' | 'pull' | 'pullFfOnly' | 'pullRebase';

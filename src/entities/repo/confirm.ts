@@ -19,7 +19,7 @@ export type Choice = {
 
 export type ConfirmText = {
   message: string;
-  params?: Record<string, string>;
+  params?: Record<string, string | number>;
   choices: Choice[];
 };
 
@@ -27,7 +27,7 @@ const SHORT_HASH = 8;
 
 const single = (
   message: string,
-  params: Record<string, string>,
+  params: Record<string, string | number>,
   effect: Effect,
   label = `${message}Action`,
 ): ConfirmText => ({ message, params, choices: [{ label, tone: 'destructive', effect }] });
@@ -61,7 +61,7 @@ const ofPathOperation = (operation: PathOperation): ConfirmText | null => {
   const run: Effect = { kind: 'runPath', operation };
   return operation.paths.length === 1
     ? single('confirm.discard', { path: operation.paths[0] }, run)
-    : single('confirm.discardMany', { count: String(operation.paths.length) }, run);
+    : single('confirm.discardMany', { count: operation.paths.length }, run);
 };
 
 export const isDangerous = (operation: Operation): boolean => ofOperation(operation) !== null;

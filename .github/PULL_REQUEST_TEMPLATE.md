@@ -11,5 +11,5 @@
 - [ ] Tests first: a test that fails for the same reason as the bug, then the fix.
 - [ ] No comments in code — the "why" lives in function and test names.
 - [ ] Interface text goes through i18n keys; no colours or sizes outside the theme tokens.
-- [ ] `npm run build`, `cargo test`, `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` pass locally.
+- [ ] `npm run build`, `cargo test`, `cargo clippy --all-targets -- -D warnings` and `cargo fmt --all -- --check` pass locally.
 - [ ] Commit messages are in English and say what was broken and how it was confirmed.

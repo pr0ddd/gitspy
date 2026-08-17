@@ -33,6 +33,7 @@ import {
 import { PULL_CHOICES, type PullMode } from '@/shared/config/vocabulary';
 import { APPEARANCES, useAppearance } from '@/shared/config/appearance';
 import { ZOOM_STEPS, zoomLabel } from '@/shared/lib/zoom';
+import { onApple, primaryModifier } from '@/shared/lib/keys';
 import {
   DEFAULT_HIDDEN,
   HIDEABLE,
@@ -318,7 +319,10 @@ function InterfaceSection({
         </DropdownMenu>
       </SettingRow>
 
-      <SettingRow label={t('settings.zoom')} hint={t('settings.zoomHint')}>
+      <SettingRow
+        label={t('settings.zoom')}
+        hint={t('settings.zoomHint', { modifier: primaryModifier(onApple()) })}
+      >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="w-72 justify-between font-normal">

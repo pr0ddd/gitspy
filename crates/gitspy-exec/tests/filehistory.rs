@@ -162,7 +162,7 @@ fn a_merge_that_brought_changes_into_the_file_is_part_of_its_history() {
     let subjects: Vec<&str> = history.iter().map(|c| c.subject.as_str()).collect();
     assert!(
         subjects[0].starts_with("Merge"),
-        "git log without --full-history silently hides merges, while the reference client shows them: {subjects:?}"
+        "git log without --full-history silently hides merges, and the file history must show them: {subjects:?}"
     );
     assert_eq!(
         history[0].path, "new.txt",

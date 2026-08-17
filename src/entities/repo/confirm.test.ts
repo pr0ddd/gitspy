@@ -66,7 +66,7 @@ describe('the text of a confirmation', () => {
         kind: 'pathOperation',
         operation: { kind: 'discard', paths: ['a.ts', 'b.ts'] },
       }),
-    ).toMatchObject({ message: 'confirm.discardMany', params: { count: '2' } });
+    ).toMatchObject({ message: 'confirm.discardMany', params: { count: 2 } });
   });
 
   it('deleting a file from disk is its own effect: it is not a git operation', () => {

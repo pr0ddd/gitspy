@@ -13,7 +13,6 @@ import { HOVER_FILL, NavItem } from '@/shared/ui/parts';
 import { directoryFromUrl } from '@/shared/lib/paths';
 import { notifyError } from '@/shared/ui/toast';
 import { cn } from '@/shared/lib/utils';
-import { GIT } from '@/shared/config/vocabulary';
 import { readPref } from '@/shared/lib/prefs';
 import { SETTINGS } from '@/shared/config/settingsModel';
 import {
@@ -369,7 +368,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
 
         <div className="flex min-w-0 flex-1 flex-col gap-5 p-6">
           <DialogTitle className="text-base font-semibold">
-            {mode === 'init' ? t('repoDialog.initTitle') : GIT.clone}
+            {mode === 'init' ? t('repoDialog.initTitle') : t('repoDialog.clone')}
           </DialogTitle>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -582,7 +581,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
               <div className="flex justify-end">
                 <Button onClick={start} disabled={!cloningUrl || !name.trim()}>
                   <Icon.clone className="size-3.5" />
-                  {GIT.clone}
+                  {t('repoDialog.clone')}
                 </Button>
               </div>
             )}

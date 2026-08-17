@@ -1,10 +1,13 @@
 [package]
 name = "gitspy-ai"
 version = "0.1.0"
-edition = "2021"
+description = "Commit messages from a local model (Ollama, LM Studio) for gitspy"
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-rust-version = "1.85"
+authors.workspace = true
+publish.workspace = true
 
 [dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "webpki-roots", "json", "charset", "http2"] }

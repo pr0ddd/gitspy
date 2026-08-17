@@ -10,7 +10,6 @@ import {
   type PullsState,
   type Session,
 } from '@/entities/repo';
-import { GIT } from '@/shared/config/vocabulary';
 import { Icon, type IconName } from '@/shared/ui/icons';
 import { buildRefTree, filterRefTree, flattenRefTree, type FlatRef } from '@/entities/graph';
 import { chipsFor } from '@/entities/graph';
@@ -54,12 +53,22 @@ type Props = {
 
 type ViewKey = 'local' | 'remote' | 'worktrees' | 'tags' | 'pullRequests';
 
-const VIEWS: ReadonlyArray<{ key: ViewKey; title: string; icon: IconName }> = [
-  { key: 'local', title: GIT.local, icon: 'branch' },
-  { key: 'remote', title: GIT.remote, icon: 'remote' },
-  { key: 'worktrees', title: GIT.worktrees, icon: 'worktree' },
-  { key: 'tags', title: GIT.tags, icon: 'tag' },
-  { key: 'pullRequests', title: GIT.pullRequests, icon: 'pullRequest' },
+const VIEW_TITLE = {
+  local: 'sidebar.local',
+  remote: 'sidebar.remote',
+  worktrees: 'sidebar.worktrees',
+  tags: 'sidebar.tags',
+  pullRequests: 'sidebar.pullRequests',
+} as const satisfies Record<ViewKey, string>;
+
+type SidebarTitle = (typeof VIEW_TITLE)[ViewKey];
+
+const VIEWS: ReadonlyArray<{ key: ViewKey; title: SidebarTitle; icon: IconName }> = [
+  { key: 'local', title: VIEW_TITLE.local, icon: 'branch' },
+  { key: 'remote', title: VIEW_TITLE.remote, icon: 'remote' },
+  { key: 'worktrees', title: VIEW_TITLE.worktrees, icon: 'worktree' },
+  { key: 'tags', title: VIEW_TITLE.tags, icon: 'tag' },
+  { key: 'pullRequests', title: VIEW_TITLE.pullRequests, icon: 'pullRequest' },
 ];
 
 const CAP = 99;
@@ -182,6 +191,7 @@ const RefRow = memo(function RefRow({
   const view = item.ref;
   return (
     <ListRow
+      as="div"
       depth={item.depth}
       gutter={view.isHead ? <Icon.current className="text-ref-current size-3.5" /> : null}
       current={view.isHead}
@@ -323,16 +333,18 @@ function ViewSwitch({
   counts: Record<ViewKey, number | null>;
   onPick: (key: ViewKey) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mx-2.5 mb-2 flex shrink-0 items-center gap-0.5">
       {views.map(({ key, title, icon }) => {
         const Glyph = Icon[icon];
         const count = counts[key];
         const chosen = key === active;
+        const name = t(title);
         return (
-          <Hint key={key} text={count === null ? title : `${title} · ${count}`}>
+          <Hint key={key} text={count === null ? name : `${name} · ${count}`}>
             <button
-              aria-label={title}
+              aria-label={name}
               aria-pressed={chosen}
               onClick={() => onPick(key)}
               className={cn(
@@ -345,7 +357,7 @@ function ViewSwitch({
               <Glyph className="size-3.5 shrink-0" />
               {chosen ? (
                 <span className="animate-in fade-in flex min-w-0 items-center gap-1.5 pl-1.5 duration-150">
-                  <span className="truncate">{title}</span>
+                  <span className="truncate">{name}</span>
                   {count === null ? null : (
                     <span className="text-faint shrink-0 tabular-nums">{capped(count)}</span>
                   )}
@@ -650,9 +662,9 @@ export function Sidebar({
           <NavItem
             key={key}
             icon={icon}
-            name={title}
+            name={t(title)}
             active={key === view}
-            hint={counts[key] === null ? title : `${title} · ${counts[key]}`}
+            hint={counts[key] === null ? t(title) : `${t(title)} · ${counts[key]}`}
             hintSide="right"
             onClick={() => {
               pickView(key);
@@ -700,7 +712,7 @@ export function Sidebar({
         data-area="refs"
         data-slot="sidebar-rows"
         role="listbox"
-        aria-label={VIEWS.find((known) => known.key === view)?.title}
+        aria-label={t(VIEW_TITLE[view])}
         onScroll={onScroll}
         className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2.5"
       >

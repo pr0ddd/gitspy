@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { Icon } from '@/shared/ui/icons';
-import { GIT } from '@/shared/config/vocabulary';
 
 const COMMITS = [
   { x: -47.6, base: -27.5, top: -55.5, r: 6, lane: 1, seconds: 4.6, from: 0 },
@@ -115,7 +114,7 @@ export function StartEmpty({
         </Button>
         <Button variant="outline" size="sm" onClick={onClone}>
           <Icon.clone className="size-3.5" />
-          {GIT.clone}
+          {t('repoDialog.clone')}
         </Button>
         <Button variant="outline" size="sm" onClick={onCreate}>
           <Icon.add className="size-3.5" />

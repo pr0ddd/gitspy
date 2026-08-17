@@ -1,17 +1,22 @@
 # gitspy
 
-A desktop git client: the commit graph the way the reference client draws it, plus our
-own ideas. Tauri 2, the interface in React and canvas, the repository read in
-Rust through gix, every state question and every write through system git.
+A desktop git client: branch and tag labels on the commits, avatars, a
+minimap, resizable columns, and our own ideas on top. Tauri 2, the interface
+in React and canvas, the repository read in Rust through gix, every state
+question and every write through system git.
 
 ## Commands
 
 ```bash
 npm run app                 # the whole app (Tauri + Vite)
-npm run build               # translations, boundary types, Prettier, ESLint, tsc, vitest, bundle
+npm run build               # translations, boundary types, notices, Prettier, ESLint, tsc, vitest, bundle
+npm test                    # vitest only
+npm run lint                # ESLint only
 npm run i18n:check          # translation completeness only
+npm run notices             # regenerate THIRD-PARTY.md from the lockfiles
 npm run format              # Prettier over the tree
 npm run licenses:check      # npm dependency licences
+npm run design              # build the design cards into design/dist
 cargo test                  # every Rust test
 cargo test -p gitspy-repo   # one crate
 cargo clippy --all-targets -- -D warnings
@@ -45,7 +50,8 @@ topologies without a single repository on disk.
 ## Code
 
 **There are no comments in the code.** Not `//`, not `///`, not `//!`, not
-`/* */`.
+`/* */`. The one carve-out is a file we do not write by hand: the ts-rs banner
+in `src/shared/api/generated/`.
 
 This is not a ban on explaining; it is a demand to explain more reliably. A
 comment is checked by nothing and lies within six months. So the "why" lives
@@ -104,8 +110,8 @@ protects against. Muted text is `text-muted-foreground` without home-made
 opacity; compact buttons are the `2xs`/`xs` sizes in `cva`, not a `className`
 on top.
 
-**Every value lives in `src/index.css` and nowhere else.** It is the single
-source: the shadcn variables (`--background`, `--primary`, `--border`,
+**Every value lives in `src/theme.css` and nowhere else** (`src/index.css`
+only pulls in the fonts, Tailwind and that file). It is the single source: the shadcn variables (`--background`, `--primary`, `--border`,
 `--ring` and the rest), our git colours with meaning (`--status-added`,
 `--status-deleted`, `--status-ahead`…), the colours of ref kinds and the graph
 palette. Changing one value must change the whole app at once — if recolouring
@@ -119,7 +125,7 @@ exactly the drift all of this exists to remove.
 ### Icons
 
 The pack is `lucide-react`, shadcn's own. Components **do not import from it
-directly**: `src/shared/ui/icons.ts` names icons by meaning — `Icon.branch`,
+directly** (only the shadcn primitives in `src/shared/ui/` do): `src/shared/ui/icons.ts` names icons by meaning — `Icon.branch`,
 `Icon.stash`, `Icon.pull`. Changing the pack means editing one file, not forty
 call sites.
 
@@ -132,9 +138,9 @@ buttons and headings.
 `tw-animate-css` animates Radix states through `data-state`: dropdown menus,
 dialogs, tooltips, collapsing sections. That is shadcn canon and needs no JS.
 
-`motion` takes what CSS cannot: an element moving to a new place, a list
-reordering, interruptible movement under a gesture — dragging dividers, the
-minimap.
+Movement under a gesture — dragging dividers, the minimap — is not animated
+at all: the element follows the pointer through direct style updates inside a
+`requestAnimationFrame`, without a React render per move.
 
 **Only `transform` and `opacity` are animated.** Everything else — width,
 height, `top`, `left` — makes the browser recompute layout and drops frames.
@@ -194,7 +200,7 @@ on state it is the reference, and a quiet disagreement between us and the
 terminal is invisible in tests: both answers look plausible.
 
 The reason is not speed: `git for-each-ref` on react costs 18.8 ms against
-13.2 for reading through gix, and on the small quesk 27.1, because we pay for
+13.2 for reading through gix, and on a small repository 27.1, because we pay for
 starting a process, not for the refs. The reason is that one call returns
 strictly more and removes 64 lines of hand-made repairs.
 

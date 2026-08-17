@@ -48,6 +48,11 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const profiles = readProfiles();
 
+  const profileName = useCallback(
+    (profile: TermProfile) => profile.label ?? t('term.defaultProfile'),
+    [t],
+  );
+
   const sessions = useMemo(
     () => sessionsOfRepo({ sessions: allSessions }, repo),
     [allSessions, repo],
@@ -80,7 +85,7 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
           livePanes.set(host.id, { el, host });
           add({
             id: host.id,
-            title: profile.label,
+            title: profileName(profile),
             command: profile.command,
             cwd: repo,
             repo,
@@ -96,7 +101,7 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
         })
         .finally(() => setStarting((waiting) => waiting - 1));
     },
-    [add, onFileLink, onHashLink, repo, setTitle, stagedTermId],
+    [add, onFileLink, onHashLink, profileName, repo, setTitle, stagedTermId],
   );
 
   const closeSession = useCallback(
@@ -191,9 +196,12 @@ export function TerminalDock({ repo, onFileLink, onHashLink, onClose }: Props) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {profiles.map((profile) => (
-                  <DropdownMenuItem key={profile.label} onSelect={() => openSession(profile)}>
+                  <DropdownMenuItem
+                    key={profileName(profile)}
+                    onSelect={() => openSession(profile)}
+                  >
                     <Icon.terminal />
-                    {profile.label}
+                    {profileName(profile)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

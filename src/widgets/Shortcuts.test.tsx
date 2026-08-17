@@ -76,7 +76,7 @@ describe('the keyboard shortcuts dialog', () => {
       false,
     );
     expect(
-      scroller.contains(screen.getByText('Keyboard Shortcuts')),
+      scroller.contains(screen.getByRole('heading', { name: /keyboard shortcuts/i })),
       'the title must not scroll away with the list',
     ).toBe(false);
   });
