@@ -7,6 +7,11 @@ import type { AvatarCache } from '@/shared/ui/avatarCache';
 import { GLYPH } from './glyphs';
 import type { RefKind, RefView, RepoView, WindowView } from '@/shared/api/types';
 
+vi.mock('@/shared/ui/theme', async (original) => ({
+  ...(await original<object>()),
+  laneColourAlpha: (index: number, percent: number) => `lane${index}@${percent}`,
+}));
+
 class RecordedPath {
   d: string | undefined;
   ops: { op: string; x: number; y: number }[] = [];
@@ -31,7 +36,7 @@ const texts: string[] = [];
 const placedTexts: { text: string; x: number; y: number }[] = [];
 const strokedGlyphs: { d: string; x: number }[] = [];
 const drawnImages: { image: unknown; x: number }[] = [];
-const filledRects: { x: number; y: number; w: number; h: number }[] = [];
+const filledRects: { x: number; y: number; w: number; h: number; style: string }[] = [];
 const strokedPaths: { op: string; x: number; y: number }[][] = [];
 const arcs: { x: number; y: number; r: number }[] = [];
 let lastTranslateX = 0;
@@ -71,6 +76,7 @@ const context = () =>
               y: Number(args[1]),
               w: Number(args[2]),
               h: Number(args[3]),
+              style: String(target.fillStyle ?? ''),
             });
           }
           if (key === 'arc') {
@@ -78,7 +84,8 @@ const context = () =>
           }
         };
       },
-      set() {
+      set(target, key: string, value: unknown) {
+        target[key] = value;
         return true;
       },
     },
@@ -293,6 +300,28 @@ describe('the column headings', () => {
       strokedGlyphs.some((g) => g.d === GLYPH.graph.d),
       'the glyph stands in for the heading',
     ).toBe(true);
+  });
+});
+
+describe('the selected row', () => {
+  it('carries a stronger tint of its lane colour than its neighbours, and no ring around the node', () => {
+    arcs.length = 0;
+    filledRects.length = 0;
+    const frame = frameWith([]);
+    drawFrame(canvas(), { ...frame, selected: 1, hover: null });
+
+    const bands = filledRects.filter((r) => r.style.startsWith('lane'));
+    const percents = bands.map((r) => Number(r.style.split('@')[1]));
+    expect(Math.max(...percents), 'the selected band is the brightest').toBe(32);
+    expect(percents.filter((p) => p === 32).length, 'exactly one row is selected').toBe(1);
+    expect(percents.filter((p) => p === 11).length, 'the rest keep the quiet tint').toBeGreaterThan(
+      1,
+    );
+    const nodeR = METRICS_AVATARS.nodeR;
+    expect(
+      arcs.some((a) => Math.abs(a.r - (nodeR + 3.5)) < 0.01),
+      'no extra ring is drawn around the selected node',
+    ).toBe(false);
   });
 });
 

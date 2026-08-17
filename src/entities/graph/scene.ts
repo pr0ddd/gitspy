@@ -9,6 +9,7 @@ const PAD_X = 14;
 
 export type Metrics = {
   readonly rowH: number;
+  readonly bandH: number;
   readonly laneW: number;
   readonly nodeR: number;
   readonly avatars: boolean;
@@ -29,6 +30,7 @@ const fonts = (px: number, detailPx: number) => ({
 
 export const METRICS_AVATARS: Metrics = {
   rowH: 30,
+  bandH: 22,
   laneW: 24,
   nodeR: 10,
   avatars: true,
@@ -37,17 +39,16 @@ export const METRICS_AVATARS: Metrics = {
 
 export const METRICS_COMPACT: Metrics = {
   rowH: 28,
+  bandH: 22,
   laneW: 16,
   nodeR: 5,
   avatars: false,
   ...fonts(12, 11),
 };
 
-export const ROW_GAP_SHARE = 0.21;
+export const rowBandInset = (m: Metrics): number => (m.rowH - m.bandH) / 2;
 
-export const rowBandInset = (m: Metrics): number => Math.round((m.rowH * ROW_GAP_SHARE) / 2);
-
-export const rowBandHeight = (m: Metrics): number => m.rowH - 2 * rowBandInset(m);
+export const rowBandHeight = (m: Metrics): number => m.bandH;
 
 export const listTopInset = (m: Metrics): number => rowBandInset(m);
 

@@ -53,6 +53,9 @@ const CAP_W = 2;
 
 const SHADOW_BAND = 14;
 const HEAD_GLYPH = 12;
+const BAND_TINT = 11;
+const BAND_TINT_HOVER = 18;
+const BAND_TINT_SELECTED = 32;
 const STACK_PAD = 4;
 const STACK_GAP = 2;
 const STACK_TINT = 0.55;
@@ -204,7 +207,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const row = rows.row(i);
       if (!row) continue;
       const x = g.nodeX(row.lane);
-      ctx.fillStyle = laneColourAlpha(row.colour, 11);
+      const tint = i === selected ? BAND_TINT_SELECTED : i === hover ? BAND_TINT_HOVER : BAND_TINT;
+      ctx.fillStyle = laneColourAlpha(row.colour, tint);
       ctx.fillRect(x, y + inset, Math.max(0, g.gRight - x), band);
     }
 
@@ -379,16 +383,6 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fill();
       }
 
-      if (i === selected) {
-        ctx.save();
-        ctx.globalAlpha = 0.55;
-        ctx.strokeStyle = t.primary;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(x, y, m.nodeR + 3.5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
       ctx.lineWidth = GRAPH_W;
     }
 

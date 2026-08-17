@@ -36,12 +36,12 @@ const colsWith = (graph: number) => layoutColumns(listWidth(WIDTH), { graph });
 const COLS = layoutColumns(listWidth(WIDTH), {});
 
 describe('the gap between graph rows', () => {
-  it('does not fill the row to its full height: neighbouring bands stay apart', () => {
-    expect(rowBandHeight(M), 'the band inside a 30px row').toBe(24);
-    expect(M.rowH - rowBandHeight(M), 'the gap is 21% of the row step').toBe(6);
+  it('wraps the avatar with a one-pixel halo and leaves the rest of the row as the gap', () => {
+    expect(rowBandHeight(M), 'the band inside a 30px row').toBe(M.nodeR * 2 + 2);
+    expect(rowBandInset(M), 'the band sits centred: four pixels above and below').toBe(4);
   });
 
-  it('shrinks the gap together with the row on the compact layout instead of keeping it as it was', () => {
+  it('keeps the compact band at 22 in a 28px row', () => {
     expect(rowBandInset(METRICS_COMPACT), 'a 28px row').toBe(3);
     expect(rowBandHeight(METRICS_COMPACT)).toBe(22);
   });
