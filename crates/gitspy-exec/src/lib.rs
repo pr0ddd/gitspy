@@ -139,6 +139,26 @@ fn the_path_is_simply_absent(stderr: &str) -> bool {
         || stderr.contains("unknown revision or path not in the working tree")
 }
 
+fn for_each_line_lossy(source: impl std::io::Read, mut each: impl FnMut(String)) {
+    let mut reader = BufReader::new(source);
+    let mut buffer = Vec::new();
+    loop {
+        buffer.clear();
+        match reader.read_until(b'\n', &mut buffer) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                if buffer.last() == Some(&b'\n') {
+                    buffer.pop();
+                    if buffer.last() == Some(&b'\r') {
+                        buffer.pop();
+                    }
+                }
+                each(String::from_utf8_lossy(&buffer).into_owned());
+            }
+        }
+    }
+}
+
 fn shown_or_absent(read: Result<String, Error>) -> Result<String, Error> {
     match read {
         Ok(text) => Ok(text),
@@ -877,20 +897,18 @@ impl Git {
         let collected_err = std::thread::scope(|scope| {
             let err = scope.spawn(|| {
                 let mut lines = Vec::new();
-                for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                    lines.push(line);
-                }
+                for_each_line_lossy(stderr, |line| lines.push(line));
                 lines
             });
 
             let mut out = Vec::new();
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            for_each_line_lossy(stdout, |line| {
                 events(Event::Line {
                     stderr: false,
                     text: line.clone(),
                 });
                 out.push(line);
-            }
+            });
 
             let err = err.join().unwrap_or_default();
             for line in &err {

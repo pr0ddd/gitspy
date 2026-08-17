@@ -4,10 +4,10 @@ use crate::paths::data_dir;
 use crate::recent;
 use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
-    build_changed_files, build_repo_view, build_window_view, build_working_tree, state_lock_failed,
-    BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView, FileCommitView,
-    FoundCommitView, RepoPassportView, RepoView, Timings, TipView, WindowView, WorkingTreeView,
-    WorktreeView, MINIMAP_BUCKETS,
+    build_changed_files, build_repo_view, build_window_view, build_working_tree, sides_of,
+    state_lock_failed, BlameSpanView, ChangedFileView, ConflictFileView, DiffSides, ErrorView,
+    FileCommitView, FoundCommitView, RepoPassportView, RepoView, Timings, TipView, WindowView,
+    WorkingTreeView, WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
@@ -312,7 +312,7 @@ pub async fn diff_sides(
         let after = git
             .file_at(&repo_path, &commit, &path)
             .map_err(exec_error)?;
-        Ok(DiffSides { before, after })
+        Ok(sides_of(before, after))
     })
     .await
 }
@@ -395,7 +395,7 @@ pub async fn working_tree_diff(
 
     on_reader(move || {
         git.working_tree_sides(&repo_path, &path, staged)
-            .map(|(before, after)| DiffSides { before, after })
+            .map(|(before, after)| sides_of(before, after))
             .map_err(exec_error)
     })
     .await

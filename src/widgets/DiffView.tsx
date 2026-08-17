@@ -56,6 +56,8 @@ type Loaded = {
   raw: string | null;
 };
 
+type Binary = { for: DiffTarget };
+
 const disposeCompared = (compared: monaco.editor.IDiffEditorViewModel) => {
   const { original, modified } = compared.model;
   compared.dispose();
@@ -136,7 +138,7 @@ function HunkBar({
 export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const path = target.kind === 'commit' ? target.file.path : target.path;
   const status = target.kind === 'commit' ? target.file.status : target.status;
-  const binary = target.kind === 'commit' ? target.file.binary : false;
+  const knownBinary = target.kind === 'commit' ? target.file.binary : false;
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement | null>(null);
   const editor = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
@@ -145,6 +147,8 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const [whitespace, setWhitespace] = usePref('diff.whitespace', false);
   const [wrap, setWrap] = usePref('diff.wrap', false);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [foundBinary, setFoundBinary] = useState<Binary | null>(null);
+  const binary = knownBinary || foundBinary?.for === target;
   const [applied, setApplied] = useState(0);
   const [view, setView] = useState<'diff' | 'file'>('diff');
   const [editing, setEditing] = useState(false);
@@ -212,6 +216,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   };
 
   useEffect(() => {
+    if (knownBinary) return;
     let cancelled = false;
     let inflight: monaco.editor.IDiffEditorViewModel | null = null;
     const language = languageOf(path);
@@ -228,6 +233,10 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
     const comparing = readingSides.then((sides) => {
       const diffEditor = editor.current;
       if (cancelled || !diffEditor) return null;
+      if (sides.binary) {
+        setFoundBinary({ for: target });
+        return null;
+      }
       const compared = diffEditor.createViewModel({
         original: monaco.editor.createModel(sides.before, language),
         modified: monaco.editor.createModel(sides.after, language),
@@ -257,7 +266,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
         inflight = null;
       }
     };
-  }, [repo, target, path, applied]);
+  }, [repo, target, path, applied, knownBinary]);
 
   const hunkView = useMemo(() => {
     if (!loaded?.raw || isGitlinkDiff(loaded.raw)) return null;

@@ -562,6 +562,50 @@ pub struct TipView {
 pub struct DiffSides {
     pub before: String,
     pub after: String,
+    pub binary: bool,
+}
+
+const BINARY_PROBE_BYTES: usize = 8000;
+
+pub fn looks_binary(text: &str) -> bool {
+    text.bytes().take(BINARY_PROBE_BYTES).any(|byte| byte == 0)
+}
+
+pub fn sides_of(before: String, after: String) -> DiffSides {
+    if looks_binary(&before) || looks_binary(&after) {
+        return DiffSides {
+            before: String::new(),
+            after: String::new(),
+            binary: true,
+        };
+    }
+    DiffSides {
+        before,
+        after,
+        binary: false,
+    }
+}
+
+#[cfg(test)]
+mod diff_sides_tests {
+    use super::*;
+
+    #[test]
+    fn a_nul_byte_within_the_first_eight_kilobytes_makes_the_pair_binary_and_empties_it() {
+        let sides = sides_of("plain\n".to_string(), "bytes\0here".to_string());
+        assert!(
+            sides.binary,
+            "git's own rule: a NUL early in the file means it is not text"
+        );
+        assert_eq!((sides.before.as_str(), sides.after.as_str()), ("", ""));
+    }
+
+    #[test]
+    fn text_on_both_sides_passes_through_untouched() {
+        let sides = sides_of("a\n".to_string(), "b\n".to_string());
+        assert!(!sides.binary);
+        assert_eq!(sides.after, "b\n");
+    }
 }
 
 #[derive(Serialize, TS)]

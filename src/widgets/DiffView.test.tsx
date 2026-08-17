@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import * as ipc from '@/shared/api/ipc';
 
 const fake = vi.hoisted(() => {
@@ -157,7 +157,7 @@ vi.mock('@/entities/diff', async () => ({
 }));
 vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  diffSides: vi.fn(() => Promise.resolve({ before: '', after: '' })),
+  diffSides: vi.fn(() => Promise.resolve({ before: '', after: '', binary: false })),
   commitFileHunks: vi.fn(() => Promise.resolve('')),
 }));
 import '@/shared/config/i18n';
@@ -211,10 +211,14 @@ const patchAt = (newStart: number) => `@@ -${newStart},2 +${newStart},2 @@\n-a\n
 
 describe('switching files in the diff editor', () => {
   it('assembles the whole view before the swap: scrolls from the patch without waiting for the diff', async () => {
-    let releaseSecondSides: (sides: { before: string; after: string }) => void = () => {};
+    let releaseSecondSides: (sides: {
+      before: string;
+      after: string;
+      binary: boolean;
+    }) => void = () => {};
     vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
       commit === 'aaaa0000'
-        ? Promise.resolve({ before: 'old before', after: 'old after' })
+        ? Promise.resolve({ before: 'old before', after: 'old after', binary: false })
         : new Promise((resolve) => {
             releaseSecondSides = resolve;
           }),
@@ -242,7 +246,9 @@ describe('switching files in the diff editor', () => {
       'the editor is not hidden while loading',
     ).toBe(false);
 
-    await act(async () => releaseSecondSides({ before: 'new before', after: 'new after' }));
+    await act(async () =>
+      releaseSecondSides({ before: 'new before', after: 'new after', binary: false }),
+    );
     expect(fake.shownText(), 'the new file replaced the old one in a single step').toBe(
       'new after',
     );
@@ -254,8 +260,8 @@ describe('switching files in the diff editor', () => {
     vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
       Promise.resolve(
         commit === 'aaaa0000'
-          ? { before: 'old before', after: 'old after' }
-          : { before: 'new before', after: 'new after' },
+          ? { before: 'old before', after: 'old after', binary: false }
+          : { before: 'new before', after: 'new after', binary: false },
       ),
     );
     vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(1));
@@ -284,7 +290,7 @@ describe('switching files in the diff editor', () => {
 
   it('previous models and comparisons are disposed after the swap, and ones abandoned midway are disposed on cancel', async () => {
     vi.mocked(ipc.diffSides).mockImplementation((_repo, commit) =>
-      Promise.resolve({ before: `${commit} before`, after: `${commit} after` }),
+      Promise.resolve({ before: `${commit} before`, after: `${commit} after`, binary: false }),
     );
     vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(1));
 
@@ -329,6 +335,7 @@ describe('switching files in the diff editor', () => {
     vi.mocked(ipc.diffSides).mockResolvedValue({
       before: Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join('\n'),
       after: Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join('\n'),
+      binary: false,
     });
     vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(4));
 
@@ -349,7 +356,11 @@ describe('switching files in the diff editor', () => {
 
   it('hunk headers are placed while the model is being attached: Monaco aligns the left column in the same pass, and hiding lines comes after', async () => {
     localStorage.setItem('gitspy.diff.mode', '"hunk"');
-    vi.mocked(ipc.diffSides).mockResolvedValue({ before: 'a\nb\nc', after: 'a\nx\nc' });
+    vi.mocked(ipc.diffSides).mockResolvedValue({
+      before: 'a\nb\nc',
+      after: 'a\nx\nc',
+      binary: false,
+    });
     vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(2));
 
     render(view(targetFor('cccc0000', 'src/some.ts')));
@@ -363,6 +374,31 @@ describe('switching files in the diff editor', () => {
       fake.events,
       'order: attach with the zone inside it, then hide lines on both sides — Monaco drops hidden areas when the model is swapped',
     ).toEqual(['attach:a\nx\nc', 'zone', 'hidden', 'hidden']);
+  });
+});
+
+describe('a binary file', () => {
+  it('known from the change list asks git for nothing and shows the note', async () => {
+    vi.mocked(ipc.diffSides).mockClear();
+    vi.mocked(ipc.commitFileHunks).mockClear();
+    const target: DiffTarget = {
+      kind: 'commit',
+      commit: 'aaaa0000',
+      file: { ...fileNamed('model.tar'), binary: true, added: 0, deleted: 0 },
+    };
+    render(view(target));
+    await act(async () => {});
+
+    expect(screen.getByText(/binary file/i)).toBeTruthy();
+    expect(ipc.diffSides, 'no blob is read for a file we cannot show').not.toHaveBeenCalled();
+    expect(ipc.commitFileHunks).not.toHaveBeenCalled();
+  });
+
+  it('found out from the sides is shown as the note too, without an error toast', async () => {
+    vi.mocked(ipc.diffSides).mockResolvedValueOnce({ before: '', after: '', binary: true });
+    render(view(targetFor('aaaa0000', 'src/blob.bin')));
+
+    await waitFor(() => expect(screen.getByText(/binary file/i)).toBeTruthy());
   });
 });
 

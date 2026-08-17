@@ -55,3 +55,28 @@ fn a_broken_git_config_surfaces_as_an_error_not_as_an_empty_file() {
         "git refused for a reason other than a missing file: an empty diff would hide the breakage, the way it did with a broken gpg.format"
     );
 }
+
+fn repo_with_a_binary_commit() -> TempDir {
+    let dir = TempDir::new().expect("temp directory");
+    run(dir.path(), &["init", "-b", "main"]);
+    let mut bytes = Vec::with_capacity(300_000);
+    for i in 0..300_000u32 {
+        bytes.push((i % 251) as u8);
+    }
+    std::fs::write(dir.path().join("model.bin"), &bytes).expect("binary written");
+    run(dir.path(), &["add", "-A"]);
+    run(dir.path(), &["commit", "-q", "-m", "one"]);
+    dir
+}
+
+#[test]
+fn a_binary_blob_reads_without_git_dying_of_a_closed_pipe() {
+    let dir = repo_with_a_binary_commit();
+    let text = git()
+        .file_at(dir.path(), "HEAD", "model.bin")
+        .expect("a binary blob is not a failure of git: it just holds bytes that are not text");
+    assert!(
+        text.len() > 100_000,
+        "the whole blob comes through, not the part before the first line that is not UTF-8"
+    );
+}
