@@ -309,7 +309,6 @@ const PullRow = memo(function PullRow({
 }) {
   return (
     <ListRow
-      gutter={null}
       selected={selected}
       tabIndex={tabIndex}
       title={pull.title}
