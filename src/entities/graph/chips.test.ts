@@ -31,6 +31,15 @@ describe('branch chips', () => {
     expect(shape([ref('wip', 'localBranch')])).toEqual(['wip [local]']);
   });
 
+  it('folds a same-named remote branch on the same commit into the local chip even without an upstream', () => {
+    const local = ref('master', 'localBranch', { isHead: true });
+    const remote = ref('origin/master', 'remoteBranch');
+    expect(
+      shape([local, remote]),
+      'a clone whose tracking config is gone still has one master, not two',
+    ).toEqual(['✓ master [local remote]']);
+  });
+
   it('drops the remote prefix from a remote branch: the avatar names the host, not the text', () => {
     expect(shape([ref('origin/dev', 'remoteBranch')])).toEqual(['dev [remote]']);
   });

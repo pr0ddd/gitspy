@@ -41,8 +41,13 @@ const byProminence = (a: Chip, b: Chip): number =>
 
 export const chipsFor = (labels: readonly RefView[], remotes: readonly string[]): Chip[] => {
   const here = new Set(labels.map((r) => r.name));
-  const tracked = (r: RefView) =>
-    r.kind === 'localBranch' && r.upstream && here.has(r.upstream) ? r.upstream : null;
+  const sameNameOnARemote = (r: RefView) =>
+    remotes.map((remote) => `${remote}/${r.name}`).find((name) => here.has(name)) ?? null;
+  const tracked = (r: RefView) => {
+    if (r.kind !== 'localBranch') return null;
+    if (r.upstream && here.has(r.upstream)) return r.upstream;
+    return sameNameOnARemote(r);
+  };
 
   const absorbed = new Set(labels.map(tracked).filter((name): name is string => name !== null));
 
