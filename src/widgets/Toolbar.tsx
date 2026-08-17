@@ -172,6 +172,7 @@ export function Toolbar({
   const push = pushFor(tree);
   const [pullMode, setPullMode] = usePref<PullMode>('toolbar.pull', 'pull');
   const field = useRef<HTMLInputElement>(null);
+  const searchBox = useRef<HTMLDivElement>(null);
   const [listing, setListing] = useState(false);
   const preview = useFoundCommits(repo, found);
 
@@ -182,6 +183,16 @@ export function Toolbar({
   useEffect(() => {
     if (!search.trim()) setListing(false);
   }, [search]);
+
+  useEffect(() => {
+    if (!listing) return;
+    const closeWhenPointerLandsOutside = (event: PointerEvent) => {
+      const box = searchBox.current;
+      if (box && event.target instanceof Node && !box.contains(event.target)) setListing(false);
+    };
+    document.addEventListener('pointerdown', closeWhenPointerLandsOutside, true);
+    return () => document.removeEventListener('pointerdown', closeWhenPointerLandsOutside, true);
+  }, [listing]);
 
   return (
     <div className="@container grid h-12 shrink-0 grid-cols-toolbar items-center gap-2 px-2">
@@ -226,7 +237,7 @@ export function Toolbar({
       </div>
 
       <div className="flex min-w-0 items-center justify-end">
-        <div className="relative flex w-full max-w-64 items-center">
+        <div ref={searchBox} className="relative flex w-full max-w-64 items-center">
           <SearchField
             value={search}
             fieldRef={field}
@@ -237,7 +248,7 @@ export function Toolbar({
             }}
             onFocus={() => setListing(true)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') setListing(false);
+              if (e.key === 'Escape' || e.key === 'Tab') setListing(false);
               if (e.key === 'Enter') onStep(e.shiftKey ? -1 : 1);
             }}
             trailing={
