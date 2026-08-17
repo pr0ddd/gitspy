@@ -55,6 +55,7 @@ const SHADOW_BAND = 14;
 const HEAD_GLYPH = 12;
 const STACK_PAD = 4;
 const STACK_GAP = 2;
+const STACK_TINT = 0.55;
 
 const CHIP_PAD = 9;
 const MARK_GAP = 4;
@@ -610,11 +611,19 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
     const rows = chips.map((chip) => fullPlacement(chip, measure, chipM, frame.pullHeads));
     const panelW = Math.max(...rows.map((row) => row.fullW)) + STACK_PAD * 2;
     const panelH = rows.length * chipH + (rows.length - 1) * STACK_GAP + STACK_PAD * 2;
-    ctx.fillStyle = theme().panel;
+    const t = theme();
+    const lead = rows[0].chip;
+    ctx.fillStyle = t.panel;
     roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
     ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
+    ctx.save();
+    ctx.globalAlpha = STACK_TINT;
+    ctx.fillStyle = lead.isHead ? t.primarySoft : t.refSoft[lead.kind];
+    roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
+    ctx.fill();
+    ctx.restore();
     rows.forEach((row, i) => {
       drawChip(
         ctx,
