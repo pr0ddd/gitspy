@@ -26,7 +26,8 @@ npm run app
 `npm run build` runs every frontend gate (translations, boundary types,
 Prettier, ESLint, tsc, vitest, bundle); `cargo test`, `cargo clippy
 --all-targets -- -D warnings` and `cargo fmt --all -- --check` cover Rust.
-CI runs the same on Linux, macOS and Windows for every pull request.
+CI runs the Rust gates on Linux, macOS and Windows, the frontend gates on Linux
+and Windows, and the licence gates on Linux — for every pull request.
 
 ## The rules that will come up in review
 

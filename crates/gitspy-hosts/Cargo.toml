@@ -1,10 +1,13 @@
 [package]
 name = "gitspy-hosts"
 version = "0.1.0"
-edition = "2021"
+description = "GitHub, GitLab and Bitbucket behind one Host enum, for gitspy"
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-rust-version = "1.85"
+authors.workspace = true
+publish.workspace = true
 
 [dependencies]
 base64 = "0.23.1"

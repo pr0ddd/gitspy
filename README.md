@@ -5,7 +5,7 @@
 <h1 align="center">gitspy</h1>
 
 <p align="center">
-  A free, open-source alternative to GitKraken.<br />
+  A free, open-source desktop git client.<br />
   Commit graph, staging, diffs, a merge conflict editor and GitHub / GitLab / Bitbucket sign-in — in a native app.
 </p>
 
@@ -20,33 +20,40 @@
   <img src="docs/screenshots/graph.png" width="900" alt="gitspy showing a commit graph, the working tree and commit details" />
 </p>
 
-## Why gitspy
+## What it does
 
-- **Free.** No licence, no seat, no account. AGPL-3.0.
-- **Private.** No telemetry. The app talks to the network only when you ask it
-  to (and to check for updates).
-- **Fast.** Written in Rust and Tauri, not a bundled browser. Repositories with
-  hundreds of thousands of commits open and scroll smoothly.
-- **The graph you know.** Branch and tag labels on the commits, avatars, a
-  minimap, resizable columns — the layout GitKraken users are used to.
-- **A proper merge tool.** Yours, theirs and the result side by side, with
-  syntax highlighting; pick whole blocks or single lines, edit the result by
-  hand, save.
-- **Safe by default.** Every destructive action asks first. Force push is
-  offered only after a normal push was rejected, and only with `--force-with-lease`.
+- **Graph & history** — branch and tag labels on the commits, avatars, an
+  optional minimap, columns you resize and hide; search commits, see a file's
+  history and blame, open a commit's files in inline, split or hunk view.
+- **Working tree** — stage by file or by hunk, path or tree view, amend, push
+  after commit. Optionally, a local model (Ollama or LM Studio) writes the
+  commit message from what you staged.
+- **Merge conflicts** — yours, theirs and the result side by side, with syntax
+  highlighting; take whole blocks or single lines, edit the result by hand,
+  save.
+- **Branches, tags, stashes, worktrees** — a tree on the left, checkout by
+  double-click, ahead/behind counts, a marker on branches whose remote is gone
+  with one-click cleanup. Every destructive action asks first; force push is
+  offered only after a rejected push, and only with `--force-with-lease`.
+- **GitHub, GitLab, Bitbucket** — sign in, see the repository's pull requests
+  and check them out, clone from your account, create a repository on the host.
+- **Terminal** — a shell in a dock under the graph, several tabs per
+  repository. PowerShell or cmd on Windows.
+- **Updates** — the app updates itself from GitHub Releases. No telemetry, no
+  account.
 
 ## Not there yet
 
-What GitKraken users will look for that gitspy does not have today:
+What gitspy does not have today:
 
 - Interactive rebase; dragging branches or commits on the graph.
 - Submodule and Git LFS screens (git handles them, gitspy just shows the
   result).
 - Commit signing and SSH key management.
-- Issue trackers, teams, cloud patches, AI beyond the local commit message.
+- Issue trackers, teams, cloud patches.
 - A signed Windows build (SmartScreen warns until there is a certificate).
 
-If one of these is why you stay on GitKraken,
+If one of these is what keeps you on another client,
 [open an issue](https://github.com/pr0ddd/gitspy/issues/new/choose) — that
 is how the list gets shorter.
 
@@ -83,7 +90,9 @@ npm run app            # run in development mode
 npm run tauri build    # build the installer for your platform
 ```
 
-`npm run build` and `cargo test` run the checks CI runs.
+`npm run build`, `cargo test`, `cargo clippy --all-targets -- -D warnings` and
+`cargo fmt --all -- --check` are the gates CI runs; CI adds the licence checks
+and the OAuth relay's tests.
 
 ## Under the hood
 
@@ -107,4 +116,6 @@ detailed rules the code follows are in [CLAUDE.md](CLAUDE.md).
 
 ## Licence
 
-[GNU Affero General Public License v3.0](LICENSE).
+Copyright © 2026 Pavel Erohovets.
+[GNU Affero General Public License v3.0](LICENSE). Third-party components and
+their licences are listed in [THIRD-PARTY.md](THIRD-PARTY.md).

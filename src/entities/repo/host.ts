@@ -21,14 +21,21 @@ const MARKERS: ReadonlyArray<readonly [HostKind, string]> = [
   ['bitbucket', 'bitbucket.'],
 ];
 
+export const hostOfUrl = (url: string): HostKind | null => {
+  const lowered = url.toLowerCase();
+  return MARKERS.find(([, marker]) => lowered.includes(marker))?.[0] ?? null;
+};
+
 export const hostOf = (remotes: readonly RemoteView[]): HostKind | null => {
   for (const remote of remotes) {
-    const url = remote.webUrl?.toLowerCase() ?? '';
-    const found = MARKERS.find(([, marker]) => url.includes(marker));
-    if (found) return found[0];
+    const found = hostOfUrl(remote.webUrl ?? '');
+    if (found) return found;
   }
   return null;
 };
+
+export const hostLabelOf = (kind: string): string =>
+  kind in HOST_LABEL ? HOST_LABEL[kind as HostKind] : kind;
 
 const BOT_ADDRESSES: ReadonlyArray<readonly [HostKind, string]> = [
   ['github', 'noreply@github.com'],

@@ -1,5 +1,12 @@
 import type { Chip } from '@/entities/graph';
-import { isDangerous, isDangerousPath, type Confirmation } from '@/entities/repo';
+import {
+  hostLabelOf,
+  hostOfUrl,
+  isDangerous,
+  isDangerousPath,
+  type Confirmation,
+} from '@/entities/repo';
+import { onDesktop, type Desktop } from '@/shared/lib/keys';
 import type { Ask } from './ask';
 import type { PathOperation, Operation, RefView } from '@/shared/api/types';
 import type { HideableColumn } from '@/entities/graph';
@@ -55,6 +62,30 @@ const splitByRemote = (
 
 const webUrlOf = (remote: string | null, ctx: MenuContext): string | null =>
   ctx.remotes.find((r) => r.name === remote)?.webUrl ?? null;
+
+const REVEAL_LABEL: Record<Desktop, string> = {
+  apple: 'menu.reveal',
+  windows: 'menu.revealWindows',
+  linux: 'menu.revealLinux',
+};
+
+const revealItem = (path: string): MenuItem => ({
+  id: 'reveal',
+  label: REVEAL_LABEL[onDesktop()],
+  action: { kind: 'reveal', path },
+});
+
+const openInHostItem = (url: string): MenuItem => {
+  const host = hostOfUrl(url);
+  return host === null
+    ? { id: 'openGitHub', label: 'menu.openInBrowser', action: { kind: 'openUrl', url } }
+    : {
+        id: 'openGitHub',
+        label: 'menu.openGitHub',
+        params: { host: hostLabelOf(host) },
+        action: { kind: 'openUrl', url },
+      };
+};
 
 const runOrConfirm = (operation: Operation): MenuAction =>
   isDangerous(operation)
@@ -317,18 +348,12 @@ export function buildChipMenu(chip: Chip, ctx: MenuContext): MenuSection[] {
       : []),
   ];
 
-  const github: MenuSection =
+  const onHost: MenuSection =
     !local && branchWebUrl && branchOnRemote
-      ? [
-          {
-            id: 'openGitHub',
-            label: 'menu.openGitHub',
-            action: { kind: 'openUrl', url: `${branchWebUrl}/tree/${branchOnRemote}` },
-          },
-        ]
+      ? [openInHostItem(`${branchWebUrl}/tree/${branchOnRemote}`)]
       : [];
 
-  return [switching, updating, weaving, worktrees, commitish, bookkeeping, copies, github].filter(
+  return [switching, updating, weaving, worktrees, commitish, bookkeeping, copies, onHost].filter(
     (s) => s.length > 0,
   );
 }
@@ -446,7 +471,7 @@ export function buildFileMenu(entry: FileMenuEntry): MenuSection[] {
     [{ id: 'fileHistory', label: 'menu.fileHistory', action: { kind: 'history', path } }],
     [
       { id: 'openFile', label: 'menu.openFile', action: { kind: 'openFile', path } },
-      { id: 'reveal', label: 'menu.reveal', action: { kind: 'reveal', path } },
+      revealItem(path),
     ],
     [
       { id: 'copyPath', label: 'menu.copyPath', action: { kind: 'copy', text: path } },
@@ -467,7 +492,7 @@ export function buildCommitFileMenu(commit: string, path: string): MenuSection[]
     [{ id: 'fileHistory', label: 'menu.fileHistory', action: { kind: 'history', path } }],
     [
       { id: 'openFile', label: 'menu.openFile', action: { kind: 'openFile', path } },
-      { id: 'reveal', label: 'menu.reveal', action: { kind: 'reveal', path } },
+      revealItem(path),
     ],
     [
       { id: 'copyPath', label: 'menu.copyPath', action: { kind: 'copy', text: path } },

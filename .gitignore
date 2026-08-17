@@ -25,10 +25,13 @@ logs
 # Secrets
 .env
 .env.*
+.dev.vars
 !.env.example
 *.pem
 *.p12
 *.key
+*.p8
+*.mobileprovision
 
 # Cloudflare worker state
 .wrangler/

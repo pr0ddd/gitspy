@@ -57,7 +57,6 @@ import type { AvatarCache } from '@/shared/ui/avatarCache';
 import type { RowCache } from '@/entities/graph';
 import type { Ask } from './AskBar';
 import type { Operation, RefView } from '@/shared/api/types';
-import { GIT } from '@/shared/config/vocabulary';
 import { GRAPH_MINIMAP_DEFAULT, SETTINGS } from '@/shared/config/settingsModel';
 import { wipInputShown, wipInputWidth } from '@/entities/graph';
 
@@ -136,13 +135,13 @@ export const GraphView = memo(function GraphView({
   const conflicted = wip?.kind === 'workingTree' && wip.conflicts > 0 ? wip.conflicts : 0;
   const columns = useMemo(
     () => ({
-      branchTag: GIT.branchTag,
-      graph: GIT.graph,
-      message: GIT.commitMessage,
+      branchTag: t('column.branchTag'),
+      graph: t('column.graph'),
+      message: t('column.message'),
       author: t('column.author'),
       date: t('column.date'),
-      sha: GIT.sha,
-      workingTree: GIT.workingTree,
+      sha: t('column.sha'),
+      workingTree: t('column.workingTree'),
       inProgress: t('graph.inProgress'),
       mergeConflicts: conflicted
         ? t('graph.mergeConflicts', { count: conflicted, branch: currentBranch ?? '' })

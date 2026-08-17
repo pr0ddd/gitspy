@@ -21,6 +21,16 @@ export const applePlatform = (agent: string): boolean => /Mac|iPhone|iPad/i.test
 export const onApple = (): boolean =>
   typeof navigator === 'undefined' ? false : applePlatform(navigator.userAgent);
 
+export type Desktop = 'apple' | 'windows' | 'linux';
+
+export const desktopOf = (agent: string): Desktop =>
+  applePlatform(agent) ? 'apple' : /Win/i.test(agent) ? 'windows' : 'linux';
+
+export const onDesktop = (): Desktop =>
+  typeof navigator === 'undefined' ? 'linux' : desktopOf(navigator.userAgent);
+
+export const primaryModifier = (apple: boolean): string => (apple ? KEYS.command : KEYS.ctrl);
+
 const shiftIsPartOfSymbol = (key: string): boolean => key.length === 1 && !/[a-z0-9]/i.test(key);
 
 const isLetter = (key: string): boolean => /^[a-z]$/i.test(key);
@@ -63,7 +73,7 @@ export const keyLabel = (key: string, apple: boolean): string =>
 
 export function chordKeys(chord: Chord, apple: boolean): string[] {
   const parts: string[] = [];
-  if (chord.primary) parts.push(apple ? KEYS.command : KEYS.ctrl);
+  if (chord.primary) parts.push(primaryModifier(apple));
   if (chord.shift) parts.push(apple ? KEYS.shiftSign : KEYS.shiftWord);
   if (chord.alt) parts.push(apple ? KEYS.altSign : KEYS.altWord);
   parts.push(keyLabel(chord.key, apple));

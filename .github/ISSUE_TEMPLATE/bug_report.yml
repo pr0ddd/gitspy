@@ -21,6 +21,14 @@ body:
         - Windows
     validations:
       required: true
+  - type: input
+    id: git
+    attributes:
+      label: git version
+      description: The output of `git --version`.
+      placeholder: git version 2.51.0
+    validations:
+      required: true
   - type: textarea
     id: what
     attributes:

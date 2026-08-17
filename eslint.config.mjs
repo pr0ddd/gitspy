@@ -14,10 +14,11 @@ export default tseslint.config(
       'target/**',
       'node_modules/**',
       'src/shared/api/generated/**',
-      // Lint-rule sources are linter meta (CJS, own conventions), not app code.
       'eslint-rules/**',
       'design/**',
       'src-tauri/**',
+      '.superpowers/**',
+      'docs/superpowers/**',
     ],
   },
   js.configs.recommended,
@@ -30,9 +31,6 @@ export default tseslint.config(
     },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
-      // warn, not error: GraphView's effect deps are curated on purpose — the
-      // scroll path must not re-render (guarded by its Profiler test), and
-      // disable-comments are banned in app code. New omissions still surface.
       'react-hooks/exhaustive-deps': 'warn',
       'fsd/boundaries': 'error',
       'fsd/public-api': 'error',
@@ -42,6 +40,22 @@ export default tseslint.config(
   },
   {
     files: ['scripts/**/*.mjs', 'vite.config.ts'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } },
+  },
+  {
+    files: ['workers/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: {
+        fetch: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
+        Headers: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        btoa: 'readonly',
+        atob: 'readonly',
+        console: 'readonly',
+      },
+    },
   },
 );

@@ -15,7 +15,7 @@ import { usePref } from '@/shared/lib/prefs';
 import { pushFor, useRepoWork } from '@/features/repo';
 import { SearchField } from '@/shared/ui/parts';
 import type { Operation, WorkingTreeView } from '@/shared/api/types';
-import { GIT, PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/shared/config/vocabulary';
+import { PULL_CHOICES, TOOLBAR_ACTIONS, type PullMode } from '@/shared/config/vocabulary';
 import { Icon } from '@/shared/ui/icons';
 import { useFoundCommits } from '@/features/search';
 import { SearchResults } from './SearchResults';
@@ -87,7 +87,7 @@ function ExchangeDeck({
       onClick={() => push && onRun(push)}
     >
       <Icon.push className={cn('size-4', pushing && 'animate-lift')} />
-      <Label>{GIT.push}</Label>
+      <Label>{t('toolbar.push')}</Label>
       <Tally count={ahead} tone="ahead" />
     </Button>
   );
@@ -100,10 +100,10 @@ function ExchangeDeck({
           !busy && 'hover:bg-hover-fill',
         )}
       >
-        <Hint text={GIT.pull}>
+        <Hint text={t('toolbar.pull')}>
           <Button variant="split" size="sm-lead" disabled={busy} onClick={() => onRun(wanted)}>
             <Icon.pull className={cn('size-4', pulling && 'animate-dive')} />
-            <Label>{GIT.pull}</Label>
+            <Label>{t('toolbar.pull')}</Label>
             <Tally count={behind} tone="behind" />
           </Button>
         </Hint>
@@ -137,7 +137,7 @@ function ExchangeDeck({
       </span>
 
       {push ? (
-        <Hint text={GIT.push}>{pushButton}</Hint>
+        <Hint text={t('toolbar.push')}>{pushButton}</Hint>
       ) : (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -201,8 +201,9 @@ export function Toolbar({
           {TOOLBAR_ACTIONS.map(({ label, icon, operation, asks, terminal }) => {
             const Glyph = Icon[icon];
             const spinning = operation !== undefined && running === operation.kind;
+            const name = t(label as 'toolbar.branch');
             return (
-              <Hint key={label} text={label}>
+              <Hint key={label} text={name}>
                 <Button
                   variant="action"
                   size="sm"
@@ -216,7 +217,7 @@ export function Toolbar({
                   ) : (
                     <Glyph className="size-4" />
                   )}
-                  <Label>{label}</Label>
+                  <Label>{name}</Label>
                 </Button>
               </Hint>
             );

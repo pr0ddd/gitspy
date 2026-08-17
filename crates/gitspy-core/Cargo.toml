@@ -1,10 +1,13 @@
 [package]
 name = "gitspy-core"
 version = "0.1.0"
-edition = "2021"
+description = "Commit graph layout for gitspy: topology to lanes, colours and segments"
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-rust-version = "1.85"
+authors.workspace = true
+publish.workspace = true
 
 [dependencies]
 

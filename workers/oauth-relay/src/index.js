@@ -34,6 +34,19 @@ async function bitbucketToken(form, env) {
   return tokenSetOf(await answer.json());
 }
 
+const tokensFor = (path, body, env) => {
+  if (path === '/exchange' && body.host === 'github' && body.code) {
+    return exchangeGithub(body.code, env);
+  }
+  if (path === '/exchange' && body.host === 'bitbucket' && body.code) {
+    return bitbucketToken({ grant_type: 'authorization_code', code: body.code }, env);
+  }
+  if (path === '/refresh' && body.host === 'bitbucket' && body.refresh) {
+    return bitbucketToken({ grant_type: 'refresh_token', refresh_token: body.refresh }, env);
+  }
+  return undefined;
+};
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -44,20 +57,8 @@ export default {
     const body = await request.json().catch(() => null);
     if (!body) return new Response('bad request', { status: 400 });
 
-    let tokens = null;
-    if (url.pathname === '/exchange' && body.host === 'github' && body.code) {
-      tokens = await exchangeGithub(body.code, env);
-    } else if (url.pathname === '/exchange' && body.host === 'bitbucket' && body.code) {
-      tokens = await bitbucketToken({ grant_type: 'authorization_code', code: body.code }, env);
-    } else if (url.pathname === '/refresh' && body.host === 'bitbucket' && body.refresh) {
-      tokens = await bitbucketToken(
-        { grant_type: 'refresh_token', refresh_token: body.refresh },
-        env,
-      );
-    } else {
-      return new Response('not found', { status: 404 });
-    }
-
+    const tokens = await tokensFor(url.pathname, body, env);
+    if (tokens === undefined) return new Response('not found', { status: 404 });
     if (!tokens) return new Response('refused', { status: 401 });
     return new Response(JSON.stringify(tokens), {
       headers: { 'Content-Type': 'application/json' },

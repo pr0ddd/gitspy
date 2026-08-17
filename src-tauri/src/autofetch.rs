@@ -91,8 +91,11 @@ mod tests {
     }
 
     #[test]
-    fn a_minute_is_the_measured_default_and_zero_never_becomes_a_busy_loop() {
-        assert_eq!(DEFAULT_MINUTES, 1, "measured from the GitKraken logs");
+    fn a_minute_is_the_default_and_zero_never_becomes_a_busy_loop() {
+        assert_eq!(
+            DEFAULT_MINUTES, 1,
+            "a minute keeps ahead/behind fresh without hammering the remote"
+        );
         assert_eq!(interval(DEFAULT_MINUTES), Duration::from_secs(60));
         assert_eq!(
             interval(0),

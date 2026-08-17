@@ -13,8 +13,11 @@ problem is understood; releases with security fixes say so in the changelog.
   open. Every git process runs with a defused environment: no terminal
   prompts, no editor, no pager, credential requests routed to the app,
   `BatchMode=yes` for ssh.
-- **Host tokens** for GitHub, GitLab and Bitbucket, stored in the app data
-  directory with owner-only permissions. Client secrets never ship in the app;
+- **Host tokens** for GitHub, GitLab and Bitbucket, kept as plain files in the
+  app data directory: mode 600 on macOS and Linux, and inside your own
+  `%APPDATA%` profile on Windows with the permissions Windows gives it. They
+  are not encrypted — anything running as you can read them. Client secrets
+  never ship in the app;
   the OAuth code is exchanged by a
   [small relay](workers/oauth-relay/README.md) that stores nothing.
 - **Updates** downloaded from GitHub Releases and verified against the public

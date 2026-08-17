@@ -4,9 +4,9 @@ import { readProfiles, writeProfiles } from './profiles';
 describe('terminal profiles', () => {
   beforeEach(() => localStorage.clear());
 
-  it('offers the login shell when nothing has been saved', () => {
+  it('offers the login shell when nothing has been saved, unnamed because only the widget names it', () => {
     expect(readProfiles(), 'a new tab opens without any setup at all').toEqual([
-      { label: 'zsh', command: null },
+      { label: null, command: null },
     ]);
   });
 

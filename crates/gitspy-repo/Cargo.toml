@@ -1,10 +1,13 @@
 [package]
 name = "gitspy-repo"
 version = "0.1.0"
-edition = "2021"
+description = "Repository objects through gix for gitspy: walk order, parents, commit metadata"
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-rust-version = "1.85"
+authors.workspace = true
+publish.workspace = true
 
 [dependencies]
 gitspy-core = { path = "../gitspy-core" }
