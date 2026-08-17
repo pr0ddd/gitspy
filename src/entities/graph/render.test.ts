@@ -252,7 +252,30 @@ const paintWithHidden = (hidden: ReadonlySet<'author' | 'date' | 'sha'>) => {
   return { texts: [...texts], placedTexts: [...placedTexts], strokedGlyphs: [...strokedGlyphs] };
 };
 
-describe('the graph heading', () => {
+describe('the column headings', () => {
+  it('turn into glyphs at their floors while the wide columns keep their words', () => {
+    texts.length = 0;
+    strokedGlyphs.length = 0;
+    const frame = frameWith([]);
+    drawFrame(canvas(), {
+      ...frame,
+      cols: layoutColumns(1200, {
+        branchTag: FLOORS.branchTag,
+        author: FLOORS.author,
+        date: FLOORS.date,
+        sha: FLOORS.sha,
+      }),
+    });
+    expect(
+      texts.some((text) => text.startsWith('BRANCH') || text.startsWith('AUTH')),
+      'no truncated word anywhere',
+    ).toBe(false);
+    for (const glyph of [GLYPH.branchTag, GLYPH.author, GLYPH.date, GLYPH.sha]) {
+      expect(strokedGlyphs.some((g) => g.d === glyph.d)).toBe(true);
+    }
+    expect(texts, 'the message column is wide and keeps its word').toContain('MESSAGE');
+  });
+
   it('turns into the graph glyph when the word no longer fits the column', () => {
     const roomy = paintWithHidden(new Set());
     expect(roomy.texts).toContain('GRAPH');

@@ -19,7 +19,7 @@ import {
   visibleRange,
   type Metrics,
 } from './scene';
-import { dividers, type Cols } from './columns';
+import { dividers, type Band, type Cols } from './columns';
 
 import { SEGMENT_KIND, type RefView, type RepoView, type RowView } from '@/shared/api/types';
 import type { RowCache } from './rows';
@@ -35,7 +35,7 @@ import {
   type ChipMetrics,
   type PlacedChip,
 } from './chipLayout';
-import { GLYPH, strokeGlyphInSlot } from './glyphs';
+import { GLYPH, strokeGlyphInSlot, type Glyph } from './glyphs';
 import { wipBadgesX, wipContent } from './wip';
 import { canvasDensity } from '@/shared/lib/zoom';
 import { readPref } from '@/shared/lib/prefs';
@@ -776,18 +776,22 @@ function drawHeader(
   ctx.textBaseline = 'middle';
   ctx.fillStyle = t.faint;
   const y = Math.round(HEADER_H / 2);
-  const heading = (text: string, width: number) => fitText(ctx, text.toUpperCase(), width);
-  ctx.fillText(heading(columns.branchTag, cols.branchTag.width - 20), 12, y);
-  if (ctx.measureText(columns.graph.toUpperCase()).width <= cols.graph.width - 12) {
-    ctx.fillText(heading(columns.graph, cols.graph.width - 12), gLeft + 6, y);
-  } else {
-    ctx.strokeStyle = t.faint;
-    strokeGlyphInSlot(ctx, GLYPH.graph, gLeft + (cols.graph.width - HEAD_GLYPH) / 2, y, HEAD_GLYPH);
-  }
-  ctx.fillText(heading(columns.message, cols.message.width - 20), msgX, y);
-  ctx.fillText(heading(columns.author, cols.author.width - 12), colAuthor, y);
-  ctx.fillText(heading(columns.date, cols.date.width - 12), colDate, y);
-  ctx.fillText(heading(columns.sha, cols.sha.width - 12), colHash, y);
+  ctx.strokeStyle = t.faint;
+  const heading = (text: string, glyph: Glyph, column: Band, textX: number, inset: number) => {
+    if (column.width <= 0) return;
+    const word = text.toUpperCase();
+    if (ctx.measureText(word).width <= column.width - inset) {
+      ctx.fillText(word, textX, y);
+    } else {
+      strokeGlyphInSlot(ctx, glyph, column.left + (column.width - HEAD_GLYPH) / 2, y, HEAD_GLYPH);
+    }
+  };
+  heading(columns.branchTag, GLYPH.branchTag, cols.branchTag, 12, 20);
+  heading(columns.graph, GLYPH.graph, cols.graph, gLeft + 6, 12);
+  heading(columns.message, GLYPH.message, cols.message, msgX, 20);
+  heading(columns.author, GLYPH.author, cols.author, colAuthor, 12);
+  heading(columns.date, GLYPH.date, cols.date, colDate, 12);
+  heading(columns.sha, GLYPH.sha, cols.sha, colHash, 12);
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = t.border;

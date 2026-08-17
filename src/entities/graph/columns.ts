@@ -26,12 +26,12 @@ export type Cols = {
 export const FLOORS: Record<ColumnKey, number> = {
   branchTag: 44,
   graph: 44,
-  author: 80,
-  date: 88,
-  sha: 72,
+  author: 44,
+  date: 44,
+  sha: 44,
 };
 
-export const MESSAGE_FLOOR = 160;
+export const MESSAGE_FLOOR = 80;
 
 const MESSAGE_COMFORT = 312;
 const GRAPH_DEFAULT_MIN = 140;
