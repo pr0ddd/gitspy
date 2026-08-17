@@ -16,7 +16,6 @@ npm run i18n:check          # translation completeness only
 npm run notices             # regenerate THIRD-PARTY.md from the lockfiles
 npm run format              # Prettier over the tree
 npm run licenses:check      # npm dependency licences
-npm run design              # build the design cards into design/dist
 cargo test                  # every Rust test
 cargo test -p gitspy-repo   # one crate
 cargo clippy --all-targets -- -D warnings
@@ -177,17 +176,6 @@ functions from there, not Tauri directly.
 
 What does not exist is not drawn: an honest empty-state note, never invented
 data.
-
-### Design system
-
-The cards live in `design/cards/*.html`, built by `node design/build.mjs` into
-`design/dist/` (not in git).
-
-The cards are assembled from **the same tokens and the same Tailwind classes**
-as the app: `design/preview.css` imports `src/theme.css`. So editing a token
-changes both the app and the system — there is no second source of truth. A
-card must not be drawn with styles of its own: it would stop describing what is
-in the code.
 
 ### Write operations
 

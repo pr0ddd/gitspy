@@ -1,5 +1,0 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import '../src/theme.css';
-@source '../src/shared/ui/*.tsx';
-@source './cards/*.html';

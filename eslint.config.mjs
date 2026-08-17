@@ -15,7 +15,6 @@ export default tseslint.config(
       'node_modules/**',
       'src/shared/api/generated/**',
       'eslint-rules/**',
-      'design/**',
       'src-tauri/**',
       '.superpowers/**',
       'docs/superpowers/**',
