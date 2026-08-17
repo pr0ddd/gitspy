@@ -587,7 +587,7 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
     labels,
     repo.remotes.map((r) => r.name),
   );
-  const { placed } = placeChips(
+  const { placed, more } = placeChips(
     chips,
     measure,
     frame.cols.branchTag.width - 14,
@@ -603,7 +603,7 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   ctx.shadowColor = theme().shade;
   ctx.shadowBlur = 8;
 
-  if (hoverChip.at === 'more') {
+  if (hoverChip.at === 'more' || more !== null) {
     chips.forEach((chip, i) => {
       drawChip(
         ctx,

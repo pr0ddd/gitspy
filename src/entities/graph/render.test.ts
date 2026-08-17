@@ -520,6 +520,31 @@ describe('badges on chips', () => {
     expect(painted.texts, 'the counter tells how many chips are hidden').toContain('+2');
   });
 
+  it('hovering any chip of a row that hides some unfolds the whole stack, not just that chip', () => {
+    const painted = paint(
+      [
+        ref('very-long-branch-name-one', 'localBranch'),
+        ref('very-long-branch-name-two', 'localBranch'),
+        ref('very-long-branch-name-three', 'localBranch'),
+      ],
+      null,
+      new Set(),
+      { row: 0, at: 0 },
+    );
+
+    const two = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-two');
+    expect(two.length, 'the hidden chips come out with the hovered one').toBeGreaterThan(0);
+  });
+
+  it('hovering the only chip of a row that hides nothing shows just its full name', () => {
+    const painted = paint([ref('very-long-branch-name-one', 'localBranch')], null, new Set(), {
+      row: 0,
+      at: 0,
+    });
+    const shown = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
+    expect(shown.length).toBeGreaterThan(0);
+  });
+
   it('hovering the counter unfolds every chip into a stack', () => {
     const painted = paint(
       [
