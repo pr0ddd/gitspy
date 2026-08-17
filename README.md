@@ -5,7 +5,7 @@
 <h1 align="center">gitspy</h1>
 
 <p align="center">
-  A free, open-source desktop git client.<br />
+  A free, open-source alternative to GitKraken.<br />
   Commit graph, staging, diffs, a merge conflict editor and GitHub / GitLab / Bitbucket sign-in — in a native app.
 </p>
 
