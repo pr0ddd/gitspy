@@ -41,6 +41,10 @@ const buttonVariants = cva(
         heading:
           'text-subject hover:text-foreground focus-visible:text-foreground [&_svg]:opacity-75 hover:[&_svg]:opacity-100 focus-visible:[&_svg]:opacity-100',
         link: 'text-primary underline-offset-4 hover:underline focus-visible:underline',
+        caption:
+          'text-muted-foreground hover:bg-hover-fill hover:text-foreground focus-visible:bg-hover-fill focus-visible:text-foreground',
+        captionClose:
+          'text-muted-foreground hover:bg-destructive hover:text-white focus-visible:bg-destructive focus-visible:text-white',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
@@ -61,6 +65,7 @@ const buttonVariants = cva(
         'icon-xs': "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         'icon-sm': 'size-8',
         'icon-lg': 'size-10',
+        'icon-caption': "h-full w-11 rounded-none [&_svg:not([class*='size-'])]:size-3",
       },
       reveal: {
         true: 'opacity-0 transition-none group-hover:opacity-100 focus-visible:opacity-100',

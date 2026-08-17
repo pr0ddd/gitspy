@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
+import { onApple } from '@/shared/lib/keys';
 import { Icon } from '@/shared/ui/icons';
 import { hostOf } from '@/entities/repo';
 import type { Session } from '@/entities/repo';
@@ -19,6 +21,7 @@ type Props = {
   onCloseStart: () => void;
   onView: (view: ViewTab) => void;
   onCloseView: (view: ViewTab) => void;
+  end?: ReactNode;
 };
 
 export function RepoTabs({
@@ -32,15 +35,20 @@ export function RepoTabs({
   onCloseStart,
   onView,
   onCloseView,
+  end,
 }: Props) {
   const { t } = useTranslation();
+  const apple = onApple();
   const startTabShown =
     active === null && view === null && (sessions.length > 0 || views.length > 0);
 
   return (
     <nav
       data-tauri-drag-region
-      className="flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto pr-2 pl-20"
+      className={cn(
+        'flex h-9.5 shrink-0 items-center gap-1 overflow-x-auto',
+        apple ? 'pr-2 pl-20' : 'pl-2',
+      )}
     >
       {sessions.map((session) => (
         <Tab
@@ -91,11 +99,12 @@ export function RepoTabs({
           variant="ghost"
           size="icon"
           onClick={() => onView('settings')}
-          className="text-muted-foreground mr-1 ml-auto size-6.5"
+          className={cn('text-muted-foreground ml-auto size-6.5', apple ? 'mr-1' : 'mr-2')}
         >
           <Icon.settings className="size-3.5" />
         </Button>
       </Hint>
+      {end}
     </nav>
   );
 }

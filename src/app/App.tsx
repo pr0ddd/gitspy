@@ -58,6 +58,8 @@ type Main =
   | { kind: 'history'; path: string; from?: string }
   | { kind: 'pull'; pull: PullView };
 import { RepoTabs } from '@/widgets/RepoTabs';
+import { WindowControls } from '@/widgets/WindowControls';
+import { onApple } from '@/shared/lib/keys';
 import { Toolbar } from '@/widgets/Toolbar';
 import { ConfirmBar } from '@/widgets/ConfirmBar';
 import { Sidebar } from '@/widgets/Sidebar';
@@ -431,6 +433,7 @@ export default function App() {
           }}
           onView={tabs.open}
           onCloseView={tabs.close}
+          end={onApple() ? null : <WindowControls />}
         />
 
         {current === null || tabs.view ? (
