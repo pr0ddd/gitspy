@@ -402,6 +402,31 @@ describe('a binary file', () => {
   });
 });
 
+describe('after a binary file', () => {
+  it('the next text file shows its diff in the same editor: the host was hidden, never unmounted', async () => {
+    const binaryTarget: DiffTarget = {
+      kind: 'commit',
+      commit: 'aaaa0000',
+      file: { ...fileNamed('model.tar'), binary: true, added: 0, deleted: 0 },
+    };
+    const { container, rerender } = render(view(binaryTarget));
+    await act(async () => {});
+    const hostWhileBinary = editorHost(container);
+    expect(
+      hostWhileBinary.classList.contains('hidden'),
+      'the editor is hidden under the note',
+    ).toBe(true);
+
+    vi.mocked(ipc.diffSides).mockResolvedValueOnce({ before: 'a', after: 'b', binary: false });
+    rerender(view(targetFor('aaaa0000', 'src/text.ts')));
+    await waitFor(() => expect(screen.queryByText(/binary file/i)).toBeNull());
+    expect(editorHost(container), 'the same host element comes back into view').toBe(
+      hostWhileBinary,
+    );
+    expect(hostWhileBinary.classList.contains('hidden')).toBe(false);
+  });
+});
+
 describe('a repeated click on the same target', () => {
   it('the same target is recognised by its contents, not by reference', () => {
     expect(

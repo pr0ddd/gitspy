@@ -148,7 +148,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const [wrap, setWrap] = usePref('diff.wrap', false);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [foundBinary, setFoundBinary] = useState<Binary | null>(null);
-  const binary = knownBinary || foundBinary?.for === target;
+  const binary = knownBinary || (foundBinary !== null && sameDiffTarget(foundBinary.for, target));
   const [applied, setApplied] = useState(0);
   const [view, setView] = useState<'diff' | 'file'>('diff');
   const [editing, setEditing] = useState(false);
@@ -437,34 +437,29 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
         }
       />
 
-      {binary ? (
-        <p className="text-muted-foreground p-6 text-center">{t('diff.binary')}</p>
-      ) : (
-        <>
-          <div ref={host} className={cn('min-h-0 flex-1', view === 'file' && 'hidden')} />
-          <div ref={plain} className={cn('min-h-0 flex-1', view === 'diff' && 'hidden')} />
-          {view === 'diff' && mode === 'hunk' && hunkView
-            ? hunkView.diff.hunks.map((hunk, index) =>
-                createPortal(
-                  hunkView.for.kind === 'workingTree' ? (
-                    <HunkBar
-                      heading={hunk.heading}
-                      staged={hunkView.for.staged}
-                      onApply={(cached, reverse) => applyHunk(hunkView.diff, hunk, cached, reverse)}
-                    />
-                  ) : (
-                    <CommitHunkBar
-                      heading={hunk.heading}
-                      onRevert={() => applyHunk(hunkView.diff, hunk, false, true)}
-                    />
-                  ),
-                  hunkView.bars[index],
-                  `${index}:${hunk.heading}`,
-                ),
-              )
-            : null}
-        </>
-      )}
+      {binary ? <p className="text-muted-foreground p-6 text-center">{t('diff.binary')}</p> : null}
+      <div ref={host} className={cn('min-h-0 flex-1', (binary || view === 'file') && 'hidden')} />
+      <div ref={plain} className={cn('min-h-0 flex-1', (binary || view === 'diff') && 'hidden')} />
+      {!binary && view === 'diff' && mode === 'hunk' && hunkView
+        ? hunkView.diff.hunks.map((hunk, index) =>
+            createPortal(
+              hunkView.for.kind === 'workingTree' ? (
+                <HunkBar
+                  heading={hunk.heading}
+                  staged={hunkView.for.staged}
+                  onApply={(cached, reverse) => applyHunk(hunkView.diff, hunk, cached, reverse)}
+                />
+              ) : (
+                <CommitHunkBar
+                  heading={hunk.heading}
+                  onRevert={() => applyHunk(hunkView.diff, hunk, false, true)}
+                />
+              ),
+              hunkView.bars[index],
+              `${index}:${hunk.heading}`,
+            ),
+          )
+        : null}
     </div>
   );
 }
