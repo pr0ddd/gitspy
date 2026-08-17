@@ -626,6 +626,7 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
         frame.avatars,
         remoteAvatarUrls,
         true,
+        i > 0,
       );
     });
   } else {
@@ -667,12 +668,13 @@ function drawChip(
   avatars: AvatarCache | null,
   remoteAvatarUrls: ReadonlyMap<string, string | null>,
   expanded: boolean,
+  flat = false,
 ): void {
   const { chip } = placed;
   const text = expanded ? placed.fullText : placed.text;
   const w = expanded ? placed.fullW : placed.w;
 
-  if (expanded) {
+  if (expanded && !flat) {
     ctx.fillStyle = t.panel;
     roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
     ctx.fill();
@@ -680,9 +682,11 @@ function drawChip(
     ctx.shadowBlur = 0;
   }
 
-  ctx.fillStyle = chip.isHead ? t.primarySoft : t.refSoft[chip.kind];
-  roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
-  ctx.fill();
+  if (!flat) {
+    ctx.fillStyle = chip.isHead ? t.primarySoft : t.refSoft[chip.kind];
+    roundRect(ctx, placed.x, y - chipH / 2, w, chipH, 6);
+    ctx.fill();
+  }
 
   if (placed.compact && !expanded) {
     ctx.shadowColor = 'transparent';
