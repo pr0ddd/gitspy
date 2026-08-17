@@ -54,8 +54,8 @@ const HEAD_GLYPH = 12;
 const BAND_TINT = 11;
 const BAND_TINT_HOVER = 18;
 const BAND_TINT_SELECTED = 50;
-const STACK_PAD = 4;
-const STACK_GAP = 2;
+const STACK_PAD = 0;
+const STACK_GAP = 0;
 const STACK_TINT = 18;
 const CHIP_TINT = 28;
 const CHIP_TINT_HEAD = 45;
@@ -615,12 +615,12 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
     const panelH = stack.length * chipH + (stack.length - 1) * STACK_GAP + STACK_PAD * 2;
     const t = theme();
     ctx.fillStyle = t.panel;
-    roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
+    roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 6);
     ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.fillStyle = laneColourAlpha(lane, STACK_TINT);
-    roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
+    roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 6);
     ctx.fill();
     stack.forEach((row, i) => {
       drawChip(
