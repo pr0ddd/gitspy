@@ -25,7 +25,7 @@ export type Cols = {
 
 export const FLOORS: Record<ColumnKey, number> = {
   branchTag: 44,
-  graph: 28,
+  graph: 44,
   author: 80,
   date: 88,
   sha: 72,

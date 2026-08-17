@@ -1,4 +1,4 @@
-import type { Cols } from './columns';
+import { FLOORS, type Cols } from './columns';
 
 export const MINIMAP_W = 36;
 export const VSCROLL_W = 14;
@@ -132,14 +132,23 @@ export type GraphGeometry = {
   readonly gLeft: number;
   readonly gRight: number;
   readonly pinX: number;
-  readonly leftShadow: boolean;
-  readonly rightShadow: boolean;
+  readonly singleColumn: number;
+  readonly edgeAlpha: number;
+  readonly leftShade: number;
+  readonly rightShade: number;
   readonly laneAt: (lane: number) => number;
   readonly contentLeft: number;
   readonly contentRight: number;
   readonly nodeX: (lane: number) => number;
   readonly isStuck: (lane: number) => boolean;
 };
+
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+
+const mix = (from: number, to: number, share: number): number => from + (to - from) * share;
+
+export const singleColumnFactor = (m: Metrics, maxLane: number, graphW: number): number =>
+  maxLane === 0 ? 0 : clamp01(1 - (graphW - FLOORS.graph) / m.laneW);
 
 export function graphGeometry(
   m: Metrics,
@@ -152,22 +161,30 @@ export function graphGeometry(
 
   const pinW = pinWidth(m);
   const scrollable = graphScrollable(m, maxLane, cols.graph.width);
+  const single = singleColumnFactor(m, maxLane, cols.graph.width);
 
   const contentLeft = gLeft + (scrollable ? pinW : 0);
   const contentRight = gRight - (scrollable ? pinW : 0);
 
   const rest = gLeft + PAD_X - 0.5;
-  const hi = Math.max(rest, gRight - m.nodeR - 4.5);
-  const lo = Math.min(rest, hi);
+  const edge = Math.max(rest, gRight - m.nodeR - 4.5);
+  const centre = gLeft + cols.graph.width / 2;
+  const hi = mix(edge, centre, single);
+  const lo = mix(Math.min(rest, edge), centre, single);
   const maxX = maxScrollX(m, maxLane, cols.graph.width);
   const laneAt = (lane: number): number => gLeft + PAD_X + lane * m.laneW - scrollX;
+
+  const hiddenLeft = scrollX > 0.5 ? clamp01(scrollX / m.laneW) : 0;
+  const hiddenRight = scrollX < maxX - 0.5 ? 1 : 0;
 
   return {
     gLeft,
     gRight,
     pinX: scrollable ? hi : Number.POSITIVE_INFINITY,
-    leftShadow: scrollX > 0.5,
-    rightShadow: scrollX < maxX - 0.5,
+    singleColumn: single,
+    edgeAlpha: 1 - single,
+    leftShade: hiddenLeft * (1 - single),
+    rightShade: hiddenRight * (1 - single),
     contentLeft,
     contentRight,
     laneAt,

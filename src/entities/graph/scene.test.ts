@@ -26,7 +26,7 @@ import {
   scrollForAnchor,
   visibleRange,
 } from './scene';
-import { layoutColumns } from './columns';
+import { FLOORS, layoutColumns } from './columns';
 
 const M = METRICS_AVATARS;
 const WIDTH = 1400;
@@ -196,15 +196,16 @@ describe('graph geometry', () => {
     expect(g.nodeX(199)).toBeLessThanOrEqual(COLS.graph.left + COLS.graph.width);
   });
 
-  it('shows the left shadow only when something is hidden on the left', () => {
-    expect(graphGeometry(M, 200, 0, COLS).leftShadow).toBe(false);
-    expect(graphGeometry(M, 200, 40, COLS).leftShadow).toBe(true);
+  it('shows the left shade only when something is hidden on the left, growing over the first lane of scroll', () => {
+    expect(graphGeometry(M, 200, 0, COLS).leftShade).toBe(0);
+    expect(graphGeometry(M, 200, M.laneW / 2, COLS).leftShade).toBeCloseTo(0.5, 5);
+    expect(graphGeometry(M, 200, 40, COLS).leftShade).toBe(1);
   });
 
-  it('drops the right shadow at the very right edge', () => {
+  it('drops the right shade at the very right edge', () => {
     const max = maxScrollX(M, 200, COLS.graph.width);
-    expect(graphGeometry(M, 200, 0, COLS).rightShadow).toBe(true);
-    expect(graphGeometry(M, 200, max, COLS).rightShadow).toBe(false);
+    expect(graphGeometry(M, 200, 0, COLS).rightShade).toBe(1);
+    expect(graphGeometry(M, 200, max, COLS).rightShade).toBe(0);
   });
 
   it('runs the lanes left to right, one lane width apart', () => {
@@ -273,9 +274,9 @@ describe('a narrow graph column', () => {
 });
 
 describe('the minimum graph column', () => {
-  it('leaves a free avatar in place until the edge has reached it', () => {
+  it('leaves a free avatar in place until the column is one lane from its floor', () => {
     const roomy = graphGeometry(M, 99, 0, colsWith(200));
-    const tight = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 36 }));
+    const tight = graphGeometry(M, 99, 0, colsWith(FLOORS.graph + M.laneW));
     expect(roomy.nodeX(0)).toBe(roomy.laneAt(0));
     expect(tight.nodeX(0)).toBe(tight.laneAt(0));
   });
@@ -301,6 +302,57 @@ describe('the floor of the graph column', () => {
   it('stands every node in one line at the minimum width, with nothing left over', () => {
     const g = graphGeometry(M, 99, 0, layoutColumns(listWidth(WIDTH), { graph: 28 }));
     expect(g.nodeX(0)).toBe(g.nodeX(99));
+  });
+});
+
+describe('the single column', () => {
+  const at = (graphW: number, maxLane = 99, scrollX = 0) =>
+    graphGeometry(M, maxLane, scrollX, colsWith(graphW));
+
+  it('at the floor every node stands on the axis of the column, with no lines and no shades', () => {
+    const g = at(FLOORS.graph);
+    expect(g.singleColumn).toBe(1);
+    const centre = g.gLeft + FLOORS.graph / 2;
+    expect([g.nodeX(0), g.nodeX(1), g.nodeX(50), g.nodeX(99)]).toEqual([
+      centre,
+      centre,
+      centre,
+      centre,
+    ]);
+    expect(g.edgeAlpha, 'lines would all fold onto one axis, so they are not drawn').toBe(0);
+    expect(
+      [g.leftShade, g.rightShade],
+      'nothing is hidden behind a shade in a single column',
+    ).toEqual([0, 0]);
+  });
+
+  it('one lane above the floor the mode is off and the free lane keeps its place', () => {
+    const g = at(FLOORS.graph + M.laneW);
+    expect(g.singleColumn).toBe(0);
+    expect(g.edgeAlpha).toBe(1);
+    expect(g.nodeX(0)).toBe(g.laneAt(0));
+    expect(g.rightShade, 'the rest of the graph is hidden to the right').toBe(1);
+  });
+
+  it('halfway between the two, the free lane and the pinned stack have moved halfway together', () => {
+    const wide = at(FLOORS.graph + M.laneW);
+    const half = at(FLOORS.graph + M.laneW / 2);
+    expect(half.singleColumn).toBeCloseTo(0.5, 5);
+    const gapWide = wide.nodeX(99) - wide.nodeX(0);
+    const gapHalf = half.nodeX(99) - half.nodeX(0);
+    expect(
+      gapHalf,
+      'the gap between the stack and the free node closes with the factor',
+    ).toBeLessThan(gapWide);
+    expect(gapHalf).toBeGreaterThan(0);
+    expect(half.edgeAlpha).toBeCloseTo(0.5, 5);
+    expect(half.rightShade).toBeCloseTo(0.5, 5);
+  });
+
+  it('a graph with a single lane never enters the mode: there is nothing to fold', () => {
+    const g = at(FLOORS.graph, 0);
+    expect(g.singleColumn).toBe(0);
+    expect(g.edgeAlpha).toBe(1);
   });
 });
 

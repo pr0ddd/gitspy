@@ -205,11 +205,12 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     ctx.save();
     ctx.beginPath();
-    const clipLeft = g.leftShadow ? g.contentLeft : g.gLeft;
+    const clipLeft = g.leftShade > 0 ? g.contentLeft : g.gLeft;
     ctx.rect(clipLeft, HEADER_H, Math.max(0, g.contentRight - clipLeft), height - HEADER_H);
     ctx.clip();
     ctx.lineCap = 'round';
     ctx.lineWidth = GRAPH_W;
+    ctx.globalAlpha = g.edgeAlpha;
 
     const byColour = new Map<number, Path2D>();
     for (let i = first; i < last; i++) {
@@ -250,25 +251,33 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       }
     }
 
-    for (const [colour, path] of byColour) {
-      ctx.strokeStyle = laneColour(colour);
-      ctx.stroke(path);
+    if (g.edgeAlpha > 0) {
+      for (const [colour, path] of byColour) {
+        ctx.strokeStyle = laneColour(colour);
+        ctx.stroke(path);
+      }
     }
     ctx.restore();
 
-    if (g.leftShadow) {
+    if (g.leftShade > 0) {
       const sh = ctx.createLinearGradient(g.contentLeft, 0, g.contentLeft + SHADOW_BAND, 0);
       sh.addColorStop(0, t.shade);
       sh.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.save();
+      ctx.globalAlpha = g.leftShade;
       ctx.fillStyle = sh;
       ctx.fillRect(g.contentLeft, HEADER_H, SHADOW_BAND, height - HEADER_H);
+      ctx.restore();
     }
-    if (g.rightShadow) {
+    if (g.rightShade > 0) {
       const sh = ctx.createLinearGradient(g.contentRight, 0, g.contentRight - SHADOW_BAND, 0);
       sh.addColorStop(0, t.shade);
       sh.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.save();
+      ctx.globalAlpha = g.rightShade;
       ctx.fillStyle = sh;
       ctx.fillRect(g.contentRight - SHADOW_BAND, HEADER_H, SHADOW_BAND, height - HEADER_H);
+      ctx.restore();
     }
 
     for (let i = first; i < last; i++) {
@@ -287,7 +296,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const x = g.nodeX(lane);
       const colour = laneColour(row.colour);
 
-      if (g.isStuck(lane)) {
+      if (g.isStuck(lane) && g.edgeAlpha > 0) {
         ctx.save();
         ctx.shadowColor = t.shade;
         ctx.shadowBlur = 4;
