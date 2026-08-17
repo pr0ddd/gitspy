@@ -41,7 +41,7 @@ export type PlacedChips = {
   readonly more: ChipOverflow | null;
 };
 
-const FIRST_CHIP_X = 12;
+export const FIRST_CHIP_X = 12;
 const CHIP_SPACING = 4;
 const NAME_CAP = 170;
 const SMALLEST_USEFUL = 30;

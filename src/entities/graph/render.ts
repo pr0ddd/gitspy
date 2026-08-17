@@ -28,6 +28,7 @@ import type { Minimap } from './view';
 import { chipsFor, remoteAvatarKey, type Chip } from './chips';
 import {
   compactMarkWidth,
+  FIRST_CHIP_X,
   markWidth,
   moreLabel,
   placeChips,
@@ -52,6 +53,8 @@ const CAP_W = 2;
 
 const SHADOW_BAND = 14;
 const HEAD_GLYPH = 12;
+const STACK_PAD = 4;
+const STACK_GAP = 2;
 
 const CHIP_PAD = 9;
 const MARK_GAP = 4;
@@ -604,11 +607,19 @@ function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {
   ctx.shadowBlur = 8;
 
   if (hoverChip.at === 'more' || more !== null) {
-    chips.forEach((chip, i) => {
+    const rows = chips.map((chip) => fullPlacement(chip, measure, chipM, frame.pullHeads));
+    const panelW = Math.max(...rows.map((row) => row.fullW)) + STACK_PAD * 2;
+    const panelH = rows.length * chipH + (rows.length - 1) * STACK_GAP + STACK_PAD * 2;
+    ctx.fillStyle = theme().panel;
+    roundRect(ctx, FIRST_CHIP_X - STACK_PAD, y - chipH / 2 - STACK_PAD, panelW, panelH, 8);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    rows.forEach((row, i) => {
       drawChip(
         ctx,
-        fullPlacement(chip, measure, chipM, frame.pullHeads),
-        y + i * (chipH + 4),
+        row,
+        y + i * (chipH + STACK_GAP),
         chipH,
         chipM,
         theme(),
@@ -634,7 +645,16 @@ function fullPlacement(
     (chip.kind === 'localBranch' || chip.kind === 'remoteBranch') && pullHeads.has(chip.name);
   const fullText = chip.isHead ? `✓ ${chip.name}` : chip.name;
   const fullW = measure(fullText) + chipM.pad * 2 + trailWidth(chip, hasPull, chipM);
-  return { chip, x: 12, w: fullW, fullW, text: fullText, fullText, hasPull, compact: false };
+  return {
+    chip,
+    x: FIRST_CHIP_X,
+    w: fullW,
+    fullW,
+    text: fullText,
+    fullText,
+    hasPull,
+    compact: false,
+  };
 }
 
 function drawChip(
