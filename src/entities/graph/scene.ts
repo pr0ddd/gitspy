@@ -11,6 +11,7 @@ export type Metrics = {
   readonly rowH: number;
   readonly bandH: number;
   readonly laneW: number;
+  readonly lineW: number;
   readonly nodeR: number;
   readonly avatars: boolean;
   readonly fontPx: number;
@@ -32,6 +33,7 @@ export const METRICS_AVATARS: Metrics = {
   rowH: 28,
   bandH: 22,
   laneW: 24,
+  lineW: 2,
   nodeR: 10,
   avatars: true,
   ...fonts(13, 12),
@@ -41,6 +43,7 @@ export const METRICS_COMPACT: Metrics = {
   rowH: 28,
   bandH: 22,
   laneW: 16,
+  lineW: 1.5,
   nodeR: 5,
   avatars: false,
   ...fonts(12, 11),

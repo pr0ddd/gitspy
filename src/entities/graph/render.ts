@@ -45,8 +45,6 @@ export type DescriptionMode = 'always' | 'hover' | 'never';
 
 const CORNER = 7;
 
-const GRAPH_W = 2;
-
 const LEADER_W = 1;
 const LEADER_ALPHA = 0.18;
 const CAP_W = 2;
@@ -55,7 +53,7 @@ const SHADOW_BAND = 14;
 const HEAD_GLYPH = 12;
 const BAND_TINT = 11;
 const BAND_TINT_HOVER = 18;
-const BAND_TINT_SELECTED = 32;
+const BAND_TINT_SELECTED = 42;
 const STACK_PAD = 4;
 const STACK_GAP = 2;
 const STACK_TINT = 0.55;
@@ -218,7 +216,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
     ctx.rect(clipLeft, HEADER_H, Math.max(0, g.contentRight - clipLeft), height - HEADER_H);
     ctx.clip();
     ctx.lineCap = 'round';
-    ctx.lineWidth = GRAPH_W;
+    ctx.lineWidth = m.lineW;
     ctx.globalAlpha = g.edgeAlpha;
 
     const byColour = new Map<number, Path2D>();
@@ -327,7 +325,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
-        ctx.lineWidth = GRAPH_W;
+        ctx.lineWidth = m.lineW;
         continue;
       }
 
@@ -349,7 +347,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.lineWidth = 1.5;
         strokeGlyphInSlot(ctx, GLYPH.stash, x - side * 0.28, y, side * 0.56);
         ctx.restore();
-        ctx.lineWidth = GRAPH_W;
+        ctx.lineWidth = m.lineW;
         continue;
       }
 
@@ -383,7 +381,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
         ctx.fill();
       }
 
-      ctx.lineWidth = GRAPH_W;
+      ctx.lineWidth = m.lineW;
     }
 
     ctx.restore();
@@ -432,7 +430,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       ctx.lineTo(nodeX - m.nodeR, y + 0.5);
       ctx.stroke();
       ctx.globalAlpha = 1;
-      ctx.lineWidth = GRAPH_W;
+      ctx.lineWidth = m.lineW;
     };
 
     for (let i = first; i < last; i++) {
