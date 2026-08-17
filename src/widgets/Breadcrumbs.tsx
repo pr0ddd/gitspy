@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Hint } from '@/shared/ui/tooltip';
 import { Icon } from '@/shared/ui/icons';
 import { InlineNote, ListRow, SearchField, SectionHeader } from '@/shared/ui/parts';
 import { branchChoices, repoMenu, type BranchChoice, type RepoChoice } from '@/entities/repo';
@@ -20,6 +21,22 @@ type Props = {
   onCheckout: (ref: RefView) => void;
 };
 
+function useTruncated(label: string): [React.RefObject<HTMLSpanElement | null>, boolean] {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [truncated, setTruncated] = useState(false);
+  useLayoutEffect(() => {
+    const span = ref.current;
+    if (!span) return;
+    const measure = () => setTruncated(span.scrollWidth > span.clientWidth + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const watching = new ResizeObserver(measure);
+    watching.observe(span);
+    return () => watching.disconnect();
+  }, [label]);
+  return [ref, truncated];
+}
+
 function Crumb({
   caption,
   label,
@@ -35,19 +52,24 @@ function Crumb({
   className: string;
   children: React.ReactNode;
 }) {
+  const [labelRef, truncated] = useTruncated(label);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button variant="action" size="crumb" className={className} title={label}>
-          <span className="text-muted-foreground text-xs leading-4 whitespace-nowrap">
-            {caption}
-          </span>
-          <span className="flex max-w-full min-w-0 items-center gap-2 leading-5">
-            <span className="text-foreground min-w-0 truncate font-semibold">{label}</span>
-            <Icon.chevron className="text-muted-foreground shrink-0 rotate-90" />
-          </span>
-        </Button>
-      </PopoverTrigger>
+      <Hint text={truncated && !open ? label : null}>
+        <PopoverTrigger asChild>
+          <Button variant="action" size="crumb" className={className}>
+            <span className="text-muted-foreground text-xs leading-4 whitespace-nowrap">
+              {caption}
+            </span>
+            <span className="flex max-w-full min-w-0 items-center gap-2 leading-5">
+              <span ref={labelRef} className="text-foreground min-w-0 truncate font-semibold">
+                {label}
+              </span>
+              <Icon.chevron className="text-muted-foreground shrink-0 rotate-90" />
+            </span>
+          </Button>
+        </PopoverTrigger>
+      </Hint>
       <PopoverContent align="start" className="w-72 p-1">
         {children}
       </PopoverContent>
