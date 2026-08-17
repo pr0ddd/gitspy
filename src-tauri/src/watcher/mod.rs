@@ -215,8 +215,20 @@ mod tests {
     }
 
     #[cfg(target_os = "macos")]
-    fn waited_for(seen: &std::sync::mpsc::Receiver<Change>) -> Option<Change> {
-        seen.recv_timeout(Duration::from_secs(5)).ok()
+    fn edits_repeated_until_the_event_stream_listens(
+        dir: &Path,
+        seen: &std::sync::mpsc::Receiver<Change>,
+    ) -> Option<Change> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let mut attempt = 0u32;
+        while std::time::Instant::now() < deadline {
+            attempt += 1;
+            std::fs::write(dir.join("readme.md"), format!("edit {attempt}")).expect("file");
+            if let Ok(change) = seen.recv_timeout(Duration::from_millis(500)) {
+                return Some(change);
+            }
+        }
+        None
     }
 
     fn stragglers_from_setup_drained(seen: &std::sync::mpsc::Receiver<Change>) {
@@ -236,9 +248,8 @@ mod tests {
             let _ = say.send(change);
         });
 
-        std::fs::write(dir.path().join("readme.md"), "an edit").expect("file");
         assert_eq!(
-            waited_for(&seen),
+            edits_repeated_until_the_event_stream_listens(dir.path(), &seen),
             Some(Change::WorkingTree),
             "an edit to a file has to arrive on its own, otherwise the counters stand still until the repository is reopened"
         );
