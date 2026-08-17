@@ -4,6 +4,40 @@ What changed in every released version of gitspy, written for the person using i
 Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
 app under "What's new" and is the text of the GitHub release.
 
+## 1.1.2 — 2026-08-17
+
+The graph column, the crumbs and the columns learn to be narrow.
+
+### Improved
+
+- The graph column folds into a single column. Squeeze it and the nodes of
+  every lane converge on one axis while the lines and the edge shades fade
+  out; at the minimum width you get one clean line of dots with the colour
+  bar next to each message, no dark band, no staggered nodes. Widen it back
+  and everything unfolds the same way. The left shade now grows in over the
+  first lane of horizontal scroll instead of snapping on.
+- Every column can be narrowed to an icon: when the heading no longer fits,
+  it becomes a glyph — branch, graph, message, person, clock, hash — centred
+  on the column, and the columns' floors came down to match.
+- The repository crumb keeps its name however long the branch name is; the
+  branch crumb is the one that truncates, and it never shrinks below its
+  caption, so the hover fill covers what you see. A truncated crumb shows the
+  full name in the app's own tooltip — only while it is truncated.
+- Picking a branch in the crumb menu shows its commit on the graph, as a
+  click in the sidebar does, and then switches to it.
+- The list of results under the search field closes when you click anywhere
+  else, and on Tab.
+
+### Fixed
+
+- Hiding the Date column left every date printed on top of the SHA column.
+  A hidden column paints nothing now, and author, date and hash are each cut
+  to their column's width.
+- During a checkout the branch menu could mark two branches as current for
+  a moment — HEAD from the refs and the branch of the working tree are
+  refreshed at different times. One source decides now, the same one that
+  names the branch in the crumb.
+
 ## 1.1.1 — 2026-08-17
 
 Windows and Linux polish, one day after their first builds.
