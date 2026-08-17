@@ -4,6 +4,67 @@ What changed in every released version of gitspy, written for the person using i
 Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
 app under "What's new" and is the text of the GitHub release.
 
+## 1.1.0 — 2026-08-17
+
+### Open source
+
+- gitspy is open source under the AGPL-3.0: the code is at
+  github.com/pr0ddd/gitspy, releases are built there for macOS (Apple Silicon and
+  Intel), Linux (AppImage, deb, rpm) and Windows (installer and msi), and the app
+  updates itself from GitHub Releases. This is the first version with Linux and
+  Windows builds; the Windows build is not signed yet, so SmartScreen warns once.
+- On Windows the terminal opens PowerShell (or cmd when there is none) through
+  ConPTY; the terminal on every system starts your own login shell.
+
+### New
+
+- Merge conflicts are resolved in a real editor. Both sides and the result are
+  three Monaco editors with syntax highlighting that scroll together; a checkbox
+  beside each conflict block takes the whole block from that side, marks in the
+  gutter take or drop single lines, and the result can be edited by hand before
+  Save. Blocks nobody has picked yet show the common ancestor, so the result is
+  never a hole. The panes resize.
+- Every destructive action asks first, in one place: the confirm bar at the top
+  of the graph. Deleting a branch, dropping a stash, discarding changes, hard
+  reset — the same bar. Force push is never a button: it is offered in that bar
+  only after the remote rejected an ordinary push, next to Pull, and it runs with
+  `--force-with-lease`.
+- A branch whose upstream is gone carries a red marker in the sidebar; a click on
+  it deletes the branch through the confirm bar. Deleting goes with `-D`, so
+  squash-merged branches, which git's `-d` refuses, go too.
+- Hovering the avatar of a commit names the author, and the co-authors from the
+  message, with their emails.
+- The tab strip's "+" opens a "New tab" entry when a start page is already open
+  elsewhere.
+
+### Improved
+
+- The working tree is one panel in every mode. During a merge the same panel
+  shows Conflicted, Unstaged (only when there is something) and Resolved files,
+  with the same chips, the same Path/Tree switch, and Amend and Push after commit
+  in their usual place. The conflict banner in the details is the same banner as
+  a pending commit, the row of the working tree in the graph is an orange band.
+- The pull requests tab is there only when the repository lives on a host you can
+  sign in to; without an account it says so instead of loading forever.
+- GitLab tokens are refreshed on their own, a minute before they expire, so the
+  connection no longer drops after two hours. A host that rejects its token says
+  "Reconnect" in Settings rather than failing quietly.
+- The toolbar adapts to the window width instead of overlapping, the window has
+  a minimum size of 960×600, the minimap is off by default, and Settings sit on
+  the left with the width they need.
+- The repository dialog has one fixed height, its footer appears only once a host
+  is connected, and Escape closes every dialog. Integrations in Settings and in
+  the dialog read the same connections — no more "None" flashing before the
+  account.
+
+### Fixed
+
+- The details of a repository dialog no longer crash on a tab that was closed
+  while the mode switched, and closing the dialog no longer flashes.
+- Windows: the file watcher follows the resolved repository root and reads paths
+  with either separator; text files check out with LF so the tests and the app
+  see the same bytes.
+
 ## 1.0.6 — 2026-08-15
 
 ### New
