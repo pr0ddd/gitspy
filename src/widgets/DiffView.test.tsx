@@ -417,13 +417,30 @@ describe('after a binary file', () => {
       'the editor is hidden under the note',
     ).toBe(true);
 
-    vi.mocked(ipc.diffSides).mockResolvedValueOnce({ before: 'a', after: 'b', binary: false });
+    let releaseSides: (sides: {
+      before: string;
+      after: string;
+      binary: boolean;
+    }) => void = () => {};
+    vi.mocked(ipc.diffSides).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseSides = resolve;
+        }),
+    );
     rerender(view(targetFor('aaaa0000', 'src/text.ts')));
-    await waitFor(() => expect(screen.queryByText(/binary file/i)).toBeNull());
+    await act(async () => {});
+    expect(screen.queryByText(/binary file/i)).toBeNull();
+    expect(
+      hostWhileBinary.classList.contains('hidden'),
+      'until the new comparison is ready the editor stays veiled: whatever it still holds is stale',
+    ).toBe(true);
+
+    await act(async () => releaseSides({ before: 'a', after: 'b', binary: false }));
+    await waitFor(() => expect(hostWhileBinary.classList.contains('hidden')).toBe(false));
     expect(editorHost(container), 'the same host element comes back into view').toBe(
       hostWhileBinary,
     );
-    expect(hostWhileBinary.classList.contains('hidden')).toBe(false);
   });
 });
 
