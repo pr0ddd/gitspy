@@ -266,7 +266,7 @@ describe('switching files in the diff editor', () => {
     );
     vi.mocked(ipc.commitFileHunks).mockResolvedValue(patchAt(1));
 
-    const { rerender } = render(view(targetFor('aaaa0000', 'src/old.ts')));
+    const { container, rerender } = render(view(targetFor('aaaa0000', 'src/old.ts')));
     await act(async () => {});
     expect(fake.shownText()).toBe('old after');
 
@@ -275,14 +275,19 @@ describe('switching files in the diff editor', () => {
     await act(async () => {});
     expect(
       fake.shownText(),
-      'the text has arrived but the diff is still being computed — the previous file stays on screen, with no frame showing an unaligned column',
+      'the text has arrived but the diff is still being computed — the model still holds the previous file, no frame shows an unaligned column',
     ).toBe('old after');
+    expect(
+      editorHost(container).classList.contains('hidden'),
+      'and the editor is veiled meanwhile: the previous file is not shown under the new name',
+    ).toBe(true);
     expect(fake.scrolledTo, 'and the new file has not been scrolled yet').toEqual([0]);
 
     await act(async () => fake.finishCompare());
     expect(fake.shownText(), 'the diff is computed — the new file appears all at once').toBe(
       'new after',
     );
+    expect(editorHost(container).classList.contains('hidden'), 'and is unveiled').toBe(false);
     expect(fake.scrolledTo, 'and is scrolled to the top right away, in the same pass').toEqual([
       0, 0,
     ]);
