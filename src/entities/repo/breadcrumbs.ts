@@ -30,7 +30,7 @@ export function branchChoices(
         ref,
         worktree,
         main: worktree !== null && main?.branch === ref.name,
-        current: ref.isHead || ref.name === currentBranch,
+        current: currentBranch === null ? ref.isHead : ref.name === currentBranch,
       };
     });
 

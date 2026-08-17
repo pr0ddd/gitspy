@@ -482,6 +482,7 @@ export default function App() {
                   dispatch({ kind: 'activate', path: null });
                 }}
                 onCheckout={checkoutRef}
+                onReveal={revealCommit}
               />
             }
           />

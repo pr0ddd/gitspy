@@ -70,6 +70,20 @@ describe('the branch list in the breadcrumbs', () => {
     expect(choices[0].current).toBe(true);
   });
 
+  it('marks exactly one branch current, the one the crumb names, even while a checkout is halfway', () => {
+    const halfway = branchChoices([branch('main', true), branch('feature')], [], 'feature');
+    expect(
+      halfway.filter((choice) => choice.current).map((choice) => choice.ref.name),
+      'refs still say main is HEAD, the working tree already says feature: the list follows the label',
+    ).toEqual(['feature']);
+
+    const detached = branchChoices([branch('main', true), branch('feature')], [], null);
+    expect(
+      detached.filter((choice) => choice.current).map((choice) => choice.ref.name),
+      'without a branch name, HEAD from the refs decides',
+    ).toEqual(['main']);
+  });
+
   it('filters by substring in any case', () => {
     const choices = branchChoices([branch('Fix-Graph'), branch('master')], [], null, 'graph');
 

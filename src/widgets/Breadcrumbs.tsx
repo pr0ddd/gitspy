@@ -1,8 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { Hint } from '@/shared/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 import { Icon } from '@/shared/ui/icons';
 import { InlineNote, ListRow, SearchField, SectionHeader } from '@/shared/ui/parts';
 import { branchChoices, repoMenu, type BranchChoice, type RepoChoice } from '@/entities/repo';
@@ -19,22 +19,32 @@ type Props = {
   onOpenPath: (path: string) => void;
   onStart: () => void;
   onCheckout: (ref: RefView) => void;
+  onReveal: (commit: number) => void;
 };
 
-function useTruncated(label: string): [React.RefObject<HTMLSpanElement | null>, boolean] {
-  const ref = useRef<HTMLSpanElement>(null);
+function useTruncated(label: string): [(span: HTMLSpanElement | null) => void, boolean] {
+  const span = useRef<HTMLSpanElement | null>(null);
+  const watching = useRef<ResizeObserver | null>(null);
   const [truncated, setTruncated] = useState(false);
-  useLayoutEffect(() => {
-    const span = ref.current;
-    if (!span) return;
-    const measure = () => setTruncated(span.scrollWidth > span.clientWidth + 1);
-    measure();
+  const measure = () => {
+    const el = span.current;
+    if (el) setTruncated(el.scrollWidth > el.clientWidth + 1);
+  };
+  const attach = useCallback((el: HTMLSpanElement | null) => {
+    watching.current?.disconnect();
+    watching.current = null;
+    span.current = el;
+    if (!el) return;
+    setTruncated(el.scrollWidth > el.clientWidth + 1);
     if (typeof ResizeObserver === 'undefined') return;
-    const watching = new ResizeObserver(measure);
-    watching.observe(span);
-    return () => watching.disconnect();
-  }, [label]);
-  return [ref, truncated];
+    const observer = new ResizeObserver(() => {
+      setTruncated(el.scrollWidth > el.clientWidth + 1);
+    });
+    observer.observe(el);
+    watching.current = observer;
+  }, []);
+  useLayoutEffect(measure, [label]);
+  return [attach, truncated];
 }
 
 function Crumb({
@@ -55,21 +65,24 @@ function Crumb({
   const [labelRef, truncated] = useTruncated(label);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <Hint text={truncated && !open ? label : null}>
-        <PopoverTrigger asChild>
-          <Button variant="action" size="crumb" className={className}>
-            <span className="text-muted-foreground text-xs leading-4 whitespace-nowrap">
-              {caption}
-            </span>
-            <span className="flex max-w-full min-w-0 items-center gap-2 leading-5">
-              <span ref={labelRef} className="text-foreground min-w-0 truncate font-semibold">
-                {label}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="action" size="crumb" className={className}>
+              <span className="text-muted-foreground text-xs leading-4 whitespace-nowrap">
+                {caption}
               </span>
-              <Icon.chevron className="text-muted-foreground shrink-0 rotate-90" />
-            </span>
-          </Button>
-        </PopoverTrigger>
-      </Hint>
+              <span className="flex max-w-full min-w-0 items-center gap-2 leading-5">
+                <span ref={labelRef} className="text-foreground min-w-0 truncate font-semibold">
+                  {label}
+                </span>
+                <Icon.chevron className="text-muted-foreground shrink-0 rotate-90" />
+              </span>
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        {truncated && !open ? <TooltipContent side="bottom">{label}</TooltipContent> : null}
+      </Tooltip>
       <PopoverContent align="start" className="w-72 p-1">
         {children}
       </PopoverContent>
@@ -122,6 +135,7 @@ export function Breadcrumbs({
   onOpenPath,
   onStart,
   onCheckout,
+  onReveal,
 }: Props) {
   const { t } = useTranslation();
   const [openCrumb, setOpenCrumb] = useState<'repo' | 'branch' | null>(null);
@@ -144,8 +158,12 @@ export function Breadcrumbs({
 
   const pickBranch = (choice: BranchChoice) => {
     setOpenCrumb(null);
-    if (choice.worktree) onOpenPath(choice.worktree.path);
-    else if (!choice.current) onCheckout(choice.ref);
+    if (choice.worktree) {
+      onOpenPath(choice.worktree.path);
+      return;
+    }
+    onReveal(choice.ref.commit);
+    if (!choice.current) onCheckout(choice.ref);
   };
 
   return (
