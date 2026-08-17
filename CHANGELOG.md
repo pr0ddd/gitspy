@@ -4,6 +4,26 @@ What changed in every released version of gitspy, written for the person using i
 Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
 app under "What's new" and is the text of the GitHub release.
 
+## 1.1.1 — 2026-08-17
+
+Windows and Linux polish, one day after their first builds.
+
+### Improved
+
+- Windows and Linux wear the same window as macOS: no system title bar — the
+  tabs sit in the top row, with minimize, maximize and close drawn by the app
+  on the right. Dragging an empty part of the tab row moves the window, a
+  double click on it maximizes, exactly as the system bar did.
+
+### Fixed
+
+- On Windows, every question the app asked git opened a console window for a
+  blink and stole focus — a single file diff runs three git processes, so the
+  screen flickered with black boxes and every click felt slow. The same
+  happened on opening a file or the terminal from the app. git now runs
+  without a console at all: the windows are gone, and with them the most
+  expensive part of every call.
+
 ## 1.1.0 — 2026-08-17
 
 ### Open source
