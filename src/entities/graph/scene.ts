@@ -43,7 +43,7 @@ export const METRICS_COMPACT: Metrics = {
   rowH: 28,
   bandH: 22,
   laneW: 16,
-  lineW: 1.5,
+  lineW: 1,
   nodeR: 5,
   avatars: false,
   ...fonts(12, 11),
