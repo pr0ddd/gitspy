@@ -17,6 +17,22 @@ use std::sync::Arc;
 
 const TOKEN_VARIABLE: &str = "GITSPY_HOST_TOKEN";
 
+pub fn windowless_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    keep_windows_from_flashing_a_console(&mut command);
+    command
+}
+
+#[cfg(windows)]
+fn keep_windows_from_flashing_a_console(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn keep_windows_from_flashing_a_console(_: &mut Command) {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Credential<'a> {
     pub url: &'a str,
@@ -154,7 +170,7 @@ impl Git {
     }
 
     pub fn found_by_the_login_shell(shell: &Path) -> Option<Self> {
-        let out = Command::new(shell)
+        let out = windowless_command(shell)
             .args(["-lc", "command -v git"])
             .stdin(Stdio::null())
             .output()
@@ -171,7 +187,7 @@ impl Git {
     }
 
     pub fn at(program: &Path) -> Result<Self, Error> {
-        let found = Command::new(program)
+        let found = windowless_command(program)
             .arg("--version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -733,7 +749,7 @@ impl Git {
     fn prepared(&self, credential: Option<&Credential>) -> Command {
         let environment = env::environment(self.askpass.as_deref());
 
-        let mut command = Command::new(&self.program);
+        let mut command = windowless_command(&self.program);
         for name in &environment.removed {
             command.env_remove(name);
         }

@@ -442,7 +442,7 @@ pub fn open_path(repo: String, path: String) -> Result<(), ErrorView> {
     let status = if cfg!(target_os = "macos") {
         std::process::Command::new("open").arg(&full).status()
     } else if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
+        gitspy_exec::windowless_command("cmd")
             .args(["/c", "start", ""])
             .arg(&full)
             .status()

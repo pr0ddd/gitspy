@@ -1,5 +1,6 @@
 use crate::views::ErrorView;
 use std::path::Path;
+#[cfg(not(target_os = "windows"))]
 use std::process::Command;
 
 #[cfg(target_os = "macos")]
@@ -27,7 +28,7 @@ fn spawn(path: &Path) -> std::io::Result<()> {
 
 #[cfg(target_os = "windows")]
 fn spawn(path: &Path) -> std::io::Result<()> {
-    Command::new("cmd")
+    gitspy_exec::windowless_command("cmd")
         .args(["/C", "start", "cmd"])
         .current_dir(path)
         .spawn()
