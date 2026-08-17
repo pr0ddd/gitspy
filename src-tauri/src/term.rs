@@ -254,6 +254,17 @@ mod tests {
         vec![step; size]
     }
 
+    fn wait_until_the_flusher_has_drained(pump: &Pump) {
+        let patience = Instant::now() + Duration::from_secs(5);
+        while pump.lock().holds_bytes {
+            assert!(
+                Instant::now() < patience,
+                "the flusher must drain the leftover frame within seconds, however slow the machine"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
     #[test]
     fn reader_and_deadline_frames_keep_the_pty_byte_order() {
         let pump = Arc::new(Pump::new());
@@ -274,7 +285,7 @@ mod tests {
                 std::thread::sleep(FRAME_WAIT * 2);
             }
         }
-        std::thread::sleep(FRAME_WAIT * 6);
+        wait_until_the_flusher_has_drained(&pump);
         pump.stop();
         flusher.join().expect("the flusher thread finishes");
 
