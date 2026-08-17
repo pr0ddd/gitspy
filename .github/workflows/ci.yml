@@ -10,6 +10,7 @@ on:
       - LICENSE
       - docs/**
       - .github/CODEOWNERS
+      - .github/FUNDING.yml
       - .github/RELEASE_CHECKLIST.md
       - .github/PULL_REQUEST_TEMPLATE.md
       - .github/ISSUE_TEMPLATE/**
@@ -23,6 +24,7 @@ on:
       - LICENSE
       - docs/**
       - .github/CODEOWNERS
+      - .github/FUNDING.yml
       - .github/RELEASE_CHECKLIST.md
       - .github/PULL_REQUEST_TEMPLATE.md
       - .github/ISSUE_TEMPLATE/**
