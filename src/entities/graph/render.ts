@@ -51,6 +51,7 @@ const LEADER_ALPHA = 0.18;
 const CAP_W = 2;
 
 const SHADOW_BAND = 14;
+const HEAD_GLYPH = 12;
 
 const CHIP_PAD = 9;
 const MARK_GAP = 4;
@@ -777,7 +778,12 @@ function drawHeader(
   const y = Math.round(HEADER_H / 2);
   const heading = (text: string, width: number) => fitText(ctx, text.toUpperCase(), width);
   ctx.fillText(heading(columns.branchTag, cols.branchTag.width - 20), 12, y);
-  ctx.fillText(heading(columns.graph, cols.graph.width - 12), gLeft + 6, y);
+  if (ctx.measureText(columns.graph.toUpperCase()).width <= cols.graph.width - 12) {
+    ctx.fillText(heading(columns.graph, cols.graph.width - 12), gLeft + 6, y);
+  } else {
+    ctx.strokeStyle = t.faint;
+    strokeGlyphInSlot(ctx, GLYPH.graph, gLeft + (cols.graph.width - HEAD_GLYPH) / 2, y, HEAD_GLYPH);
+  }
   ctx.fillText(heading(columns.message, cols.message.width - 20), msgX, y);
   ctx.fillText(heading(columns.author, cols.author.width - 12), colAuthor, y);
   ctx.fillText(heading(columns.date, cols.date.width - 12), colDate, y);

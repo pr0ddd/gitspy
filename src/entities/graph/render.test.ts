@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { drawFrame, METRICS_AVATARS, type Frame } from './index';
-import { layoutColumns } from './columns';
+import { FLOORS, layoutColumns } from './columns';
 import { listWidth, rowBandHeight } from './scene';
 import { RowCache } from './rows';
 import type { AvatarCache } from '@/shared/ui/avatarCache';
@@ -246,10 +246,32 @@ const paint = (
 const paintWithHidden = (hidden: ReadonlySet<'author' | 'date' | 'sha'>) => {
   texts.length = 0;
   placedTexts.length = 0;
+  strokedGlyphs.length = 0;
   const frame = frameWith([]);
   drawFrame(canvas(), { ...frame, cols: layoutColumns(1200, {}, hidden) });
-  return { texts: [...texts], placedTexts: [...placedTexts] };
+  return { texts: [...texts], placedTexts: [...placedTexts], strokedGlyphs: [...strokedGlyphs] };
 };
+
+describe('the graph heading', () => {
+  it('turns into the graph glyph when the word no longer fits the column', () => {
+    const roomy = paintWithHidden(new Set());
+    expect(roomy.texts).toContain('GRAPH');
+    expect(roomy.strokedGlyphs.some((g) => g.d === GLYPH.graph.d)).toBe(false);
+
+    texts.length = 0;
+    strokedGlyphs.length = 0;
+    const frame = frameWith([]);
+    drawFrame(canvas(), { ...frame, cols: layoutColumns(1200, { graph: FLOORS.graph }) });
+    expect(
+      texts.some((text) => text.startsWith('GR')),
+      'no truncated word',
+    ).toBe(false);
+    expect(
+      strokedGlyphs.some((g) => g.d === GLYPH.graph.d),
+      'the glyph stands in for the heading',
+    ).toBe(true);
+  });
+});
 
 describe('hidden columns', () => {
   it('draws neither the date nor its heading when the column is off, so nothing lands on the SHA', () => {
