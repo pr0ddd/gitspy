@@ -7,11 +7,11 @@ export const APPEARANCE_PREF = 'ui.appearance';
 
 export const APPEARANCES = [
   { key: '', label: 'appearance.gitspy' },
-  { key: 'linear-dark', label: 'appearance.gitspyDark' },
-  { key: 'classic-dark', label: 'appearance.classicDark' },
-  { key: 'magic-blue', label: 'appearance.magicBlue' },
-  { key: 'linear-light', label: 'appearance.gitspyLight' },
-  { key: 'pure-light', label: 'appearance.pureLight' },
+  { key: 'dark', label: 'appearance.dark' },
+  { key: 'graphite', label: 'appearance.graphite' },
+  { key: 'midnight', label: 'appearance.midnight' },
+  { key: 'light', label: 'appearance.light' },
+  { key: 'paper', label: 'appearance.paper' },
 ] as const;
 
 export type AppearanceKey = (typeof APPEARANCES)[number]['key'];

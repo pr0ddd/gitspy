@@ -3,16 +3,16 @@ import { APPEARANCES, applyAppearance, knownAppearance } from '@/shared/config/a
 
 describe('appearance themes', () => {
   it('an unknown name falls back to the native theme instead of breaking the look', () => {
-    expect(knownAppearance('linear-dark')).toBe('linear-dark');
+    expect(knownAppearance('dark')).toBe('dark');
     expect(knownAppearance('vaporwave')).toBe('');
   });
 
   it('applying a theme sets data-theme on the root and clears it again', () => {
-    applyAppearance('magic-blue');
+    applyAppearance('midnight');
     expect(
       document.documentElement.dataset.theme,
       'canvas and CSS read the same tokens, so the switch has to live on the document root',
-    ).toBe('magic-blue');
+    ).toBe('midnight');
     applyAppearance('');
     expect(document.documentElement.dataset.theme).toBeUndefined();
   });

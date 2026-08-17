@@ -167,7 +167,7 @@
   mask-mode: luminance;
 }
 
-[data-theme='linear-dark'] {
+[data-theme='dark'] {
   --background: lch(2.595% 0.4 272);
   --card: lch(5.52% 0.4 272);
   --popover: lch(9.345% 0.85 272);
@@ -188,7 +188,7 @@
   --surface-raised: lch(9.345% 0.85 272);
 }
 
-[data-theme='magic-blue'] {
+[data-theme='midnight'] {
   --background: lch(6.221% 6.568 282.863);
   --card: lch(9.471% 6.568 282.863);
   --popover: lch(13.721% 7.068 282.863);
@@ -209,7 +209,7 @@
   --surface-raised: lch(13.721% 7.068 282.863);
 }
 
-[data-theme='classic-dark'] {
+[data-theme='graphite'] {
   --background: lch(8.986% 2.213 272.695);
   --card: lch(12.236% 2.213 272.695);
   --popover: lch(16.486% 2.713 272.695);
@@ -230,8 +230,8 @@
   --surface-raised: lch(16.486% 2.713 272.695);
 }
 
-[data-theme='linear-light'],
-[data-theme='pure-light'] {
+[data-theme='light'],
+[data-theme='paper'] {
   --banner: color-mix(in oklab, var(--primary) 12%, transparent);
   --banner-conflict: color-mix(in oklab, var(--destructive) 12%, transparent);
   --graph-shade: oklch(0 0 0 / 0.1);
@@ -274,7 +274,7 @@
   --graph-12: oklch(0.58 0.15 245 / 0.6);
 }
 
-[data-theme='linear-light'] {
+[data-theme='light'] {
   --background: lch(94.44% 0.5 282);
   --border: lch(84.44% 0 282);
   --card: lch(97.94% 0.5 282);
@@ -291,7 +291,7 @@
   --surface-raised: lch(92.94% 0.5 282);
 }
 
-[data-theme='pure-light'] {
+[data-theme='paper'] {
   --background: lch(97.667% 0 142.924);
   --border: lch(89% 0 142.924);
   --card: lch(100% 0 142.924);
