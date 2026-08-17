@@ -312,8 +312,8 @@ describe('the selected row', () => {
 
     const bands = filledRects.filter((r) => r.style.startsWith('lane'));
     const percents = bands.map((r) => Number(r.style.split('@')[1]));
-    expect(Math.max(...percents), 'the selected band is the brightest').toBe(42);
-    expect(percents.filter((p) => p === 42).length, 'exactly one row is selected').toBe(1);
+    expect(Math.max(...percents), 'the selected band is the brightest').toBe(50);
+    expect(percents.filter((p) => p === 50).length, 'exactly one row is selected').toBe(1);
     expect(percents.filter((p) => p === 11).length, 'the rest keep the quiet tint').toBeGreaterThan(
       1,
     );
