@@ -186,10 +186,17 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (i === selected || i === hover) {
         ctx.fillStyle = i === selected ? t.rowSelected : t.rowHover;
         const capX = g.nodeX(rows.row(i)?.lane ?? 0);
+        const cap = Math.min(band / 2, m.nodeR + 1);
+        const top = y + inset;
+        const bottom = y + m.rowH - inset;
         ctx.beginPath();
-        ctx.arc(capX, y + half, band / 2, Math.PI / 2, -Math.PI / 2);
-        ctx.lineTo(listW, y + inset);
-        ctx.lineTo(listW, y + m.rowH - inset);
+        ctx.moveTo(capX + cap, top);
+        ctx.lineTo(listW, top);
+        ctx.lineTo(listW, bottom);
+        ctx.lineTo(capX + cap, bottom);
+        ctx.arcTo(capX, bottom, capX, bottom - cap, cap);
+        ctx.lineTo(capX, top + cap);
+        ctx.arcTo(capX, top, capX + cap, top, cap);
         ctx.closePath();
         ctx.fill();
       }

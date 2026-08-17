@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { drawFrame, METRICS_AVATARS, type Frame } from './index';
+import { drawFrame, METRICS_AVATARS, METRICS_COMPACT, type Frame } from './index';
 import { FLOORS, layoutColumns } from './columns';
 import { listWidth, rowBandHeight } from './scene';
 import { RowCache } from './rows';
@@ -39,6 +39,7 @@ const drawnImages: { image: unknown; x: number }[] = [];
 const filledRects: { x: number; y: number; w: number; h: number; style: string }[] = [];
 const strokedPaths: { op: string; x: number; y: number }[][] = [];
 const arcs: { x: number; y: number; r: number }[] = [];
+const corners: number[] = [];
 let lastTranslateX = 0;
 
 const context = () =>
@@ -81,6 +82,9 @@ const context = () =>
           }
           if (key === 'arc') {
             arcs.push({ x: Number(args[0]), y: Number(args[1]), r: Number(args[2]) });
+          }
+          if (key === 'arcTo') {
+            corners.push(Number(args[4]));
           }
         };
       },
@@ -245,6 +249,7 @@ const paint = (
   drawnImages.length = 0;
   filledRects.length = 0;
   arcs.length = 0;
+  corners.length = 0;
   strokedPaths.length = 0;
   drawFrame(canvas(), frameWith(refs, avatars, pullHeads, hoverChip, workingTree));
   return { calls, texts, placedTexts, strokedGlyphs, drawnImages, filledRects, arcs, strokedPaths };
@@ -300,6 +305,16 @@ describe('the column headings', () => {
       strokedGlyphs.some((g) => g.d === GLYPH.graph.d),
       'the glyph stands in for the heading',
     ).toBe(true);
+  });
+});
+
+describe('the highlight cap in the compact layout', () => {
+  it('rounds by the small node, not by half the band: no bulb to the left of a 10px node', () => {
+    corners.length = 0;
+    const frame = frameWith([]);
+    drawFrame(canvas(), { ...frame, metrics: METRICS_COMPACT, selected: 1 });
+    expect(corners.some((r) => r === METRICS_COMPACT.nodeR + 1)).toBe(true);
+    expect(corners.some((r) => r === rowBandHeight(METRICS_COMPACT) / 2)).toBe(false);
   });
 });
 
@@ -480,8 +495,10 @@ describe('badges on chips', () => {
       'the rectangle spanning the whole row is a thing of the past',
     ).toBe(false);
     expect(
-      painted.arcs.some((a) => a.r === rowBandHeight(METRICS_AVATARS) / 2),
-      'the left edge of the highlight is a semicircle of half the band height around the node',
+      corners.some(
+        (r) => r === Math.min(rowBandHeight(METRICS_AVATARS) / 2, METRICS_AVATARS.nodeR + 1),
+      ),
+      'the left edge of the highlight rounds around the node: a semicircle when the band is as tall as the node',
     ).toBe(true);
   });
 
