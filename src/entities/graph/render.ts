@@ -534,10 +534,17 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
       ctx.fillStyle = t.muted;
       ctx.font = m.fontDetail;
-      ctx.fillText(fitText(ctx, row.author, colDate - colAuthor - 10), colAuthor, yc);
-      ctx.fillText(dateFmt.format(new Date(row.time * 1000)), colDate, yc);
-      ctx.font = m.fontMono;
-      ctx.fillText(row.hash.slice(0, 7), colHash, yc);
+      if (cols.author.width > 0) {
+        ctx.fillText(fitText(ctx, row.author, cols.author.width - 12), colAuthor, yc);
+      }
+      if (cols.date.width > 0) {
+        const date = dateFmt.format(new Date(row.time * 1000));
+        ctx.fillText(fitText(ctx, date, cols.date.width - 12), colDate, yc);
+      }
+      if (cols.sha.width > 0) {
+        ctx.font = m.fontMono;
+        ctx.fillText(fitText(ctx, row.hash.slice(0, 7), cols.sha.width - 12), colHash, yc);
+      }
     }
 
     ctx.restore();

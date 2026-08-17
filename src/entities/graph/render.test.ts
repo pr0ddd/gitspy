@@ -243,6 +243,38 @@ const paint = (
   return { calls, texts, placedTexts, strokedGlyphs, drawnImages, filledRects, arcs, strokedPaths };
 };
 
+const paintWithHidden = (hidden: ReadonlySet<'author' | 'date' | 'sha'>) => {
+  texts.length = 0;
+  placedTexts.length = 0;
+  const frame = frameWith([]);
+  drawFrame(canvas(), { ...frame, cols: layoutColumns(1200, {}, hidden) });
+  return { texts: [...texts], placedTexts: [...placedTexts] };
+};
+
+describe('hidden columns', () => {
+  it('draws neither the date nor its heading when the column is off, so nothing lands on the SHA', () => {
+    const shown = paintWithHidden(new Set());
+    const dates = shown.texts.filter((text) => /\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2}/.test(text));
+    expect(dates.length, 'with the column on, every row carries a date').toBeGreaterThan(0);
+
+    const hidden = paintWithHidden(new Set(['date']));
+    expect(
+      hidden.texts.filter((text) => dates.includes(text)),
+      'a hidden column paints nothing at all',
+    ).toEqual([]);
+    expect(hidden.texts, 'the SHA column stays').toContain('SHA');
+    expect(hidden.texts.some((text) => /^[0-9a-f]{7}$/.test(text))).toBe(true);
+  });
+
+  it('a hidden SHA column draws no hashes and a hidden author column no names', () => {
+    const noSha = paintWithHidden(new Set(['sha']));
+    expect(noSha.texts.some((text) => /^[0-9a-f]{7}$/.test(text))).toBe(false);
+
+    const noAuthor = paintWithHidden(new Set(['author']));
+    expect(noAuthor.texts).not.toContain('AUTHOR');
+  });
+});
+
 describe('a frame painted end to end', () => {
   it('draws the column header after the chips, so the frame reached its end', () => {
     const painted = paint([
