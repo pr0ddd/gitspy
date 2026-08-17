@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../src/shared/config/locales', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../src/shared/config/locales', import.meta.url));
 const REFERENCE = 'en';
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 

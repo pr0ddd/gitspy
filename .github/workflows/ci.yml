@@ -57,12 +57,17 @@ jobs:
         run: cargo test --all-targets --no-fail-fast
 
   frontend:
-    name: Frontend
-    runs-on: ubuntu-22.04
+    name: Frontend on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Tauri system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
