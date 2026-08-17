@@ -25,21 +25,25 @@ function Crumb({
   label,
   open,
   onOpenChange,
+  className,
   children,
 }: {
   caption: string;
   label: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  className: string;
   children: React.ReactNode;
 }) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="action" size="crumb" className="min-w-0 shrink" title={label}>
-          <span className="text-muted-foreground text-xs leading-4">{caption}</span>
+        <Button variant="action" size="crumb" className={className} title={label}>
+          <span className="text-muted-foreground text-xs leading-4 whitespace-nowrap">
+            {caption}
+          </span>
           <span className="flex max-w-full min-w-0 items-center gap-2 leading-5">
-            <span className="text-foreground truncate font-semibold">{label}</span>
+            <span className="text-foreground min-w-0 truncate font-semibold">{label}</span>
             <Icon.chevron className="text-muted-foreground shrink-0 rotate-90" />
           </span>
         </Button>
@@ -129,6 +133,7 @@ export function Breadcrumbs({
         label={repoName}
         open={openCrumb === 'repo'}
         onOpenChange={(open) => show('repo', open)}
+        className="max-w-40 shrink-0"
       >
         <div className="flex flex-col gap-1">
           <div className="flex px-1 pt-1">
@@ -197,6 +202,7 @@ export function Breadcrumbs({
         label={currentBranch ?? t('breadcrumb.detached')}
         open={openCrumb === 'branch'}
         onOpenChange={(open) => show('branch', open)}
+        className="min-w-24 shrink"
       >
         <div className="flex flex-col gap-1">
           <div className="flex px-1 pt-1">
