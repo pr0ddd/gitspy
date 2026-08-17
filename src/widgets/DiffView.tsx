@@ -149,7 +149,8 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [foundBinary, setFoundBinary] = useState<Binary | null>(null);
   const binary = knownBinary || (foundBinary !== null && sameDiffTarget(foundBinary.for, target));
-  const editorHidden = binary || loaded === null || !sameDiffTarget(loaded.for, target);
+  const [veiled, setVeiled] = useState(false);
+  const editorHidden = binary || veiled;
   const [applied, setApplied] = useState(0);
   const [view, setView] = useState<'diff' | 'file'>('diff');
   const [editing, setEditing] = useState(false);
@@ -217,6 +218,10 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   };
 
   useEffect(() => {
+    if (binary) setVeiled(true);
+  }, [binary]);
+
+  useEffect(() => {
     if (knownBinary) return;
     let cancelled = false;
     let inflight: monaco.editor.IDiffEditorViewModel | null = null;
@@ -257,6 +262,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
           compared: ready.compared,
           raw,
         });
+        setVeiled(false);
       })
       .catch(notifyError);
 
