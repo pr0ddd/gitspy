@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/graph.png" width="900" alt="gitspy showing a commit graph, the working tree and commit details" />
+  <img src="docs/screenshots/graph.png" width="900" alt="gitspy showing the react repository: branch labels, avatars, the commit graph and commit details" />
 </p>
 
 ## What it does
