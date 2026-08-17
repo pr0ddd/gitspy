@@ -37,8 +37,8 @@ const COLS = layoutColumns(listWidth(WIDTH), {});
 
 describe('the gap between graph rows', () => {
   it('wraps the avatar with a one-pixel halo and leaves the rest of the row as the gap', () => {
-    expect(rowBandHeight(M), 'the band inside a 30px row').toBe(M.nodeR * 2 + 2);
-    expect(rowBandInset(M), 'the band sits centred: four pixels above and below').toBe(4);
+    expect(rowBandHeight(M), 'the band inside a 28px row').toBe(M.nodeR * 2 + 2);
+    expect(rowBandInset(M), 'the band sits centred: three pixels above and below').toBe(3);
   });
 
   it('keeps the compact band at 22 in a 28px row', () => {

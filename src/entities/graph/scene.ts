@@ -29,7 +29,7 @@ const fonts = (px: number, detailPx: number) => ({
 });
 
 export const METRICS_AVATARS: Metrics = {
-  rowH: 30,
+  rowH: 28,
   bandH: 22,
   laneW: 24,
   nodeR: 10,
