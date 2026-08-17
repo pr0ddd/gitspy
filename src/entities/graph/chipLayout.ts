@@ -1,11 +1,22 @@
-import type { Chip } from './chips';
+import type { Chip, ChipMark } from './chips';
 
 export type ChipMetrics = {
   readonly pad: number;
   readonly markSize: number;
+  readonly avatarSize: number;
   readonly pullSize: number;
   readonly gap: number;
 };
+
+export const markWidth = (mark: ChipMark, metrics: ChipMetrics): number =>
+  mark === 'remote' ? metrics.avatarSize : metrics.markSize;
+
+export const trailWidth = (chip: Chip, hasPull: boolean, metrics: ChipMetrics): number =>
+  chip.marks.reduce((sum, mark) => sum + markWidth(mark, metrics) + metrics.gap, 0) +
+  (hasPull ? metrics.pullSize + metrics.gap : 0);
+
+export const compactMarkWidth = (chip: Chip, metrics: ChipMetrics): number =>
+  !chip.isHead && chip.marks.includes('remote') ? metrics.avatarSize : metrics.markSize;
 
 export type PlacedChip = {
   readonly chip: Chip;
@@ -67,9 +78,7 @@ export function placeChips(
     const avail = room - left - counterW;
 
     const hasPull = wantsPull(chip, pullHeads);
-    const trailW =
-      chip.marks.length * (metrics.markSize + metrics.gap) +
-      (hasPull ? metrics.pullSize + metrics.gap : 0);
+    const trailW = trailWidth(chip, hasPull, metrics);
     const fullText = chip.isHead ? `✓ ${chip.name}` : chip.name;
     const text =
       avail < SMALLEST_USEFUL + trailW && at > 0
@@ -90,7 +99,9 @@ export function placeChips(
     }
 
     const compact = !text;
-    const w = compact ? metrics.markSize + metrics.pad : measure(text) + metrics.pad * 2 + trailW;
+    const w = compact
+      ? compactMarkWidth(chip, metrics) + metrics.pad
+      : measure(text) + metrics.pad * 2 + trailW;
     placed.push({
       chip,
       x: left,

@@ -26,7 +26,15 @@ import type { RowCache } from './rows';
 import { laneColour, laneColourAlpha, laneSoft, theme } from '@/shared/ui/theme';
 import type { Minimap } from './view';
 import { chipsFor, remoteAvatarKey, type Chip } from './chips';
-import { moreLabel, placeChips, type ChipMetrics, type PlacedChip } from './chipLayout';
+import {
+  compactMarkWidth,
+  markWidth,
+  moreLabel,
+  placeChips,
+  trailWidth,
+  type ChipMetrics,
+  type PlacedChip,
+} from './chipLayout';
 import { GLYPH, strokeGlyphInSlot } from './glyphs';
 import { wipBadgesX, wipContent } from './wip';
 import { canvasDensity } from '@/shared/lib/zoom';
@@ -68,6 +76,7 @@ export type HoverChip = { readonly row: number; readonly at: number | 'more' };
 export const chipMetricsFor = (m: Metrics): ChipMetrics => ({
   pad: CHIP_PAD,
   markSize: m.fontPx,
+  avatarSize: m.fontPx + 4,
   pullSize: m.fontPx - 2,
   gap: MARK_GAP,
 });
@@ -606,10 +615,8 @@ function fullPlacement(
 ): PlacedChip {
   const hasPull =
     (chip.kind === 'localBranch' || chip.kind === 'remoteBranch') && pullHeads.has(chip.name);
-  const trailW =
-    chip.marks.length * (chipM.markSize + chipM.gap) + (hasPull ? chipM.pullSize + chipM.gap : 0);
   const fullText = chip.isHead ? `✓ ${chip.name}` : chip.name;
-  const fullW = measure(fullText) + chipM.pad * 2 + trailW;
+  const fullW = measure(fullText) + chipM.pad * 2 + trailWidth(chip, hasPull, chipM);
   return { chip, x: 12, w: fullW, fullW, text: fullText, fullText, hasPull, compact: false };
 }
 
@@ -645,7 +652,7 @@ function drawChip(
     ctx.shadowBlur = 0;
     ctx.fillStyle = t.subject;
     ctx.strokeStyle = t.subject;
-    const slotX = placed.x + (w - chipM.markSize) / 2;
+    const slotX = placed.x + (w - compactMarkWidth(chip, chipM)) / 2;
     if (chip.isHead) {
       ctx.fillText('✓', placed.x + (w - ctx.measureText('✓').width) / 2, y);
     } else if (chip.marks.includes('remote')) {
@@ -655,7 +662,7 @@ function drawChip(
         (chip.remote && remoteAvatarUrls.get(chip.remote)) || null,
         slotX,
         y,
-        chipM.markSize,
+        chipM,
       );
     } else if (chip.marks.includes('local')) {
       strokeGlyphInSlot(ctx, GLYPH.local, slotX, y, chipM.markSize);
@@ -685,12 +692,12 @@ function drawChip(
         (chip.remote && remoteAvatarUrls.get(chip.remote)) || null,
         markX,
         y,
-        chipM.markSize,
+        chipM,
       );
     } else {
       strokeGlyphInSlot(ctx, mark === 'tag' ? GLYPH.tag : GLYPH.local, markX, y, chipM.markSize);
     }
-    markX += chipM.markSize + chipM.gap;
+    markX += markWidth(mark, chipM) + chipM.gap;
   }
   if (placed.hasPull) strokeGlyphInSlot(ctx, GLYPH.pull, markX, y, chipM.pullSize);
 }
@@ -773,9 +780,10 @@ function drawRemoteMark(
   avatarUrl: string | null,
   x: number,
   y: number,
-  size: number,
+  chipM: ChipMetrics,
 ): void {
   const look = avatarUrl ? avatars?.lookOf(remoteAvatarKey(avatarUrl)) : undefined;
+  const size = chipM.avatarSize;
   if (look?.kind === 'image') {
     ctx.save();
     ctx.beginPath();
@@ -785,7 +793,7 @@ function drawRemoteMark(
     ctx.restore();
     return;
   }
-  strokeGlyphInSlot(ctx, GLYPH.remote, x, y, size);
+  strokeGlyphInSlot(ctx, GLYPH.remote, x + (size - chipM.markSize) / 2, y, chipM.markSize);
 }
 
 function drawMinimap(ctx: CanvasRenderingContext2D, frame: Frame, listW: number): void {

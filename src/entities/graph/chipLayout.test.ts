@@ -18,7 +18,7 @@ const ref = (name: string, kind: RefKind, patch: Partial<RefView> = {}): RefView
 
 const measure = (text: string) => text.length * 7;
 
-const METRICS: ChipMetrics = { pad: 9, markSize: 13, pullSize: 11, gap: 4 };
+const METRICS: ChipMetrics = { pad: 9, markSize: 13, avatarSize: 17, pullSize: 11, gap: 4 };
 
 const place = (refs: RefView[], room = 400, pullHeads: ReadonlySet<string> = new Set()) =>
   placeChips(chipsFor(refs, ['origin']), measure, room, METRICS, pullHeads).placed;
@@ -56,6 +56,17 @@ describe('chip layout', () => {
     const textW = measure('wip');
     const trail = METRICS.markSize + METRICS.gap;
     expect(placed.w).toBe(9 * 2 + textW + trail);
+  });
+
+  it('gives the remote avatar a wider slot than a glyph, so both look the same size', () => {
+    const [placed] = place([ref('origin/wip', 'remoteBranch')]);
+
+    const trail = METRICS.avatarSize + METRICS.gap;
+    expect(
+      placed.w,
+      'the remote prefix is folded into the mark, so the text is the bare name',
+    ).toBe(9 * 2 + measure('wip') + trail);
+    expect(METRICS.avatarSize - METRICS.markSize, 'a circle needs four extra pixels').toBe(4);
   });
 
   it('an open pull request lengthens the trail by its own mark', () => {
