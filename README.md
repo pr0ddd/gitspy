@@ -114,6 +114,17 @@ your own installed git, so what gitspy shows is what `git status` says.
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The
 detailed rules the code follows are in [CLAUDE.md](CLAUDE.md).
 
+## Support
+
+gitspy is free and stays free. If it saves you time and you want to give
+something back, donations are welcome:
+
+| Coin          | Address                                      |
+| ------------- | -------------------------------------------- |
+| USDT (TRC-20) | `TRmXuAf3qeYZPiaj9wioukUkWGqh7kSysR`         |
+| BTC           | `bc1qedlumrsggra93zvcgpsedwl6z7gf3ge4j5qnf2` |
+| ETH           | `0x2616774D480D23c827eAE9e6Cc2d312aCB94a785` |
+
 ## Licence
 
 Copyright © 2026 Pavel Erohovets.
