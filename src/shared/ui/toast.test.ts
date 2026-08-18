@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
 import i18next from '@/shared/config/i18n';
-import { notifyOperation, notifyOperationFailed } from '@/shared/ui/toast';
+import { notifyCopied, notifyOperation, notifyOperationFailed } from '@/shared/ui/toast';
 import type { Operation } from '@/shared/api/types';
 
 vi.mock('sonner', () => {
@@ -10,6 +10,8 @@ vi.mock('sonner', () => {
     toast: Object.assign(base, {
       success: vi.fn(),
       error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
       loading: vi.fn(),
       dismiss: vi.fn(),
     }),
@@ -64,6 +66,13 @@ describe('toasts — the outcome of an action only, in human words', () => {
     notifyOperation({ kind: 'pull' });
     expect(vi.mocked(toast.loading).mock.calls.length, 'spinner toasts are gone for good').toBe(0);
     expect(vi.mocked(toast.success).mock.calls.length).toBe(1);
+  });
+
+  it('a copy is a fact, not an achievement: an info toast, with the copied value as its detail', () => {
+    notifyCopied('fc4269b2');
+    expect(vi.mocked(toast.info).mock.calls[0]?.[0]).toBe('Copied');
+    expect(vi.mocked(toast.info).mock.calls[0]?.[1]).toEqual({ description: 'fc4269b2' });
+    expect(vi.mocked(toast.success).mock.calls.length, 'not a success').toBe(0);
   });
 
   it('names the outcome with a phrase, not a glued-together "branch finished"', () => {

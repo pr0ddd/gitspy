@@ -6,7 +6,7 @@ import type { Operation } from '@/shared/api/types';
 const t = i18next.t.bind(i18next);
 
 export const notifyCopied = (value: string) =>
-  toast.success(t('toast.copied'), { description: value });
+  toast.info(t('toast.copied'), { description: value });
 
 export const notifyError = (error: unknown) => {
   const shown = describeError(error, i18next.getFixedT(null, 'errors'));

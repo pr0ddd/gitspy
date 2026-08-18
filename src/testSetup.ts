@@ -11,6 +11,20 @@ class ResizeObserverStub {
 
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 
+if (typeof window !== 'undefined') {
+  window.matchMedia ??= ((query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList) as typeof window.matchMedia;
+}
+
 if (typeof document !== 'undefined') {
   document.queryCommandSupported ??= () => false;
   Element.prototype.scrollIntoView ??= () => {};
