@@ -71,7 +71,9 @@ impl Git {
         }
 
         let before = self.file_at(repo, "", path)?;
-        let after = std::fs::read_to_string(repo.join(path)).unwrap_or_default();
+        let after = std::fs::read(repo.join(path))
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+            .unwrap_or_default();
         Ok((before, after))
     }
 

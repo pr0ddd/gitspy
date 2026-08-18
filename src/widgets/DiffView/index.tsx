@@ -184,6 +184,7 @@ export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
         setFoundBinary({ for: target });
         return null;
       }
+      setFoundBinary((known) => (known && sameDiffTarget(known.for, target) ? null : known));
       const compared = diffEditor.createViewModel({
         original: monaco.editor.createModel(sides.before, language),
         modified: monaco.editor.createModel(sides.after, language),

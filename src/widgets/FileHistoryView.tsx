@@ -135,6 +135,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
   const [blame, setBlame] = useState<BlameSpanView[] | null>(null);
   const [blaming, setBlaming] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
+  const [binary, setBinary] = useState(false);
 
   const fileHost = useRef<HTMLDivElement | null>(null);
   const diffHost = useRef<HTMLDivElement | null>(null);
@@ -191,6 +192,7 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
     editors.current.forEach((editor) => editor.dispose());
     editors.current = [];
     setScrollTop(0);
+    setBinary(false);
 
     let cancelled = false;
     const at = shownPath;
@@ -200,6 +202,10 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
     ])
       .then(([sides, raw]) => {
         if (cancelled) return;
+        if (sides.binary) {
+          setBinary(true);
+          return;
+        }
         const language = languageOf(at);
         if (view === 'file' && fileHost.current) {
           const editor = monaco.editor.create(fileHost.current, {
@@ -360,13 +366,16 @@ export function FileHistoryView({ repo, path, from, avatars, onClose }: Props) {
           {view === 'file' && blaming && blame ? (
             <BlameGutter spans={blame} scrollTop={scrollTop} onPick={setChosen} />
           ) : null}
+          {binary ? (
+            <p className="text-muted-foreground flex-1 p-6 text-center">{t('diff.binary')}</p>
+          ) : null}
           <div
             ref={fileHost}
-            className={cn('min-h-0 min-w-0 flex-1', view !== 'file' && 'hidden')}
+            className={cn('min-h-0 min-w-0 flex-1', (binary || view !== 'file') && 'hidden')}
           />
           <div
             ref={diffHost}
-            className={cn('min-h-0 min-w-0 flex-1', view !== 'diff' && 'hidden')}
+            className={cn('min-h-0 min-w-0 flex-1', (binary || view !== 'diff') && 'hidden')}
           />
         </div>
       </div>

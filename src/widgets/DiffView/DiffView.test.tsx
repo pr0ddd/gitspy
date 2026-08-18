@@ -400,6 +400,17 @@ describe('a binary file', () => {
 
     await waitFor(() => expect(screen.getByText(/binary file/i)).toBeTruthy());
   });
+
+  it('that later reads as text again is a text file again: the note goes when the same target loads as text', async () => {
+    vi.mocked(ipc.diffSides).mockResolvedValueOnce({ before: '', after: '', binary: true });
+    const { container, rerender } = render(view(targetFor('aaaa0000', 'src/notes.txt')));
+    await waitFor(() => expect(screen.getByText(/binary file/i)).toBeTruthy());
+
+    vi.mocked(ipc.diffSides).mockResolvedValueOnce({ before: 'a', after: 'b', binary: false });
+    rerender(view(targetFor('aaaa0000', 'src/notes.txt')));
+    await waitFor(() => expect(screen.queryByText(/binary file/i)).toBeNull());
+    await waitFor(() => expect(editorHost(container).classList.contains('hidden')).toBe(false));
+  });
 });
 
 describe('after a binary file', () => {

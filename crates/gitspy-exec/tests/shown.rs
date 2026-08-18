@@ -80,3 +80,26 @@ fn a_binary_blob_reads_without_git_dying_of_a_closed_pipe() {
         "the whole blob comes through, not the part before the first line that is not UTF-8"
     );
 }
+
+#[test]
+fn an_untracked_binary_file_in_the_working_tree_reads_as_its_bytes_not_as_nothing() {
+    let dir = repo_with_a_commit();
+    let mut bytes = Vec::with_capacity(20_000);
+    for i in 0..20_000u32 {
+        bytes.push((i % 251) as u8);
+    }
+    std::fs::write(dir.path().join("logo.png"), &bytes).expect("binary written");
+
+    let (before, after) = git()
+        .working_tree_sides(dir.path(), "logo.png", false)
+        .expect("an untracked binary is a file like any other");
+    assert_eq!(before, "", "nothing in the index yet");
+    assert!(
+        after.len() > 10_000,
+        "the working tree side holds the file's bytes lossily, so the caller can tell it is binary; an empty string would pass for an empty text file"
+    );
+    assert!(
+        after.contains('\0'),
+        "the NUL bytes survive the conversion: that is what marks the pair as binary"
+    );
+}
