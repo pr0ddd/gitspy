@@ -8,3 +8,4 @@ export * from './repoData';
 export * from './staging';
 export * from './dropRepo';
 export * from './push';
+export * from './workingTree';

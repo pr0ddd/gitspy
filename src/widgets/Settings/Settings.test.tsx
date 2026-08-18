@@ -13,7 +13,7 @@ vi.mock('@/shared/api/ipc', async (importOriginal) => ({
   onHostFailed: vi.fn(() => Promise.resolve(() => {})),
 }));
 import * as ipc from '@/shared/api/ipc';
-import { Settings } from './Settings';
+import { Settings } from './index';
 
 const render = (ui: React.ReactElement) => bare(<TooltipProvider>{ui}</TooltipProvider>);
 import '@/shared/config/i18n';

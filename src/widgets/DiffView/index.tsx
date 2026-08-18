@@ -16,7 +16,7 @@ import {
 } from '@/entities/diff';
 import { notifyError } from '@/shared/ui/toast';
 import { Icon } from '@/shared/ui/icons';
-import { DiffToolbar } from './DiffToolbar';
+import { DiffToolbar } from '../DiffToolbar';
 import { ViewBar } from '@/shared/ui/parts';
 import { shortenDirectory, splitPath } from '@/shared/lib/paths';
 import { cn } from '@/shared/lib/utils';
@@ -32,6 +32,8 @@ import {
 } from '@/entities/diff';
 import type { PathOperation, WorkingTreeView } from '@/shared/api/types';
 import { Hint } from '@/shared/ui/tooltip';
+import { CommitHunkBar, HunkBar } from './HunkBar';
+import { HUNK_BAR_HEIGHT, hunkBarNode, hunkMarginNode } from './hunkNodes';
 
 const STATUS_STYLE: Record<string, string> = {
   A: 'text-added',
@@ -43,7 +45,6 @@ const STATUS_STYLE: Record<string, string> = {
   U: 'text-conflict',
 };
 
-const HUNK_BAR_HEIGHT = 44;
 const DIFF_WAIT_LIMIT_MS = 1000;
 
 const lineTally = (text: string): number => text.split('\n').length;
@@ -65,19 +66,6 @@ const disposeCompared = (compared: monaco.editor.IDiffEditorViewModel) => {
   modified.dispose();
 };
 
-const hunkBarNode = (): HTMLDivElement => {
-  const node = document.createElement('div');
-  node.style.pointerEvents = 'auto';
-  node.style.zIndex = '10';
-  return node;
-};
-
-const hunkMarginNode = (): HTMLDivElement => {
-  const node = document.createElement('div');
-  node.className = 'border-border h-full w-full border-b';
-  return node;
-};
-
 type Props = {
   repo: string;
   target: DiffTarget;
@@ -87,53 +75,6 @@ type Props = {
   onTarget: (target: DiffTarget) => void;
   onHistory: (path: string, from?: string) => void;
 };
-
-function CommitHunkBar({ heading, onRevert }: { heading: string; onRevert: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex h-full items-end gap-2 border-b pb-1.5 pl-3 pr-1">
-      <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
-        {heading}
-      </span>
-      <Button variant="outline" size="2xs" title={t('diff.revertHunkHint')} onClick={onRevert}>
-        {t('diff.revertHunk')}
-      </Button>
-    </div>
-  );
-}
-
-function HunkBar({
-  heading,
-  staged,
-  onApply,
-}: {
-  heading: string;
-  staged: boolean;
-  onApply: (cached: boolean, reverse: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex h-full items-end gap-2 border-b pb-1.5 pl-3 pr-1">
-      <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-2xs">
-        {heading}
-      </span>
-      {staged ? (
-        <Button variant="outlineDeleted" size="2xs" onClick={() => onApply(true, true)}>
-          {t('diff.unstageHunk')}
-        </Button>
-      ) : (
-        <>
-          <Button variant="outlineDeleted" size="2xs" onClick={() => onApply(false, true)}>
-            {t('diff.discardHunk')}
-          </Button>
-          <Button variant="outlineAdded" size="2xs" onClick={() => onApply(true, false)}>
-            {t('diff.stageHunk')}
-          </Button>
-        </>
-      )}
-    </div>
-  );
-}
 
 export function DiffView({ repo, target, onClose, onTree, onHistory }: Props) {
   const path = target.kind === 'commit' ? target.file.path : target.path;

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 beforeEach(() => localStorage.clear());
 import { TooltipProvider } from '@/shared/ui/tooltip';
-import { Sidebar } from './Sidebar';
+import { Sidebar } from './index';
 import { showNativeMenu } from '@/features/menus';
 import {
   newSession,

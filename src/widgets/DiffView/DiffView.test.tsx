@@ -162,7 +162,7 @@ vi.mock('@/shared/api/ipc', async (importOriginal) => ({
 }));
 import '@/shared/config/i18n';
 import { TooltipProvider } from '@/shared/ui/tooltip';
-import { DiffView } from './DiffView';
+import { DiffView } from './index';
 import { sameDiffTarget, type DiffTarget } from '@/entities/diff';
 import type { ChangedFileView } from '@/shared/api/types';
 

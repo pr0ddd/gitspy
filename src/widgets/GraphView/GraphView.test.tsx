@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Profiler, useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { GraphView } from './GraphView';
+import { GraphView } from './index';
 import { showNativeMenu } from '@/features/menus';
 
 vi.mock('@/features/menus', async (importOriginal) => ({

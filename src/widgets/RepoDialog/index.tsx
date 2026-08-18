@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { open as pickDirectory } from '@tauri-apps/plugin-dialog';
-
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog';
@@ -9,25 +8,21 @@ import { Input } from '@/shared/ui/input';
 import { Progress } from '@/shared/ui/progress';
 import { Icon, type IconName } from '@/shared/ui/icons';
 import * as ipc from '@/shared/api/ipc';
-import { HOVER_FILL, NavItem } from '@/shared/ui/parts';
+import { NavItem } from '@/shared/ui/parts';
 import { directoryFromUrl } from '@/shared/lib/paths';
 import { notifyCloned, notifyError, notifyRepoCreated } from '@/shared/ui/toast';
-import { cn } from '@/shared/lib/utils';
+
 import { readPref } from '@/shared/lib/prefs';
 import { SETTINGS } from '@/shared/config/settingsModel';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/shared/ui/dropdown-menu';
+
 import { HostCard } from '@/widgets/HostConnect';
 import { HOSTS } from '@/entities/repo';
 import { mergeNamespaces, namespacesKnownUpFront } from '@/entities/hosts';
 import { noteHostError, useConnections, useHostRejected } from '@/features/hosts';
 import type { CloneStepView, RepoListingView, TemplateCatalogView } from '@/shared/api/types';
-
+import { RepoPicker } from './RepoPicker';
+import { TemplatePick } from './TemplatePick';
+import { Row } from './Row';
 const STAGES = [
   'progress.counting',
   'progress.compressing',
@@ -45,93 +40,6 @@ const URL_TAB: { key: string; label: string; icon: IconName } = {
   icon: 'web',
 };
 
-function ownerOf(fullName: string): string {
-  return fullName.split('/')[0] ?? '';
-}
-
-function RepoPicker({
-  repos,
-  chosen,
-  onPick,
-}: {
-  repos: RepoListingView[];
-  chosen: RepoListingView | null;
-  onPick: (repo: RepoListingView | null) => void;
-}) {
-  const { t } = useTranslation();
-  const [needle, setNeedle] = useState('');
-
-  const shown = needle.trim()
-    ? repos.filter((repo) => repo.fullName.toLowerCase().includes(needle.trim().toLowerCase()))
-    : repos;
-  const owners = [...new Set(shown.map((repo) => ownerOf(repo.fullName)))];
-
-  if (chosen) {
-    return (
-      <div className="border-input flex h-8 w-full items-center gap-2 rounded-md border px-3 text-xs">
-        {chosen.private ? (
-          <Icon.private className="text-faint size-3 shrink-0" />
-        ) : (
-          <Icon.web className="text-faint size-3 shrink-0" />
-        )}
-        <span className="min-w-0 flex-1 truncate">{chosen.fullName}</span>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onPick(null)}
-          aria-label={t('repoDialog.clearPick')}
-        >
-          <Icon.close className="size-3" />
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full space-y-1.5">
-      <Input
-        value={needle}
-        onChange={(e) => setNeedle(e.target.value)}
-        placeholder={t('repoDialog.searchRemotes')}
-        className="h-8 text-xs"
-      />
-      <div className="h-72 overflow-y-auto rounded-md border">
-        {owners.map((owner) => (
-          <div key={owner}>
-            <div className="text-faint text-2xs sticky top-0 flex h-6 items-center bg-card px-3 tracking-wide uppercase">
-              {owner}
-            </div>
-            {shown
-              .filter((repo) => ownerOf(repo.fullName) === owner)
-              .map((repo) => (
-                <button
-                  key={repo.fullName}
-                  onClick={() => onPick(repo)}
-                  className={cn(
-                    HOVER_FILL,
-                    'flex h-8 w-full items-center gap-2 px-3 text-left text-xs',
-                  )}
-                >
-                  {repo.private ? (
-                    <Icon.private className="text-faint size-3 shrink-0" />
-                  ) : (
-                    <Icon.web className="text-faint size-3 shrink-0" />
-                  )}
-                  <span className="truncate">{repo.fullName}</span>
-                </button>
-              ))}
-          </div>
-        ))}
-        {shown.length === 0 ? (
-          <div className="text-muted-foreground flex h-full items-center justify-center text-xs">
-            {t('repoDialog.noRepos')}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 type Props = {
   open: boolean;
   mode: 'clone' | 'init';
@@ -139,57 +47,6 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onCloned: (path: string) => void;
 };
-
-function TemplatePick({
-  value,
-  choices,
-  onPick,
-  ariaLabel,
-}: {
-  value: string;
-  choices: ReadonlyArray<{ key: string; label: string }>;
-  onPick: (key: string) => void;
-  ariaLabel: string;
-}) {
-  const { t } = useTranslation();
-  const chosen = choices.find((c) => c.key === value);
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-64 justify-between font-normal"
-          aria-label={ariaLabel}
-        >
-          <span className="truncate">{chosen ? chosen.label : t('repoDialog.none')}</span>
-          <Icon.chevron className="size-3 rotate-90 opacity-60" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-64 w-64 overflow-y-auto">
-        <DropdownMenuRadioGroup value={value} onValueChange={onPick}>
-          <DropdownMenuRadioItem value="">{t('repoDialog.none')}</DropdownMenuRadioItem>
-          {choices.map((choice) => (
-            <DropdownMenuRadioItem key={choice.key} value={choice.key}>
-              {choice.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-form items-start gap-x-4">
-      <span className="text-muted-foreground flex min-h-8 items-center justify-end text-right text-sm">
-        {label}
-      </span>
-      <div className="flex min-h-8 min-w-0 items-center">{children}</div>
-    </div>
-  );
-}
 
 export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
   const { t } = useTranslation();

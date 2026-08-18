@@ -1,36 +1,23 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { Hint } from '@/shared/ui/tooltip';
-import { cn } from '@/shared/lib/utils';
-import {
-  HOST_LABEL,
-  pullsOf,
-  type Confirmation,
-  type PullsState,
-  type Session,
-} from '@/entities/repo';
-import { Icon, type IconName } from '@/shared/ui/icons';
+import { pullsOf, type Confirmation, type PullsState, type Session } from '@/entities/repo';
+import { Icon } from '@/shared/ui/icons';
 import { buildRefTree, filterRefTree, flattenRefTree, type FlatRef } from '@/entities/graph';
-import { chipsFor } from '@/entities/graph';
-import { buildChipMenu, type MenuAction } from '@/features/menus';
-import { showNativeMenu } from '@/features/menus';
 import { useRepoWork } from '@/features/repo';
 import { usePref } from '@/shared/lib/prefs';
 import { clampPanel, PANEL_LIMITS } from '@/shared/lib/resize';
-import {
-  HOVER_FILL,
-  InlineNote,
-  PanelNote,
-  ListRow,
-  NavItem,
-  ResizeGrip,
-  SearchField,
-} from '@/shared/ui/parts';
+import { InlineNote, NavItem, ResizeGrip, SearchField } from '@/shared/ui/parts';
 import { useCommands } from '@/features/keyboard';
 import { rovingTabIndex, stepped } from '@/shared/lib/roving';
-import type { Ask } from './AskBar';
+import type { Ask } from '../AskBar';
 import type { Operation, PullView, RefKind, RefView, WorktreeView } from '@/shared/api/types';
+import { FolderRow, PullRow, pullRank, RefRow, TagRow, WorktreeRow } from './rows';
+import { PullsNote } from './PullsNote';
+import { useRefMenu } from './useRefMenu';
+import { ViewSwitch } from './ViewSwitch';
+import { OVERSCAN, ROW_PITCH, VIEW_TITLE, VIEWS, type ViewKey } from './views';
 
 type Props = {
   session: Session | null;
@@ -50,325 +37,6 @@ type Props = {
   onConnect: () => void;
   onPickPull: (pull: PullView) => void;
 };
-
-type ViewKey = 'local' | 'remote' | 'worktrees' | 'tags' | 'pullRequests';
-
-const VIEW_TITLE = {
-  local: 'sidebar.local',
-  remote: 'sidebar.remote',
-  worktrees: 'sidebar.worktrees',
-  tags: 'sidebar.tags',
-  pullRequests: 'sidebar.pullRequests',
-} as const satisfies Record<ViewKey, string>;
-
-type SidebarTitle = (typeof VIEW_TITLE)[ViewKey];
-
-const VIEWS: ReadonlyArray<{ key: ViewKey; title: SidebarTitle; icon: IconName }> = [
-  { key: 'local', title: VIEW_TITLE.local, icon: 'branch' },
-  { key: 'remote', title: VIEW_TITLE.remote, icon: 'remote' },
-  { key: 'worktrees', title: VIEW_TITLE.worktrees, icon: 'worktree' },
-  { key: 'tags', title: VIEW_TITLE.tags, icon: 'tag' },
-  { key: 'pullRequests', title: VIEW_TITLE.pullRequests, icon: 'pullRequest' },
-];
-
-const CAP = 99;
-const ROW_PITCH = 33;
-const OVERSCAN = 8;
-
-const capped = (count: number) => (count > CAP ? `${CAP}+` : `${count}`);
-
-function Tracking({ view, onDelete }: { view: RefView; onDelete: (ref: RefView) => void }) {
-  const { t } = useTranslation();
-  if (view.gone && view.isHead) {
-    return (
-      <Hint text={t('branch.goneCurrent')}>
-        <span className="text-deleted flex shrink-0 items-center" aria-label={t('branch.gone')}>
-          <Icon.upstreamGone className="size-3" />
-        </span>
-      </Hint>
-    );
-  }
-  if (view.gone) {
-    return (
-      <Hint text={t('branch.gone')}>
-        <Button
-          variant="ghost"
-          size="icon-2xs"
-          className="text-deleted hover:text-deleted shrink-0"
-          aria-label={t('branch.goneDelete', { name: view.name })}
-          onClick={(event) => {
-            event.stopPropagation();
-            onDelete(view);
-          }}
-          onDoubleClick={(event) => event.stopPropagation()}
-        >
-          <Icon.upstreamGone />
-        </Button>
-      </Hint>
-    );
-  }
-  if (!view.ahead && !view.behind) return null;
-
-  return (
-    <span className="text-2xs flex shrink-0 items-center gap-1 tabular-nums">
-      {view.ahead ? (
-        <span className="text-ahead flex items-center">
-          {capped(view.ahead)}
-          <Icon.up className="size-3" />
-        </span>
-      ) : null}
-      {view.behind ? (
-        <span className="text-behind flex items-center">
-          {capped(view.behind)}
-          <Icon.down className="size-3" />
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-function PullsNote({
-  state,
-  onRetry,
-  onConnect,
-}: {
-  state: Exclude<PullsState, { kind: 'ready' }>;
-  onRetry: () => void;
-  onConnect: () => void;
-}) {
-  const { t } = useTranslation();
-  switch (state.kind) {
-    case 'idle':
-    case 'loading':
-      return (
-        <InlineNote>
-          <Icon.waiting className="size-3 animate-spin" />
-          {t('host.loading')}
-        </InlineNote>
-      );
-    case 'noHost':
-      return null;
-    case 'notConnected':
-      return (
-        <PanelNote>
-          {t('pull.notConnected', { host: HOST_LABEL[state.host] })}
-          <Button size="2xs" variant="outline" className="mx-auto mt-2 flex" onClick={onConnect}>
-            {t('pull.connect')}
-          </Button>
-        </PanelNote>
-      );
-    case 'failed':
-      return (
-        <PanelNote>
-          {t('pull.failed')}
-          <Button size="2xs" variant="outline" className="mx-auto mt-2 flex" onClick={onRetry}>
-            {t('pull.retry')}
-          </Button>
-        </PanelNote>
-      );
-  }
-}
-
-const RefRow = memo(function RefRow({
-  item,
-  checkingOut,
-  selected,
-  tabIndex,
-  onPick,
-  onCheckout,
-  onMenu,
-  onDelete,
-}: {
-  item: Extract<FlatRef, { kind: 'ref' }>;
-  checkingOut: string | null;
-  selected: boolean;
-  tabIndex: 0 | -1;
-  onPick: (commit: number) => void;
-  onCheckout: (ref: RefView) => void;
-  onMenu: (ref: RefView) => void;
-  onDelete: (ref: RefView) => void;
-}) {
-  const view = item.ref;
-  return (
-    <ListRow
-      as="div"
-      depth={item.depth}
-      gutter={view.isHead ? <Icon.current className="text-ref-current size-3.5" /> : null}
-      current={view.isHead}
-      selected={selected}
-      tabIndex={tabIndex}
-      title={item.path === item.name ? undefined : item.path}
-      onClick={() => onPick(view.commit)}
-      onDoubleClick={() => onCheckout(view)}
-      onContextMenu={() => onMenu(view)}
-    >
-      {checkingOut === view.name ? (
-        <Icon.waiting className="text-faint size-3.5 shrink-0 animate-spin" />
-      ) : (
-        <Icon.branch className="text-faint size-3.5 shrink-0" />
-      )}
-      <span className="min-w-0 flex-1 truncate">{item.name}</span>
-      <Tracking view={view} onDelete={onDelete} />
-    </ListRow>
-  );
-});
-
-const FolderRow = memo(function FolderRow({
-  item,
-  selected,
-  tabIndex,
-  onFlip,
-}: {
-  item: Extract<FlatRef, { kind: 'folder' }>;
-  selected: boolean;
-  tabIndex: 0 | -1;
-  onFlip: (path: string) => void;
-}) {
-  const Glyph = item.open ? Icon.open : Icon.folder;
-  return (
-    <ListRow
-      depth={item.depth}
-      gutter={null}
-      selected={selected}
-      tabIndex={tabIndex}
-      title={item.path}
-      onClick={() => onFlip(item.path)}
-    >
-      <Glyph className="text-faint size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{item.name}</span>
-    </ListRow>
-  );
-});
-
-const TagRow = memo(function TagRow({
-  view,
-  selected,
-  tabIndex,
-  onPick,
-  onMenu,
-}: {
-  view: RefView;
-  selected: boolean;
-  tabIndex: 0 | -1;
-  onPick: (commit: number) => void;
-  onMenu: (ref: RefView) => void;
-}) {
-  return (
-    <ListRow
-      gutter={null}
-      selected={selected}
-      tabIndex={tabIndex}
-      onClick={() => onPick(view.commit)}
-      onContextMenu={() => onMenu(view)}
-    >
-      <Icon.tag className="text-faint size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{view.name}</span>
-    </ListRow>
-  );
-});
-
-const WorktreeRow = memo(function WorktreeRow({
-  view,
-  selected,
-  tabIndex,
-}: {
-  view: WorktreeView;
-  selected: boolean;
-  tabIndex: 0 | -1;
-}) {
-  return (
-    <ListRow
-      gutter={view.isMain ? <Icon.current className="text-ref-current size-3.5" /> : null}
-      current={view.isMain}
-      selected={selected}
-      tabIndex={tabIndex}
-      title={view.path}
-    >
-      <Icon.worktree className="text-faint size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{view.name}</span>
-      {view.branch ? (
-        <span className="text-faint max-w-1/2 shrink truncate">{view.branch}</span>
-      ) : null}
-    </ListRow>
-  );
-});
-
-const pullRank = (pull: PullView): number =>
-  pull.mine ? 0 : pull.assignedToMe || pull.awaitingMyReview ? 1 : 2;
-
-const PullRow = memo(function PullRow({
-  pull,
-  selected,
-  tabIndex,
-  onPickPull,
-}: {
-  pull: PullView;
-  selected: boolean;
-  tabIndex: 0 | -1;
-  onPickPull: (pull: PullView) => void;
-}) {
-  return (
-    <ListRow
-      selected={selected}
-      tabIndex={tabIndex}
-      title={pull.title}
-      onClick={() => onPickPull(pull)}
-    >
-      <Icon.pullRequest className="text-faint size-3.5 shrink-0" />
-      <span className="text-faint shrink-0 tabular-nums">#{pull.number}</span>
-      <span className="min-w-0 flex-1 truncate">{pull.title}</span>
-    </ListRow>
-  );
-});
-
-function ViewSwitch({
-  views,
-  active,
-  counts,
-  onPick,
-}: {
-  views: readonly (typeof VIEWS)[number][];
-  active: ViewKey;
-  counts: Record<ViewKey, number | null>;
-  onPick: (key: ViewKey) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="mx-2.5 mb-2 flex shrink-0 items-center gap-0.5">
-      {views.map(({ key, title, icon }) => {
-        const Glyph = Icon[icon];
-        const count = counts[key];
-        const chosen = key === active;
-        const name = t(title);
-        return (
-          <Hint key={key} text={count === null ? name : `${name} · ${count}`}>
-            <button
-              aria-label={name}
-              aria-pressed={chosen}
-              onClick={() => onPick(key)}
-              className={cn(
-                'flex h-8 items-center rounded-full px-2 text-xs transition-colors',
-                chosen
-                  ? 'bg-control-fill text-foreground min-w-0 font-medium'
-                  : cn(HOVER_FILL, 'text-muted-foreground hover:text-foreground shrink-0'),
-              )}
-            >
-              <Glyph className="size-3.5 shrink-0" />
-              {chosen ? (
-                <span className="animate-in fade-in flex min-w-0 items-center gap-1.5 pl-1.5 duration-150">
-                  <span className="truncate">{name}</span>
-                  {count === null ? null : (
-                    <span className="text-faint shrink-0 tabular-nums">{capped(count)}</span>
-                  )}
-                </span>
-              ) : null}
-            </button>
-          </Hint>
-        );
-      })}
-    </div>
-  );
-}
 
 type Item =
   | FlatRef
@@ -445,44 +113,18 @@ export function Sidebar({
     [onConfirm],
   );
 
-  const openRefMenu = useCallback(
-    (ref: RefView) => {
-      const chip = chipsFor([ref], remoteNames)[0];
-      if (!chip) return;
-      const sections = buildChipMenu(chip, {
-        currentBranch,
-        remotes: remotes.map((r) => ({ name: r.name, webUrl: r.webUrl })),
-        head: null,
-      });
-      if (!sections.length) return;
-      void showNativeMenu(
-        sections,
-        (key, params) => t(key as 'menu.copyBranch', params),
-        (action: MenuAction) => {
-          if (action.kind === 'checkoutRef') onCheckout(action.ref);
-          else if (action.kind === 'run') onRun(action.operation);
-          else if (action.kind === 'copy') onCopy(action.text);
-          else if (action.kind === 'worktree') onWorktree(action.at);
-          else if (action.kind === 'openUrl') onOpenUrl(action.url);
-          else if (action.kind === 'ask') onAsk(action.ask);
-          else if (action.kind === 'confirm') onConfirm(action.confirmation);
-        },
-      );
-    },
-    [
-      remotes,
-      remoteNames,
-      currentBranch,
-      onCheckout,
-      onRun,
-      onConfirm,
-      onCopy,
-      onAsk,
-      onWorktree,
-      onOpenUrl,
-      t,
-    ],
-  );
+  const openRefMenu = useRefMenu({
+    remotes,
+    remoteNames,
+    currentBranch,
+    onCheckout,
+    onRun,
+    onConfirm,
+    onCopy,
+    onAsk,
+    onWorktree,
+    onOpenUrl,
+  });
 
   const ofKind = useCallback((kind: RefKind) => refs.filter((r) => r.kind === kind), [refs]);
 

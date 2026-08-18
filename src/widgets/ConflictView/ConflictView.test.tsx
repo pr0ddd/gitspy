@@ -158,7 +158,7 @@ vi.mock('@/shared/api/ipc', () => ({
 import '@/shared/config/i18n';
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { workStore } from '@/entities/repo';
-import { ConflictView } from './ConflictView';
+import { ConflictView } from './index';
 import * as ipc from '@/shared/api/ipc';
 
 const MERGED = [

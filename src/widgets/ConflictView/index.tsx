@@ -26,14 +26,11 @@ import {
   withBlock,
   withEverySide,
   withLine,
-  type ConflictBlock,
   type ConflictSide,
-  type OutputLayout,
-  type PaneLayout,
   type Picks,
 } from '@/entities/diff';
 import type { ConflictFileView, WorkingTreeView } from '@/shared/api/types';
-
+import { sideDecorations, outputDecorations, boxCentres } from './decorations';
 type Props = {
   repo: string;
   path: string;
@@ -41,18 +38,6 @@ type Props = {
   into: string | null;
   onClose: () => void;
   onResolved: (tree: WorkingTreeView) => void;
-};
-
-const SIDE_LINE: Record<ConflictSide | 'base', string> = {
-  a: 'conflict-line-a',
-  b: 'conflict-line-b',
-  base: 'conflict-line-base',
-};
-
-const SIDE_MARGIN: Record<ConflictSide | 'base', string> = {
-  a: 'conflict-margin-a',
-  b: 'conflict-margin-b',
-  base: 'conflict-margin-base',
 };
 
 const CONFLICT_EDITOR = {
@@ -76,72 +61,6 @@ type Editors = {
 
 const OUTPUT_SHARE = { fallback: 0.4, min: 0.2, max: 0.75 } as const;
 const SIDE_B_SHARE = { fallback: 0.5, min: 0.25, max: 0.75 } as const;
-
-const markClass = (taken: boolean, hovered: boolean): string | undefined =>
-  hovered
-    ? taken
-      ? 'gutter-mark-remove'
-      : 'gutter-mark-add'
-    : taken
-      ? 'gutter-mark-taken'
-      : undefined;
-
-function sideDecorations(
-  blocks: readonly ConflictBlock[],
-  side: ConflictSide,
-  pane: PaneLayout,
-  picks: Picks,
-  hoveredLine: number | null,
-): monaco.editor.IModelDeltaDecoration[] {
-  const decorations: monaco.editor.IModelDeltaDecoration[] = [];
-  for (const place of pane.places) {
-    const block = blocks[place.at];
-    if (block?.kind !== 'conflict') continue;
-    const chosen = picks[place.at]?.[side] ?? new Set<number>();
-    for (let line = place.from; line <= place.to; line++) {
-      const index = line - place.from;
-      decorations.push({
-        range: new monaco.Range(line, 1, line, 1),
-        options: {
-          isWholeLine: true,
-          className: SIDE_LINE[side],
-          marginClassName: SIDE_MARGIN[side],
-          linesDecorationsClassName: markClass(chosen.has(index), hoveredLine === line),
-        },
-      });
-    }
-  }
-  return decorations;
-}
-
-function outputDecorations(
-  out: OutputLayout,
-  hoveredLine: number | null,
-): monaco.editor.IModelDeltaDecoration[] {
-  return out.origins.map((origin) => ({
-    range: new monaco.Range(origin.line, 1, origin.line, 1),
-    options: {
-      isWholeLine: true,
-      className: SIDE_LINE[origin.side],
-      marginClassName: SIDE_MARGIN[origin.side],
-      linesDecorationsClassName:
-        origin.side === 'base' ? undefined : markClass(true, hoveredLine === origin.line),
-    },
-  }));
-}
-
-function boxCentres(
-  editor: monaco.editor.IStandaloneCodeEditor,
-  pane: PaneLayout,
-): Array<{ at: number; centre: number }> {
-  const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
-  const scrollTop = editor.getScrollTop();
-  return pane.places.map((place) => {
-    const top = editor.getTopForLineNumber(Math.max(1, place.from));
-    const height = Math.max(1, place.to - place.from + 1) * lineHeight;
-    return { at: place.at, centre: top + height / 2 - scrollTop };
-  });
-}
 
 export function ConflictView({ repo, path, from, into, onClose, onResolved }: Props) {
   const { t } = useTranslation();

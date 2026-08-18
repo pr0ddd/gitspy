@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/shared/ui/sonner';
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { METRICS_AVATARS, METRICS_COMPACT } from '@/entities/graph';
-import { notifyDeleted, notifyError } from '@/shared/ui/toast';
+import { notifyError } from '@/shared/ui/toast';
 import * as ipc from '@/shared/api/ipc';
 import { readPref, usePref, writePref } from '@/shared/lib/prefs';
 import { EMPTY, sessionsReducer } from '@/entities/repo';
+import { useStartup } from './startup';
 
 import { useCommitSearch } from '@/features/search';
 import { panelFor } from '@/entities/repo';
@@ -15,41 +14,26 @@ import { restartToUpdate, useReadyUpdate } from '@/features/updater';
 import {
   copyText as copy,
   openExternalUrl as openUrl,
-  queuePathOperation,
+  useAddWorktree,
   useDroppedRepositories,
   useOperations,
   useCommitDraft,
   useRepoData,
   useRepoLoading,
   useSessionActions,
+  useWorkingTree,
+  useWorkingTreeActions,
 } from '@/features/repo';
 import { useZoom, zoomIn, zoomOut } from '@/shared/lib/zoom';
 import { focusArea, useCommands, useKeyboard } from '@/features/keyboard';
 import { useViewTabs } from '@/features/views';
-import { noteHostError, useHostsSync } from '@/features/hosts';
-import {
-  hostOf,
-  PULLS_IDLE,
-  pullsAfterFailure,
-  pullsOf,
-  samePick,
-  type Confirmation,
-  type Effect,
-  type Picked,
-  type PullsState,
-} from '@/entities/repo';
-import { clampAutofetch, SETTINGS } from '@/shared/config/settingsModel';
+import { useHostsSync, usePullRequests } from '@/features/hosts';
+import { pullsOf, samePick, type Confirmation, type Picked } from '@/entities/repo';
 import { BottomBar } from '@/widgets/BottomBar';
 import { Breadcrumbs } from '@/widgets/Breadcrumbs';
 import { ChangelogView } from '@/widgets/ChangelogView';
 import { DetailsPane } from '@/widgets/DetailsPane';
-import type {
-  PathOperation,
-  PullListView,
-  PullView,
-  RecentRepo,
-  WorkingTreeView,
-} from '@/shared/api/types';
+import type { PullView, RecentRepo } from '@/shared/api/types';
 
 type Main =
   | { kind: 'graph' }
@@ -72,7 +56,6 @@ import { ConflictView } from '@/widgets/ConflictView';
 import { FileHistoryView } from '@/widgets/FileHistoryView';
 import { WorkingTree } from '@/widgets/WorkingTree';
 import { Settings } from '@/widgets/Settings';
-import { applyStoredAppearance } from '@/shared/config/appearance';
 import { RepoDialog } from '@/widgets/RepoDialog';
 import { AskBar, type Ask } from '@/widgets/AskBar';
 import { PullPanel } from '@/widgets/PullPanel';
@@ -81,8 +64,6 @@ import { viewForEntry } from '@/entities/diff';
 import { Shortcuts } from '@/widgets/Shortcuts';
 
 export default function App() {
-  const { t } = useTranslation();
-
   const [world, dispatch] = useReducer(sessionsReducer, EMPTY);
   const { sessions, active } = world;
   const [recent, setRecent] = useState<RecentRepo[]>([]);
@@ -100,12 +81,8 @@ export default function App() {
   );
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchAt, setSearchAt] = useState(0);
-  const [pulls, setPulls] = useState<PullsState>(PULLS_IDLE);
-  const [tree, setTree] = useState<WorkingTreeView | null>(null);
+  const { tree, adoptTree } = useWorkingTree(active);
   const [confirming, setConfirming] = useState<Confirmation | null>(null);
-  const adoptTree = useCallback((next: WorkingTreeView) => {
-    setTree((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-  }, []);
   const tabs = useViewTabs();
   const [adding, setAdding] = useState<{ mode: 'clone' | 'init'; url: string; open: boolean }>({
     mode: 'clone',
@@ -137,6 +114,8 @@ export default function App() {
   const headRow = current ? cacheFor(current.path).row(1) : null;
   const previousCommit =
     headRow?.kind === 'commit' ? { subject: headRow.subject, body: headRow.body } : null;
+  const remotes = current?.repo?.remotes;
+  const { pulls, loadPulls } = usePullRequests(active, remotes);
   const pullHeads = useMemo(
     () =>
       new Set(
@@ -151,31 +130,9 @@ export default function App() {
     current?.repo?.count ?? 0,
   );
 
-  useEffect(() => {
-    applyStoredAppearance();
-  }, []);
-
-  useEffect(() => {
-    ipc.recentRepos().then(setRecent).catch(notifyError);
-    void ipc
-      .setAutofetchMinutes(clampAutofetch(readPref(SETTINGS.autofetchMinutes, 1)))
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const suppressWebviewMenu = (e: MouseEvent) => {
-      const editable = (e.target as HTMLElement | null)?.closest(
-        'input, textarea, [contenteditable]',
-      );
-      if (!editable) e.preventDefault();
-    };
-    document.addEventListener('contextmenu', suppressWebviewMenu);
-    return () => document.removeEventListener('contextmenu', suppressWebviewMenu);
-  }, []);
-
+  useStartup(setRecent);
   useHostsSync();
 
-  const remotes = current?.repo?.remotes;
   const { avatars, avatarTick, load, reload } = useRepoLoading({
     active,
     dispatch,
@@ -190,46 +147,6 @@ export default function App() {
   useEffect(() => {
     setMain({ kind: 'graph' });
   }, [active]);
-
-  const host = remotes ? hostOf(remotes) : null;
-  const remotesKey = remotes?.map((remote) => remote.webUrl ?? remote.name).join('\n');
-  useEffect(() => {
-    setPulls(PULLS_IDLE);
-    if (!active || remotesKey === undefined) return;
-    if (!host) {
-      setPulls({ kind: 'noHost' });
-      return;
-    }
-
-    let alive = true;
-    const stale = (view: PullListView) => Date.now() / 1000 - view.fetchedAt > 300;
-    setPulls({ kind: 'loading' });
-    ipc
-      .pullRequests(active, false, true)
-      .then((known) => {
-        if (!alive || !known) return;
-        setPulls({ kind: 'ready', list: known });
-        if (!stale(known)) return;
-        return ipc.pullRequests(active, true, true).then((fresh) => {
-          if (alive && fresh) setPulls({ kind: 'ready', list: fresh });
-        });
-      })
-      .catch((error: unknown) => {
-        noteHostError(host, error);
-        if (alive) setPulls(pullsAfterFailure(error, host));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [active, host, remotesKey]);
-
-  useEffect(() => {
-    if (!active) {
-      setTree(null);
-      return;
-    }
-    ipc.workingTree(active).then(adoptTree).catch(notifyError);
-  }, [active, adoptTree]);
 
   const onPushRejected = useCallback(
     () =>
@@ -316,23 +233,6 @@ export default function App() {
     [active, revealCommit],
   );
 
-  const loadPulls = useCallback(() => {
-    if (!active) return;
-    if (!host) {
-      setPulls({ kind: 'noHost' });
-      return;
-    }
-    setPulls((prev) => (prev.kind === 'ready' ? prev : { kind: 'loading' }));
-    ipc
-      .pullRequests(active, pulls.kind === 'ready', true)
-      .then((known) => known && setPulls({ kind: 'ready', list: known }))
-      .catch((error: unknown) => {
-        noteHostError(host, error);
-        setPulls(pullsAfterFailure(error, host));
-      });
-    void ipc.resolveAvatars(active).catch(() => undefined);
-  }, [active, host, pulls.kind]);
-
   const onNeed = useCallback(
     (chunks: number[]) => {
       if (active) fetchChunks(active, chunks);
@@ -340,54 +240,13 @@ export default function App() {
     [active, fetchChunks],
   );
 
-  const runPathOperation = useCallback(
-    (operation: PathOperation): Promise<WorkingTreeView | null> => {
-      if (!active) return Promise.resolve(null);
-      const repo = active;
-      return queuePathOperation(repo, operation, tree, (next) => ipc.stage(repo, next))
-        .then((next) => {
-          if (next) adoptTree(next);
-          return next;
-        })
-        .catch((error: unknown) => {
-          notifyError(error);
-          return null;
-        });
-    },
-    [active, tree, adoptTree],
-  );
-
-  const carryOut = useCallback(
-    (effect: Effect) => {
-      if (effect.kind === 'run') runOperation(effect.operation);
-      else if (effect.kind === 'runPath') void runPathOperation(effect.operation);
-      else if (active) {
-        void ipc
-          .removePath(active, effect.path)
-          .then(() => notifyDeleted(effect.path))
-          .catch(notifyError);
-      }
-    },
-    [active, runOperation, runPathOperation],
-  );
-
-  const addWorktree = useCallback(
-    async (at: string) => {
-      if (!active) return;
-      const folder = await openDialog({
-        directory: true,
-        multiple: false,
-        title: t('worktree.pickTitle'),
-      });
-      if (typeof folder !== 'string') return;
-      runOperation({
-        kind: 'worktreeAdd',
-        path: `${folder}/${at.replaceAll('/', '-')}`,
-        at,
-      });
-    },
-    [active, runOperation, t],
-  );
+  const { runPathOperation, carryOut } = useWorkingTreeActions({
+    active,
+    tree,
+    adoptTree,
+    runOperation,
+  });
+  const addWorktree = useAddWorktree(active, runOperation);
 
   const selectedCommit = current?.selected ?? 0;
   useEffect(() => {
