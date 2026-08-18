@@ -33,6 +33,8 @@ export const FLOORS: Record<ColumnKey, number> = {
 
 export const MESSAGE_FLOOR = 80;
 
+export const HEADER_ICON_BELOW = 56;
+
 const MESSAGE_COMFORT = 312;
 const GRAPH_DEFAULT_MIN = 140;
 const GRAPH_DEFAULT_MAX = 760;

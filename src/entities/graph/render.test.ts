@@ -330,6 +330,17 @@ describe('the column headings', () => {
     expect(texts, 'the message column is wide and keeps its word').toContain('MESSAGE');
   });
 
+  it('the branch column glyph stands over the badge: it slides with it below 49 and holds still above', () => {
+    const glyphAt = (branchTag: number) => {
+      strokedGlyphs.length = 0;
+      drawFrame(canvas(), { ...frameWith([]), cols: layoutColumns(1200, { branchTag }) });
+      return strokedGlyphs.find((g) => g.d === GLYPH.branchTag.d)!.x;
+    };
+
+    expect(glyphAt(49) - glyphAt(44), 'five more pixels of column move the glyph by 2.5').toBe(2.5);
+    expect(glyphAt(55), 'above 49 the badge does not move, nor does the glyph').toBe(glyphAt(49));
+  });
+
   it('turns into the graph glyph when the word no longer fits the column', () => {
     const roomy = paintWithHidden(new Set());
     expect(roomy.texts).toContain('GRAPH');
@@ -613,6 +624,83 @@ describe('badges on chips', () => {
     expect(painted.texts, 'the counter tells how many chips are hidden').toContain('+2');
   });
 
+  it('a roomy column still shows one chip per row; the other names wait behind the counter', () => {
+    const painted = paint([
+      ref('a', 'localBranch'),
+      ref('b', 'localBranch'),
+      ref('c', 'localBranch'),
+    ]);
+
+    expect(painted.placedTexts.filter((t) => t.text === 'a').length, 'the first chip').toBe(1);
+    expect(
+      painted.placedTexts.some((t) => t.text === 'b'),
+      'the second is not a chip',
+    ).toBe(false);
+    expect(painted.texts).toContain('+2');
+  });
+
+  const paintInColumn = (refs: RefView[], branchTag: number) => {
+    texts.length = 0;
+    placedTexts.length = 0;
+    strokedGlyphs.length = 0;
+    strokedPaths.length = 0;
+    const frame = frameWith(refs);
+    drawFrame(canvas(), { ...frame, cols: layoutColumns(1200, { branchTag }) });
+    return { texts: [...texts], placedTexts: [...placedTexts], strokedGlyphs: [...strokedGlyphs] };
+  };
+
+  it('when the name no longer fits the chip keeps its badge and drops the name, not the other way round', () => {
+    const painted = paintInColumn([ref('wip', 'localBranch')], 80);
+
+    expect(
+      painted.strokedGlyphs.some((g) => g.d === GLYPH.local.d),
+      'the laptop badge is drawn in the narrow chip',
+    ).toBe(true);
+    expect(
+      painted.placedTexts.some((t) => t.text === 'wip'),
+      'the name is gone',
+    ).toBe(false);
+  });
+
+  it('without its name the chip is a tight badge: four pixels of padding instead of nine, text and gap', () => {
+    const wide = paintInColumn([ref('wip', 'localBranch')], 400);
+    const narrow = paintInColumn([ref('wip', 'localBranch')], 80);
+    const laptopIn = (p: typeof wide) => p.strokedGlyphs.find((g) => g.d === GLYPH.local.d)!.x;
+
+    expect(
+      laptopIn(wide) - laptopIn(narrow),
+      'padding 9, text 40 and gap 4 gave way to padding 4',
+    ).toBe(9 + 40 + 4 - 4);
+  });
+
+  it('the counter stays beside the badge while it fits, and goes when it does not', () => {
+    const refs = [ref('a', 'localBranch'), ref('b', 'localBranch'), ref('c', 'localBranch')];
+
+    const roomy = paintInColumn(refs, 120);
+    expect(roomy.texts, 'a badge and the counter fit in 102 usable pixels').toContain('+2');
+    expect(
+      roomy.placedTexts.some((t) => t.text === 'a'),
+      'the name went before the counter',
+    ).toBe(false);
+
+    const tight = paintInColumn(refs, 60);
+    expect(tight.texts, 'in 42 usable pixels the counter goes').not.toContain('+2');
+    expect(
+      tight.strokedGlyphs.some((g) => g.d === GLYPH.local.d),
+      'the badge is still there',
+    ).toBe(true);
+  });
+
+  it('below 49 the badge slides to stay centred: five pixels of column move it by 2.5', () => {
+    const at = (column: number) =>
+      paintInColumn([ref('wip', 'localBranch')], column).strokedGlyphs.find(
+        (g) => g.d === GLYPH.local.d,
+      )!.x;
+
+    expect(at(49) - at(44)).toBe(2.5);
+    expect(at(56), 'and above 49 it holds still').toBe(at(49));
+  });
+
   it('hovering any chip of a row that hides some unfolds the whole stack, not just that chip', () => {
     const painted = paint(
       [
@@ -636,6 +724,17 @@ describe('badges on chips', () => {
     });
     const shown = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
     expect(shown.length).toBeGreaterThan(0);
+  });
+
+  it('while the stack is unfolded the +N counter is not drawn on the row', () => {
+    const refs = [
+      ref('very-long-branch-name-one', 'localBranch'),
+      ref('very-long-branch-name-two', 'localBranch'),
+      ref('very-long-branch-name-three', 'localBranch'),
+    ];
+    expect(paint(refs).texts).toContain('+2');
+    expect(paint(refs, null, new Set(), { row: 0, at: 0 }).texts).not.toContain('+2');
+    expect(paint(refs, null, new Set(), { row: 0, at: 'more' }).texts).not.toContain('+2');
   });
 
   it('hovering the counter unfolds every chip into a stack', () => {

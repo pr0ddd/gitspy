@@ -370,7 +370,7 @@ export const GraphView = memo(function GraphView({
         f.repo.remotes.map((r) => r.name),
       ),
       (text) => ctx.measureText(text).width,
-      f.cols.branchTag.width - 14,
+      f.cols.branchTag.width,
       chipMetricsFor(f.metrics),
       f.pullHeads,
     );
