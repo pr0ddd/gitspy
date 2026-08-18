@@ -4,6 +4,72 @@ What changed in every released version of gitspy, written for the person using i
 Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
 app under "What's new" and is the text of the GitHub release.
 
+## 1.2.0 — 2026-08-18
+
+One branch chip per commit that never gets cut, and toasts that say what happened.
+
+### New
+
+- Toasts now tell their kind by colour: green for a success, blue for a fact,
+  red for a failure, with the glyph cut out of the coloured block.
+- Toasts now say what happened in full: "Pushed Successfully" with "develop to
+  origin", "Merged" with "feature into develop", "Checkout Successful" with the
+  branch, "Deleted: old-branch".
+- A pull, merge or fast-forward that brings nothing now says "Already
+  Up-to-Date" and names the branch that did not move.
+- Deleting a file from the working tree, checking out from the sidebar or from
+  a pull request, cloning, creating a repository and connecting a host now show
+  a toast.
+- You can now double-click any branch in the unfolded panel of a commit to check
+  it out, and right-click it for its menu.
+
+### Improvements
+
+- The branch column now shows one chip per commit — the most prominent branch
+  or tag — with a `+N` counter for the rest; hover any chip or the counter to
+  unfold them all.
+- Chips now take the colour of their lane; the checked-out branch is a shade
+  stronger.
+- Narrowing the branch column no longer clips chips: the name shortens, then the
+  marks give way one by one, and the counter goes last; the check mark of the
+  current branch always stays.
+- The selected row now reads by colour instead of a ring around the node, and
+  the highlight wraps the avatar from its left edge.
+- Muted text is a step brighter, so the action bar, the search field and the
+  captions read more easily.
+- The action bar no longer blinks around a pull or a push: the push button
+  keeps its colour, the bar does not fade, and the moving arrow starts and stops
+  at rest.
+- Toasts now sit at the bottom left, stay open as a stack, and last three, five
+  or ten seconds depending on how much there is to read.
+- The bottom bar's buttons are now quiet until hovered.
+- Themes are now named for what they look like: Dark, Graphite, Midnight, Light
+  and Paper. A theme chosen under an old name falls back to the default once —
+  pick it again in Settings.
+
+### Bug Fixes
+
+- Fixed an issue where a file created or deleted in the working tree took a
+  while to appear on the graph as the working-tree row, or to leave it.
+- Fixed an issue where a binary file in a diff failed with "git failed" and left
+  the editor blank for the next file. Binary files now show a note in the diff,
+  in the working tree and in the file history.
+- Fixed an issue where an untracked binary file looked like an empty file in
+  the changes panel.
+- Fixed an issue where a file that stopped being binary kept showing the binary
+  note.
+- Fixed an issue where a remote branch with the same name on the same commit
+  was shown as a separate chip even without an upstream.
+- Fixed an issue where double-clicking the unfolded name of a truncated branch
+  chip, or a hidden chip in the panel, did not check the branch out.
+- Fixed an issue where hovering the unfolded panel highlighted the row
+  underneath instead of the panel's own row.
+- Fixed an issue where the checkout toast named the branch you clicked instead
+  of the one you landed on: `pr/N` for a pull request from a fork, the local
+  branch for a remote one.
+- Fixed an issue where a fast-forward with nothing to move said
+  "Fast-forwarded".
+
 ## 1.1.2 — 2026-08-17
 
 The graph column, the crumbs and the columns learn to be narrow.
