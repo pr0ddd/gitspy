@@ -44,3 +44,8 @@ export function pointerTarget(x: number, y: number, scene: PointerScene): Pointe
   const index = rowAtY(metrics, y, scrollY, count);
   return index === null ? { kind: 'none' } : { kind: 'row', index };
 }
+
+export const hoveredRow = (
+  chipHit: { readonly row: number } | null,
+  target: PointerTarget,
+): number | null => (chipHit ? chipHit.row : target.kind === 'row' ? target.index : null);

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import {
   authorsLine,
   graphGeometry,
+  hoveredRow,
   layoutColumns,
   listWidth,
   maxScrollX,
@@ -110,7 +111,7 @@ export function useGraphPointer(
       const target = pointerTarget(x, y, sceneOf(f));
       const hit = chipHitAt(x, y);
       host.style.cursor = hit ? 'pointer' : target.kind === 'divider' ? 'col-resize' : '';
-      const index = target.kind === 'row' ? target.index : null;
+      const index = hoveredRow(hit, target);
       const hovered = hit ? { row: hit.row, at: hit.at } : null;
       if (index !== f.hover || !sameChip(hovered, f.hoverChip)) {
         patch({ hover: index, hoverChip: hovered });

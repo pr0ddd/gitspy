@@ -9,6 +9,9 @@ import {
   fullChip,
   MORE_PAD,
   placeChips,
+  stackChips,
+  stackRowAt,
+  stackWidth,
   type ChipMetrics,
 } from './chipLayout';
 import { chipsFor } from './chips';
@@ -378,5 +381,45 @@ describe('hit testing', () => {
     expect(chipAt(placed, placed[0].x + 1)?.chip.name).toBe('a');
     expect(chipAt(placed, 0), 'nothing to the left of the chip').toBeNull();
     expect(chipAt(placed, placed[0].x + placed[0].w + 5), 'nothing to the right').toBeNull();
+  });
+});
+
+describe('the unfolded stack', () => {
+  const chips = chipsFor(
+    [
+      ref('a-very-long-branch-name-that-cannot-fit', 'localBranch'),
+      ref('z', 'localBranch'),
+      ref('v1', 'tag'),
+    ],
+    ['origin'],
+  );
+  const stack = stackChips(chips, measure, METRICS, new Set(), FIRST_CHIP_X);
+
+  it('lays every chip out at its full width under one another, all from the inset', () => {
+    expect(stack.map((row) => row.chip.name)).toEqual([
+      'a-very-long-branch-name-that-cannot-fit',
+      'z',
+      'v1',
+    ]);
+    expect(stack.every((row) => row.x === FIRST_CHIP_X && row.w === row.fullW)).toBe(true);
+    expect(stackWidth(stack), 'the panel is as wide as the widest full chip').toBe(
+      Math.max(...stack.map((row) => row.fullW)),
+    );
+  });
+
+  it('a point on the panel resolves to the row under it, by full width, whatever the truncated chip was', () => {
+    const rowH = 22;
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X + 1, 0), 'top row').toBe(0);
+    expect(
+      stackRowAt(stack, rowH, stackWidth(stack) + FIRST_CHIP_X - 1, 5),
+      'the far end of the widest name',
+    ).toBe(0);
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X + 1, rowH + 1), 'second row').toBe(1);
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X + 1, rowH * 2 + 1), 'third row').toBe(2);
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X + 1, rowH * 3 + 1), 'below the panel').toBeNull();
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X - 1, 5), 'left of the panel').toBeNull();
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X + stackWidth(stack), 5), 'right of it').toBeNull();
+    expect(stackRowAt(stack, rowH, FIRST_CHIP_X + 1, -1), 'above it').toBeNull();
+    expect(stackRowAt([], rowH, 20, 5), 'no stack, no row').toBeNull();
   });
 });

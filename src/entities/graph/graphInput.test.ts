@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layoutColumns } from './columns';
-import { pointerTarget, type PointerScene } from './graphInput';
+import { hoveredRow, pointerTarget, type PointerScene } from './graphInput';
 import { HEADER_H, listTopInset, listWidth, METRICS_AVATARS } from './scene';
 
 const WIDTH = 1400;
@@ -54,5 +54,18 @@ describe('pointer routing', () => {
   it('has no row past the end of the history', () => {
     const short: PointerScene = { ...scene, count: 1 };
     expect(pointerTarget(600, HEADER_H + scene.metrics.rowH * 5, short).kind).toBe('none');
+  });
+});
+
+describe('which row is hovered', () => {
+  it('a chip decides for its own row, even when its unfolded panel hangs over the rows below', () => {
+    expect(
+      hoveredRow({ row: 3 }, { kind: 'row', index: 4 }),
+      'the pointer is over row 4 geometrically, but on the panel of row 3',
+    ).toBe(3);
+    expect(hoveredRow(null, { kind: 'row', index: 4 }), 'no chip: the row under the pointer').toBe(
+      4,
+    );
+    expect(hoveredRow(null, { kind: 'none' }), 'nothing under the pointer').toBeNull();
   });
 });

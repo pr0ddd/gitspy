@@ -17,7 +17,7 @@ import { METRICS_AVATARS } from '@/entities/graph';
 import '@/shared/config/i18n';
 import { newSession, type Session } from '@/entities/repo';
 import { TooltipProvider } from '@/shared/ui/tooltip';
-import type { RepoView, RowView, WindowView } from '@/shared/api/types';
+import type { RefView, RepoView, RowView, WindowView } from '@/shared/api/types';
 
 beforeAll(() => {
   vi.stubGlobal(
@@ -423,5 +423,123 @@ describe('hovering a commit node', () => {
       screen.queryByText('pr0d <p@example.com>, Ada <ada@example.com>'),
       'off the node the tooltip is gone',
     ).toBeNull();
+  });
+});
+
+describe('double-clicking a branch chip', () => {
+  const canvasStub = () =>
+    new Proxy(
+      {
+        canvas: { width: 0, height: 0 },
+        measureText: (text: string) => ({ width: text.length * 7 }),
+        createLinearGradient: () => ({ addColorStop: () => {} }),
+        font: '',
+      } as Record<string, unknown>,
+      {
+        get(target, key: string) {
+          if (key in target) return target[key];
+          return () => {};
+        },
+        set(target, key: string, value: unknown) {
+          target[key] = value;
+          return true;
+        },
+      },
+    );
+
+  const longName = 'very-long-branch-name-that-does-not-fit-in-the-branch-column';
+  const branch: RefView = {
+    name: longName,
+    kind: 'localBranch',
+    commit: 3,
+    oid: 'h3',
+    isHead: false,
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    gone: false,
+  };
+
+  const mount = (onCheckoutRef: (ref: RefView) => void) => {
+    const rows = new RowCache();
+    rows.put(0, window());
+    const session: Session = {
+      ...sessionWith(CHUNK),
+      repo: { ...repo(CHUNK), refs: [branch] },
+      refsByCommit: new Map([[3, [branch]]]),
+    };
+    const { container } = render(
+      <GraphView
+        session={session}
+        avatars={null}
+        rows={rows}
+        redraw={0}
+        metrics={METRICS_AVATARS}
+        pullHeads={new Set<string>()}
+        currentBranch="main"
+        onSelect={() => {}}
+        onCheckoutRef={onCheckoutRef}
+        onRun={() => {}}
+        onConfirm={() => {}}
+        onCopy={() => {}}
+        onAsk={() => {}}
+        onWorktree={() => {}}
+        onOpenUrl={() => {}}
+        onNeed={() => {}}
+        message=""
+        onMessage={() => {}}
+        onCommit={() => {}}
+        compact={false}
+        onCompact={() => {}}
+      />,
+    );
+    return container.querySelector('.relative') as HTMLElement;
+  };
+
+  const mouse = (host: HTMLElement, type: string, x: number, y: number) =>
+    act(() => {
+      host.dispatchEvent(
+        new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }),
+      );
+    });
+
+  it('checks the branch out, also when the click lands on the unfolded full name past the truncated chip', async () => {
+    const stub = canvasStub();
+    const getContext = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(() => stub as unknown as CanvasRenderingContext2D);
+    vi.stubGlobal(
+      'Path2D',
+      class {
+        moveTo() {}
+        lineTo() {}
+        arcTo() {}
+      },
+    );
+    try {
+      const checkedOut: RefView[] = [];
+      const host = mount((ref) => checkedOut.push(ref));
+      await settleFrames();
+      const rowY = rowTop(METRICS_AVATARS, 3, 0) + METRICS_AVATARS.rowH / 2;
+
+      await mouse(host, 'mousemove', 30, rowY);
+      await settleFrames();
+      await mouse(host, 'dblclick', 30, rowY);
+      expect(
+        checkedOut.map((r) => r.name),
+        'on the chip itself',
+      ).toEqual([longName]);
+
+      await mouse(host, 'mousemove', 300, rowY);
+      await settleFrames();
+      await mouse(host, 'dblclick', 300, rowY);
+      expect(
+        checkedOut.length,
+        'the unfolded name is 400 px wide while the chip under it is cut at the column: a click on the name is a click on the branch',
+      ).toBe(2);
+    } finally {
+      getContext.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });

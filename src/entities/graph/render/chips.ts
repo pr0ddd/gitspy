@@ -6,11 +6,12 @@ import { graphGeometry, visibleRange, type Metrics } from '../scene';
 import { chipsFor, remoteAvatarKey } from '../chips';
 import {
   chipInset,
-  fullChip,
   markWidth,
   MORE_PAD,
   moreLabel,
   placeChips,
+  stackChips,
+  stackWidth,
   type ChipMetrics,
   type PlacedChip,
 } from '../chipLayout';
@@ -155,8 +156,8 @@ export function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): vo
   ctx.shadowBlur = 8;
 
   const inset = chipInset(frame.cols.branchTag.width, chipM);
-  const stack = chips.map((chip) => fullChip(chip, measure, chipM, frame.pullHeads, inset));
-  const panelW = Math.max(...stack.map((row) => row.fullW)) + STACK_PAD * 2;
+  const stack = stackChips(chips, measure, chipM, frame.pullHeads, inset);
+  const panelW = stackWidth(stack) + STACK_PAD * 2;
   const panelH = stack.length * chipH + (stack.length - 1) * STACK_GAP + STACK_PAD * 2;
   const panelLeft = inset - STACK_PAD;
   const t = theme();

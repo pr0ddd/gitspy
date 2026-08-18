@@ -183,6 +183,29 @@ export function fullChip(
   return placedFrom(chip, shape, x, shape.w, fullText);
 }
 
+export const stackChips = (
+  chips: readonly Chip[],
+  measure: (text: string) => number,
+  metrics: ChipMetrics,
+  pullHeads: ReadonlySet<string>,
+  x: number,
+): PlacedChip[] => chips.map((chip) => fullChip(chip, measure, metrics, pullHeads, x));
+
+export const stackWidth = (stack: readonly PlacedChip[]): number =>
+  stack.reduce((widest, row) => Math.max(widest, row.fullW), 0);
+
+export const stackRowAt = (
+  stack: readonly PlacedChip[],
+  rowH: number,
+  x: number,
+  yFromTop: number,
+): number | null => {
+  const first = stack[0];
+  if (!first || x < first.x || x >= first.x + stackWidth(stack) || yFromTop < 0) return null;
+  const at = Math.floor(yFromTop / rowH);
+  return at < stack.length ? at : null;
+};
+
 export function placeChips(
   chips: readonly Chip[],
   measure: (text: string) => number,
