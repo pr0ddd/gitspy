@@ -87,6 +87,27 @@ downwards, and between slices only through the slice's `index.ts` facade
 | `widgets/`                                            | skeleton components, one file per part                                           | GraphView, Sidebar, Toolbar, Settings…                                                    |
 | `app/`                                                | `App.tsx` — composition and session state only, `main.tsx`                       |                                                                                           |
 
+### Files
+
+**A file is one named thing** — a component, a hook, a pure module, a painter for one
+layer — with its test beside it (`X.test.ts`). When a file holds two things, the second
+wants a name and a file of its own. Length is the smell, not the rule: a long file is a
+reason to look for the second thing, never a reason to cut a component into pieces that
+only pass props to each other.
+
+| What                               | Where                                                                                                                                                                                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A widget with parts                | A folder: `widgets/WorkingTree/index.tsx` is the skeleton the app imports; `Section.tsx`, `TreeRows.tsx` are its parts; `useFileMenu.ts` its own hooks. Nothing outside the folder imports a part. A widget without parts stays one file. |
+| Logic that does not render         | Out of the component: state and handlers in hooks — local ones in the widget's folder, shared or domain ones in `features/<slice>`; pure computation in `entities`/`shared`, tested without React                                         |
+| A painter or algorithm with layers | A folder with a file per layer and the slice's `index.ts` as the facade — `entities/graph/render/` is `bands`, `edges`, `nodes`, `chips`, `messages`, `header`, `scrollbars`, `minimap` around one `Pass`                                 |
+| `App.tsx`                          | Composition and session state, nothing else; startup effects live in `app/startup.ts`                                                                                                                                                     |
+| A Rust module                      | One subject; `lib.rs` and `mod.rs` declare and re-export, they hold no logic; tests stay beside the code they test                                                                                                                        |
+| Tauri commands                     | `src-tauri/src/commands/<area>.rs` — `open`, `history`, `working_tree`, `files`, `operations`; `main.rs` registers them                                                                                                                   |
+| `gitspy-exec`                      | One file per git subject, each an `impl Git` block — `run`, `repo`, `worktree`, `diff`, `history`, `create`, `status`, `refs`, `changes`, `blame`, `filehistory`; `lib.rs` keeps `Git`, its errors and `Cancel`                           |
+
+Names: components PascalCase, hooks `useX.ts`, modules camelCase; a widget's folder is
+named like its component.
+
 ### shadcn and tokens
 
 **The interface is assembled from canonical shadcn components.** They live in
