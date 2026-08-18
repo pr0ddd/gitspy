@@ -402,6 +402,22 @@ pub fn checkout_for(
     }
 }
 
+pub fn pull_branch_name(number: u32, branch: &str, from_fork: bool) -> String {
+    if from_fork {
+        format!("pr/{number}")
+    } else {
+        branch.to_string()
+    }
+}
+
+pub fn checked_out_branch(operation: &Operation) -> Option<&str> {
+    match operation {
+        Operation::Checkout { branch } => Some(branch),
+        Operation::CheckoutTracking { local, .. } => Some(local),
+        _ => None,
+    }
+}
+
 pub fn checkout_pull_commands(number: u32, branch: &str, from_fork: bool) -> Vec<Vec<String>> {
     let owned = |parts: &[&str]| parts.iter().map(|p| (*p).to_string()).collect::<Vec<_>>();
     if from_fork {
@@ -1037,6 +1053,35 @@ mod pull_tests {
             ],
             "the fork branch is not in origin and is reachable only through pull/N/head"
         );
+    }
+
+    #[test]
+    fn the_branch_a_pull_lands_on_is_the_one_the_toast_names() {
+        assert_eq!(
+            pull_branch_name(37184, "fix/useoptimistic", true),
+            "pr/37184",
+            "a fork pull is checked out as pr/N, not as the fork's own branch name"
+        );
+        assert_eq!(pull_branch_name(7, "feature/x", false), "feature/x");
+    }
+
+    #[test]
+    fn a_checkout_names_the_local_branch_it_lands_on() {
+        assert_eq!(
+            checked_out_branch(&Operation::CheckoutTracking {
+                upstream: "origin/feature".into(),
+                local: "feature".into(),
+            }),
+            Some("feature"),
+            "clicking origin/feature lands on the local feature, and that is what is announced"
+        );
+        assert_eq!(
+            checked_out_branch(&Operation::Checkout {
+                branch: "main".into()
+            }),
+            Some("main")
+        );
+        assert_eq!(checked_out_branch(&Operation::Fetch), None);
     }
 
     #[test]

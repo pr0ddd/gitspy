@@ -14,6 +14,7 @@ import {
   withRejected,
 } from '@/entities/hosts';
 
+import { hostLabelOf } from '@/entities/repo';
 const refreshConnections = async (): Promise<void> => {
   const connections = await ipc.connections();
   hostsStore.setState((state) => withConnections(state, connections));
@@ -34,7 +35,7 @@ export function useHostsSync(): void {
     void refreshConnections().catch(notifyError);
     const connected = ipc.onHostConnected((account) => {
       hostsStore.setState((state) => withAccount(state, account));
-      notifyHostConnected(account.host);
+      notifyHostConnected(hostLabelOf(account.host));
       void refreshConnections().catch(() => undefined);
     });
     const failed = ipc.onHostFailed(notifyError);

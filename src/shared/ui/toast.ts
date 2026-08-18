@@ -5,18 +5,6 @@ import type { Operation, OperationOutcome } from '@/shared/api/types';
 
 const t = i18next.t.bind(i18next);
 
-const HOST_LABEL: Readonly<Record<string, string>> = {
-  github: 'GitHub',
-  gitlab: 'GitLab',
-  bitbucket: 'Bitbucket',
-};
-
-const folderName = (path: string): string =>
-  path
-    .replace(/[\\/]+$/, '')
-    .split(/[\\/]/)
-    .pop() ?? path;
-
 const GLANCED = 3000;
 const READ = 5000;
 const STUDIED = 10000;
@@ -66,9 +54,12 @@ const GLANCED_AT: ReadonlySet<ReturnType<typeof outcomeKind>> = new Set([
 const remoteOf = (upstream: string | null): string | null =>
   upstream && upstream.includes('/') ? upstream.slice(0, upstream.indexOf('/')) : null;
 
-const broughtNothing = (operation: Operation, outcome: OperationOutcome): boolean =>
-  BRINGS_COMMITS.has(outcomeKind(operation)) &&
-  /already up[- ]to[- ]date|is up to date\./i.test(outcome.stdout);
+const broughtNothing = (operation: Operation, outcome: OperationOutcome): boolean => {
+  const kind = outcomeKind(operation);
+  if (!BRINGS_COMMITS.has(kind)) return false;
+  if (kind === 'fastForward') return !outcome.stdout.trim() && !outcome.stderr.trim();
+  return /already up[- ]to[- ]date|is up to date\./i.test(outcome.stdout);
+};
 
 const branchThatDidNotMove = (operation: Operation, where: Where): string | null => {
   if (operation.kind === 'merge') return operation.branch;
@@ -151,16 +142,14 @@ export const notifyCheckedOut = (ref: string) =>
 export const notifyDeleted = (path: string) =>
   toast.info(t('toast.deleted', { path }), { duration: READ });
 
-export const notifyCloned = (path: string) =>
-  toast.success(t('toast.cloned', { name: folderName(path) }), { duration: READ });
+export const notifyCloned = (name: string) =>
+  toast.success(t('toast.cloned', { name }), { duration: READ });
 
-export const notifyRepoCreated = (path: string) =>
-  toast.success(t('toast.repoCreated'), { description: folderName(path), duration: READ });
+export const notifyRepoCreated = (name: string) =>
+  toast.success(t('toast.repoCreated'), { description: name, duration: READ });
 
-export const notifyHostConnected = (host: string) =>
-  toast.success(t('toast.hostConnected', { host: HOST_LABEL[host] ?? host }), {
-    duration: READ,
-  });
+export const notifyHostConnected = (label: string) =>
+  toast.success(t('toast.hostConnected', { host: label }), { duration: READ });
 
 export const notifyOperationFailed = (operation: Operation, error: unknown) => {
   const shown = describeError(error, i18next.getFixedT(null, 'errors'));

@@ -253,10 +253,10 @@ export const pullCard = (repo: string, number: number) =>
   invoke<PullCardView>('pull_card', { repo, number });
 
 export const checkoutPull = (repo: string, number: number, branch: string, fromFork: boolean) =>
-  invoke<void>('checkout_pull', { repo, number, branch, fromFork });
+  invoke<string>('checkout_pull', { repo, number, branch, fromFork });
 
 export const checkoutRef = (repo: string, name: string, kind: RefKind) =>
-  invoke<void>('checkout_ref', { repo, name, kind });
+  invoke<string | null>('checkout_ref', { repo, name, kind });
 
 export const avatarPaths = (repo: string) =>
   invoke<Record<string, string>>('avatar_paths', { repo });

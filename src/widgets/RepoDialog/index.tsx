@@ -16,7 +16,7 @@ import { readPref } from '@/shared/lib/prefs';
 import { SETTINGS } from '@/shared/config/settingsModel';
 
 import { HostCard } from '@/widgets/HostConnect';
-import { HOSTS } from '@/entities/repo';
+import { HOSTS, repoName } from '@/entities/repo';
 import { mergeNamespaces, namespacesKnownUpFront } from '@/entities/hosts';
 import { noteHostError, useConnections, useHostRejected } from '@/features/hosts';
 import type { CloneStepView, RepoListingView, TemplateCatalogView } from '@/shared/api/types';
@@ -149,7 +149,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
       .initRepo(`${parent}/${name.trim()}`, wanted || null, gitignore || null, license || null)
       .then((path) => {
         onOpenChange(false);
-        notifyRepoCreated(path);
+        notifyRepoCreated(repoName(path));
         onCloned(path);
       })
       .catch(notifyError)
@@ -174,7 +174,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
         const path = await ipc.cloneRepo(created.cloneUrl, parent, folder, false, setStep);
         await ipc.seedRepo(path, wanted || null, gitignore || null, license || null, true);
         onOpenChange(false);
-        notifyCloned(path);
+        notifyCloned(repoName(path));
         onCloned(path);
       })
       .catch(notifyError)
@@ -191,7 +191,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
       .cloneRepo(cloningUrl, parent, name.trim(), shallow, setStep)
       .then((path) => {
         onOpenChange(false);
-        notifyCloned(path);
+        notifyCloned(repoName(path));
         onCloned(path);
       })
       .catch(notifyError)

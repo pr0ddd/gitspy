@@ -125,13 +125,25 @@ describe('toasts — the outcome of an action only, in human words', () => {
 
     notifyOperation(
       { kind: 'fetchInto', remote: '.', from: 'origin/main', into: 'main' },
-      nothing,
-      {
-        branch: 'develop',
-        upstream: null,
-      },
+      { code: 0, stdout: '', stderr: '' },
+      { branch: 'develop', upstream: null },
     );
-    expect(detail()).toBe('No merge necessary. Branch origin/main was not moved.');
+    expect(
+      detail(),
+      'a fast-forward with nothing to do prints nothing at all, on either stream',
+    ).toBe('No merge necessary. Branch origin/main was not moved.');
+
+    vi.mocked(toast.info).mockClear();
+    notifyOperation(
+      { kind: 'fetchInto', remote: '.', from: 'origin/main', into: 'main' },
+      { code: 0, stdout: '', stderr: 'From .\n   f302387..d7852ae  origin/main -> main\n' },
+      { branch: 'develop', upstream: null },
+    );
+    expect(
+      vi.mocked(toast.info).mock.calls.length,
+      'a fast-forward that moved is only a success',
+    ).toBe(0);
+    expect(vi.mocked(toast.success).mock.calls.at(-1)?.[0]).toBe('Fast-forwarded');
 
     notifyOperation({ kind: 'pull' }, nothing, { branch: null, upstream: null });
     expect(detail(), 'no branch known: the title stands alone').toBeUndefined();
@@ -253,21 +265,17 @@ describe('toasts — the outcome of an action only, in human words', () => {
     expect(vi.mocked(toast.success).mock.calls[0]?.[1]).toMatchObject({ description: 'feature' });
   });
 
-  it('a clone names the folder it made, a new repository is announced with its folder as the detail', () => {
-    notifyCloned('/Users/me/src/gitspy');
+  it('a clone names the folder it made, a new repository is announced with its name as the detail', () => {
+    notifyCloned('gitspy');
     expect(vi.mocked(toast.success).mock.calls[0]?.[0]).toBe("Successfully cloned repo 'gitspy'");
-    notifyRepoCreated('/Users/me/src/new-thing');
+    notifyRepoCreated('new-thing');
     expect(vi.mocked(toast.success).mock.calls[1]?.[0]).toBe('Successfully created repo');
     expect(vi.mocked(toast.success).mock.calls[1]?.[1]).toMatchObject({ description: 'new-thing' });
   });
 
-  it('a host connection names the host by its label, not its id', () => {
-    notifyHostConnected('github');
+  it('a host connection names the host by the label the caller resolved', () => {
+    notifyHostConnected('GitHub');
     expect(vi.mocked(toast.success).mock.calls[0]?.[0]).toBe('Connected to GitHub');
-    notifyHostConnected('somewhere-else');
-    expect(vi.mocked(toast.success).mock.calls[1]?.[0], 'an unknown id is shown as it is').toBe(
-      'Connected to somewhere-else',
-    );
   });
 
   it('names the outcome with a phrase, not a glued-together "branch finished"', () => {

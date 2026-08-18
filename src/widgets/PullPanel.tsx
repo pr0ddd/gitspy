@@ -40,8 +40,8 @@ export function PullPanel({ repo, pull, onCheckedOut, onClose }: Props) {
 
   const checkout = () => {
     void runRepoWork(repo, { kind: 'checkout', target: pull.headBranch }, () =>
-      ipc.checkoutPull(repo, pull.number, pull.headBranch, pull.fromFork).then(() => {
-        notifyCheckedOut(pull.headBranch);
+      ipc.checkoutPull(repo, pull.number, pull.headBranch, pull.fromFork).then((landed) => {
+        notifyCheckedOut(landed);
         onCheckedOut();
       }),
     );

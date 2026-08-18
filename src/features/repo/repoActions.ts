@@ -44,8 +44,8 @@ export function useOperations(
     (ref: RefView) => {
       if (!active) return;
       void runRepoWork(active, { kind: 'checkout', target: ref.name }, () =>
-        ipc.checkoutRef(active, ref.name, ref.kind).then(() => {
-          notifyCheckedOut(ref.name);
+        ipc.checkoutRef(active, ref.name, ref.kind).then((landed) => {
+          if (landed) notifyCheckedOut(landed);
           return reload(active);
         }),
       );

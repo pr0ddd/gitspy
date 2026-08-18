@@ -4,18 +4,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/shared/ui/toast', () => ({
   notifyError: vi.fn(),
   notifyCopied: vi.fn(),
+  notifyCheckedOut: vi.fn(),
   notifyOperation: vi.fn(),
   notifyOperationFailed: vi.fn(),
 }));
 vi.mock('@/shared/api/ipc', () => ({
   runOperation: vi.fn(),
   resolveAvatars: vi.fn(() => Promise.resolve()),
-  checkoutRef: vi.fn(() => Promise.resolve()),
+  checkoutRef: vi.fn(() => Promise.resolve(null)),
   openUrl: vi.fn(() => Promise.resolve()),
 }));
 
 import * as ipc from '@/shared/api/ipc';
-import { notifyOperation, notifyOperationFailed } from '@/shared/ui/toast';
+import { notifyCheckedOut, notifyOperation, notifyOperationFailed } from '@/shared/ui/toast';
 import { workStore } from '@/entities/repo';
 import { useOperations } from './repoActions';
 
@@ -91,5 +92,57 @@ describe('running an operation', () => {
       'the toast gets the outcome, so a pull that brought nothing can say so',
     ).toHaveBeenCalledWith({ kind: 'push' }, outcome, { branch: null, upstream: null });
     expect(reload).toHaveBeenCalledWith('/repo');
+  });
+});
+
+describe('checking out a ref from the sidebar', () => {
+  it('announces the branch git actually landed on, as the backend reports it', async () => {
+    vi.mocked(ipc.checkoutRef).mockResolvedValue('feature');
+    vi.mocked(notifyCheckedOut).mockClear();
+    const reload = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() => useOperations('/repo', reload));
+
+    act(() =>
+      result.current.checkoutRef({
+        name: 'origin/feature',
+        kind: 'remoteBranch',
+        commit: 0,
+        oid: 'x',
+        isHead: false,
+        upstream: null,
+        ahead: 0,
+        behind: 0,
+        gone: false,
+      }),
+    );
+    await settle();
+
+    expect(notifyCheckedOut, 'origin/feature lands on the local feature').toHaveBeenCalledWith(
+      'feature',
+    );
+    expect(reload).toHaveBeenCalledWith('/repo');
+  });
+
+  it('says nothing when there was nothing to check out', async () => {
+    vi.mocked(ipc.checkoutRef).mockResolvedValue(null);
+    vi.mocked(notifyCheckedOut).mockClear();
+    const { result } = renderHook(() => useOperations('/repo', () => Promise.resolve()));
+
+    act(() =>
+      result.current.checkoutRef({
+        name: 'v1.0',
+        kind: 'tag',
+        commit: 0,
+        oid: 'x',
+        isHead: false,
+        upstream: null,
+        ahead: 0,
+        behind: 0,
+        gone: false,
+      }),
+    );
+    await settle();
+
+    expect(notifyCheckedOut).not.toHaveBeenCalled();
   });
 });

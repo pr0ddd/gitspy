@@ -61,11 +61,12 @@ pub async fn checkout_pull(
     from_fork: bool,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<(), ErrorView> {
+) -> Result<String, ErrorView> {
     let git = state.git()?;
     let lane = state.queue.lane(&repo);
     let path = PathBuf::from(&repo);
     let credential_app = app.clone();
+    let landed = operations::pull_branch_name(number, &branch, from_fork);
 
     on_reader(move || {
         let _held = lane.lock().expect("the queue lane is not poisoned");
@@ -86,7 +87,7 @@ pub async fn checkout_pull(
     .await?;
 
     state.mark_stale(&repo);
-    Ok(())
+    Ok(landed)
 }
 
 #[tauri::command]
@@ -95,7 +96,7 @@ pub async fn checkout_ref(
     name: String,
     kind: crate::views::RefKindView,
     state: State<'_, AppState>,
-) -> Result<(), ErrorView> {
+) -> Result<Option<String>, ErrorView> {
     let locals = with_repo(&state, &repo, |open| {
         open.view
             .refs
@@ -110,8 +111,9 @@ pub async fn checkout_ref(
     let remotes = git.remotes(&path);
 
     let Some(operation) = operations::checkout_for(&name, kind, &locals, &remotes) else {
-        return Ok(());
+        return Ok(None);
     };
+    let landed = operations::checked_out_branch(&operation).map(str::to_string);
 
     state.cancel_autofetch(&repo);
     let lane = state.queue.lane(&repo);
@@ -124,5 +126,5 @@ pub async fn checkout_ref(
     .await?;
 
     state.mark_stale(&repo);
-    Ok(())
+    Ok(landed)
 }
