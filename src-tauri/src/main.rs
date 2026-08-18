@@ -5,12 +5,12 @@ mod ai;
 mod autofetch;
 mod avatars;
 mod clone;
+mod commands;
 mod events;
 mod hosts;
 mod operations;
 mod paths;
 mod recent;
-mod repo_commands;
 mod state;
 mod term;
 mod term_batch;
@@ -27,38 +27,38 @@ fn main() {
         .manage(state::AppState::default())
         .manage(hosts::Hosts::default())
         .invoke_handler(tauri::generate_handler![
-            repo_commands::open_repo,
-            repo_commands::close_repo,
-            repo_commands::open_repos,
-            repo_commands::graph_window,
-            repo_commands::worktrees,
-            repo_commands::recent_repos,
-            repo_commands::forget_repo,
-            repo_commands::favorite_repo,
-            repo_commands::repo_passports,
-            repo_commands::repository_root,
-            repo_commands::run_operation,
-            repo_commands::commit_files,
-            repo_commands::diff_sides,
-            repo_commands::working_tree,
-            repo_commands::working_tree_diff,
-            repo_commands::conflict_file,
-            repo_commands::working_tree_hunks,
-            repo_commands::commit_file_hunks,
-            repo_commands::append_ignore,
-            repo_commands::open_path,
-            repo_commands::reveal_path,
-            repo_commands::remove_path,
-            repo_commands::apply_hunk,
-            repo_commands::write_file,
-            repo_commands::file_history,
-            repo_commands::blame_file,
-            repo_commands::resolve_conflict,
-            repo_commands::stage,
-            repo_commands::commit,
-            repo_commands::search_commits,
-            repo_commands::found_commits,
-            repo_commands::refresh_tip,
+            commands::open_repo,
+            commands::close_repo,
+            commands::open_repos,
+            commands::graph_window,
+            commands::worktrees,
+            commands::recent_repos,
+            commands::forget_repo,
+            commands::favorite_repo,
+            commands::repo_passports,
+            commands::repository_root,
+            commands::run_operation,
+            commands::commit_files,
+            commands::diff_sides,
+            commands::working_tree,
+            commands::working_tree_diff,
+            commands::conflict_file,
+            commands::working_tree_hunks,
+            commands::commit_file_hunks,
+            commands::append_ignore,
+            commands::open_path,
+            commands::reveal_path,
+            commands::remove_path,
+            commands::apply_hunk,
+            commands::write_file,
+            commands::file_history,
+            commands::blame_file,
+            commands::resolve_conflict,
+            commands::stage,
+            commands::commit,
+            commands::search_commits,
+            commands::found_commits,
+            commands::refresh_tip,
             avatars::avatar_paths,
             avatars::resolve_avatars,
             hosts::start_connect,
@@ -68,8 +68,8 @@ fn main() {
             hosts::disconnect_host,
             hosts::pull_requests,
             hosts::pull_card,
-            repo_commands::checkout_pull,
-            repo_commands::checkout_ref,
+            commands::checkout_pull,
+            commands::checkout_ref,
             clone::default_clone_dir,
             clone::clone_repo,
             clone::init_repo,
