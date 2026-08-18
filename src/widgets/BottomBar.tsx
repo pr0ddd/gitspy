@@ -25,44 +25,44 @@ export function BottomBar({ zoom, onZoom, ready, onRestart, onShortcuts, onChang
   const { t } = useTranslation();
   const shortcutsHint = `${t('shortcuts.title')} (${chordLabel({ key: '/', primary: true }, onApple())})`;
   return (
-    <div className="flex h-6 shrink-0 items-center gap-2 px-1.5">
+    <div className="flex h-6 shrink-0 items-center gap-2 pr-3 pl-1.5">
       <span className="flex-1" />
 
       <Hint text={shortcutsHint} side="top">
         <Button
-          variant="ghost"
+          variant="quiet"
           size="icon-2xs"
           aria-label={t('shortcuts.title')}
           onClick={onShortcuts}
         >
-          <Icon.keyboard className="text-faint size-3.5" />
+          <Icon.keyboard className="size-3.5" />
         </Button>
       </Hint>
       <Hint text={t('changelog.open')} side="top">
         <Button
-          variant="ghost"
+          variant="quiet"
           size="icon-2xs"
           aria-label={t('changelog.open')}
           onClick={onChangelog}
         >
-          <Icon.changelog className="text-faint size-3.5" />
+          <Icon.changelog className="size-3.5" />
         </Button>
       </Hint>
       <span className="flex items-center">
         <Button
-          variant="ghost"
+          variant="quiet"
           size="icon-2xs"
           aria-label={t('zoom.out')}
           onClick={() => onZoom(zoomOut(zoom))}
         >
-          <Icon.zoomOut className="text-faint size-3" />
+          <Icon.zoomOut className="size-3" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="ghost"
+              variant="quiet"
               size="2xs"
-              className="text-faint px-1 font-normal tabular-nums"
+              className="px-1 font-normal tabular-nums"
               aria-label={t('zoom.pick')}
             >
               {zoomLabel(zoom)}
@@ -82,12 +82,12 @@ export function BottomBar({ zoom, onZoom, ready, onRestart, onShortcuts, onChang
           </DropdownMenuContent>
         </DropdownMenu>
         <Button
-          variant="ghost"
+          variant="quiet"
           size="icon-2xs"
           aria-label={t('zoom.in')}
           onClick={() => onZoom(zoomIn(zoom))}
         >
-          <Icon.zoomIn className="text-faint size-3" />
+          <Icon.zoomIn className="size-3" />
         </Button>
       </span>
 
@@ -97,7 +97,7 @@ export function BottomBar({ zoom, onZoom, ready, onRestart, onShortcuts, onChang
           {t('update.restart', { version: ready })}
         </Button>
       ) : null}
-      <span className="text-faint text-2xs tabular-nums">{__APP_VERSION__}</span>
+      <span className="text-muted-foreground text-2xs tabular-nums">{__APP_VERSION__}</span>
     </div>
   );
 }

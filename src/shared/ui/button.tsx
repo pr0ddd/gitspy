@@ -40,6 +40,7 @@ const buttonVariants = cva(
           'text-muted-foreground font-normal [&_svg]:opacity-75 group-hover/split:text-foreground group-hover/split:[&_svg]:opacity-100 focus-visible:text-foreground focus-visible:[&_svg]:opacity-100',
         heading:
           'text-subject hover:text-foreground focus-visible:text-foreground [&_svg]:opacity-75 hover:[&_svg]:opacity-100 focus-visible:[&_svg]:opacity-100',
+        quiet: 'text-muted-foreground hover:text-foreground focus-visible:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline focus-visible:underline',
         caption:
           'text-muted-foreground hover:bg-hover-fill hover:text-foreground focus-visible:bg-hover-fill focus-visible:text-foreground',
