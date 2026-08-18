@@ -10,7 +10,7 @@ import { Icon } from '@/shared/ui/icons';
 import { PanelBar, Prose, ViewBar } from '@/shared/ui/parts';
 import * as ipc from '@/shared/api/ipc';
 import { runRepoWork, useRepoWork } from '@/features/repo';
-import { notifyError } from '@/shared/ui/toast';
+import { notifyCheckedOut, notifyError } from '@/shared/ui/toast';
 import type { PullCardView, PullView } from '@/shared/api/types';
 import { Hint } from '@/shared/ui/tooltip';
 
@@ -40,7 +40,10 @@ export function PullPanel({ repo, pull, onCheckedOut, onClose }: Props) {
 
   const checkout = () => {
     void runRepoWork(repo, { kind: 'checkout', target: pull.headBranch }, () =>
-      ipc.checkoutPull(repo, pull.number, pull.headBranch, pull.fromFork).then(onCheckedOut),
+      ipc.checkoutPull(repo, pull.number, pull.headBranch, pull.fromFork).then(() => {
+        notifyCheckedOut(pull.headBranch);
+        onCheckedOut();
+      }),
     );
   };
 

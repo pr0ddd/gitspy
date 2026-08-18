@@ -47,7 +47,7 @@ const Toaster = ({ style, ...props }: ToasterProps) => {
         unstyled: true,
         classNames: {
           toast:
-            'group/toast flex w-full items-stretch overflow-hidden rounded-md border border-border bg-popover text-sm text-popover-foreground shadow-md',
+            'group/toast flex w-full items-stretch overflow-hidden rounded-md border border-border bg-toast-surface text-sm text-popover-foreground shadow-lg',
           icon: 'flex w-11 shrink-0 items-center justify-center self-stretch text-toast-glyph group-data-[type=success]/toast:bg-toast-success group-data-[type=info]/toast:bg-toast-info group-data-[type=warning]/toast:bg-toast-warning group-data-[type=error]/toast:bg-toast-error group-data-[type=loading]/toast:bg-faint',
           content: 'flex min-w-0 flex-1 flex-col gap-0.75 px-4.5 py-3.5',
           title: 'font-medium leading-snug',

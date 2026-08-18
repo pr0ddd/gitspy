@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useStore } from 'zustand';
 import * as ipc from '@/shared/api/ipc';
 import { isRejectedByHost } from '@/shared/api/errors';
-import { notifyError } from '@/shared/ui/toast';
+import { notifyError, notifyHostConnected } from '@/shared/ui/toast';
 import {
   accountOf,
   connectionOf,
@@ -34,6 +34,7 @@ export function useHostsSync(): void {
     void refreshConnections().catch(notifyError);
     const connected = ipc.onHostConnected((account) => {
       hostsStore.setState((state) => withAccount(state, account));
+      notifyHostConnected(account.host);
       void refreshConnections().catch(() => undefined);
     });
     const failed = ipc.onHostFailed(notifyError);

@@ -64,6 +64,7 @@
   --toast-error: var(--destructive);
   --toast-info: oklch(0.69 0.14 250);
   --toast-glyph: oklch(0.99 0.002 265);
+  --toast-surface: color-mix(in oklab, var(--popover) 93%, white);
 
   --ref-local: oklch(0.62 0.13 265);
   --ref-remote: oklch(0.575 0.01 265);
@@ -262,6 +263,7 @@
   --status-behind: oklch(0.6 0.13 82);
   --toast-warning: oklch(0.58 0.15 52);
   --toast-info: oklch(0.52 0.14 250);
+  --toast-surface: var(--popover);
   --ref-local: oklch(0.5 0.13 265);
   --ref-remote: oklch(0.55 0.01 265);
   --ref-tag: oklch(0.55 0.11 90);
@@ -367,6 +369,7 @@
   --color-toast-error: var(--toast-error);
   --color-toast-info: var(--toast-info);
   --color-toast-glyph: var(--toast-glyph);
+  --color-toast-surface: var(--toast-surface);
 
   --color-ref-local: var(--ref-local);
   --color-ref-remote: var(--ref-remote);

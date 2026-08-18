@@ -77,15 +77,19 @@ describe('running an operation', () => {
     expect(notifyOperationFailed).toHaveBeenCalledOnce();
   });
 
-  it('a push that goes through is announced and the repository re-read', async () => {
-    vi.mocked(ipc.runOperation).mockResolvedValue({ code: 0, stdout: '', stderr: '' });
+  it('a push that goes through is announced with what git said, and the repository re-read', async () => {
+    const outcome = { code: 0, stdout: '', stderr: 'Everything up-to-date\n' };
+    vi.mocked(ipc.runOperation).mockResolvedValue(outcome);
     const reload = vi.fn(() => Promise.resolve());
     const { result } = renderHook(() => useOperations('/repo', reload));
 
     act(() => result.current.runOperation({ kind: 'push' }));
     await settle();
 
-    expect(notifyOperation).toHaveBeenCalledWith({ kind: 'push' });
+    expect(
+      notifyOperation,
+      'the toast gets the outcome, so a pull that brought nothing can say so',
+    ).toHaveBeenCalledWith({ kind: 'push' }, outcome, { branch: null, upstream: null });
     expect(reload).toHaveBeenCalledWith('/repo');
   });
 });

@@ -11,7 +11,7 @@ import { Icon, type IconName } from '@/shared/ui/icons';
 import * as ipc from '@/shared/api/ipc';
 import { HOVER_FILL, NavItem } from '@/shared/ui/parts';
 import { directoryFromUrl } from '@/shared/lib/paths';
-import { notifyError } from '@/shared/ui/toast';
+import { notifyCloned, notifyError, notifyRepoCreated } from '@/shared/ui/toast';
 import { cn } from '@/shared/lib/utils';
 import { readPref } from '@/shared/lib/prefs';
 import { SETTINGS } from '@/shared/config/settingsModel';
@@ -292,6 +292,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
       .initRepo(`${parent}/${name.trim()}`, wanted || null, gitignore || null, license || null)
       .then((path) => {
         onOpenChange(false);
+        notifyRepoCreated(path);
         onCloned(path);
       })
       .catch(notifyError)
@@ -308,6 +309,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
       .then(async (created) => {
         if (!cloneAfter) {
           onOpenChange(false);
+          notifyRepoCreated(name.trim());
           return;
         }
         const folder = name.trim();
@@ -315,6 +317,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
         const path = await ipc.cloneRepo(created.cloneUrl, parent, folder, false, setStep);
         await ipc.seedRepo(path, wanted || null, gitignore || null, license || null, true);
         onOpenChange(false);
+        notifyCloned(path);
         onCloned(path);
       })
       .catch(notifyError)
@@ -331,6 +334,7 @@ export function RepoDialog({ open, mode, url, onOpenChange, onCloned }: Props) {
       .cloneRepo(cloningUrl, parent, name.trim(), shallow, setStep)
       .then((path) => {
         onOpenChange(false);
+        notifyCloned(path);
         onCloned(path);
       })
       .catch(notifyError)

@@ -4,7 +4,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Toaster } from '@/shared/ui/sonner';
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { METRICS_AVATARS, METRICS_COMPACT } from '@/entities/graph';
-import { notifyError } from '@/shared/ui/toast';
+import { notifyDeleted, notifyError } from '@/shared/ui/toast';
 import * as ipc from '@/shared/api/ipc';
 import { readPref, usePref, writePref } from '@/shared/lib/prefs';
 import { EMPTY, sessionsReducer } from '@/entities/repo';
@@ -240,7 +240,11 @@ export default function App() {
       }),
     [tree?.branch, tree?.upstream],
   );
-  const { runOperation, checkoutRef } = useOperations(active, reload, onPushRejected);
+  const where = useMemo(
+    () => ({ branch: tree?.branch ?? null, upstream: tree?.upstream ?? null }),
+    [tree?.branch, tree?.upstream],
+  );
+  const { runOperation, checkoutRef } = useOperations(active, reload, onPushRejected, where);
 
   const { message, setMessage, description, setDescription, amend, setAmend, commit } =
     useCommitDraft({
@@ -357,7 +361,12 @@ export default function App() {
     (effect: Effect) => {
       if (effect.kind === 'run') runOperation(effect.operation);
       else if (effect.kind === 'runPath') void runPathOperation(effect.operation);
-      else if (active) void ipc.removePath(active, effect.path).catch(notifyError);
+      else if (active) {
+        void ipc
+          .removePath(active, effect.path)
+          .then(() => notifyDeleted(effect.path))
+          .catch(notifyError);
+      }
     },
     [active, runOperation, runPathOperation],
   );
@@ -691,7 +700,7 @@ export default function App() {
         />
 
         <Toaster
-          position="bottom-right"
+          position="bottom-left"
           offset={16}
           style={{ '--width': '430px' } as React.CSSProperties}
         />
