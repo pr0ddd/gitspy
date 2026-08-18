@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import {
@@ -43,6 +43,20 @@ function Label({ children }: { children: React.ReactNode }) {
   return <span className="@6xl:inline hidden">{children}</span>;
 }
 
+export function useAnimatedWhile(running: boolean): {
+  animating: boolean;
+  onAnimationIteration: () => void;
+} {
+  const [animating, setAnimating] = useState(running);
+  useEffect(() => {
+    if (running) setAnimating(true);
+  }, [running]);
+  const onAnimationIteration = useCallback(() => {
+    if (!running) setAnimating(false);
+  }, [running]);
+  return { animating, onAnimationIteration };
+}
+
 function Tally({ count, tone }: { count: number; tone: 'ahead' | 'behind' }) {
   if (count === 0) return null;
   return (
@@ -73,20 +87,26 @@ function ExchangeDeck({
   const wanted = pullOperation(pullMode);
   const ahead = tree?.ahead ?? 0;
   const behind = tree?.behind ?? 0;
-  const charged = push !== null && ahead > 0 && !busy;
+  const charged = push !== null && ahead > 0;
   const pushHint = tree?.remotes.length ? t('toolbar.noUpstream') : t('toolbar.noRemote');
 
   const pushing = push !== null && running === push.kind;
   const pulling = running === wanted.kind;
+  const lift = useAnimatedWhile(pushing);
+  const dive = useAnimatedWhile(pulling);
 
   const pushButton = (
     <Button
       variant={charged ? 'default' : 'action'}
       size="sm"
+      steady={busy}
       disabled={!push || busy}
       onClick={() => push && onRun(push)}
     >
-      <Icon.push className={cn('size-4', pushing && 'animate-lift')} />
+      <Icon.push
+        className={cn('size-4', lift.animating && 'animate-lift')}
+        onAnimationIteration={lift.onAnimationIteration}
+      />
       <Label>{t('toolbar.push')}</Label>
       <Tally count={ahead} tone="ahead" />
     </Button>
@@ -94,15 +114,19 @@ function ExchangeDeck({
 
   return (
     <>
-      <span
-        className={cn(
-          'group/split has-[[data-state=open]]:bg-fill-1 flex items-center rounded-md transition-colors',
-          !busy && 'hover:bg-hover-fill',
-        )}
-      >
+      <span className="group/split has-[[data-state=open]]:bg-fill-1 hover:bg-hover-fill flex items-center rounded-md transition-colors">
         <Hint text={t('toolbar.pull')}>
-          <Button variant="split" size="sm-lead" disabled={busy} onClick={() => onRun(wanted)}>
-            <Icon.pull className={cn('size-4', pulling && 'animate-dive')} />
+          <Button
+            variant="split"
+            size="sm-lead"
+            steady={busy}
+            disabled={busy}
+            onClick={() => onRun(wanted)}
+          >
+            <Icon.pull
+              className={cn('size-4', dive.animating && 'animate-dive')}
+              onAnimationIteration={dive.onAnimationIteration}
+            />
             <Label>{t('toolbar.pull')}</Label>
             <Tally count={behind} tone="behind" />
           </Button>
@@ -112,6 +136,7 @@ function ExchangeDeck({
             <Button
               variant="split"
               size="sm-tail"
+              steady={busy}
               disabled={busy}
               aria-label={t('pull.chooseDefault')}
             >
@@ -218,6 +243,7 @@ export function Toolbar({
                 <Button
                   variant="action"
                   size="sm"
+                  steady={busy}
                   disabled={busy}
                   onClick={() =>
                     terminal ? onTerminal() : asks ? onAsk(asks) : operation && onRun(operation)

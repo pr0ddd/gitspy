@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
 import { pushFor } from '@/features/repo';
+import { useAnimatedWhile } from './Toolbar';
 import type { WorkingTreeView } from '@/shared/api/types';
 
 const tree = (patch: Partial<WorkingTreeView>): WorkingTreeView => ({
@@ -38,5 +40,29 @@ describe('choosing the push by the state of the branch', () => {
 
   it('on a detached HEAD there is no branch, so there is no push either', () => {
     expect(pushFor(tree({ branch: null, remotes: ['origin'] }))).toBeNull();
+  });
+});
+
+describe('the icon animation while an operation runs', () => {
+  it('starts with the operation and stops only at the end of a cycle, never mid-flight', () => {
+    const { result, rerender } = renderHook(({ running }) => useAnimatedWhile(running), {
+      initialProps: { running: false },
+    });
+    expect(result.current.animating).toBe(false);
+
+    rerender({ running: true });
+    expect(result.current.animating, 'the operation starts: the icon moves').toBe(true);
+
+    rerender({ running: false });
+    expect(result.current.animating, 'the operation ended mid-cycle: keep going').toBe(true);
+
+    act(() => result.current.onAnimationIteration());
+    expect(result.current.animating, 'the cycle ended: now the icon rests').toBe(false);
+  });
+
+  it('an iteration boundary while the operation still runs changes nothing', () => {
+    const { result } = renderHook(() => useAnimatedWhile(true));
+    act(() => result.current.onAnimationIteration());
+    expect(result.current.animating).toBe(true);
   });
 });

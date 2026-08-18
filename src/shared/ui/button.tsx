@@ -71,6 +71,9 @@ const buttonVariants = cva(
       reveal: {
         true: 'opacity-0 transition-none group-hover:opacity-100 focus-visible:opacity-100',
       },
+      steady: {
+        true: 'disabled:opacity-100',
+      },
     },
     defaultVariants: {
       variant: 'default',
