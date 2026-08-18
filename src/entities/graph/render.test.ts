@@ -42,6 +42,7 @@ const arcs: { x: number; y: number; r: number }[] = [];
 const corners: number[] = [];
 type TracedFill = { style: string; xs: number[]; ys: number[] };
 const tracedFills: TracedFill[] = [];
+const tracedStrokes: { xs: number[]; ys: number[] }[] = [];
 let tracing: { xs: number[]; ys: number[] } = { xs: [], ys: [] };
 let lastTranslateX = 0;
 
@@ -60,6 +61,7 @@ const context = () =>
         calls.push('stroke');
         if (path?.d) strokedGlyphs.push({ d: path.d, x: lastTranslateX });
         if (path?.ops.length) strokedPaths.push(path.ops);
+        if (!path && tracing.xs.length > 0) tracedStrokes.push({ xs: tracing.xs, ys: tracing.ys });
       },
     } as Record<string, unknown>,
     {
@@ -272,6 +274,7 @@ const paint = (
   arcs.length = 0;
   corners.length = 0;
   tracedFills.length = 0;
+  tracedStrokes.length = 0;
   strokedPaths.length = 0;
   drawFrame(canvas(), frameWith(refs, avatars, pullHeads, hoverChip, workingTree));
   return {
@@ -284,6 +287,7 @@ const paint = (
     arcs,
     strokedPaths,
     tracedFills,
+    tracedStrokes,
   };
 };
 
@@ -757,6 +761,27 @@ describe('badges on chips', () => {
       one[one.length - 1].y,
       'the stack is vertical, so the names sit on different rows',
     ).not.toBe(two[two.length - 1].y);
+  });
+
+  it('an unfolded row has one leader line, from the panel, not a second one from the row underneath', () => {
+    const refs = [
+      ref('very-long-branch-name-one', 'localBranch'),
+      ref('very-long-branch-name-two', 'localBranch'),
+      ref('very-long-branch-name-three', 'localBranch'),
+    ];
+    const leadersAtRow0 = (hoverChip: { row: number; at: number | 'more' } | null) => {
+      const painted = paint(refs, null, new Set(), hoverChip);
+      const rowY = painted.placedTexts.find((t) => t.text === 'very-long-branch-name-one')!.y;
+      return painted.tracedStrokes.filter(
+        (s) => s.xs.length === 2 && s.ys[0] === s.ys[1] && s.ys[0] === rowY + 0.5,
+      );
+    };
+
+    expect(leadersAtRow0(null).length, 'a folded row draws its own leader').toBe(1);
+    expect(leadersAtRow0({ row: 0, at: 0 }).length, 'unfolded: the panel draws the only one').toBe(
+      1,
+    );
+    expect(leadersAtRow0({ row: 0, at: 'more' }).length).toBe(1);
   });
 
   it('a hovered chip unfolds and is drawn on top of everything else', () => {

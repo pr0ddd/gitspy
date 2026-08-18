@@ -76,6 +76,7 @@ export function drawRefRows({ ctx, frame, t, m, g, cols, first, last, shift, hal
       ctx.fillText(moreLabel(more.count), more.x + MORE_PAD, y);
     }
     ctx.restore();
+    if (unfolded) return;
     const chipEnd = more
       ? more.x + more.w
       : placed.length
