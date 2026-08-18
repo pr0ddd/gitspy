@@ -203,13 +203,8 @@ pub async fn refresh_tip(repo: String, state: State<'_, AppState>) -> Result<Tip
 
     let fresh = on_reader(move || Ok(working_tree_tip(&git, &path))).await?;
 
-    let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
-    let open = guard
-        .get_mut(&repo)
-        .ok_or_else(|| ErrorView::new("repo.notOpen").param("path", &repo))?;
-
     Ok(TipView {
-        structure_changed: open.history.refresh_tip(fresh),
+        structure_changed: state.refresh_tip(&repo, fresh)?,
     })
 }
 
