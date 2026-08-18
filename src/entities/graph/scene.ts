@@ -5,7 +5,8 @@ export const VSCROLL_W = 14;
 export const HEADER_H = 32;
 export const HSCROLL_H = 9;
 
-const PAD_X = 14;
+export const GRAPH_INSET = 18;
+const PAD_X = GRAPH_INSET;
 
 export type Metrics = {
   readonly rowH: number;

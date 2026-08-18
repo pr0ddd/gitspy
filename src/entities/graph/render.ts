@@ -188,18 +188,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       if (i === selected || i === hover) {
         ctx.fillStyle = i === selected ? t.rowSelected : t.rowHover;
         const capX = g.nodeX(rows.row(i)?.lane ?? 0);
-        const cap = Math.min(band / 2, m.nodeR + 1);
-        const top = y + inset;
-        const bottom = y + m.rowH - inset;
-        ctx.beginPath();
-        ctx.moveTo(capX + cap, top);
-        ctx.lineTo(listW, top);
-        ctx.lineTo(listW, bottom);
-        ctx.lineTo(capX + cap, bottom);
-        ctx.arcTo(capX, bottom, capX, bottom - cap, cap);
-        ctx.lineTo(capX, top + cap);
-        ctx.arcTo(capX, top, capX + cap, top, cap);
-        ctx.closePath();
+        traceRowBand(ctx, m, capX, rowCap(m, band), y + inset, band, listW);
         ctx.fill();
       }
     }
@@ -216,7 +205,8 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
       const x = g.nodeX(row.lane);
       const tint = i === selected ? BAND_TINT_SELECTED : i === hover ? BAND_TINT_HOVER : BAND_TINT;
       ctx.fillStyle = laneColourAlpha(row.colour, tint);
-      ctx.fillRect(x, y + inset, Math.max(0, g.gRight - x), band);
+      traceRowBand(ctx, m, x, rowCap(m, band), y + inset, band, g.gRight);
+      ctx.fill();
     }
 
     ctx.save();
@@ -570,6 +560,35 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   if (frame.minimap === null) drawVScroll(ctx, frame, listW);
   else drawMinimap(ctx, frame, listW);
   drawHoveredChip(ctx, frame);
+}
+
+const rowCap = (m: Metrics, band: number): number => Math.min(band / 2, m.nodeR + 1);
+
+function traceRowBand(
+  ctx: CanvasRenderingContext2D,
+  m: Metrics,
+  nodeX: number,
+  cap: number,
+  top: number,
+  band: number,
+  right: number,
+): void {
+  const bottom = top + band;
+  if (!m.avatars) {
+    ctx.beginPath();
+    ctx.rect(nodeX, top, Math.max(0, right - nodeX), band);
+    return;
+  }
+  const left = nodeX - cap;
+  ctx.beginPath();
+  ctx.moveTo(left + cap, top);
+  ctx.lineTo(right, top);
+  ctx.lineTo(right, bottom);
+  ctx.lineTo(left + cap, bottom);
+  ctx.arcTo(left, bottom, left, bottom - cap, cap);
+  ctx.lineTo(left, top + cap);
+  ctx.arcTo(left, top, left + cap, top, cap);
+  ctx.closePath();
 }
 
 function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): void {

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { drawFrame, METRICS_AVATARS, METRICS_COMPACT, type Frame } from './index';
 import { FLOORS, layoutColumns } from './columns';
-import { listWidth, rowBandHeight } from './scene';
+import { GRAPH_INSET, listWidth, rowBandHeight } from './scene';
 import { RowCache } from './rows';
 import type { AvatarCache } from '@/shared/ui/avatarCache';
 import { GLYPH } from './glyphs';
@@ -40,6 +40,9 @@ const filledRects: { x: number; y: number; w: number; h: number; style: string }
 const strokedPaths: { op: string; x: number; y: number }[][] = [];
 const arcs: { x: number; y: number; r: number }[] = [];
 const corners: number[] = [];
+type TracedFill = { style: string; xs: number[]; ys: number[] };
+const tracedFills: TracedFill[] = [];
+let tracing: { xs: number[]; ys: number[] } = { xs: [], ys: [] };
 let lastTranslateX = 0;
 
 const context = () =>
@@ -85,6 +88,24 @@ const context = () =>
           }
           if (key === 'arcTo') {
             corners.push(Number(args[4]));
+            tracing.xs.push(Number(args[0]), Number(args[2]));
+            tracing.ys.push(Number(args[1]), Number(args[3]));
+          }
+          if (key === 'beginPath') tracing = { xs: [], ys: [] };
+          if (key === 'moveTo' || key === 'lineTo') {
+            tracing.xs.push(Number(args[0]));
+            tracing.ys.push(Number(args[1]));
+          }
+          if (key === 'rect') {
+            tracing.xs.push(Number(args[0]), Number(args[0]) + Number(args[2]));
+            tracing.ys.push(Number(args[1]), Number(args[1]) + Number(args[3]));
+          }
+          if (key === 'fill' && tracing.xs.length > 0) {
+            tracedFills.push({
+              style: String(target.fillStyle ?? ''),
+              xs: tracing.xs,
+              ys: tracing.ys,
+            });
           }
         };
       },
@@ -250,10 +271,31 @@ const paint = (
   filledRects.length = 0;
   arcs.length = 0;
   corners.length = 0;
+  tracedFills.length = 0;
   strokedPaths.length = 0;
   drawFrame(canvas(), frameWith(refs, avatars, pullHeads, hoverChip, workingTree));
-  return { calls, texts, placedTexts, strokedGlyphs, drawnImages, filledRects, arcs, strokedPaths };
+  return {
+    calls,
+    texts,
+    placedTexts,
+    strokedGlyphs,
+    drawnImages,
+    filledRects,
+    arcs,
+    strokedPaths,
+    tracedFills,
+  };
 };
+
+const bandFills = (fills: readonly TracedFill[]) =>
+  fills
+    .map((f) => ({
+      style: f.style,
+      left: Math.min(...f.xs),
+      right: Math.max(...f.xs),
+      height: Math.max(...f.ys) - Math.min(...f.ys),
+    }))
+    .filter((f) => f.right - f.left > 100);
 
 const paintWithHidden = (hidden: ReadonlySet<'author' | 'date' | 'sha'>) => {
   texts.length = 0;
@@ -308,24 +350,15 @@ describe('the column headings', () => {
   });
 });
 
-describe('the highlight cap in the compact layout', () => {
-  it('rounds by the small node, not by half the band: no bulb to the left of a 10px node', () => {
-    corners.length = 0;
-    const frame = frameWith([]);
-    drawFrame(canvas(), { ...frame, metrics: METRICS_COMPACT, selected: 1 });
-    expect(corners.some((r) => r === METRICS_COMPACT.nodeR + 1)).toBe(true);
-    expect(corners.some((r) => r === rowBandHeight(METRICS_COMPACT) / 2)).toBe(false);
-  });
-});
-
 describe('the selected row', () => {
   it('carries a stronger tint of its lane colour than its neighbours, and no ring around the node', () => {
     arcs.length = 0;
     filledRects.length = 0;
+    tracedFills.length = 0;
     const frame = frameWith([]);
     drawFrame(canvas(), { ...frame, selected: 1, hover: null });
 
-    const bands = filledRects.filter((r) => r.style.startsWith('lane'));
+    const bands = tracedFills.filter((r) => r.style.startsWith('lane'));
     const percents = bands.map((r) => Number(r.style.split('@')[1]));
     expect(Math.max(...percents), 'the selected band is the brightest').toBe(50);
     expect(percents.filter((p) => p === 50).length, 'exactly one row is selected').toBe(1);
@@ -502,22 +535,36 @@ describe('badges on chips', () => {
     ).toBe(true);
   });
 
-  it('rows are separated by a gap: no band takes up the full row height', () => {
+  it('rows are separated by a gap, and the band wraps the node from its left edge', () => {
     const painted = paint([]);
     const band = rowBandHeight(METRICS_AVATARS);
+    const bands = bandFills(painted.tracedFills);
 
     expect(
-      painted.filledRects.some((r) => r.h === band && r.w > 100),
+      bands.some((b) => b.height === band),
       'the fill runs along the band, not along the whole row',
     ).toBe(true);
     expect(
-      painted.filledRects.some((r) => r.h === band && r.w > 100 && r.x < 224),
-      'the band does not stick out to the left of the node centre',
-    ).toBe(false);
-    expect(
-      painted.filledRects.some((r) => r.h === METRICS_AVATARS.rowH && r.w > 100),
+      bands.some((b) => b.height === METRICS_AVATARS.rowH),
       'a band as tall as the row would meet its neighbour and the gap would vanish',
     ).toBe(false);
+    const cap = Math.min(band / 2, METRICS_AVATARS.nodeR + 1);
+    expect(
+      bands.filter((b) => b.height === band).every((b) => b.left === 210 + GRAPH_INSET - cap),
+      'the band starts at the left edge of the node, so a transparent avatar sits on it whole',
+    ).toBe(true);
+  });
+
+  it('in the compact layout the band is a plain rectangle from the node centre: no wrap, no rounding', () => {
+    tracedFills.length = 0;
+    corners.length = 0;
+    const frame = frameWith([]);
+    drawFrame(canvas(), { ...frame, metrics: METRICS_COMPACT, selected: 1 });
+    const band = rowBandHeight(METRICS_COMPACT);
+    const bands = bandFills(tracedFills).filter((b) => b.height === band);
+    expect(bands.length).toBeGreaterThan(0);
+    expect(bands.every((b) => b.left === 210 + GRAPH_INSET)).toBe(true);
+    expect(corners.length, 'no rounded corner is traced for compact bands').toBe(0);
   });
 
   it('a hovered row with no refs of its own shows the owning branch dimmed', () => {
