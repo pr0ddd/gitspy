@@ -110,7 +110,6 @@
   --term-ansi-15: oklch(0.97 0.002 265);
 
   --row-height: 28px;
-  --row-height-graph: 30px;
   --bar-height: 52px;
   --scrollbar-width: 10px;
 }
@@ -415,7 +414,6 @@
   --animate-hero-dash: hero-dash 7s linear infinite;
 
   --spacing-row: var(--row-height);
-  --spacing-row-graph: var(--row-height-graph);
   --spacing-bar: var(--bar-height);
 }
 
