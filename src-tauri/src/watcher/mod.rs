@@ -232,6 +232,7 @@ mod tests {
     }
 
     fn stragglers_from_setup_drained(seen: &std::sync::mpsc::Receiver<Change>) {
+        let _ = seen.recv_timeout(Duration::from_millis(1500));
         while seen.recv_timeout(Duration::from_millis(500)).is_ok() {}
     }
 
