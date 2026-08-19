@@ -1,0 +1,37 @@
+name: Downloads badge
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  count:
+    name: Count installer downloads
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Count
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/downloads-badge.mjs "$GITHUB_REPOSITORY" downloads.json
+
+      - name: Publish to the badges branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan badges
+          git rm -rfq --cached .
+          git add -f downloads.json
+          git commit -qm "installs: $(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("downloads.json")).message)')"
+          git push -f origin badges

@@ -18,7 +18,7 @@
     "app": "tauri dev",
     "boundary:check": "node scripts/check-boundary.mjs",
     "test": "vitest run",
-    "lint": "node --test eslint-rules/fsd-boundaries.test.mjs eslint-rules/fsd-public-api.test.mjs && eslint .",
+    "lint": "node --test eslint-rules/fsd-boundaries.test.mjs eslint-rules/fsd-public-api.test.mjs scripts/downloads-badge.test.mjs && eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "licenses:check": "license-checker --production --excludePrivatePackages --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;MPL-2.0;OFL-1.1;(MIT OR Apache-2.0);(Apache-2.0 OR MIT);(MPL-2.0 OR Apache-2.0);MIT OR Apache-2.0;Apache-2.0 OR MIT'",

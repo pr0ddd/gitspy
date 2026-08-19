@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/pr0ddd/gitspy/releases/latest"><img src="https://img.shields.io/github/v/release/pr0ddd/gitspy?label=release" alt="Latest release" /></a>
   <a href="https://github.com/pr0ddd/gitspy/actions/workflows/ci.yml"><img src="https://github.com/pr0ddd/gitspy/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/pr0ddd/gitspy/releases"><img src="https://img.shields.io/github/downloads/pr0ddd/gitspy/total" alt="Downloads" /></a>
+  <a href="https://github.com/pr0ddd/gitspy/releases"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pr0ddd/gitspy/badges/downloads.json" alt="Installs" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="AGPL-3.0" /></a>
 </p>
 
@@ -69,8 +69,9 @@ Get the [latest release](https://github.com/pr0ddd/gitspy/releases/latest):
 | Windows              | `gitspy_<version>_x64-setup.exe` or `.msi` |
 
 macOS builds are signed and notarised. The Windows build is not signed yet, so
-SmartScreen will warn once. Updates arrive on their own: the app downloads a
-new version in the background and offers a restart.
+SmartScreen will warn once. When a newer version is out, a quiet "Update to X"
+appears in the bottom bar; nothing installs until you click it, and the
+next launch installs it behind the start banner if you never do.
 
 ## Status
 
