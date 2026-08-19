@@ -60,7 +60,12 @@ pub fn graph_window(
         let to = (from + len as usize).min(total);
 
         let layout = chunk::window(&open.history.topology, &open.skeleton, from, to - from);
-        build_window_view(from, &layout, &open.history.nodes[from..to])
+        build_window_view(
+            from,
+            &layout,
+            &open.history.nodes[from..to],
+            open.owners.get(from..to).unwrap_or(&[]),
+        )
     })
 }
 

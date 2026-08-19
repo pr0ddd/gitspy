@@ -6,6 +6,7 @@ import type { Cols } from '../columns';
 import type { RowCache } from '../rows';
 import type { Minimap } from '../view';
 import type { HoverChip } from './chips';
+import type { VeilLevels } from '../veil';
 
 export type DescriptionMode = 'always' | 'hover' | 'never';
 
@@ -29,6 +30,7 @@ export type Frame = {
   readonly avatars: AvatarCache | null;
   readonly pullHeads: ReadonlySet<string>;
   readonly hoverChip: HoverChip | null;
+  readonly veil: VeilLevels | null;
   readonly refsByCommit: ReadonlyMap<number, RefView[]>;
   readonly minimap: Minimap | null;
   readonly metrics: Metrics;

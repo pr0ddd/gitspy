@@ -29,7 +29,16 @@ const CHIP_TINT_HEAD = 45;
 const CHIP_PAD = 9;
 const MARK_GAP = 4;
 
-export type HoverChip = { readonly row: number; readonly at: number | 'more' };
+export type HoverReach = 'branch' | 'commit';
+
+export type HoverChip = {
+  readonly row: number;
+  readonly at: number | 'more';
+  readonly reach: HoverReach;
+};
+
+export const sameChip = (a: HoverChip | null, b: HoverChip | null): boolean =>
+  a === b || (a !== null && b !== null && a.row === b.row && a.at === b.at);
 
 export const chipMetricsFor = (m: Metrics): ChipMetrics => ({
   pad: CHIP_PAD,

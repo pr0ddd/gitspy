@@ -2,8 +2,8 @@ use crate::paths::data_dir;
 use crate::recent;
 use crate::state::{exec_error, on_reader, with_repo, AppState, OpenRepo};
 use crate::views::{
-    build_repo_view, state_lock_failed, ErrorView, RepoPassportView, RepoView, Timings, TipView,
-    WorktreeView, MINIMAP_BUCKETS,
+    build_repo_view, owner_rows, state_lock_failed, ErrorView, RepoPassportView, RepoView, Timings,
+    TipView, WorktreeView, MINIMAP_BUCKETS,
 };
 use crate::watcher;
 use gitspy_core::chunk::{self, Skeleton};
@@ -123,6 +123,7 @@ pub async fn open_repo(
         opened.timings,
     );
 
+    let owners = owner_rows(&opened.history, &opened.refs);
     let mut guard = state.repos.lock().map_err(|_| state_lock_failed())?;
     guard.insert(
         path.clone(),
@@ -130,6 +131,7 @@ pub async fn open_repo(
             path: PathBuf::from(&path),
             history: opened.history,
             skeleton: opened.skeleton,
+            owners,
             view: view.clone(),
         },
     );

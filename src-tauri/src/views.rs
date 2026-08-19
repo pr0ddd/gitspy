@@ -263,6 +263,7 @@ pub enum RowView {
         lane: u16,
         colour: u8,
         node: u8,
+        owner: Option<u32>,
         hash: String,
         author: String,
         email: String,
@@ -281,6 +282,7 @@ pub enum RowView {
         lane: u16,
         colour: u8,
         node: u8,
+        owner: Option<u32>,
         added: u32,
         modified: u32,
         deleted: u32,
@@ -704,6 +706,118 @@ pub fn build_ref_views(refs: &[RefLine], rows: &HashMap<String, u32>) -> Vec<Ref
         .collect()
 }
 
+pub fn owner_rows(history: &History, refs: &[RefLine]) -> Vec<Option<u32>> {
+    let mut labelled = vec![false; history.topology.len()];
+    for r in refs {
+        if matches!(r.kind, RefKind::LocalBranch | RefKind::RemoteBranch) {
+            if let Some(&commit) = history.rows.get(&r.oid) {
+                labelled[commit as usize] = true;
+            }
+        }
+    }
+    let mut owners = gitspy_core::owners::owners(&history.topology, &labelled);
+    if let (Some(Node::WorkingTree { .. }), Some(&head)) =
+        (history.nodes.first(), history.topology.parents(0).first())
+    {
+        owners[0] = owners[head as usize];
+    }
+    owners
+}
+
+#[cfg(test)]
+mod owner_rows_tests {
+    use super::*;
+    use gitspy_core::topology::Topology;
+    use gitspy_repo::{CommitMeta, Node};
+
+    fn commit(hash: &str) -> Node {
+        Node::Commit(CommitMeta {
+            hash: hash.into(),
+            author: String::new(),
+            email: String::new(),
+            time: 0,
+            committer: String::new(),
+            committer_email: String::new(),
+            committer_time: 0,
+            subject: String::new(),
+            body: String::new(),
+        })
+    }
+
+    fn history(nodes: Vec<Node>, parents: Vec<Vec<u32>>) -> History {
+        let rows = nodes
+            .iter()
+            .enumerate()
+            .filter_map(|(i, node)| match node {
+                Node::Commit(meta) => Some((meta.hash.clone(), i as u32)),
+                Node::WorkingTree { .. } => None,
+            })
+            .collect();
+        History {
+            topology: Topology::new(parents.clone(), vec![0; parents.len()]).expect("valid"),
+            nodes,
+            rows,
+            head: None,
+            truncated: false,
+        }
+    }
+
+    fn line(name: &str, kind: RefKind, oid: &str) -> RefLine {
+        RefLine {
+            name: name.to_string(),
+            full_name: name.to_string(),
+            kind,
+            oid: oid.to_string(),
+            is_head: false,
+            upstream: None,
+            ahead: 0,
+            behind: 0,
+            gone: false,
+        }
+    }
+
+    #[test]
+    fn branches_own_rows_and_tags_do_not() {
+        let history = history(
+            vec![commit("a"), commit("b"), commit("c"), commit("d")],
+            vec![vec![1], vec![2], vec![3], vec![]],
+        );
+        let refs = [
+            line("main", RefKind::LocalBranch, "a"),
+            line("v1", RefKind::Tag, "c"),
+        ];
+        assert_eq!(
+            owner_rows(&history, &refs),
+            vec![Some(0), Some(0), Some(0), Some(0)],
+            "a tag names a commit but does not start a branch of its own"
+        );
+    }
+
+    #[test]
+    fn the_working_tree_row_belongs_to_the_branch_it_sits_on() {
+        let history = history(
+            vec![
+                Node::WorkingTree {
+                    added: 1,
+                    modified: 0,
+                    deleted: 0,
+                    conflicts: 0,
+                    in_progress: None,
+                },
+                commit("head"),
+                commit("older"),
+            ],
+            vec![vec![1], vec![2], vec![]],
+        );
+        let refs = [line("main", RefKind::LocalBranch, "head")];
+        assert_eq!(
+            owner_rows(&history, &refs),
+            vec![Some(1), Some(1), Some(1)],
+            "uncommitted changes are work on the checked-out branch, so hovering it keeps them lit"
+        );
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Timings {
     pub read_ms: f64,
@@ -734,7 +848,12 @@ pub fn build_repo_view(
     }
 }
 
-pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> WindowView {
+pub fn build_window_view(
+    start: usize,
+    layout: &Layout,
+    nodes: &[Node],
+    owners: &[Option<u32>],
+) -> WindowView {
     let mut seg_offsets = Vec::with_capacity(layout.len() + 1);
     let mut seg_kind = Vec::new();
     let mut seg_from = Vec::new();
@@ -779,6 +898,7 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                     lane: row.lane,
                     colour: row.colour,
                     node: node_kind_code(row.kind),
+                    owner: owners.get(offset).copied().flatten(),
                     added: *added,
                     modified: *modified,
                     deleted: *deleted,
@@ -790,6 +910,7 @@ pub fn build_window_view(start: usize, layout: &Layout, nodes: &[Node]) -> Windo
                     lane: row.lane,
                     colour: row.colour,
                     node: node_kind_code(row.kind),
+                    owner: owners.get(offset).copied().flatten(),
                     hash: meta.hash.clone(),
                     author: meta.author.clone(),
                     email: meta.email.clone(),
