@@ -47,6 +47,8 @@
   "term.spawn": "Could not start the shell",
   "terminal.failed": "Could not open a terminal",
   "unknown": "Unexpected error",
+  "update.failed": "Could not install the update",
+  "update.notInstallable": "This package is updated by the system package manager",
   "url.failed": "The link did not open",
   "url.refused": "That link is not https and was not opened"
 }

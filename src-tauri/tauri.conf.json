@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "gitspy",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "identifier": "dev.gitspy.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -10,17 +10,8 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "gitspy",
-        "width": 1400,
-        "height": 900,
-        "minWidth": 960,
-        "minHeight": 600,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true
-      }
-    ],
+    "macOSPrivateApi": true,
+    "windows": [],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: asset: http://asset.localhost https:; worker-src 'self'; connect-src 'self' ipc: http://ipc.localhost; frame-src 'none'; object-src 'none'",
       "assetProtocol": {
@@ -31,6 +22,7 @@
   },
   "plugins": {
     "updater": {
+      "windows": { "installMode": "quiet" },
       "endpoints": ["https://github.com/pr0ddd/gitspy/releases/latest/download/latest.json"],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2MDMzNjIzRjZERkU0NEQKUldSTjVOLzJJellEUmcvbUFmbEdyNXJMMjVmRnh1byswTzYzVDdJNkxmUERYenprQ2xFNkJLNHMK"
     }

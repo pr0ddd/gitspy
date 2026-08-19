@@ -43,8 +43,16 @@ macOS, where signing and notarisation are mandatory for the updater.
 - [ ] Open the terminal dock; a shell comes up and reacts to input.
 - [ ] Windows only: the terminal opens PowerShell (or cmd) — if it does not,
       the terminal button is disabled with a note, not broken.
-- [ ] Start the previous version, let it find the update from `latest.json`,
-      restart into the new one.
+- [ ] The banner shows at start with the mark turning over the flowing history,
+      and the window appears drawn, never blank; the banner does not stutter.
+- [ ] Start the previous version: within a minute "Update to X" appears in the
+      bottom bar and nothing else happens. Click it — the window hides, the
+      banner shows the download, the app comes back in the new version. Windows:
+      no installer window at any point.
+- [ ] Start the previous version again, do not click, quit once the button has
+      appeared, start again: the banner installs the update by itself and the
+      new version opens.
+- [ ] Windows and Linux: closing the window quits the app.
 
 ## Publish
 

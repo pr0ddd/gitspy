@@ -21,7 +21,10 @@ problem is understood; releases with security fixes say so in the changelog.
   the OAuth code is exchanged by a
   [small relay](workers/oauth-relay/README.md) that stores nothing.
 - **Updates** downloaded from GitHub Releases and verified against the public
-  key compiled into the app before they are installed.
+  key compiled into the app before they are installed. Nothing installs on its
+  own: an update waits for your click in the bottom bar, or is installed at the
+  next launch once a check has seen it — that fact is the only thing written
+  down, a one-line `update-seen` file in the app data directory.
 - **A local model**, only if you configure one; the diff you staged is sent to
   the address you entered and nowhere else.
 

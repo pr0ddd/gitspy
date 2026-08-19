@@ -107,7 +107,7 @@ FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
-## npm packages shipped in the interface (234)
+## npm packages shipped in the interface (233)
 
 | Package | Version | Licence |
 | --- | --- | --- |
@@ -118,6 +118,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | @floating-ui/utils | 0.2.12 | MIT |
 | @fontsource-variable/geist | 5.3.0 | OFL-1.1 |
 | @fontsource-variable/geist-mono | 5.3.0 | OFL-1.1 |
+| @fontsource/black-ops-one | 5.3.0 | OFL-1.1 |
 | @jridgewell/gen-mapping | 0.3.13 | MIT |
 | @jridgewell/remapping | 2.3.5 | MIT |
 | @jridgewell/resolve-uri | 3.1.2 | MIT |
@@ -188,8 +189,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | @tailwindcss/vite | 4.3.3 | MIT |
 | @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT |
 | @tauri-apps/plugin-dialog | 2.7.2 | MIT OR Apache-2.0 |
-| @tauri-apps/plugin-process | 2.3.1 | MIT OR Apache-2.0 |
-| @tauri-apps/plugin-updater | 2.10.1 | MIT OR Apache-2.0 |
 | @types/debug | 4.1.13 | MIT |
 | @types/estree | 1.0.9 | MIT |
 | @types/estree-jsx | 1.0.5 | MIT |
@@ -346,7 +345,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | zustand | 5.0.14 | MIT |
 | zwitch | 2.0.4 | MIT |
 
-## Rust crates linked into the binary (536)
+## Rust crates linked into the binary (535)
 
 | Package | Version | Licence |
 | --- | --- | --- |
@@ -763,7 +762,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 | tauri-plugin-dialog | v2.7.2 | Apache-2.0 OR MIT |
 | tauri-plugin-fs | v2.5.1 | Apache-2.0 OR MIT |
 | tauri-plugin-opener | v2.5.4 | Apache-2.0 OR MIT |
-| tauri-plugin-process | v2.3.1 | Apache-2.0 OR MIT |
 | tauri-plugin-updater | v2.10.1 | Apache-2.0 OR MIT |
 | tauri-runtime | v2.11.3 | Apache-2.0 OR MIT |
 | tauri-runtime-wry | v2.11.4 | Apache-2.0 OR MIT |

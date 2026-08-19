@@ -1,4 +1,7 @@
 export type { AccountView } from './generated/AccountView';
+export type { AvailableUpdateView } from './generated/AvailableUpdateView';
+export type { BannerUpdateView } from './generated/BannerUpdateView';
+export type { UpdatePhase } from './generated/UpdatePhase';
 export type { CloneStepView } from './generated/CloneStepView';
 export type { TipView } from './generated/TipView';
 export type { PullView } from './generated/PullView';

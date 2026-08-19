@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "banner",
+  "description": "Permissions of the startup banner window",
+  "windows": ["banner"],
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
+}

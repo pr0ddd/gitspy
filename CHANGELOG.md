@@ -4,6 +4,37 @@ What changed in every released version of gitspy, written for the person using i
 Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
 app under "What's new" and is the text of the GitHub release.
 
+## 1.2.1 — 2026-08-19
+
+Updates that wait for you, and a banner while gitspy starts.
+
+### New
+
+- gitspy now opens with a small banner — the mark turning over your history —
+  and the window appears once it has drawn, so you never see it blank.
+- Updates no longer install themselves. When a newer version is out, a quiet
+  "Update to X" appears in the bottom bar and nothing happens until you click
+  it. The click hides the window, the banner shows "Updating to X" with the
+  download, and gitspy comes back updated. If you never click, the next launch
+  installs it behind the same banner.
+- Windows updates now run silently: no installer window, gitspy simply comes
+  back in the new version. On Linux, the AppImage updates in place; the .deb
+  and .rpm packages point you to the release page instead of asking for a
+  password.
+
+### Improvements
+
+- Starting gitspy never waits for the network: it checks for updates in the
+  background, ten seconds after opening and then once an hour.
+
+### Bug Fixes
+
+- Fixed an issue where gitspy on Windows closed itself, showed the installer
+  and reopened as soon as an update was found.
+- Fixed an issue where closing the window on Windows and Linux left gitspy
+  running with no way to bring it back. Closing the window now quits, as it
+  should; on macOS it still stays in the Dock.
+
 ## 1.2.0 — 2026-08-18
 
 One branch chip per commit that never gets cut, and toasts that say what happened.

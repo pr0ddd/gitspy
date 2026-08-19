@@ -4,6 +4,7 @@
 mod ai;
 mod autofetch;
 mod avatars;
+mod banner;
 mod clone;
 mod commands;
 mod events;
@@ -15,6 +16,7 @@ mod state;
 mod term;
 mod term_batch;
 mod terminal;
+mod updates;
 mod views;
 mod watcher;
 
@@ -23,9 +25,10 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
         .manage(state::AppState::default())
         .manage(hosts::Hosts::default())
+        .manage(banner::BannerState::default())
+        .manage(updates::Updates::default())
         .invoke_handler(tauri::generate_handler![
             commands::open_repo,
             commands::close_repo,
@@ -87,34 +90,39 @@ fn main() {
             term::term_input,
             term::term_resize,
             term::term_ack,
-            term::term_kill
+            term::term_kill,
+            banner::app_ready,
+            banner::banner_ready,
+            updates::available_update,
+            updates::install_update
         ])
         .setup(|app| {
+            banner::open_windows(app.handle())?;
+            updates::install_at_launch_when_marked(app.handle());
+            banner::reveal_main_when_the_frontend_stays_silent(app.handle().clone());
+            updates::watch_in_background(app.handle().clone());
             autofetch::start(app.handle().clone());
-            open_devtools_in_debug(app.handle());
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
-            }
-        })
+        .on_window_event(keep_running_behind_a_closed_window)
         .build(tauri::generate_context!())
         .expect("the app starts up")
         .run(show_window_on_reopen)
 }
 
-#[cfg(debug_assertions)]
-fn open_devtools_in_debug(app: &tauri::AppHandle) {
-    use tauri::Manager;
-    if let Some(window) = app.get_webview_window("main") {
-        window.open_devtools();
+#[cfg(target_os = "macos")]
+fn keep_running_behind_a_closed_window(window: &tauri::Window, event: &tauri::WindowEvent) {
+    if window.label() != banner::MAIN {
+        return;
+    }
+    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        api.prevent_close();
+        let _ = window.hide();
     }
 }
 
-#[cfg(not(debug_assertions))]
-fn open_devtools_in_debug(_app: &tauri::AppHandle) {}
+#[cfg(not(target_os = "macos"))]
+fn keep_running_behind_a_closed_window(_window: &tauri::Window, _event: &tauri::WindowEvent) {}
 
 #[cfg(target_os = "macos")]
 fn show_window_on_reopen(app: &tauri::AppHandle, event: tauri::RunEvent) {

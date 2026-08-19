@@ -10,7 +10,7 @@ import { useStartup } from './startup';
 
 import { useCommitSearch } from '@/features/search';
 import { panelFor } from '@/entities/repo';
-import { restartToUpdate, useReadyUpdate } from '@/features/updater';
+import { takeUpdate, useAvailableUpdate, useUpdateFailures } from '@/features/updater';
 import {
   copyText as copy,
   openExternalUrl as openUrl,
@@ -91,7 +91,8 @@ export default function App() {
   });
   const [railed, setRailed] = useState(() => readPref('sidebar.collapsed', false));
   const sidebarCollapsed = railed || main.kind !== 'graph';
-  const readyUpdate = useReadyUpdate();
+  const availableUpdate = useAvailableUpdate();
+  useUpdateFailures();
   const { zoom, setZoom } = useZoom();
   const toggleRail = useCallback(() => {
     if (main.kind !== 'graph') {
@@ -542,8 +543,8 @@ export default function App() {
         <BottomBar
           zoom={zoom}
           onZoom={setZoom}
-          ready={readyUpdate}
-          onRestart={() => void restartToUpdate()}
+          update={availableUpdate}
+          onUpdate={() => availableUpdate && void takeUpdate(availableUpdate)}
           onShortcuts={() => setHelpOpen(true)}
           onChangelog={() => tabs.open('changelog')}
         />

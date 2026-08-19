@@ -9,34 +9,29 @@ const draw = (bar: React.ReactElement) => render(<TooltipProvider>{bar}</Tooltip
 const quiet = {
   zoom: 1,
   onZoom: () => {},
-  ready: null,
-  onRestart: () => {},
+  update: null,
+  onUpdate: () => {},
   onShortcuts: () => {},
   onChangelog: () => {},
 };
 
 describe('bottom bar', () => {
-  it('shows the version and offers no restart while no update is ready', () => {
+  it('shows the version and offers no update while none is known', () => {
     draw(<BottomBar {...quiet} />);
     expect(
-      screen.queryByText(/Restart to update/),
-      'the button has nothing to offer until an update is downloaded',
+      screen.queryByText(/Update to/),
+      'the button has nothing to offer until a newer version has been seen',
     ).toBeNull();
     expect(screen.getByText(__APP_VERSION__)).toBeTruthy();
   });
 
-  it('offers a restart once an update is downloaded and runs it on click', () => {
-    const restart = vi.fn();
-    draw(<BottomBar {...quiet} ready="1.0.2" onRestart={restart} />);
-    const button = screen.getByText(/Restart to update/);
-    expect(button.textContent, 'the button names the version the restart is for').toContain(
-      '1.0.2',
-    );
+  it('offers the update once one is known and hands the click on', () => {
+    const take = vi.fn();
+    draw(<BottomBar {...quiet} update={{ version: '1.0.2', installable: true }} onUpdate={take} />);
+    const button = screen.getByText(/Update to/);
+    expect(button.textContent, 'the button names the version it offers').toContain('1.0.2');
     fireEvent.click(button);
-    expect(
-      restart,
-      'the click is the restart itself, there is no second step',
-    ).toHaveBeenCalledOnce();
+    expect(take, 'the click is the update itself, there is no second step').toHaveBeenCalledOnce();
   });
 
   it('the icon next to the version opens the changelog', () => {

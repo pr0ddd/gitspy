@@ -76,6 +76,31 @@ pub fn state_lock_failed() -> ErrorView {
     ErrorView::new("app.stateLock")
 }
 
+#[derive(Serialize, Clone, Copy, PartialEq, Eq, Debug, TS)]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
+#[serde(rename_all = "camelCase")]
+pub enum UpdatePhase {
+    Checking,
+    Downloading,
+    Installing,
+    Restarting,
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
+pub struct BannerUpdateView {
+    pub phase: UpdatePhase,
+    pub version: String,
+    pub percent: u8,
+}
+
+#[derive(Serialize, Clone, TS)]
+#[ts(export, export_to = "../../src/shared/api/generated/")]
+pub struct AvailableUpdateView {
+    pub version: String,
+    pub installable: bool,
+}
+
 #[derive(Serialize, Clone, TS)]
 #[ts(export, export_to = "../../src/shared/api/generated/")]
 #[serde(rename_all = "camelCase")]

@@ -28,4 +28,11 @@ export function useStartup(setRecent: (recent: RecentRepo[]) => void): void {
     document.addEventListener('contextmenu', suppressWebviewMenu);
     return () => document.removeEventListener('contextmenu', suppressWebviewMenu);
   }, []);
+
+  useEffect(() => {
+    const painted = requestAnimationFrame(() => {
+      void ipc.appReady().catch(() => undefined);
+    });
+    return () => cancelAnimationFrame(painted);
+  }, []);
 }

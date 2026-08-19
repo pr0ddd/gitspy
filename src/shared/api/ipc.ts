@@ -4,6 +4,8 @@ import { isNotOpen } from '@/shared/api/errors';
 import { EVENTS } from './generated/events';
 import type {
   AccountView,
+  AvailableUpdateView,
+  BannerUpdateView,
   CloneStepView,
   ConnectStartView,
   ConnectionView,
@@ -271,3 +273,20 @@ export const aiDetectServer = (baseUrl: string) =>
 
 export const aiGenerateCommit = (repo: string, baseUrl: string, model: string) =>
   invoke<CommitDraftView>('ai_generate_commit', { repo, baseUrl, model });
+
+export const appReady = () => invoke<void>('app_ready');
+
+export const bannerReady = () => invoke<void>('banner_ready');
+
+export const onBannerUpdate = (handler: (view: BannerUpdateView) => void) =>
+  listen<BannerUpdateView>(EVENTS.bannerUpdate, (event) => handler(event.payload));
+
+export const availableUpdate = () => invoke<AvailableUpdateView | null>('available_update');
+
+export const installUpdate = () => invoke<void>('install_update');
+
+export const onUpdateAvailable = (handler: (update: AvailableUpdateView | null) => void) =>
+  listen<AvailableUpdateView | null>(EVENTS.updateAvailable, (event) => handler(event.payload));
+
+export const onUpdateFailed = (handler: (error: ErrorView) => void) =>
+  listen<ErrorView>(EVENTS.updateFailed, (event) => handler(event.payload));

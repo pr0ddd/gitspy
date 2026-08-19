@@ -6,4 +6,7 @@ export const EVENTS = {
   hostConnected: 'host:connected',
   hostFailed: 'host:failed',
   avatarsChanged: 'avatars:changed',
+  bannerUpdate: 'banner:update',
+  updateAvailable: 'update:available',
+  updateFailed: 'update:failed',
 } as const;

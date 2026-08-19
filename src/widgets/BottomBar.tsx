@@ -11,17 +11,18 @@ import { Hint } from '@/shared/ui/tooltip';
 import { Icon } from '@/shared/ui/icons';
 import { chordLabel, onApple } from '@/shared/lib/keys';
 import { ZOOM_STEPS, zoomIn, zoomLabel, zoomOut } from '@/shared/lib/zoom';
+import type { AvailableUpdateView } from '@/shared/api/types';
 
 type Props = {
   zoom: number;
   onZoom: (zoom: number) => void;
-  ready: string | null;
-  onRestart: () => void;
+  update: AvailableUpdateView | null;
+  onUpdate: () => void;
   onShortcuts: () => void;
   onChangelog: () => void;
 };
 
-export function BottomBar({ zoom, onZoom, ready, onRestart, onShortcuts, onChangelog }: Props) {
+export function BottomBar({ zoom, onZoom, update, onUpdate, onShortcuts, onChangelog }: Props) {
   const { t } = useTranslation();
   const shortcutsHint = `${t('shortcuts.title')} (${chordLabel({ key: '/', primary: true }, onApple())})`;
   return (
@@ -91,10 +92,10 @@ export function BottomBar({ zoom, onZoom, ready, onRestart, onShortcuts, onChang
         </Button>
       </span>
 
-      {ready ? (
-        <Button variant="muted" size="2xs" onClick={onRestart}>
+      {update ? (
+        <Button variant="quiet" size="2xs" onClick={onUpdate}>
           <Icon.update className="size-3" />
-          {t('update.restart', { version: ready })}
+          {t('update.available', { version: update.version })}
         </Button>
       ) : null}
       <span className="text-muted-foreground text-2xs tabular-nums">{__APP_VERSION__}</span>

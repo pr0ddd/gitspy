@@ -392,6 +392,7 @@
   --radius-lg: calc(var(--radius) + 4px);
 
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Black Ops One', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --text-2xs: 0.6875rem;
@@ -412,9 +413,50 @@
   --animate-hero-float: hero-float 10s ease-in-out infinite;
   --animate-hero-bob: hero-bob 5s ease-in-out infinite;
   --animate-hero-dash: hero-dash 7s linear infinite;
+  --animate-orbit: orbit 56s linear infinite;
+  --animate-orbit-back: orbit-back 36s linear infinite;
+  --animate-breathe: breathe 3.2s ease-in-out infinite;
+  --animate-flow: flow 48s linear infinite;
 
   --spacing-row: var(--row-height);
   --spacing-bar: var(--bar-height);
+}
+
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-back {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes flow {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 @keyframes hero-float {

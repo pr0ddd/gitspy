@@ -1,34 +1,53 @@
 import { useEffect, useState } from 'react';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import * as ipc from '@/shared/api/ipc';
+import { notifyError } from '@/shared/ui/toast';
+import type { AvailableUpdateView } from '@/shared/api/types';
 
-export async function fetchReadyUpdate(): Promise<string | null> {
-  const update = await check();
-  if (!update) return null;
-  await update.downloadAndInstall();
-  return update.version;
-}
+export const RELEASES_URL = 'https://github.com/pr0ddd/gitspy/releases/latest';
 
-export const restartToUpdate = (): Promise<void> => relaunch();
+const forcedForDevelopment = (): AvailableUpdateView | null => {
+  const version = import.meta.env.VITE_UPDATE as string | undefined;
+  return version ? { version, installable: true } : null;
+};
 
-const CHECK_EVERY_MS = 60 * 60 * 1000;
-
-export function useReadyUpdate(): string | null {
-  const [ready, setReady] = useState<string | null>(null);
+export function useAvailableUpdate(): AvailableUpdateView | null {
+  const [update, setUpdate] = useState<AvailableUpdateView | null>(forcedForDevelopment);
 
   useEffect(() => {
+    if (forcedForDevelopment()) return;
     let stopped = false;
-    const poll = () =>
-      fetchReadyUpdate()
-        .then((version) => !stopped && version && setReady(version))
-        .catch(() => {});
-    void poll();
-    const timer = setInterval(poll, CHECK_EVERY_MS);
+    let heard = false;
+    ipc
+      .availableUpdate()
+      .then((found) => !stopped && !heard && setUpdate(found))
+      .catch(() => undefined);
+    const stop = ipc.onUpdateAvailable((found) => {
+      heard = true;
+      if (!stopped) setUpdate(found);
+    });
     return () => {
       stopped = true;
-      clearInterval(timer);
+      void stop.then((off) => off()).catch(() => undefined);
     };
   }, []);
 
-  return ready;
+  return update;
+}
+
+export function useUpdateFailures(): void {
+  useEffect(() => {
+    const stop = ipc.onUpdateFailed(notifyError);
+    return () => {
+      void stop.then((off) => off()).catch(() => undefined);
+    };
+  }, []);
+}
+
+export async function takeUpdate(update: AvailableUpdateView): Promise<void> {
+  try {
+    if (update.installable) await ipc.installUpdate();
+    else await ipc.openUrl(RELEASES_URL);
+  } catch (error) {
+    notifyError(error);
+  }
 }
