@@ -178,10 +178,11 @@ export function drawHoveredChip(ctx: CanvasRenderingContext2D, frame: Frame): vo
   ctx.fillStyle = laneColourAlpha(lane, STACK_TINT);
   roundRect(ctx, panelLeft, y - chipH / 2 - STACK_PAD, panelW, panelH, 6);
   ctx.fill();
+  const widest = stackWidth(stack);
   stack.forEach((row, i) => {
     drawChip(
       ctx,
-      row,
+      { ...row, w: widest },
       y + i * (chipH + STACK_GAP),
       chipH,
       chipM,

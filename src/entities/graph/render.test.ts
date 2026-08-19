@@ -54,11 +54,13 @@ const tracedStrokes: { xs: number[]; ys: number[] }[] = [];
 let tracing: { xs: number[]; ys: number[] } = { xs: [], ys: [] };
 let lastTranslateX = 0;
 
+let measureText = (_text: string) => ({ width: 40 });
+
 const context = () =>
   new Proxy(
     {
       canvas: { width: 0, height: 0 },
-      measureText: () => ({ width: 40 }),
+      measureText: (text: string) => measureText(text),
       createLinearGradient: () => ({ addColorStop: () => {} }),
       getContext: () => null,
       translate: (x: number) => {
@@ -741,6 +743,38 @@ describe('badges on chips', () => {
     });
     const shown = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
     expect(shown.length).toBeGreaterThan(0);
+  });
+
+  it('every row of the unfolded stack is as wide as the widest, so a short first chip leaves no step', () => {
+    measureText = (text) => ({ width: text.length * 8 });
+    try {
+      const painted = paint(
+        [
+          ref('main', 'localBranch', { isHead: true }),
+          ref('a-much-longer-branch-name', 'localBranch'),
+        ],
+        null,
+        new Set(),
+        { row: 0, at: 0, reach: 'branch' },
+      );
+      const chipRects = painted.tracedFills
+        .map((f) => ({ left: Math.min(...f.xs), right: Math.max(...f.xs), top: Math.min(...f.ys) }))
+        .filter((r) => r.right - r.left > 20 && r.right - r.left < 400)
+        .sort((a, b) => a.top - b.top);
+      const panelTop = Math.min(...chipRects.map((r) => r.top));
+      const chipLeft = Math.min(...chipRects.map((r) => r.left));
+      const atTop = chipRects
+        .filter((r) => r.top === panelTop && r.left === chipLeft)
+        .map((r) => Math.round(r.right - r.left));
+      const panelW = Math.max(...atTop);
+      const afterPanel = atTop.slice(atTop.indexOf(panelW));
+      expect(
+        afterPanel.every((w) => w === panelW),
+        'once the panel is down, the short first chip is painted as wide as the panel, not as a narrower block on top of it',
+      ).toBe(true);
+    } finally {
+      measureText = () => ({ width: 40 });
+    }
   });
 
   it('while the stack is unfolded the +N counter is not drawn on the row', () => {
