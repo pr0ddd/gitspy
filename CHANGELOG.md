@@ -4,6 +4,26 @@ What changed in every released version of gitspy, written for the person using i
 Each heading is `## <version> — <YYYY-MM-DD>`; the section under it is shown in the
 app under "What's new" and is the text of the GitHub release.
 
+## 1.2.2 — 2026-08-20
+
+Hover a branch and see what belongs to it.
+
+### New
+
+- Rest the pointer on a branch chip and after a moment the commits of other
+  branches fade back, leaving the hovered branch's history lit. Each row fades
+  on its own, so moving between neighbouring branches only shifts the
+  difference; a tag highlights just its commit. Move the pointer away and
+  everything returns.
+
+### Bug Fixes
+
+- Fixed an issue where the banner on Windows opened as a white rectangle,
+  then a transparent one with a thin border, and only then as the banner. It
+  now appears once, already drawn.
+- Fixed an issue where the first chip of an unfolded branch stack kept its own
+  width and sat on the panel as a narrower block with a step on its right.
+
 ## 1.2.1 — 2026-08-19
 
 Updates that wait for you, and a banner while gitspy starts.
