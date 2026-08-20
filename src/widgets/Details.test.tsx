@@ -24,6 +24,7 @@ const commitRow = (
   lane: 0,
   colour: 0,
   node: 0,
+  owner: null,
   hash,
   author: 'Ada',
   email: 'ada@example.com',

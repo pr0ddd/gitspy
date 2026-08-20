@@ -50,6 +50,7 @@ const emptyFrame = (metrics: Metrics, rows: RowCache, columns: Frame['columns'])
   cols: layoutColumns(listWidth(0), {}),
   pullHeads: new Set(),
   hoverChip: null,
+  veil: null,
   refsByCommit: new Map(),
   minimap: null,
   metrics,
@@ -180,6 +181,7 @@ export function useGraphFrame({
       scrollX: sameRepo ? f.scrollX : 0,
       hover: sameRepo ? f.hover : null,
       hoverChip: sameRepo ? f.hoverChip : null,
+      veil: sameRepo ? f.veil : null,
     };
     patch({ scrollY: clampScroll(frameRef.current.scrollY) });
   }, [session, rows, avatars, columns, redraw, pullHeads, patch, clampScroll]);

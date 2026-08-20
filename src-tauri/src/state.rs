@@ -38,6 +38,7 @@ pub struct OpenRepo {
     pub path: PathBuf,
     pub history: History,
     pub skeleton: Skeleton,
+    pub owners: Vec<Option<u32>>,
     pub view: RepoView,
 }
 
@@ -196,6 +197,7 @@ mod tests {
         );
         OpenRepo {
             path: PathBuf::from("/r"),
+            owners: vec![None; history.topology.len()],
             history,
             skeleton,
             view,

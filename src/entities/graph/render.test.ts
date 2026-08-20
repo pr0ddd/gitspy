@@ -1,5 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { drawFrame, METRICS_AVATARS, METRICS_COMPACT, type Frame } from './index';
+import {
+  drawFrame,
+  METRICS_AVATARS,
+  METRICS_COMPACT,
+  rowIsDimmed,
+  type Frame,
+  type HoverChip,
+} from './index';
 import { FLOORS, layoutColumns } from './columns';
 import { GRAPH_INSET, listWidth, rowBandHeight } from './scene';
 import { RowCache } from './rows';
@@ -36,7 +43,8 @@ const texts: string[] = [];
 const placedTexts: { text: string; x: number; y: number }[] = [];
 const strokedGlyphs: { d: string; x: number }[] = [];
 const drawnImages: { image: unknown; x: number }[] = [];
-const filledRects: { x: number; y: number; w: number; h: number; style: string }[] = [];
+const filledRects: { x: number; y: number; w: number; h: number; style: string; alpha: number }[] =
+  [];
 const strokedPaths: { op: string; x: number; y: number }[][] = [];
 const arcs: { x: number; y: number; r: number }[] = [];
 const corners: number[] = [];
@@ -46,11 +54,13 @@ const tracedStrokes: { xs: number[]; ys: number[] }[] = [];
 let tracing: { xs: number[]; ys: number[] } = { xs: [], ys: [] };
 let lastTranslateX = 0;
 
+let measureText = (_text: string) => ({ width: 40 });
+
 const context = () =>
   new Proxy(
     {
       canvas: { width: 0, height: 0 },
-      measureText: () => ({ width: 40 }),
+      measureText: (text: string) => measureText(text),
       createLinearGradient: () => ({ addColorStop: () => {} }),
       getContext: () => null,
       translate: (x: number) => {
@@ -83,6 +93,7 @@ const context = () =>
               w: Number(args[2]),
               h: Number(args[3]),
               style: String(target.fillStyle ?? ''),
+              alpha: Number(target.globalAlpha ?? 1),
             });
           }
           if (key === 'arc') {
@@ -166,6 +177,7 @@ const window_ = (): WindowView => ({
     lane: 0,
     colour: 0,
     node: 0,
+    owner: 0,
     hash: `${index}`.repeat(7),
     author: 'pr0d',
     email: 'p@example.com',
@@ -194,6 +206,7 @@ const withWorkingTreeRow = (window: WindowView, over?: WipOver): WindowView => (
       lane: 0,
       colour: 0,
       node: 0,
+      owner: null,
       added: 7,
       modified: 29,
       deleted: 3,
@@ -215,7 +228,7 @@ const frameWith = (
   refs: RefView[],
   avatars: AvatarCache | null = null,
   pullHeads: ReadonlySet<string> = new Set(),
-  hoverChip: { row: number; at: number | 'more' } | null = null,
+  hoverChip: HoverChip | null = null,
   workingTree: boolean | WipOver = false,
 ): Frame => {
   const rows = new RowCache();
@@ -233,6 +246,7 @@ const frameWith = (
     rows,
     pullHeads,
     hoverChip,
+    veil: null,
     columns: {
       branchTag: 'branch / tag',
       graph: 'graph',
@@ -262,7 +276,7 @@ const paint = (
   refs: RefView[],
   avatars: AvatarCache | null = null,
   pullHeads: ReadonlySet<string> = new Set(),
-  hoverChip: { row: number; at: number | 'more' } | null = null,
+  hoverChip: HoverChip | null = null,
   workingTree: boolean | WipOver = false,
 ) => {
   calls.length = 0;
@@ -714,7 +728,7 @@ describe('badges on chips', () => {
       ],
       null,
       new Set(),
-      { row: 0, at: 0 },
+      { row: 0, at: 0, reach: 'branch' },
     );
 
     const two = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-two');
@@ -725,9 +739,42 @@ describe('badges on chips', () => {
     const painted = paint([ref('very-long-branch-name-one', 'localBranch')], null, new Set(), {
       row: 0,
       at: 0,
+      reach: 'branch',
     });
     const shown = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
     expect(shown.length).toBeGreaterThan(0);
+  });
+
+  it('every row of the unfolded stack is as wide as the widest, so a short first chip leaves no step', () => {
+    measureText = (text) => ({ width: text.length * 8 });
+    try {
+      const painted = paint(
+        [
+          ref('main', 'localBranch', { isHead: true }),
+          ref('a-much-longer-branch-name', 'localBranch'),
+        ],
+        null,
+        new Set(),
+        { row: 0, at: 0, reach: 'branch' },
+      );
+      const chipRects = painted.tracedFills
+        .map((f) => ({ left: Math.min(...f.xs), right: Math.max(...f.xs), top: Math.min(...f.ys) }))
+        .filter((r) => r.right - r.left > 20 && r.right - r.left < 400)
+        .sort((a, b) => a.top - b.top);
+      const panelTop = Math.min(...chipRects.map((r) => r.top));
+      const chipLeft = Math.min(...chipRects.map((r) => r.left));
+      const atTop = chipRects
+        .filter((r) => r.top === panelTop && r.left === chipLeft)
+        .map((r) => Math.round(r.right - r.left));
+      const panelW = Math.max(...atTop);
+      const afterPanel = atTop.slice(atTop.indexOf(panelW));
+      expect(
+        afterPanel.every((w) => w === panelW),
+        'once the panel is down, the short first chip is painted as wide as the panel, not as a narrower block on top of it',
+      ).toBe(true);
+    } finally {
+      measureText = () => ({ width: 40 });
+    }
   });
 
   it('while the stack is unfolded the +N counter is not drawn on the row', () => {
@@ -737,8 +784,12 @@ describe('badges on chips', () => {
       ref('very-long-branch-name-three', 'localBranch'),
     ];
     expect(paint(refs).texts).toContain('+2');
-    expect(paint(refs, null, new Set(), { row: 0, at: 0 }).texts).not.toContain('+2');
-    expect(paint(refs, null, new Set(), { row: 0, at: 'more' }).texts).not.toContain('+2');
+    expect(paint(refs, null, new Set(), { row: 0, at: 0, reach: 'branch' }).texts).not.toContain(
+      '+2',
+    );
+    expect(
+      paint(refs, null, new Set(), { row: 0, at: 'more', reach: 'branch' }).texts,
+    ).not.toContain('+2');
   });
 
   it('hovering the counter unfolds every chip into a stack', () => {
@@ -750,7 +801,7 @@ describe('badges on chips', () => {
       ],
       null,
       new Set(),
-      { row: 0, at: 'more' },
+      { row: 0, at: 'more', reach: 'branch' },
     );
 
     const one = painted.placedTexts.filter((t) => t.text === 'very-long-branch-name-one');
@@ -769,7 +820,7 @@ describe('badges on chips', () => {
       ref('very-long-branch-name-two', 'localBranch'),
       ref('very-long-branch-name-three', 'localBranch'),
     ];
-    const leadersAtRow0 = (hoverChip: { row: number; at: number | 'more' } | null) => {
+    const leadersAtRow0 = (hoverChip: HoverChip | null) => {
       const painted = paint(refs, null, new Set(), hoverChip);
       const rowY = painted.placedTexts.find((t) => t.text === 'very-long-branch-name-one')!.y;
       return painted.tracedStrokes.filter(
@@ -778,14 +829,19 @@ describe('badges on chips', () => {
     };
 
     expect(leadersAtRow0(null).length, 'a folded row draws its own leader').toBe(1);
-    expect(leadersAtRow0({ row: 0, at: 0 }).length, 'unfolded: the panel draws the only one').toBe(
-      1,
-    );
-    expect(leadersAtRow0({ row: 0, at: 'more' }).length).toBe(1);
+    expect(
+      leadersAtRow0({ row: 0, at: 0, reach: 'branch' }).length,
+      'unfolded: the panel draws the only one',
+    ).toBe(1);
+    expect(leadersAtRow0({ row: 0, at: 'more', reach: 'branch' }).length).toBe(1);
   });
 
   it('a hovered chip unfolds and is drawn on top of everything else', () => {
-    const painted = paint([ref('wip', 'localBranch')], null, new Set(), { row: 0, at: 0 });
+    const painted = paint([ref('wip', 'localBranch')], null, new Set(), {
+      row: 0,
+      at: 0,
+      reach: 'branch',
+    });
 
     const last = painted.placedTexts[painted.placedTexts.length - 1];
     expect(last.text, 'the unfolded chip is painted last, which is to say on top').toBe('wip');
@@ -886,5 +942,69 @@ describe('the commit description in the graph', () => {
       'a disabled description is not drawn even when there is room',
     ).toBe(false);
     localStorage.removeItem('gitspy.graph.description');
+  });
+});
+
+describe('rows dimmed under a hovered ref', () => {
+  const owned = (owners: (number | null)[]) => {
+    const window = window_();
+    return { ...window, rows: window.rows.map((row, i) => ({ ...row, owner: owners[i] })) };
+  };
+
+  const dims = (hoverChip: HoverChip | null, owners: (number | null)[], level = 1) => {
+    const veil = new Map<number, number>();
+    if (hoverChip) {
+      owners.forEach((owner, row) => {
+        if (rowIsDimmed(hoverChip, row, owner)) veil.set(row, level);
+      });
+    }
+    const frame = {
+      ...frameWith([ref('main', 'localBranch')], null, new Set(), hoverChip),
+      veil: veil.size > 0 ? veil : null,
+    };
+    frame.rows.put(0, owned(owners));
+    filledRects.length = 0;
+    drawFrame(canvas(), frame);
+    const cols = frame.cols;
+    return filledRects
+      .filter(
+        (rect) =>
+          rect.alpha < 1 &&
+          rect.x === cols.message.left &&
+          rect.h === METRICS_AVATARS.rowH &&
+          rect.y >= 32,
+      )
+      .map((rect) => ({
+        row: Math.round((rect.y - 32) / METRICS_AVATARS.rowH),
+        width: rect.w,
+        alpha: rect.alpha,
+      }));
+  };
+
+  it('hovering a branch chip dims the message columns of the rows another branch owns', () => {
+    const dimmed = dims({ row: 0, at: 0, reach: 'branch' }, [0, 0, 2]);
+    expect(
+      dimmed.map((d) => d.row),
+      'rows 0 and 1 belong to the hovered tip, row 2 does not',
+    ).toEqual([2]);
+    expect(
+      dimmed[0]?.width,
+      'the veil runs from the message column to the edge of the list, leaving chips and the graph lit',
+    ).toBe(listWidth(1200, false) - layoutColumns(1200, {}).message.left);
+  });
+
+  it('hovering a tag keeps only its own row lit', () => {
+    expect(dims({ row: 0, at: 0, reach: 'commit' }, [0, 0, 0]).map((d) => d.row)).toEqual([1, 2]);
+  });
+
+  it('nothing is dimmed while no chip is hovered', () => {
+    expect(dims(null, [0, 0, 2])).toEqual([]);
+  });
+
+  it('the veil is as strong as its level, so each row can fade in and out on its own', () => {
+    const half = dims({ row: 0, at: 0, reach: 'branch' }, [0, 0, 2], 0.5)[0]?.alpha ?? 0;
+    const full = dims({ row: 0, at: 0, reach: 'branch' }, [0, 0, 2], 1)[0]?.alpha ?? 0;
+    expect(half, 'half way through the fade the veil is half as strong').toBeCloseTo(full / 2, 5);
+    expect(dims({ row: 0, at: 0, reach: 'branch' }, [0, 0, 2], 0)).toEqual([]);
   });
 });

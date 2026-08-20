@@ -13,6 +13,7 @@ import type { Operation, RefView } from '@/shared/api/types';
 import { useChipHit } from './useChipHit';
 import { useGraphFrame } from './useGraphFrame';
 import { useGraphMenus } from './useGraphMenus';
+import { useHoverVeil } from './useHoverVeil';
 import { useGraphPointer, type HoverNode } from './useGraphPointer';
 import { useGraphWheel } from './useGraphWheel';
 
@@ -121,7 +122,8 @@ export const GraphView = memo(function GraphView({
     onWorktree,
     onOpenUrl,
   });
-  useGraphPointer(surface, chipHitAt, { onSelect, onCheckoutRef, setHoverNode });
+  const veil = useHoverVeil(surface);
+  useGraphPointer(surface, chipHitAt, veil, { onSelect, onCheckoutRef, setHoverNode });
 
   return (
     <div

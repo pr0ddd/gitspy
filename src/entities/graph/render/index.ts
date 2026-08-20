@@ -10,7 +10,15 @@ import {
   visibleRange,
 } from '../scene';
 import { drawLaneBands, drawLaneCaps, drawRowHighlights } from './bands';
-import { chipMetricsFor, drawHoveredChip, drawRefRows, type HoverChip } from './chips';
+import {
+  chipMetricsFor,
+  drawHoveredChip,
+  drawRefRows,
+  sameChip,
+  type HoverChip,
+  type HoverReach,
+} from './chips';
+import { drawDimmedRows } from './dims';
 import { drawEdges, drawEdgeShades } from './edges';
 import type { Columns, DescriptionMode, Frame, Pass } from './frame';
 import { drawHeader } from './header';
@@ -19,8 +27,8 @@ import { drawMinimap } from './minimap';
 import { drawNodes } from './nodes';
 import { drawHScroll, drawVScroll } from './scrollbars';
 
-export { chipMetricsFor };
-export type { Columns, DescriptionMode, Frame, HoverChip };
+export { chipMetricsFor, sameChip };
+export type { Columns, DescriptionMode, Frame, HoverChip, HoverReach };
 
 export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
   const { repo, metrics: m, scrollY, scrollX } = frame;
@@ -96,6 +104,7 @@ export function drawFrame(canvas: HTMLCanvasElement, frame: Frame): void {
 
     drawRefRows(pass);
     drawMessages(pass);
+    drawDimmedRows(pass);
 
     ctx.restore();
     drawHScroll(ctx, frame, g.gLeft, g.gRight);

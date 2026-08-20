@@ -10,6 +10,7 @@ const wip = (over: Partial<WipRow> = {}): WipRow => ({
   lane: 0,
   colour: 0,
   node: 0,
+  owner: null,
   added: 1,
   modified: 2,
   deleted: 0,

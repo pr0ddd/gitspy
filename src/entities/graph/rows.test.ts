@@ -8,6 +8,7 @@ const row = (index: number): RowView => ({
   lane: index % 4,
   colour: index % 12,
   node: 0,
+  owner: null,
   hash: `hash-${index}`,
   author: 'pr0d',
   email: 'pr0d@example.com',

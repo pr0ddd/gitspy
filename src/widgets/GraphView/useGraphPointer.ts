@@ -11,9 +11,11 @@ import {
   pointerTarget,
   reset,
   resized,
+  sameChip,
   saveWidths,
   type Frame,
   type HoverChip,
+  type HoverReach,
   type NodeHit,
   type PointerScene,
 } from '@/entities/graph';
@@ -37,6 +39,7 @@ export function useGraphPointer(
     reflow,
   }: GraphSurface,
   chipHitAt: (x: number, y: number) => ChipHit | null,
+  veil: (chip: HoverChip | null) => void,
   {
     onSelect,
     onCheckoutRef,
@@ -98,8 +101,8 @@ export function useGraphPointer(
       count: f.repo?.count ?? 0,
     });
 
-    const sameChip = (a: HoverChip | null, b: HoverChip | null) =>
-      a === b || (a !== null && b !== null && a.row === b.row && a.at === b.at);
+    const reachOf = (hit: ChipHit): HoverReach =>
+      hit.chip && (hit.chip.kind === 'tag' || hit.chip.kind === 'stash') ? 'commit' : 'branch';
 
     const onMove = (e: MouseEvent) => {
       const { x, y } = local(e);
@@ -112,9 +115,10 @@ export function useGraphPointer(
       const hit = chipHitAt(x, y);
       host.style.cursor = hit ? 'pointer' : target.kind === 'divider' ? 'col-resize' : '';
       const index = hoveredRow(hit, target);
-      const hovered = hit ? { row: hit.row, at: hit.at } : null;
+      const hovered = hit ? { row: hit.row, at: hit.at, reach: reachOf(hit) } : null;
       if (index !== f.hover || !sameChip(hovered, f.hoverChip)) {
         patch({ hover: index, hoverChip: hovered });
+        veil(hovered);
       }
       showAuthorsUnder(x, y, f);
     };
@@ -178,6 +182,7 @@ export function useGraphPointer(
     };
     const onLeave = () => {
       patch({ hover: null, hoverChip: null });
+      veil(null);
       setHoverNode(null);
     };
 
@@ -223,6 +228,7 @@ export function useGraphPointer(
     onSelect,
     onCheckoutRef,
     chipHitAt,
+    veil,
     reflow,
     setHoverNode,
   ]);
