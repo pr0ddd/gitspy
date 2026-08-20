@@ -78,19 +78,33 @@ pub fn open_windows(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn open_banner(app: &tauri::AppHandle) -> tauri::Result<()> {
-    tauri::WebviewWindowBuilder::new(app, BANNER, tauri::WebviewUrl::App("banner.html".into()))
-        .title(app.package_info().name.clone())
-        .inner_size(260.0, 460.0)
-        .decorations(false)
-        .transparent(true)
-        .resizable(false)
-        .center()
-        .skip_taskbar(true)
-        .shadow(true)
-        .focused(true)
-        .visible(true)
-        .build()?;
+    banner_shadow(
+        tauri::WebviewWindowBuilder::new(app, BANNER, tauri::WebviewUrl::App("banner.html".into()))
+            .title(app.package_info().name.clone())
+            .inner_size(260.0, 460.0)
+            .decorations(false)
+            .transparent(true)
+            .resizable(false)
+            .center()
+            .skip_taskbar(true)
+            .visible(false),
+    )
+    .build()?;
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn banner_shadow<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+) -> tauri::WebviewWindowBuilder<'a, R, M> {
+    builder.shadow(true)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn banner_shadow<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+) -> tauri::WebviewWindowBuilder<'a, R, M> {
+    builder.shadow(false)
 }
 
 pub fn show_banner_for_update(app: &tauri::AppHandle) -> Result<(), ErrorView> {
@@ -168,6 +182,10 @@ pub fn app_ready(app: tauri::AppHandle) {
 
 #[tauri::command]
 pub fn banner_ready(app: tauri::AppHandle) {
+    if let Some(banner) = app.get_webview_window(BANNER) {
+        let _ = banner.show();
+        let _ = banner.set_focus();
+    }
     updates::replay_banner(&app);
     tauri::async_runtime::spawn_blocking(move || {
         std::thread::sleep(BANNER_DWELL);
